@@ -1,10 +1,9 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { usePathname, useRouter } from "next/navigation"
-import Link from "next/link"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   BarChart3,
   Calendar,
@@ -15,9 +14,9 @@ import {
   LogOut,
   Settings,
   User,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,27 +24,32 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import ConnectWalletButton from "@/components/ui/connectWalletButton";
+import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const [isMounted, setIsMounted] = useState(false)
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [walletName, setWalletName] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   // Prevent hydration errors
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    setIsMounted(true);
+  }, []);
 
   const handleLogout = () => {
-    // In a real app, you would handle logout logic here
-    router.push("/login")
-  }
+    router.push("/login");
+  };
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -55,11 +59,24 @@ export default function DashboardLayout({
     { name: "Financial Overview", href: "/finances", icon: CreditCard },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
     { name: "Settings", href: "/settings", icon: Settings },
-  ]
+  ];
 
   if (!isMounted) {
-    return null
+    return null;
   }
+
+  const handleWalletConnect = (name: string, address: string) => {
+    setIsConnected(true);
+    setWalletName(name);
+    setWalletAddress(address);
+    setIsWalletModalOpen(false);
+  };
+
+  const handleWalletDisconnect = () => {
+    setIsConnected(false);
+    setWalletName(null);
+    setWalletAddress(null);
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -90,34 +107,51 @@ export default function DashboardLayout({
           <SheetContent side="left" className="w-64 sm:max-w-sm">
             <nav className="grid gap-2 text-lg font-medium">
               {navigation.map((item) => {
-                const isActive = pathname === item.href
+                const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.name}
                     href={item.href}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-                      isActive ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
                     }`}
                   >
                     <item.icon className="h-5 w-5" />
                     {item.name}
                   </Link>
-                )
+                );
               })}
             </nav>
           </SheetContent>
         </Sheet>
         <div className="flex items-center gap-2">
-          <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-            <span className="hidden md:inline-block">Prediction Platform Admin</span>
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 font-semibold"
+          >
+            <span className="hidden md:inline-block">
+              Prediction Platform Admin
+            </span>
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end gap-4">
+          <ConnectWalletButton
+            isConnected={isConnected}
+            walletName={walletName}
+            walletAddress={walletAddress}
+            onConnectClick={() => setIsWalletModalOpen(true)}
+            onOpenModal={() => setIsWalletModalOpen(true)}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt="Avatar" />
+                  <AvatarImage
+                    src="/placeholder.svg?height=32&width=32"
+                    alt="Avatar"
+                  />
                   <AvatarFallback>AD</AvatarFallback>
                 </Avatar>
               </Button>
@@ -146,30 +180,39 @@ export default function DashboardLayout({
           </DropdownMenu>
         </div>
       </header>
+
+      <ConnectWalletModal
+        isOpen={isWalletModalOpen}
+        onOpenChange={setIsWalletModalOpen}
+        onWalletConnect={handleWalletConnect}
+        onWalletDisconnect={handleWalletDisconnect}
+      />
+
       <div className="flex flex-1">
         {/* Sidebar for desktop */}
         <aside className="hidden w-64 flex-col border-r bg-muted/40 md:flex">
           <nav className="grid gap-2 p-4 text-sm font-medium">
             {navigation.map((item) => {
-              const isActive = pathname === item.href
+              const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-                    isActive ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
                   }`}
                 >
                   <item.icon className="h-5 w-5" />
                   {item.name}
                 </Link>
-              )
+              );
             })}
           </nav>
         </aside>
         <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
-  )
+  );
 }
-
