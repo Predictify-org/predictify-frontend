@@ -1,10 +1,19 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Calendar, ChevronDown, Edit, Filter, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useState } from "react";
+import Link from "next/link";
+import {
+  Calendar,
+  ChevronDown,
+  Edit,
+  Filter,
+  MoreHorizontal,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,10 +21,23 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +46,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +57,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
 // Mock data for prediction events
 const events = [
@@ -63,7 +85,12 @@ const events = [
     category: "Entertainment",
     status: "completed",
     deadline: "2024-03-10",
-    options: ["Oppenheimer", "Barbie", "Poor Things", "Killers of the Flower Moon"],
+    options: [
+      "Oppenheimer",
+      "Barbie",
+      "Poor Things",
+      "Killers of the Flower Moon",
+    ],
     participants: 2341,
   },
   {
@@ -84,45 +111,59 @@ const events = [
     options: ["September 2024", "October 2024", "Later"],
     participants: 654,
   },
-]
+];
 
 export default function EventsPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [categoryFilter, setCategoryFilter] = useState("all")
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   // Filter events based on search query and filters
   const filteredEvents = events.filter((event) => {
-    const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === "all" || event.status === statusFilter
-    const matchesCategory = categoryFilter === "all" || event.category === categoryFilter
+    const matchesSearch = event.title
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || event.status === statusFilter;
+    const matchesCategory =
+      categoryFilter === "all" || event.category === categoryFilter;
 
-    return matchesSearch && matchesStatus && matchesCategory
-  })
+    return matchesSearch && matchesStatus && matchesCategory;
+  });
 
   const getStatusBadge = (status) => {
     switch (status) {
       case "active":
-        return <Badge className="bg-green-500">Active</Badge>
+        return <Badge className="bg-green-500">Active</Badge>;
       case "completed":
-        return <Badge className="bg-blue-500">Completed</Badge>
+        return <Badge className="bg-blue-500">Completed</Badge>;
       case "pending":
-        return <Badge className="bg-amber-500">Pending</Badge>
+        return <Badge className="bg-amber-500">Pending</Badge>;
       default:
-        return <Badge>{status}</Badge>
+        return <Badge>{status}</Badge>;
     }
-  }
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Prediction Events</h1>
-        <Button asChild>
-          <Link href="/events/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Create New Event
-          </Link>
-        </Button>
+
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/events/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Create New Event
+            </Link>
+          </Button>
+
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/events/event-page">
+              <Plus className="mr-2 h-4 w-4" />
+              Place Bet
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -188,7 +229,9 @@ export default function EventsPage() {
                 <TableCell className="font-medium">{event.title}</TableCell>
                 <TableCell>{event.category}</TableCell>
                 <TableCell>{getStatusBadge(event.status)}</TableCell>
-                <TableCell>{new Date(event.deadline).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {new Date(event.deadline).toLocaleDateString()}
+                </TableCell>
                 <TableCell>{event.participants.toLocaleString()}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -215,7 +258,9 @@ export default function EventsPage() {
                       </DropdownMenuItem>
                       <Dialog>
                         <DialogTrigger asChild>
-                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                          <DropdownMenuItem
+                            onSelect={(e) => e.preventDefault()}
+                          >
                             <Calendar className="mr-2 h-4 w-4" />
                             Manage Options
                           </DropdownMenuItem>
@@ -224,14 +269,18 @@ export default function EventsPage() {
                           <DialogHeader>
                             <DialogTitle>Prediction Options</DialogTitle>
                             <DialogDescription>
-                              View and manage the options for this prediction event.
+                              View and manage the options for this prediction
+                              event.
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
                             <h4 className="font-medium">Current Options:</h4>
                             <ul className="space-y-2">
                               {event.options.map((option, index) => (
-                                <li key={index} className="flex items-center justify-between rounded-md border p-2">
+                                <li
+                                  key={index}
+                                  className="flex items-center justify-between rounded-md border p-2"
+                                >
                                   <span>{option}</span>
                                   <Button variant="ghost" size="icon">
                                     <Edit className="h-4 w-4" />
@@ -250,22 +299,30 @@ export default function EventsPage() {
                       </Dialog>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500">
+                          <DropdownMenuItem
+                            onSelect={(e) => e.preventDefault()}
+                            className="text-red-500"
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete Event
                           </DropdownMenuItem>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogTitle>
+                              Are you absolutely sure?
+                            </AlertDialogTitle>
                             <AlertDialogDescription>
-                              This action cannot be undone. This will permanently delete the event and all associated
+                              This action cannot be undone. This will
+                              permanently delete the event and all associated
                               predictions.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction className="bg-red-500 hover:bg-red-600">Delete</AlertDialogAction>
+                            <AlertDialogAction className="bg-red-500 hover:bg-red-600">
+                              Delete
+                            </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -278,6 +335,5 @@ export default function EventsPage() {
         </Table>
       </div>
     </div>
-  )
+  );
 }
-
