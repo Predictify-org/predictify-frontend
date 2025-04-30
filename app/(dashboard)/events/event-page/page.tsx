@@ -186,7 +186,7 @@ export default function EventDetailsPage() {
         };
 
         const updatedHistoricalData = [
-          newHistoryEntry,
+          newHistoryEntry, 
           ...(prevData.historicalData || []),
         ];
 
