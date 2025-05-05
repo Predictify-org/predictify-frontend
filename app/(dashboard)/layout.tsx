@@ -58,6 +58,7 @@ export default function DashboardLayout({
     { name: "Dispute Resolution", href: "/disputes", icon: HelpCircle },
     { name: "Financial Overview", href: "/finances", icon: CreditCard },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    { name: "Betting History", href: "/history", icon: User },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
@@ -112,11 +113,10 @@ export default function DashboardLayout({
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-                      isActive
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 ${isActive
                         ? "bg-primary text-primary-foreground"
                         : "hover:bg-muted"
-                    }`}
+                      }`}
                   >
                     <item.icon className="h-5 w-5" />
                     {item.name}
@@ -198,11 +198,10 @@ export default function DashboardLayout({
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-                    isActive
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 ${isActive
                       ? "bg-primary text-primary-foreground"
                       : "hover:bg-muted"
-                  }`}
+                    }`}
                 >
                   <item.icon className="h-5 w-5" />
                   {item.name}
