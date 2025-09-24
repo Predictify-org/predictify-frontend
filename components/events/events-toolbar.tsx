@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { useEventsStore } from "@/lib/events-store"
-import type { EventSort } from "@/lib/types/events"
+import type { EventSort } from "@/types/events"
 
 interface EventsToolbarProps {
   className?: string
