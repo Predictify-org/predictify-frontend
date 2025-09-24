@@ -9,6 +9,7 @@ import { SearchInput } from "./SearchInput";
 import { NetworkSwitcher } from "./NetworkSwitcher";
 import { WalletMenu } from "./WalletMenu";
 import { ConnectWalletAction } from "./ConnectWalletAction";
+import { NavItem } from "./NavItem";
 import { usePathname } from "next/navigation";
 import { Bell, Moon, Sun, Plus, Info, Home, List, Settings as SettingsIcon, LifeBuoy, LogOut } from "lucide-react";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
@@ -92,22 +93,10 @@ export function Navbar() {
                 <SearchInput variant="sidebar" className="w-full max-w-none" placeholder="Search" />
               </div>
               <nav className="mt-6 grid gap-3 text-[15px]">
-                <Link href="/dashboard" className={`flex items-center justify-between rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/dashboard" ? "bg-white/5" : ""}`}>
-                  <span className="inline-flex items-center gap-3"><Home className="h-5 w-5 text-[#A5B4FC]" />Dashboard</span>
-                  <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white text-[#540D8D] font-semibold text-xs px-2">10</span>
-                </Link>
-                <Link href="/events" className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/events" ? "bg-white/5" : ""}`}>
-                  <List className="mr-3 h-5 w-5 text-[#A5B4FC]" />
-                  My Predictions
-                </Link>
-                <Link href="/settings" className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/settings" ? "bg-white/5" : ""}`}>
-                  <SettingsIcon className="mr-3 h-5 w-5 text-[#A5B4FC]" />
-                  Settings
-                </Link>
-                <Link href="/help" className="flex items-center rounded-md px-3 py-2 hover:bg-white/5">
-                  <Chat className="mr-3 h-5 w-5 text-[#A5B4FC]" />
-                  Help & Support
-                </Link>
+                <NavItem href="/dashboard" label="Dashboard" icon={<Home className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/dashboard"} endBadgeText={`${navbarState.notificationCount}`} />
+                <NavItem href="/events" label="My Predictions" icon={<List className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/events"} />
+                <NavItem href="/settings" label="Settings" icon={<SettingsIcon className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/settings"} />
+                <NavItem href="/help" label="Help & Support" icon={<Chat className="h-5 w-5 text-[#A5B4FC]" />} />
                 <button type="button" className="flex items-center rounded-md px-3 py-2 hover:bg-white/5 text-left">
                   <LogOut className="mr-3 h-5 w-5 text-[#A5B4FC]" />
                   Logout
