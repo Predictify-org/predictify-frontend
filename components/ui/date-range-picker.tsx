@@ -51,7 +51,7 @@ export function DateRangePicker({
             <Button
               variant="outline"
               className={cn(
-                "flex-1 justify-center text-center font-normal border-gray-200 rounded-r-none",
+                "flex-1 justify-center text-center font-normal border-gray-200 rounded-r-none bg-white text-black ",
                 !date?.from && "text-gray-500"
               )}
               disabled={disabled}
@@ -69,7 +69,7 @@ export function DateRangePicker({
             <Button
               variant="outline"
               className={cn(
-                "flex-1 justify-center text-center font-normal border-gray-200 rounded-l-none border-l-0",
+                "flex-1 justify-center text-center font-normal border-gray-200 rounded-l-none border-l-0 bg-white text-black ",
                 !date?.to && "text-gray-500"
               )}
               disabled={disabled}
