@@ -12,7 +12,7 @@ export type NavbarState = {
 export const mockUser: UserProfile = {
   name: "Azunyan U. Wu",
   role: "Basic Member",
-  avatarUrl: "/images/avatar.jpg",
+  avatarUrl: "/images/avatar2.png",
 };
 
 export const mockNavbarState: NavbarState = {
