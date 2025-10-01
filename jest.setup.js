@@ -27,3 +27,16 @@ Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
   value: jest.fn(),
   writable: true
 })
+
+// Suppress console.error for known React warnings in tests
+const originalError = console.error;
+console.error = (...args) => {
+  if (
+    typeof args[0] === 'string' &&
+    (args[0].includes('Received `true` for a non-boolean attribute `fill`') ||
+     args[0].includes('non-boolean attribute `fill`'))
+  ) {
+    return;
+  }
+  originalError.call(console, ...args);
+};

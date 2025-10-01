@@ -33,7 +33,10 @@ describe('ActiveBetCard', () => {
     
     expect(screen.getByText('Test Match')).toBeInTheDocument();
     expect(screen.getByText('Football')).toBeInTheDocument();
-    expect(screen.getByText('Dec 12, 2025')).toBeInTheDocument();
+    
+    // Both start and end dates should be present
+    const dates = screen.getAllByText('Dec 12, 2025');
+    expect(dates).toHaveLength(2);
   });
 
   it('displays category chip with correct styling', () => {
