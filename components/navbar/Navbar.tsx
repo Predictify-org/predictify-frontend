@@ -11,7 +11,7 @@ import { WalletMenu } from "./WalletMenu";
 import { ConnectWalletAction } from "./ConnectWalletAction";
 import { NavItem } from "./NavItem";
 import { usePathname } from "next/navigation";
-import { Bell, Moon, Sun, Plus, Info, Home, List, Settings as SettingsIcon, LifeBuoy, LogOut } from "lucide-react";
+import { Bell, Moon, Sun, Plus, Info, Home, List, Settings as SettingsIcon, LifeBuoy, LogOut, MessageCircle } from "lucide-react";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { useWalletContext } from "@/context/WalletContext";
 import { ArrowDown, Notification, Chat } from "../icons";
@@ -59,7 +59,7 @@ export function Navbar() {
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-[#FEFBFF] dark:bg-[#540D8D] px-4 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-40 border-b px-4 backdrop-blur md:px-6" style={{ background: 'linear-gradient(180deg, #170427 69.23%, #540D8D 100%)' }}>
       {/* Top row (mobile) */}
       <div className="flex items-center justify-between py-3 lg:hidden">
         {/* Mobile: nav drawer */}
@@ -96,7 +96,7 @@ export function Navbar() {
                 <NavItem href="/dashboard" label="Dashboard" icon={<Home className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/dashboard"} endBadgeText={`${navbarState.notificationCount}`} />
                 <NavItem href="/events" label="My Predictions" icon={<List className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/events"} />
                 <NavItem href="/settings" label="Settings" icon={<SettingsIcon className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/settings"} />
-                <NavItem href="/help" label="Help & Support" icon={<Chat className="h-5 w-5 text-[#A5B4FC]" />} />
+                <NavItem href="/help" label="Help & Support" icon={<MessageCircle className="h-5 w-5 text-[#8AA0FF]" strokeWidth={2.5} />} />
                 <button type="button" className="flex items-center rounded-md px-3 py-2 hover:bg-white/5 text-left">
                   <LogOut className="mr-3 h-5 w-5 text-[#A5B4FC]" />
                   Logout
@@ -104,10 +104,10 @@ export function Navbar() {
               </nav>
             </SheetContent>
           </Sheet>
-          <span className="text-xl font-semibold text-[#540D8D] dark:text-white">{currentTitle}</span>
+          <span className="text-xl font-semibold text-white">{currentTitle}</span>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="p-0 relative text-[#540D8D] dark:text-white" aria-label="Notifications">
+          <Button variant="ghost" size="icon" className="p-0 relative text-white" aria-label="Notifications">
             <Notification className="!h-[22px] !w-[22px]" />
             {navbarState.notificationCount > 0 && (
               <div className="h-[12px] w-[12px] bg-[#EB6945] z-10 rounded-full absolute top-[10px] right-[8px]" />
@@ -175,7 +175,7 @@ export function Navbar() {
           <div className="items-center gap-2 hidden lg:flex">
             <NetworkSwitcher network={network} onChange={setNetwork} />
             <WalletMenu />
-            <Button variant="ghost" size="icon" className="relative text-[#540D8D] dark:text-white" aria-label="Notifications">
+            <Button variant="ghost" size="icon" className="relative text-white" aria-label="Notifications">
               <Notification />
               {navbarState.notificationCount > 0 && (
                 <div className="absolute top-[10px] right-[8px] h-2.5 w-2.5 rounded-full bg-[#EB6945]" />

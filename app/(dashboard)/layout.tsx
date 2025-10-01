@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import { SearchInput } from "@/components/navbar/SearchInput";
-import { Home, List, Settings as SettingsIcon, LifeBuoy } from "lucide-react";
+import { Home, List, Settings as SettingsIcon, MessageCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -121,7 +121,7 @@ export default function DashboardLayout({
               Settings
             </Link>
             <Link href="/help" className="flex items-center rounded-md px-3 py-2 hover:bg-white/5">
-              <LifeBuoy className="mr-3 h-5 w-5 text-[#8AA0FF]" />
+              <MessageCircle className="mr-3 h-5 w-5 text-[#8AA0FF]" strokeWidth={2.5} />
               Help & Support
             </Link>
           </nav>
@@ -130,17 +130,17 @@ export default function DashboardLayout({
             <div className="h-px w-full bg-[#6366F1] mb-3" />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage className="object-cover" src="/images/avatar.jpg" alt="User" />
+                <Avatar className="w-[40px] h-[40px] rounded-[76.88px] opacity-100">
+                  <AvatarImage className="object-cover" src="/images/avatar2.png" alt="User" />
                   <AvatarFallback>U</AvatarFallback>
                 </Avatar>
                 <div className="leading-tight">
                   <div className="text-sm font-semibold text-white">Azunyan U. Wu</div>
-                  <div className="text-xs text-[#C7D2FE]">Basic Member</div>
+                  <div className="text-[14px] text-[#C7D2FE] leading-5">Basic Member</div>
                 </div>
               </div>
-              <button type="button" className="h-8 w-8 grid place-items-center rounded-full bg-white/10 hover:bg-white/15">
-                <LogOut className="h-4 w-4 text-white" />
+              <button type="button" className="w-[40px] h-[40px] flex items-center justify-center rounded-[123px] bg-[#540D8D] hover:bg-[#6B1DAB] opacity-100">
+                <LogOut className="w-[28px] h-[28px] text-white" />
               </button>
             </div>
           </div>
