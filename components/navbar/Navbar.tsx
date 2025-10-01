@@ -22,6 +22,7 @@ import { mockNavbarState as navbarState, mockUser as user } from "./navbar.mock"
 
 const NAV_ITEMS = [
   { name: "Dashboard", href: "/dashboard" },
+  { name: "My Predictions", href: "/bets" },
   { name: "Events", href: "/events" },
   { name: "Verification", href: "/verification" },
   { name: "Disputes", href: "/disputes" },
@@ -34,7 +35,7 @@ export function Navbar() {
   const [network, setNetwork] = React.useState(navbarState.networkName);
   const { theme, setTheme } = useTheme();
   const [isWalletModalOpen, setIsWalletModalOpen] = React.useState(false);
-  const { address, connected } = useWalletContext();
+  const { address, connected, isLoading } = useWalletContext();
 
   function truncateMiddle(value: string, visible = 4) {
     if (!value) return "";
@@ -94,7 +95,7 @@ export function Navbar() {
               </div>
               <nav className="mt-6 grid gap-3 text-[15px]">
                 <NavItem href="/dashboard" label="Dashboard" icon={<Home className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/dashboard"} endBadgeText={`${navbarState.notificationCount}`} />
-                <NavItem href="/events" label="My Predictions" icon={<List className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/events"} />
+                <NavItem href="/bets" label="My Predictions" icon={<List className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/bets"} />
                 <NavItem href="/settings" label="Settings" icon={<SettingsIcon className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/settings"} />
                 <NavItem href="/help" label="Help & Support" icon={<MessageCircle className="h-5 w-5 text-[#8AA0FF]" strokeWidth={2.5} />} />
                 <button type="button" className="flex items-center rounded-md px-3 py-2 hover:bg-white/5 text-left">
@@ -128,7 +129,15 @@ export function Navbar() {
       {/* Second row (mobile): network + wallet */}
       <div className="lg:hidden flex justify-end lg:justify-start items-center gap-3 py-3">
         <NetworkSwitcher network={network} onChange={setNetwork} />
-        {connected ? (
+        {isLoading ? (
+          <Button
+            variant="secondary"
+            className="h-8 rounded-full flex items-center border border-[#540D8D] dark:border-white dark:border-[0.24px] bg-[#540D8D1F] dark:bg-[#FFFFFF1C] dark:text-white opacity-50"
+            disabled
+          >
+            <span className="text-[#540D8D] text-sm dark:text-white">Loading...</span>
+          </Button>
+        ) : connected ? (
           <WalletMenu />
         ) : (
           <ConnectWalletAction compact onOpenModal={() => setIsWalletModalOpen(true)} />
@@ -174,7 +183,17 @@ export function Navbar() {
           {/* Right group (desktop) */}
           <div className="items-center gap-2 hidden lg:flex">
             <NetworkSwitcher network={network} onChange={setNetwork} />
-            <WalletMenu />
+            {isLoading ? (
+              <Button
+                variant="secondary"
+                className="h-8 rounded-full flex items-center border border-[#540D8D] dark:border-white dark:border-[0.24px] bg-[#540D8D1F] dark:bg-[#FFFFFF1C] dark:text-white opacity-50"
+                disabled
+              >
+                <span className="text-[#540D8D] text-sm dark:text-white">Loading...</span>
+              </Button>
+            ) : (
+              <WalletMenu />
+            )}
             <Button variant="ghost" size="icon" className="relative text-white" aria-label="Notifications">
               <Notification />
               {navbarState.notificationCount > 0 && (
