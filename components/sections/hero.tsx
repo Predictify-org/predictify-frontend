@@ -1,35 +1,9 @@
 "use client"
-import { Badge } from "@/components/ui/badge";
-import { StatCard } from "@/components/cards/stat-card";
-// import { Wallet, ArrowRight } from "lucide-react";
-import { HERO_STATS } from "../constants/data";
-import { GradientButton } from "../ui/gradient-button";
-import { useState } from "react";
-import ConnectWalletButton from "../ui/connectWalletButton";
-import { ConnectWalletModal } from "../connect-wallet-modal";
 import { ArrowRight, TrendingUp, Globe, BarChart3, CheckCircle2, Coins } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
 export function Hero() {
-      const [isMounted, setIsMounted] = useState(false);
-      const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
-      const [isConnected, setIsConnected] = useState(false);
-      const [walletName, setWalletName] = useState<string | null>(null);
-    const [walletAddress, setWalletAddress] = useState<string | null>(null);
-    
-    const handleWalletConnect = (name: string, address: string) => {
-      setIsConnected(true);
-      setWalletName(name);
-      setWalletAddress(address);
-      setIsWalletModalOpen(false);
-    };
-
-    const handleWalletDisconnect = () => {
-      setIsConnected(false);
-      setWalletName(null);
-      setWalletAddress(null);
-    };
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#5B21B6] via-[#6B21A8] to-[#7C3AED] font-sans">
     {/* Gradient Orbs */}
