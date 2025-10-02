@@ -22,11 +22,25 @@ function truncateMiddle(address: string, visible = 4) {
 }
 
 export function WalletMenu() {
-  const { address, connected } = useWalletContext();
+  const { address, connected, isLoading } = useWalletContext();
   const { disconnectWallet } = useWallet();
   const [isOpen, setIsOpen] = React.useState(false);
 
   const display = connected && address ? truncateMiddle(address) : "Connect wallet";
+
+  // Show loading state while wallet context is initializing
+  if (isLoading) {
+    return (
+      <Button
+        variant="secondary"
+        className="h-8 rounded-full flex items-center border border-[#540D8D] dark:border-white dark:border-[0.24px] bg-[#540D8D1F] dark:bg-[#FFFFFF1C] dark:text-white opacity-50"
+        disabled
+        aria-label="Loading wallet state"
+      >
+        <span className="text-[#540D8D] text-sm dark:text-white">Loading...</span>
+      </Button>
+    );
+  }
 
   function handleCopy() {
     if (address) navigator.clipboard.writeText(address);
