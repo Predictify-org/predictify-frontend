@@ -11,6 +11,8 @@ import {
   Globe,
   Smartphone,
   CreditCard,
+  CircleDot,
+  Linkedin
 } from "lucide-react";
 import type {
   Feature,
@@ -133,11 +135,11 @@ export const SUPPORTED_TOKENS: WalletToken[] = [
   { name: "Binance", symbol: "BNB", color: "bg-yellow-500" },
 ];
 
-export const SOCIAL_LINKS: SocialLink[] = [
-  { icon: Twitter, href: "#" },
-  { icon: MessageCircle, href: "#" },
-  { icon: Github, href: "#" },
-];
+// export const SOCIAL_LINKS: SocialLink[] = [
+//   { icon: Twitter, href: "#" },
+//   { icon: MessageCircle, href: "#" },
+//   { icon: Github, href: "#" },
+// ];
 
 export const PLATFORM_LINKS = ["Markets", "Leaderboard", "Analytics", "API"];
 export const LEGAL_LINKS = [
@@ -145,4 +147,55 @@ export const LEGAL_LINKS = [
   "Privacy Policy",
   "Risk Disclosure",
   "Compliance",
+];
+
+export const SOCIAL_LINKS = [
+  {
+    name: 'Twitter',
+    href: '#',
+    icon: Twitter,
+    ariaLabel: 'Follow us on Twitter'
+  },
+  {
+    name: 'Discord',
+    href: '#',
+    icon: CircleDot,
+    ariaLabel: 'Join our Discord community'
+  },
+  {
+    name: 'GitHub',
+    href: '#',
+    icon: Github,
+    ariaLabel: 'Visit our GitHub repository'
+  },
+  {
+    name: 'LinkedIn',
+    href: '#',
+    icon: Linkedin,
+    ariaLabel: 'Connect with us on LinkedIn'
+  }
+];
+
+export const PRODUCT_LINKS = [
+  { name: 'Features', href: '#' },
+  { name: 'How It Works', href: '#' },
+  { name: 'Supported Wallets', href: '#' },
+  { name: 'Tokenomics', href: '#' },
+  { name: 'API', href: '#' }
+];
+
+export const RESOURCES_LINKS = [
+  { name: 'Documentation', href: '#' },
+  { name: 'Blog', href: '#' },
+  { name: 'Community', href: '#' },
+  { name: 'FAQ', href: '#' },
+  { name: 'Support', href: '#' }
+];
+
+export const COMPANY_LINKS = [
+  { name: 'About', href: '#' },
+  { name: 'Careers', href: '#' },
+  { name: 'Contact', href: '#' },
+  { name: 'Privacy Policy', href: '#' },
+  { name: 'Terms of Service', href: '#' }
 ];
