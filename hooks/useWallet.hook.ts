@@ -63,19 +63,30 @@ import {
   RABET_ID,
   WalletNetwork,
 } from "@creit.tech/stellar-wallets-kit";
-import { useState } from "react";
-import { kit } from "../constants/wallet-kits.constant";
+import { useState, useEffect } from "react";
+import { getWalletKit, isClientSide } from "../constants/wallet-kits.constant";
 
 export const useWallet = () => {
   const walletState = useWalletContext();
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(isClientSide());
+  }, []);
 
   const connectWallet = async (walletId: string) => {
+    if (!isClient) {
+      setError("Wallet operations are only available in the browser");
+      return { success: false, error: "Wallet operations are only available in the browser" };
+    }
+
     try {
       setIsConnecting(true);
       setError(null);
 
+      const kit = getWalletKit();
       kit.setWallet(walletId);
 
       const { address } = await kit.getAddress();
@@ -108,8 +119,14 @@ export const useWallet = () => {
   };
 
   const disconnectWallet = async () => {
+    if (!isClient) {
+      setError("Wallet operations are only available in the browser");
+      return { success: false, error: "Wallet operations are only available in the browser" };
+    }
+
     try {
       setError(null);
+      const kit = getWalletKit();
       await kit.disconnect();
       walletState.disconnect();
       return { success: true };
@@ -123,12 +140,18 @@ export const useWallet = () => {
   };
 
   const signTransaction = async (xdr: string) => {
+    if (!isClient) {
+      setError("Wallet operations are only available in the browser");
+      return { success: false, error: "Wallet operations are only available in the browser" };
+    }
+
     try {
       setError(null);
       if (!walletState.address) {
         throw new Error("No wallet connected");
       }
 
+      const kit = getWalletKit();
       const { signedTxXdr } = await kit.signTransaction(xdr, {
         address: walletState.address,
         networkPassphrase: WalletNetwork.TESTNET,
