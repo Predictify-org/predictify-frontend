@@ -1,38 +1,29 @@
 "use client";
 
-import type React from "react";
-import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
-import {
-  BarChart3,
-  Calendar,
-  CheckCircle,
-  CreditCard,
-  HelpCircle,
-  LayoutDashboard,
-  LogOut,
-  Settings,
-  User,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import Image from "next/image";
-import { SearchInput } from "@/components/navbar/SearchInput";
-import { Home, List, Settings as SettingsIcon, MessageCircle } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import ConnectWalletButton from "@/components/ui/connectWalletButton";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { Navbar } from "@/components/navbar/Navbar";
+import { SearchInput } from "@/components/navbar/SearchInput";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+    BarChart3,
+    Calendar,
+    CheckCircle,
+    CreditCard,
+    HelpCircle,
+    Home,
+    LayoutDashboard,
+    List,
+    LogOut,
+    MessageCircle,
+    Settings,
+    Settings as SettingsIcon,
+    User,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import type React from "react";
+import { useEffect, useState } from "react";
 
 export default function DashboardLayout({
   children,
@@ -100,7 +91,7 @@ export default function DashboardLayout({
               <div className="h-7 w-7 rounded-full border border-white/20 grid place-items-center">
                 <Image src="/images/predictify-logo.png" alt="Predictify" width={30} height={30} />
               </div>
-              <span className="text-lg font-semibold" style={{ color: "#E3D365" }}>Predictify</span>
+              <span className="text-lg font-semibold text-[#E3D365]">Predictify</span>
             </div>
             <div className="my-4 h-px w-full bg-white/10" />
             <div className="mt-4">
@@ -115,6 +106,10 @@ export default function DashboardLayout({
             <Link href="/bets" className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/bets" ? "bg-white/5" : ""}`}>
               <List className="mr-3 h-5 w-5 text-[#8AA0FF]" />
               My Predictions
+            </Link>
+            <Link href="/profile" className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/profile" ? "bg-white/5" : ""}`}>
+              <User className="mr-3 h-5 w-5 text-[#8AA0FF]" />
+              Profile
             </Link>
             <Link href="/settings" className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/settings" ? "bg-white/5" : ""}`}>
               <SettingsIcon className="mr-3 h-5 w-5 text-[#8AA0FF]" />
@@ -139,7 +134,12 @@ export default function DashboardLayout({
                   <div className="text-[14px] text-[#C7D2FE] leading-5">Basic Member</div>
                 </div>
               </div>
-              <button type="button" className="w-[40px] h-[40px] flex items-center justify-center rounded-[123px] bg-[#540D8D] hover:bg-[#6B1DAB] opacity-100">
+              <button 
+                type="button" 
+                className="w-[40px] h-[40px] flex items-center justify-center rounded-[123px] bg-[#540D8D] hover:bg-[#6B1DAB] opacity-100"
+                title="Logout"
+                onClick={handleLogout}
+              >
                 <LogOut className="w-[28px] h-[28px] text-white" />
               </button>
             </div>

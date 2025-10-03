@@ -1,5 +1,68 @@
 import { Bet } from './types';
 
+// User statistics mock data
+export const mockUserStats = {
+  totalBets: 47,
+  totalWins: 28,
+  totalLosses: 19,
+  winRate: 59.6,
+  rank: 1247,
+  totalWinnings: 2847.50,
+  totalLosses: 1923.25,
+  netProfit: 924.25,
+  membershipTier: 'Premium',
+  joinDate: '2023-08-15',
+  performanceHistory: [
+    { month: 'Jan', wins: 3, losses: 2, profit: 125.50 },
+    { month: 'Feb', wins: 5, losses: 1, profit: 287.25 },
+    { month: 'Mar', wins: 4, losses: 3, profit: 98.75 },
+    { month: 'Apr', wins: 6, losses: 2, profit: 345.80 },
+    { month: 'May', wins: 3, losses: 4, profit: -67.30 },
+    { month: 'Jun', wins: 7, losses: 1, profit: 456.90 },
+  ]
+};
+
+// Connected wallets mock data
+export const mockConnectedWallets = [
+  {
+    id: '1',
+    name: 'Freighter',
+    address: 'GABC123...XYZ789',
+    isConnected: true,
+    balance: '1,247.50 XLM',
+    lastUsed: '2024-01-15T10:30:00Z'
+  },
+  {
+    id: '2', 
+    name: 'Rabet',
+    address: 'GDEF456...UVW012',
+    isConnected: true,
+    balance: '892.75 XLM',
+    lastUsed: '2024-01-14T15:45:00Z'
+  }
+];
+
+// Notification preferences mock data
+export const mockNotificationPreferences = {
+  emailNotifications: {
+    betResults: true,
+    newEvents: true,
+    promotions: false,
+    security: true,
+    weeklyReport: true
+  },
+  pushNotifications: {
+    betResults: true,
+    newEvents: false,
+    promotions: false,
+    security: true
+  },
+  smsNotifications: {
+    security: true,
+    betResults: false
+  }
+};
+
 export const mockActiveBets: Bet[] = [
   {
     id: '1',

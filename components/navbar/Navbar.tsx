@@ -11,7 +11,7 @@ import { WalletMenu } from "./WalletMenu";
 import { ConnectWalletAction } from "./ConnectWalletAction";
 import { NavItem } from "./NavItem";
 import { usePathname } from "next/navigation";
-import { Bell, Moon, Sun, Plus, Info, Home, List, Settings as SettingsIcon, LifeBuoy, LogOut, MessageCircle } from "lucide-react";
+import { Bell, Moon, Sun, Plus, Info, Home, List, Settings as SettingsIcon, LifeBuoy, LogOut, MessageCircle, User } from "lucide-react";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { useWalletContext } from "@/context/WalletContext";
 import { ArrowDown, Notification, Chat } from "../icons";
@@ -23,6 +23,7 @@ import { mockNavbarState as navbarState, mockUser as user } from "./navbar.mock"
 const NAV_ITEMS = [
   { name: "Dashboard", href: "/dashboard" },
   { name: "My Predictions", href: "/bets" },
+  { name: "Profile", href: "/profile" },
   { name: "Events", href: "/events" },
   { name: "Verification", href: "/verification" },
   { name: "Disputes", href: "/disputes" },
@@ -96,6 +97,7 @@ export function Navbar() {
               <nav className="mt-6 grid gap-3 text-[15px]">
                 <NavItem href="/dashboard" label="Dashboard" icon={<Home className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/dashboard"} endBadgeText={`${navbarState.notificationCount}`} />
                 <NavItem href="/bets" label="My Predictions" icon={<List className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/bets"} />
+                <NavItem href="/profile" label="Profile" icon={<User className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/profile"} />
                 <NavItem href="/settings" label="Settings" icon={<SettingsIcon className="h-5 w-5 text-[#A5B4FC]" />} isActive={pathname === "/settings"} />
                 <NavItem href="/help" label="Help & Support" icon={<MessageCircle className="h-5 w-5 text-[#8AA0FF]" strokeWidth={2.5} />} />
                 <button type="button" className="flex items-center rounded-md px-3 py-2 hover:bg-white/5 text-left">
