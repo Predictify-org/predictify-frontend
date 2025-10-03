@@ -55,7 +55,11 @@ export function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-16 sm:mb-20">
-            <GradientButton size="lg" fullWidth>
+            <GradientButton 
+              size="lg" 
+              fullWidth
+              onClick={() => setIsWalletModalOpen(true)}
+            >
               <Wallet className="w-5 h-5 sm:w-6 sm:h-6 mr-3" />
               <ConnectWalletButton
                 isConnected={isConnected}
@@ -63,6 +67,7 @@ export function Hero() {
                 walletAddress={walletAddress}
                 onConnectClick={() => setIsWalletModalOpen(true)}
                 onOpenModal={() => setIsWalletModalOpen(true)}
+                asButton={false}
               />
               <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 ml-3" />
             </GradientButton>

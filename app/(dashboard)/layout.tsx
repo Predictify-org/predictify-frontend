@@ -120,7 +120,7 @@ export default function DashboardLayout({
               <SettingsIcon className="mr-3 h-5 w-5 text-[#8AA0FF]" />
               Settings
             </Link>
-            <Link href="/help" className="flex items-center rounded-md px-3 py-2 hover:bg-white/5">
+            <Link href="/help" className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/help" ? "bg-white/5" : ""}`}>
               <MessageCircle className="mr-3 h-5 w-5 text-[#8AA0FF]" strokeWidth={2.5} />
               Help & Support
             </Link>

@@ -8,6 +8,7 @@ interface ButtonProps {
   walletAddress: string | null;
   onConnectClick: () => void;
   onOpenModal: () => void;
+  asButton?: boolean; // New prop to control if it renders as button or content
 }
 
 function ConnectWalletButton({
@@ -16,8 +17,29 @@ function ConnectWalletButton({
   walletAddress,
   onConnectClick,
   onOpenModal,
+  asButton = true,
 }: ButtonProps) {
   const pathname = usePathname(); 
+  
+  const content = !isConnected ? (
+    <>
+      {pathname !== "/" && <Wallet size={18} />}
+      Connect Wallet
+    </>
+  ) : (
+    <>
+      {pathname !== "/" && <Wallet size={18} />}
+      {walletName || "Wallet"}:{" "}
+      {walletAddress
+        ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+        : "Address not available"}
+    </>
+  );
+
+  if (!asButton) {
+    return <span onClick={!isConnected ? onConnectClick : onOpenModal} className="cursor-pointer">{content}</span>;
+  }
+
   return (
     <>
       {!isConnected ? (
@@ -29,8 +51,7 @@ function ConnectWalletButton({
               : "bg-none"
           }`}
         >
-          {pathname !== "/" && <Wallet size={18} />}
-          Connect Wallet
+          {content}
         </button>
       ) : (
         <button
@@ -41,11 +62,7 @@ function ConnectWalletButton({
           transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/40
           flex items-center gap-2"
         >
-          {pathname !== "/" && <Wallet size={18} />}
-          {walletName || "Wallet"}:{" "}
-          {walletAddress
-            ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-            : "Address not available"}
+          {content}
         </button>
       )}
     </>

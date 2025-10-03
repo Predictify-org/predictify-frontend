@@ -41,7 +41,11 @@ export function CTA() {
             Connect your wallet and make your first prediction today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center">
-            <GradientButton size="lg" fullWidth>
+            <GradientButton 
+              size="lg" 
+              fullWidth
+              onClick={() => setIsWalletModalOpen(true)}
+            >
               <Wallet className="w-5 h-5 sm:w-6 sm:h-6 mr-3" />
               <ConnectWalletButton
                 isConnected={isConnected}
@@ -49,6 +53,7 @@ export function CTA() {
                 walletAddress={walletAddress}
                 onConnectClick={() => setIsWalletModalOpen(true)}
                 onOpenModal={() => setIsWalletModalOpen(true)}
+                asButton={false}
               />
               <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 ml-3" />
             </GradientButton>
