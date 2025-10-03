@@ -8,7 +8,7 @@ export const mockUserStats = {
   winRate: 59.6,
   rank: 1247,
   totalWinnings: 2847.50,
-  totalLosses: 1923.25,
+  totalLossesAmount: 1923.25,
   netProfit: 924.25,
   membershipTier: 'Premium',
   joinDate: '2023-08-15',
