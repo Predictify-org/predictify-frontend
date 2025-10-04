@@ -1,5 +1,5 @@
 import { CTA } from "@/components/sections/cta";
-import { Features } from "@/components/sections/features";
+import Features from "../components/sections/features";
 import { Footer } from "@/components/sections/footer";
 import { Header } from "@/components/sections/header";
 import { Hero } from "@/components/sections/hero";
@@ -9,15 +9,16 @@ import { AnimatedBackground } from "@/components/ui/animated-background";
 
 export default function Home() {
   // redirect("/dashboard")
-  return <div className="min-h-screen bg-slate-950 relative overflow-hidden">
-    <AnimatedBackground />
-    <Header />
-    <Hero />
-    <Features />
-    <HowItWorks />
-    <WalletsTokens />
-    <CTA />
-    <Footer />
-  </div>;
+  return (
+    <div className="min-h-screen bg-slate-950 relative overflow-hidden">
+      <AnimatedBackground />
+      <Header />
+      <Hero />
+      <Features />
+      <HowItWorks />
+      <WalletsTokens />
+      <CTA />
+      <Footer />
+    </div>
+  );
 }
-
