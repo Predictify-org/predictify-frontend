@@ -26,7 +26,7 @@ export function Hero() {
           <div className="mb-6 space-y-2">
             <h1 className="text-6xl font-bold leading-tight text-white lg:text-7xl">Predict.</h1>
             <h1 className="text-6xl font-bold leading-tight text-white lg:text-7xl">Repeat.</h1>
-            <div className="inline-block bg-gradient-to-r from-[#818CF8] to-[#A855F7] px-4 py-2">
+            <div className="inline-block bg-gradient-to-r from-[#7C3AED] to-[#5B21B6] px-4 py-2 rounded-lg">
               <h1 className="text-6xl font-bold leading-tight text-white lg:text-7xl">Earn.</h1>
             </div>
           </div>
@@ -39,39 +39,43 @@ export function Hero() {
 
           {/* CTA Buttons */}
           <div className="mb-12 flex items-center flex-wrap gap-4">
-            <p className="bg-none text-white hover:bg-none">
-              Start Predicting
-            </p>
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             <Button
               size="lg"
               variant="outline"
-              className="border-white/30 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+              className="group border-white/50 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+            >
+              Start Predicting
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-2 border-white/60 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
             >
               Learn More
             </Button>
           </div>
 
           {/* User Count */}
-          <div className="flex items-center gap-3">
-            <div className="flex -space-x-2">
-              <div className="h-10 w-10 rounded-full border-2 border-purple-600 " />
-              <div className="h-10 w-10 rounded-full border-2 border-purple-600 " />
-              <div className="h-10 w-10 rounded-full border-2 border-purple-600 " />
+          <div className="flex items-center gap-4">
+            <div className="flex -space-x-1">
+              <div className="h-12 w-12 rounded-full border-3 border-white/40 bg-gradient-to-br from-purple-400 to-purple-600" />
+              <div className="h-12 w-12 rounded-full border-3 border-white/40 bg-gradient-to-br from-blue-400 to-blue-600" />
+              <div className="h-12 w-12 rounded-full border-3 border-white/40 bg-gradient-to-br from-pink-400 to-pink-600" />
             </div>
-            <p className="text-sm text-white/50">Join 10,000+ predictors worldwide</p>
+            <p className="text-sm text-white/60">Join 10,000+ predictors worldwide</p>
           </div>
         </div>
 
         {/* Right Column - Prediction Markets Preview */}
         <div className="relative flex items-center justify-center">
           {/* Win Notification Badge */}
-          <div className="absolute right-0 -top-4 z-20 animate-fade-in rounded-2xl bg-gradient-to-r from-[#4F46E533] to-[#9333EA] p-4 shadow-2xl">
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-white/20 p-2">
-                <Coins className="h-5 w-5 text-white" />
+          <div className="absolute right-0 -top-4 z-20 animate-fade-in rounded-xl bg-gradient-to-r from-[#4F46E533] to-[#9333EA] p-2 shadow-2xl">
+            <div className="flex items-center gap-2">
+              <div className="rounded-full bg-white/20 p-1.5">
+                <Coins className="h-4 w-4 text-white" />
               </div>
-              <span className="text-lg font-semibold text-white">+250 USDC Won!</span>
+              <span className="text-sm font-semibold text-white">+250 USDC Won!</span>
             </div>
           </div>
 
@@ -96,7 +100,7 @@ export function Hero() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-medium text-green-400">Yes 68%</div>
+                    <div className="text-sm font-medium text-green-400 mb-1">Yes: 68%</div>
                     <div className="text-sm text-red-400">No: 32%</div>
                   </div>
                 </div>
@@ -139,8 +143,8 @@ export function Hero() {
               <Card className="border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm">
                 <div className="mb-3 flex items-start justify-between">
                   <div className="flex items-start gap-3">
-                    <div className="rounded-lg bg-emerald-500/20 p-2">
-                      <BarChart3 className="h-5 w-5 text-emerald-400" />
+                    <div className="rounded-lg bg-green-500/20 p-2">
+                      <BarChart3 className="h-5 w-5 text-green-400" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-white">Tesla Q2 Earnings</h3>
@@ -169,10 +173,10 @@ export function Hero() {
           </Card>
 
           {/* Success Notification Badge */}
-          <div className="absolute bottom-4 left-0 z-20 animate-fade-in rounded-2xl bg-green-500 p-4 shadow-2xl">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-white" />
-              <span className="font-semibold text-white">Prediction Correct!</span>
+          <div className="absolute bottom-0 right-0 z-20 animate-fade-in rounded-2xl bg-green-500 p-3 shadow-2xl">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-white" />
+              <span className="text-sm font-semibold text-white">Prediction Correct!</span>
             </div>
           </div>
         </div>
