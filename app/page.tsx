@@ -5,13 +5,13 @@ import { Header } from "@/components/sections/header";
 import { Hero } from "@/components/sections/hero";
 import { HowItWorks } from "@/components/sections/how-it-work";
 import { WalletsTokens } from "@/components/sections/wallets-token";
-// import { AnimatedBackground } from "@/components/ui/animated-background";
+import { AnimatedBackground } from "@/components/ui/animated-background";
 
 export default function Home() {
   // redirect("/dashboard")
   return (
     <div className="min-h-screen bg-slate-950 relative overflow-hidden">
-      {/* <AnimatedBackground /> */}
+      <AnimatedBackground />
       <Header />
       <Hero />
       <Features />

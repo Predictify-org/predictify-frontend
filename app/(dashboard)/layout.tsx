@@ -112,7 +112,7 @@ export default function DashboardLayout({
               <span className="inline-flex items-center gap-3"><Home className="h-5 w-5 text-[#8AA0FF]" />Dashboard</span>
               <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white text-[#1B0F2B] text-xs px-2">10</span>
             </Link>
-            <Link href="/events" className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/events" ? "bg-white/5" : ""}`}>
+            <Link href="/bets" className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/bets" ? "bg-white/5" : ""}`}>
               <List className="mr-3 h-5 w-5 text-[#8AA0FF]" />
               My Predictions
             </Link>
