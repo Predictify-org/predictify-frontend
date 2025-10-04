@@ -25,3 +25,14 @@ Leaderboard page showing top 10 (10/50) users
 Filters for timeframe and category.
 
 Links to user profile pages from leaderboard.
+
+# User Profile & Account Settings Page #36
+
+I Create a dedicated profile page where users can:
+
+View and edit their account details (username, avatar, membership tier).
+Track personal statistics (total bets, win rate, rank, performance history).
+Manage notification preferences.
+Manage connected wallets and security options.
+
+https://www.figma.com/design/0WWKE7970cnVtuuTFv8lSI/Predictify?node-id=430-1462&m=draw
