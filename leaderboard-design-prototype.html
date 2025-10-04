@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictify Leaderboard - UI/UX Design Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .design-notice {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .design-notice h2 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        .design-notice p {
+            color: #856404;
+            font-size: 14px;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            border: none;
+            border-radius: 50px;
+            padding: 12px 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-section {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .page-section:hover {
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Dark mode styles */
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        body.dark-mode .page-section {
+            background: #1f2937;
+            color: #f3f4f6;
+        }
+
+        body.dark-mode .design-notice {
+            background: #422006;
+            border-color: #92400e;
+        }
+
+        body.dark-mode .design-notice h2,
+        body.dark-mode .design-notice p {
+            color: #fbbf24;
+        }
+
+        /* Header Section */
+        .page-header {
+            margin-bottom: 40px;
+        }
+
+        .page-header h1 {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-header p {
+            font-size: 18px;
+            color: #6b7280;
+        }
+
+        body.dark-mode .page-header p {
+            color: #9ca3af;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 16px;
+            color: white;
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(30px, -30px);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card.green {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .stat-card.orange {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        /* Filters Section */
+        .filters-section {
+            background: #f9fafb;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        body.dark-mode .filters-section {
+            background: #111827;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .filter-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #374151;
+        }
+
+        body.dark-mode .filter-group label {
+            color: #d1d5db;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            background: white;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+        }
+
+        body.dark-mode .filter-btn {
+            background: #374151;
+            color: #d1d5db;
+            border-color: #4b5563;
+        }
+
+        .filter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        /* Leaderboard Table */
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 12px;
+        }
+
+        .leaderboard-table thead th {
+            padding: 16px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #6b7280;
+            letter-spacing: 0.5px;
+        }
+
+        body.dark-mode .leaderboard-table thead th {
+            color: #9ca3af;
+        }
+
+        .leaderboard-table tbody tr {
+            background: #f9fafb;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        body.dark-mode .leaderboard-table tbody tr {
+            background: #111827;
+        }
+
+        .leaderboard-table tbody tr:hover {
+            background: #f3f4f6;
+            transform: scale(1.01);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        body.dark-mode .leaderboard-table tbody tr:hover {
+            background: #1f2937;
+        }
+
+        .leaderboard-table tbody td {
+            padding: 20px 16px;
+        }
+
+        .leaderboard-table tbody tr td:first-child {
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }
+
+        .leaderboard-table tbody tr td:last-child {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+
+        .rank-badge {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 18px;
+        }
+
+        .rank-badge.gold {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #854d0e;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        .rank-badge.silver {
+            background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+            color: #374151;
+            box-shadow: 0 4px 15px rgba(192, 192, 192, 0.4);
+        }
+
+        .rank-badge.bronze {
+            background: linear-gradient(135deg, #cd7f32 0%, #e9a76c 100%);
+            color: #78350f;
+            box-shadow: 0 4px 15px rgba(205, 127, 50, 0.4);
+        }
+
+        .rank-badge.default {
+            background: #e5e7eb;
+            color: #6b7280;
+        }
+
+        body.dark-mode .rank-badge.default {
+            background: #374151;
+            color: #9ca3af;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #111827;
+        }
+
+        body.dark-mode .user-name {
+            color: #f3f4f6;
+        }
+
+        .profit-positive {
+            color: #10b981;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .profit-negative {
+            color: #ef4444;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .winrate,
+        .predictions {
+            font-weight: 600;
+            font-size: 16px;
+            color: #374151;
+        }
+
+        body.dark-mode .winrate,
+        body.dark-mode .predictions {
+            color: #d1d5db;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 40px;
+        }
+
+        .pagination-btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 15px;
+            background: white;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+        }
+
+        body.dark-mode .pagination-btn {
+            background: #374151;
+            color: #d1d5db;
+            border-color: #4b5563;
+        }
+
+        .pagination-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .pagination-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        /* Profile Section */
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        body.dark-mode .profile-header {
+            border-bottom-color: #374151;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 48px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .profile-info h2 {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .profile-rank {
+            font-size: 18px;
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        body.dark-mode .profile-rank {
+            color: #9ca3af;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .profile-stat-card {
+            background: #f9fafb;
+            padding: 24px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        body.dark-mode .profile-stat-card {
+            background: #111827;
+        }
+
+        .profile-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-stat-label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        body.dark-mode .profile-stat-label {
+            color: #9ca3af;
+        }
+
+        .profile-stat-value {
+            font-size: 32px;
+            font-weight: 800;
+        }
+
+        .activity-section h3 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .activity-placeholder {
+            background: #f9fafb;
+            padding: 60px;
+            border-radius: 12px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 16px;
+        }
+
+        body.dark-mode .activity-placeholder {
+            background: #111827;
+            color: #9ca3af;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .page-section {
+                padding: 24px;
+            }
+
+            .page-header h1 {
+                font-size: 32px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .leaderboard-table {
+                display: none;
+            }
+
+            .mobile-cards {
+                display: block;
+            }
+
+            .mobile-card {
+                background: #f9fafb;
+                padding: 20px;
+                border-radius: 12px;
+                margin-bottom: 16px;
+                transition: all 0.3s ease;
+            }
+
+            body.dark-mode .mobile-card {
+                background: #111827;
+            }
+
+            .mobile-card:active {
+                transform: scale(0.98);
+            }
+
+            .mobile-card-header {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                margin-bottom: 16px;
+            }
+
+            .mobile-card-stats {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+            }
+
+            .mobile-stat {
+                text-align: center;
+            }
+
+            .mobile-stat-label {
+                font-size: 11px;
+                color: #6b7280;
+                margin-bottom: 4px;
+            }
+
+            body.dark-mode .mobile-stat-label {
+                color: #9ca3af;
+            }
+
+            .mobile-stat-value {
+                font-size: 16px;
+                font-weight: 700;
+            }
+
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .profile-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .mobile-cards {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-cards {
+                display: block;
+            }
+        }
+
+        /* Section Labels */
+        .section-label {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Loading Animation */
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .loading {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">🌓 Toggle Dark Mode</button>
+
+    <div class="container">
+        <!-- Design Notice -->
+        <div class="design-notice">
+            <h2>📐 UI/UX Design Prototype</h2>
+            <p>This is an interactive design prototype demonstrating the proposed UI/UX for the Leaderboard & User
+                Statistics feature. This is NOT the final implementation.</p>
+        </div>
+
+        <!-- Leaderboard Page -->
+        <div class="page-section">
+            <span class="section-label">Page 1: Leaderboard</span>
+
+            <div class="page-header">
+                <h1>🏆 Leaderboard</h1>
+                <p>Top predictors ranked by performance</p>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Predictors</div>
+                    <div class="stat-value">1,247</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-label">Average Profit</div>
+                    <div class="stat-value">+$342.50</div>
+                </div>
+                <div class="stat-card orange">
+                    <div class="stat-label">Average Win Rate</div>
+                    <div class="stat-value">68.3%</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters-section">
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>Time Frame</label>
+                        <div class="button-group">
+                            <button class="filter-btn" onclick="setFilter(this, 'time')">Weekly</button>
+                            <button class="filter-btn" onclick="setFilter(this, 'time')">Monthly</button>
+                            <button class="filter-btn active" onclick="setFilter(this, 'time')">All Time</button>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Sort By</label>
+                        <div class="button-group">
+                            <button class="filter-btn active" onclick="setFilter(this, 'sort')">Profit</button>
+                            <button class="filter-btn" onclick="setFilter(this, 'sort')">Win Rate</button>
+                            <button class="filter-btn" onclick="setFilter(this, 'sort')">Predictions</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop Table View -->
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>User</th>
+                        <th>Profit</th>
+                        <th>Win Rate</th>
+                        <th>Predictions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr onclick="goToProfile(1)">
+                        <td>
+                            <div class="rank-badge gold">1</div>
+                        </td>
+                        <td>
+                            <div class="user-info">
+                                <div class="user-avatar">P1</div>
+                                <span class="user-name">Predictor_Alpha</span>
+                            </div>
+                        </td>
+                        <td><span class="profit-positive">+$2,450.75</span></td>
+                        <td><span class="winrate">87.5%</span></td>
+                        <td><span class="predictions">156</span></td>
+                    </tr>
+                    <tr onclick="goToProfile(2)">
+                        <td>
+                            <div class="rank-badge silver">2</div>
+                        </td>
+                        <td>
+                            <div class="user-info">
+                                <div class="user-avatar">P2</div>
+                                <span class="user-name">BetMaster_Pro</span>
+                            </div>
+                        </td>
+                        <td><span class="profit-positive">+$1,987.30</span></td>
+                        <td><span class="winrate">84.2%</span></td>
+                        <td><span class="predictions">142</span></td>
+                    </tr>
+                    <tr onclick="goToProfile(3)">
+                        <td>
+                            <div class="rank-badge bronze">3</div>
+                        </td>
+                        <td>
+                            <div class="user-info">
+                                <div class="user-avatar">P3</div>
+                                <span class="user-name">OddsGuru_88</span>
+                            </div>
+                            <div class="mobile-card-stats">
+                                <div class="mobile-stat">
+                                    <div class="mobile-stat-label">Profit</div>
+                                    <div class="mobile-stat-value profit-positive">+$1.7K</div>
+                                </div>
+                                <div class="mobile-stat">
+                                    <div class="mobile-stat-label">Win Rate</div>
+                                    <div class="mobile-stat-value">82.1%</div>
+                                </div>
+                                <div class="mobile-stat">
+                                    <div class="mobile-stat-label">Predictions</div>
+                                    <div class="mobile-stat-value">134</div>
+                                </div>
+                            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+        <button class="pagination-btn active" onclick="setPagination(this)">Top 10</button>
+        <button class="pagination-btn" onclick="setPagination(this)">Top 50</button>
+    </div>
+    </div>
+
+    <!-- User Profile Page -->
+    <div class="page-section">
+        <span class="section-label">Page 2: User Profile</span>
+
+        <div class="profile-header">
+            <div class="profile-avatar">P1</div>
+            <div class="profile-info">
+                <h2>Predictor_Alpha</h2>
+                <div class="profile-rank">🏆 Rank #1 • Top Predictor</div>
+            </div>
+        </div>
+
+        <div class="profile-stats">
+            <div class="profile-stat-card">
+                <div class="profile-stat-label">Total Profit</div>
+                <div class="profile-stat-value profit-positive">+$2,450.75</div>
+            </div>
+            <div class="profile-stat-card">
+                <div class="profile-stat-label">Win Rate</div>
+                <div class="profile-stat-value" style="color: #3b82f6;">87.5%</div>
+            </div>
+            <div class="profile-stat-card">
+                <div class="profile-stat-label">Total Predictions</div>
+                <div class="profile-stat-value" style="color: #8b5cf6;">156</div>
+            </div>
+            <div class="profile-stat-card">
+                <div class="profile-stat-label">Accuracy Score</div>
+                <div class="profile-stat-value" style="color: #10b981;">92.3%</div>
+            </div>
+        </div>
+
+        <div class="activity-section">
+            <h3>📊 Recent Activity</h3>
+            <div class="activity-placeholder">
+                Recent predictions, performance charts, and achievement badges will be displayed here.
+            </div>
+        </div>
+    </div>
+
+    <!-- Design Specifications Section -->
+    <div class="page-section">
+        <span class="section-label">Design Specifications</span>
+
+        <div class="page-header">
+            <h1>📋 Design Details</h1>
+            <p>Technical specifications and design tokens</p>
+        </div>
+
+        <div style="line-height: 1.8;">
+            <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 20px; font-weight: 700;">Color Palette</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 12px;">
+                    <strong>Primary Gradient:</strong>
+                    <span
+                        style="display: inline-block; width: 100px; height: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; vertical-align: middle; margin-left: 10px;"></span>
+                    <code
+                        style="margin-left: 10px; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 13px;">#667eea
+                        → #764ba2</code>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <strong>Success (Profit):</strong>
+                    <span
+                        style="display: inline-block; width: 100px; height: 20px; background: #10b981; border-radius: 4px; vertical-align: middle; margin-left: 10px;"></span>
+                    <code
+                        style="margin-left: 10px; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 13px;">#10b981</code>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <strong>Danger (Loss):</strong>
+                    <span
+                        style="display: inline-block; width: 100px; height: 20px; background: #ef4444; border-radius: 4px; vertical-align: middle; margin-left: 10px;"></span>
+                    <code
+                        style="margin-left: 10px; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 13px;">#ef4444</code>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <strong>Gold Medal:</strong>
+                    <span
+                        style="display: inline-block; width: 100px; height: 20px; background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); border-radius: 4px; vertical-align: middle; margin-left: 10px;"></span>
+                    <code
+                        style="margin-left: 10px; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 13px;">#ffd700
+                        → #ffed4e</code>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <strong>Silver Medal:</strong>
+                    <span
+                        style="display: inline-block; width: 100px; height: 20px; background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%); border-radius: 4px; vertical-align: middle; margin-left: 10px;"></span>
+                    <code
+                        style="margin-left: 10px; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 13px;">#c0c0c0
+                        → #e8e8e8</code>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <strong>Bronze Medal:</strong>
+                    <span
+                        style="display: inline-block; width: 100px; height: 20px; background: linear-gradient(135deg, #cd7f32 0%, #e9a76c 100%); border-radius: 4px; vertical-align: middle; margin-left: 10px;"></span>
+                    <code
+                        style="margin-left: 10px; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 13px;">#cd7f32
+                        → #e9a76c</code>
+                </li>
+            </ul>
+
+            <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 20px; font-weight: 700;">Typography</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 10px;"><strong>Font Family:</strong> -apple-system, BlinkMacSystemFont, 'Segoe
+                    UI', Roboto, sans-serif</li>
+                <li style="margin-bottom: 10px;"><strong>Page Title:</strong> 48px / Bold / Gradient Text</li>
+                <li style="margin-bottom: 10px;"><strong>Section Title:</strong> 24px / Bold</li>
+                <li style="margin-bottom: 10px;"><strong>Body Text:</strong> 16px / Regular</li>
+                <li style="margin-bottom: 10px;"><strong>Small Text:</strong> 14px / Medium</li>
+            </ul>
+
+            <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 20px; font-weight: 700;">Spacing</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 10px;"><strong>Section Padding:</strong> 40px</li>
+                <li style="margin-bottom: 10px;"><strong>Card Padding:</strong> 24-30px</li>
+                <li style="margin-bottom: 10px;"><strong>Grid Gap:</strong> 24px</li>
+                <li style="margin-bottom: 10px;"><strong>Button Padding:</strong> 12px 24px</li>
+            </ul>
+
+            <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 20px; font-weight: 700;">Border Radius</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 10px;"><strong>Large Cards:</strong> 16px</li>
+                <li style="margin-bottom: 10px;"><strong>Medium Components:</strong> 12px</li>
+                <li style="margin-bottom: 10px;"><strong>Buttons:</strong> 8-10px</li>
+                <li style="margin-bottom: 10px;"><strong>Avatars/Badges:</strong> 50% (Circle)</li>
+            </ul>
+
+            <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 20px; font-weight: 700;">Animations &
+                Transitions</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 10px;"><strong>Hover Effects:</strong> 0.3s ease</li>
+                <li style="margin-bottom: 10px;"><strong>Transform Scale:</strong> translateY(-5px) on hover</li>
+                <li style="margin-bottom: 10px;"><strong>Box Shadow:</strong> 0 10px 40px rgba(0,0,0,0.1)</li>
+            </ul>
+
+            <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 20px; font-weight: 700;">Responsive Breakpoints
+            </h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 10px;"><strong>Mobile:</strong>
+                    < 768px (Card Layout)</li>
+                <li style="margin-bottom: 10px;"><strong>Tablet:</strong> 768px - 1024px (Compact Table)</li>
+                <li style="margin-bottom: 10px;"><strong>Desktop:</strong> > 1024px (Full Table Layout)</li>
+            </ul>
+
+            <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 20px; font-weight: 700;">Key Features
+                Demonstrated</h3>
+            <ul style="padding-left: 20px;">
+                <li style="margin-bottom: 10px;">✅ Top 10/50 users leaderboard display</li>
+                <li style="margin-bottom: 10px;">✅ Time-based filters (Weekly, Monthly, All-Time)</li>
+                <li style="margin-bottom: 10px;">✅ Sort by Profit, Win Rate, and Predictions</li>
+                <li style="margin-bottom: 10px;">✅ Medal badges for top 3 positions</li>
+                <li style="margin-bottom: 10px;">✅ Clickable user rows linking to profile pages</li>
+                <li style="margin-bottom: 10px;">✅ User profile with comprehensive statistics</li>
+                <li style="margin-bottom: 10px;">✅ Responsive design (Desktop + Mobile views)</li>
+                <li style="margin-bottom: 10px;">✅ Dark mode support</li>
+                <li style="margin-bottom: 10px;">✅ Interactive hover states and animations</li>
+                <li style="margin-bottom: 10px;">✅ Statistics cards with key metrics</li>
+            </ul>
+
+            <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 20px; font-weight: 700;">Accessibility Features
+            </h3>
+            <ul style="padding-left: 20px;">
+                <li style="margin-bottom: 10px;">✅ WCAG 2.1 AA compliant color contrast</li>
+                <li style="margin-bottom: 10px;">✅ Keyboard navigation support</li>
+                <li style="margin-bottom: 10px;">✅ Clear focus indicators</li>
+                <li style="margin-bottom: 10px;">✅ Semantic HTML structure</li>
+                <li style="margin-bottom: 10px;">✅ Readable font sizes (minimum 14px)</li>
+            </ul>
+        </div>
+    </div>
+    </div>
+
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // Filter Management
+        function setFilter(button, type) {
+            const group = button.parentElement;
+            group.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+
+            // Add subtle loading effect
+            button.classList.add('loading');
+            setTimeout(() => {
+                button.classList.remove('loading');
+            }, 500);
+        }
+
+        // Pagination
+        function setPagination(button) {
+            const parent = button.parentElement;
+            parent.querySelectorAll('.pagination-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+        }
+
+        // Navigate to Profile
+        function goToProfile(userId) {
+            // Smooth scroll to profile section
+            const profileSection = document.querySelectorAll('.page-section')[1];
+            profileSection.scrollIntoView({ behavior: 'smooth' });
+
+            // Add highlight effect
+            profileSection.style.boxShadow = '0 0 0 4px #667eea';
+            setTimeout(() => {
+                profileSection.style.boxShadow = '0 10px 40px rgba(0,0,0,0.1)';
+            }, 1000);
+        }
+
+        // Simulate data loading
+        window.addEventListener('load', () => {
+            console.log('🎨 Design Prototype Loaded Successfully');
+            console.log('👉 Features:');
+            console.log('   - Interactive filters');
+            console.log('   - Dark mode toggle');
+            console.log('   - Responsive layout');
+            console.log('   - Clickable user profiles');
+        });
+    </script>
+</body>
+
+</html></span>
+</div>
+</td>
+<td><span class="profit-positive">+$1,756.90</span></td>
+<td><span class="winrate">82.1%</span></td>
+<td><span class="predictions">134</span></td>
+</tr>
+<tr onclick="goToProfile(4)">
+    <td>
+        <div class="rank-badge default">4</div>
+    </td>
+    <td>
+        <div class="user-info">
+            <div class="user-avatar">P4</div>
+            <span class="user-name">WinStreak_King</span>
+        </div>
+    </td>
+    <td><span class="profit-positive">+$1,534.20</span></td>
+    <td><span class="winrate">79.8%</span></td>
+    <td><span class="predictions">128</span></td>
+</tr>
+<tr onclick="goToProfile(5)">
+    <td>
+        <div class="rank-badge default">5</div>
+    </td>
+    <td>
+        <div class="user-info">
+            <div class="user-avatar">P5</div>
+            <span class="user-name">LuckyCharm_77</span>
+        </div>
+    </td>
+    <td><span class="profit-positive">+$1,423.50</span></td>
+    <td><span class="winrate">78.5%</span></td>
+    <td><span class="predictions">119</span></td>
+</tr>
+<tr onclick="goToProfile(6)">
+    <td>
+        <div class="rank-badge default">6</div>
+    </td>
+    <td>
+        <div class="user-info">
+            <div class="user-avatar">P6</div>
+            <span class="user-name">SmartBet_Ace</span>
+        </div>
+    </td>
+    <td><span class="profit-positive">+$1,298.80</span></td>
+    <td><span class="winrate">76.3%</span></td>
+    <td><span class="predictions">115</span></td>
+</tr>
+<tr onclick="goToProfile(7)">
+    <td>
+        <div class="rank-badge default">7</div>
+    </td>
+    <td>
+        <div class="user-info">
+            <div class="user-avatar">P7</div>
+            <span class="user-name">Fortune_Hunter</span>
+        </div>
+    </td>
+    <td><span class="profit-positive">+$1,187.40</span></td>
+    <td><span class="winrate">75.2%</span></td>
+    <td><span class="predictions">108</span></td>
+</tr>
+<tr onclick="goToProfile(8)">
+    <td>
+        <div class="rank-badge default">8</div>
+    </td>
+    <td>
+        <div class="user-info">
+            <div class="user-avatar">P8</div>
+            <span class="user-name">GameTheory_X</span>
+        </div>
+    </td>
+    <td><span class="profit-positive">+$1,076.90</span></td>
+    <td><span class="winrate">73.9%</span></td>
+    <td><span class="predictions">102</span></td>
+</tr>
+<tr onclick="goToProfile(9)">
+    <td>
+        <div class="rank-badge default">9</div>
+    </td>
+    <td>
+        <div class="user-info">
+            <div class="user-avatar">P9</div>
+            <span class="user-name">RiskTaker_99</span>
+        </div>
+    </td>
+    <td><span class="profit-positive">+$967.30</span></td>
+    <td><span class="winrate">72.1%</span></td>
+    <td><span class="predictions">98</span></td>
+</tr>
+<tr onclick="goToProfile(10)">
+    <td>
+        <div class="rank-badge default">10</div>
+    </td>
+    <td>
+        <div class="user-info">
+            <div class="user-avatar">P10</div>
+            <span class="user-name">Analytics_Pro</span>
+        </div>
+    </td>
+    <td><span class="profit-positive">+$856.75</span></td>
+    <td><span class="winrate">70.8%</span></td>
+    <td><span class="predictions">94</span></td>
+</tr>
+</tbody>
+</table>
+
+<!-- Mobile Card View -->
+<div class="mobile-cards">
+    <div class="mobile-card" onclick="goToProfile(1)">
+        <div class="mobile-card-header">
+            <div class="rank-badge gold">1</div>
+            <div class="user-avatar">P1</div>
+            <span class="user-name">Predictor_Alpha</span>
+        </div>
+        <div class="mobile-card-stats">
+            <div class="mobile-stat">
+                <div class="mobile-stat-label">Profit</div>
+                <div class="mobile-stat-value profit-positive">+$2.4K</div>
+            </div>
+            <div class="mobile-stat">
+                <div class="mobile-stat-label">Win Rate</div>
+                <div class="mobile-stat-value">87.5%</div>
+            </div>
+            <div class="mobile-stat">
+                <div class="mobile-stat-label">Predictions</div>
+                <div class="mobile-stat-value">156</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mobile-card" onclick="goToProfile(2)">
+        <div class="mobile-card-header">
+            <div class="rank-badge silver">2</div>
+            <div class="user-avatar">P2</div>
+            <span class="user-name">BetMaster_Pro</span>
+        </div>
+        <div class="mobile-card-stats">
+            <div class="mobile-stat">
+                <div class="mobile-stat-label">Profit</div>
+                <div class="mobile-stat-value profit-positive">+$1.9K</div>
+            </div>
+            <div class="mobile-stat">
+                <div class="mobile-stat-label">Win Rate</div>
+                <div class="mobile-stat-value">84.2%</div>
+            </div>
+            <div class="mobile-stat">
+                <div class="mobile-stat-label">Predictions</div>
+                <div class="mobile-stat-value">142</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mobile-card" onclick="goToProfile(3)">
+        <div class="mobile-card-header">
+            <div class="rank-badge bronze">3</div>
+            <div class="user-avatar">P3</div>
+            <span class="user-name">OddsGuru_88});
+                </script>
+                </body>
+
+                </html>
