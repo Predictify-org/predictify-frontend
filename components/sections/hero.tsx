@@ -4,7 +4,7 @@ import { StatCard } from "@/components/cards/stat-card";
 import { Wallet, ArrowRight } from "lucide-react";
 import { HERO_STATS } from "../constants/data";
 import { GradientButton } from "../ui/gradient-button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ConnectWalletButton from "../ui/connectWalletButton";
 import { ConnectWalletModal } from "../connect-wallet-modal";
 
@@ -14,6 +14,13 @@ export function Hero() {
       const [isConnected, setIsConnected] = useState(false);
       const [walletName, setWalletName] = useState<string | null>(null);
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
+    
+    // Listen for global open-connect-wallet event from navbar/drawer
+    useEffect(() => {
+      const handler = () => setIsWalletModalOpen(true)
+      document.addEventListener("open-connect-wallet", handler as EventListener)
+      return () => document.removeEventListener("open-connect-wallet", handler as EventListener)
+    }, [])
     
     const handleWalletConnect = (name: string, address: string) => {
       setIsConnected(true);
