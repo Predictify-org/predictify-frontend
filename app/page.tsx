@@ -3,7 +3,8 @@ import Features from "../components/sections/features";
 import { Footer } from "@/components/sections/footer";
 import { Header } from "@/components/sections/header";
 import { Hero } from "@/components/sections/hero";
-import { HowItWorks } from "@/components/sections/how-it-work";
+import { HowItWorks as HowItWorksOld } from "@/components/sections/how-it-work";
+import { HowItWorks } from "@/app/(marketing)/_sections/how-it-works";
 import { WalletsTokens } from "@/components/sections/wallets-token";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 
