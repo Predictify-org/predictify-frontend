@@ -33,6 +33,12 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import ConnectWalletButton from "@/components/ui/connectWalletButton";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { Navbar } from "@/components/navbar/Navbar";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export default function DashboardLayout({
   children,
@@ -120,10 +126,29 @@ export default function DashboardLayout({
               <SettingsIcon className="mr-3 h-5 w-5 text-[#8AA0FF]" />
               Settings
             </Link>
-            <Link href="/help" className="flex items-center rounded-md px-3 py-2 hover:bg-white/5">
-              <MessageCircle className="mr-3 h-5 w-5 text-[#8AA0FF]" strokeWidth={2.5} />
-              Help & Support
-            </Link>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="help-support" className="border-b-0">
+                <AccordionTrigger className="flex items-center justify-between rounded-md px-3 py-2 hover:bg-white/5 hover:no-underline [&[data-state=open]]:bg-white/5 [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0 [&>svg]:text-white [&>svg]:transition-transform [&>svg]:duration-200">
+                  <span className="flex items-center">
+                    <MessageCircle className="mr-3 h-5 w-5 text-[#8AA0FF]" strokeWidth={2.5} />
+                    Help & Support
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0 pt-1">
+                  <div className="grid gap-1 text-[15px]">
+                    <Link href="/help/faqs" className="flex items-center rounded-md pl-11 pr-3 py-2 hover:bg-white/5">
+                      FAQs
+                    </Link>
+                    <Link href="/help/troubleshooting" className="flex items-center rounded-md pl-11 pr-3 py-2 hover:bg-white/5">
+                      Troubleshooting
+                    </Link>
+                    <Link href="/help/contact" className="flex items-center rounded-md pl-11 pr-3 py-2 hover:bg-white/5">
+                      Contact Support
+                    </Link>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </nav>
           <div className="flex-1" />
           <div className="px-4 pb-4">
