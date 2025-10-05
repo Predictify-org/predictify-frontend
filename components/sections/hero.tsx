@@ -1,12 +1,14 @@
 "use client"
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/cards/stat-card";
-import { Wallet, ArrowRight } from "lucide-react";
+import { Wallet, ArrowRight, TrendingUp, Globe, BarChart3, CheckCircle2, Coins } from "lucide-react";
 import { HERO_STATS } from "../constants/data";
 import { GradientButton } from "../ui/gradient-button";
 import { useEffect, useState } from "react";
 import ConnectWalletButton from "../ui/connectWalletButton";
 import { ConnectWalletModal } from "../connect-wallet-modal";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export function Hero() {
       const [isMounted, setIsMounted] = useState(false);
