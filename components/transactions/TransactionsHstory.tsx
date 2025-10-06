@@ -15,6 +15,8 @@ export default function TransactionHistory() {
         dateTo: ''
     });
 
+    const activeState = 'bg-[#6C17B0] text-white font-bold rounded-sm border-b-[2.6px] border-white'
+
 
 
     const parseDate = (dateStr: string): Date => {
@@ -103,24 +105,24 @@ export default function TransactionHistory() {
         filters.dateTo;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 p-2">
+        <div className="min-h-screen bg-gradient-to-br from-[#540d8d] via-purple-800 to-purple-900 p-2">
             <div className="max-w-[97%] mx-auto">
                 {/* Tabs */}
-                <div className="flex gap-2 mb-6">
+                <div className="flex gap-2 mb-6 border p-2 border-white rounded-md">
                     <button
                         onClick={() => setActiveTab('predictions')}
-                        className={`px-6 py-2 rounded-t-lg font-medium transition-colors ${activeTab === 'predictions'
-                            ? 'bg-purple-700 text-white'
-                            : 'bg-purple-800 text-purple-300 hover:bg-purple-700'
+                        className={`px-6 rounded-t-lg text-[19.43px] font-medium transition-colors ${activeTab === 'predictions'
+                            ? activeState
+                            : 'text-[#6B7280] hover:bg-purple-950'
                             }`}
                     >
                         My Predictions
                     </button>
                     <button
                         onClick={() => setActiveTab('transaction')}
-                        className={`px-6 py-2 rounded-t-lg font-medium transition-colors ${activeTab === 'transaction'
-                            ? 'bg-white text-purple-900'
-                            : 'bg-purple-800 text-purple-300 hover:bg-purple-700'
+                        className={`px-6  rounded-t-lg text-[19.43px] font-medium transition-colors ${activeTab === 'transaction'
+                            ? activeState
+                            : 'text-[#6B7280] hover:bg-purple-950'
                             }`}
                     >
                         Transaction history
@@ -128,7 +130,7 @@ export default function TransactionHistory() {
                     <div className="ml-auto flex items-center">
                         <button
                             onClick={() => setShowFilter(!showFilter)}
-                            className={`${showFilter ? 'bg-purple-600' : 'bg-purple-700'} hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors`}
+                            className={`${showFilter ? 'bg-purple-600' : 'bg-transparent'} hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors`}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -251,7 +253,7 @@ export default function TransactionHistory() {
                 )}
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-4 gap-5 mb-6">
                     <div className="bg-white rounded-lg p-4">
                         <div className="text-gray-500 text-xs font-medium mb-1">Total Wagered</div>
                         <div className="text-2xl font-bold text-gray-900">58.00</div>
@@ -285,51 +287,45 @@ export default function TransactionHistory() {
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full px-4">
-                                <thead className='bg-[#F9FAFB] h-14'>
-                                    <tr className="border-b border-gray-200">
-                                        <th className="text-left py-3 px-4 text-gray-600 font-medium text-sm">Date</th>
-                                        <th className="text-left py-3 px-4 text-gray-600 font-medium text-sm">Type</th>
-                                        <th className="text-left py-3 px-4 text-gray-600 font-medium text-sm">Amount</th>
-                                        <th className="text-left py-3 px-4 text-gray-600 font-medium text-sm">Status</th>
-                                        <th className="text-left py-3 px-4 text-gray-600 font-medium text-sm">Description</th>
+                                <thead className='bg-[#F9FAFB] h-16'>
+                                    <tr className="border-b h-[61px] box-border border-gray-200">
+                                        <th className="text-left h-[61px] py-3 px-8 text-gray-600 font-medium text-sm">Date</th>
+                                        <th className="text-left h-[61px] py-4 px-8 w-[179px] text-gray-600 font-medium text-sm">Type</th>
+                                        <th className="text-left max-h-[61px] py-4 px-8 w-[159px] text-gray-600 font-medium text-sm">Amount</th>
+                                        <th className="text-left max-h-[61px] py-6 px-8 w-[164px] text-gray-600 font-medium text-sm">Status</th>
+                                        <th className="text-left max-h-[61px] py-6 px-8 text-gray-600 font-medium text-sm">Description</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredTransactions.map((transaction, index) => (
-                                        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                            <td className="py-4 px-4 text-sm text-gray-500">{transaction.date}</td>
-                                            <td className="py-4 px-4">
+                                        <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                                            <td className="h-[94px] max-h-[91px]py-8 px-8 text-sm text-gray-500">{transaction.date}</td>
+                                            <td className="py-8 px-8">
                                                 <div className="flex items-center gap-2">
                                                     {transaction.icon === 'down' && (
-                                                        <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
-                                                            <ArrowDown className="w-3 h-3 text-green-600" />
-                                                        </div>
+                                                        <ArrowDown className="w-4 h-4 text-green-600" />
                                                     )}
                                                     {transaction.icon === 'up' && (
-                                                        <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center">
-                                                            <ArrowUp className="w-3 h-3 text-red-600" />
-                                                        </div>
+                                                        <ArrowUp className="w-4 h-4 text-red-600" />
                                                     )}
                                                     {transaction.icon === 'refresh' && (
-                                                        <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
-                                                            <RefreshCw className="w-3 h-3 text-blue-600" />
-                                                        </div>
+                                                        <RefreshCw fontWeight={900} className="w-3 h-3 text-blue-600 font-extrabold" />
                                                     )}
                                                     <span className="text-sm text-gray-900 font-medium">{transaction.type}</span>
                                                 </div>
                                             </td>
-                                            <td className={`py-4 px-4 text-sm font-semibold ${transaction.amountColor}`}>
+                                            <td className={`text-sm py-8 px-8 font-semibold ${transaction.amountColor}`}>
                                                 {transaction.amount}
                                             </td>
-                                            <td className="py-4 px-4">
-                                                <span className={`inline-block w-24 text-center px-4 py-2 rounded-full text-xs font-medium ${transaction.status === 'completed'
+                                            <td className="py-8 px-8">
+                                                <span className={`inline-block w-24 text-center py-2 rounded-full text-xs font-medium ${transaction.status === 'completed'
                                                     ? 'bg-green-100 text-green-700'
                                                     : 'bg-yellow-100 text-yellow-700'
                                                     }`}>
                                                     {transaction.status}
                                                 </span>
                                             </td>
-                                            <td className="py-4 px-4 text-sm text-gray-500">{transaction.description}</td>
+                                            <td className="py-8 px-8 text-sm text-gray-500">{transaction.description}</td>
                                         </tr>
                                     ))}
                                 </tbody>
