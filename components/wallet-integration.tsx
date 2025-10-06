@@ -43,7 +43,7 @@ export default function WalletIntegration() {
 
   return (
     <div className="min-h-screen  p-4 md:p-8 flex items-center justify-center">
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden border-4 border-purple-600">
+      <div className="w-full max-w-2xl bg-white rounded-lg shadow-xl overflow-hidden ">
         {/* Main Header */}
         <div 
           className="bg-white px-6 py-5 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
@@ -58,19 +58,19 @@ export default function WalletIntegration() {
         {/* Collapsible Content */}
         <div className={`transition-all duration-300 ease-in-out ${isMainOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
           {/* Cyan Info Banner */}
-          <div className="bg-cyan-100 border-l-4 border-cyan-400 px-6 py-4 mx-6 mt-4 rounded">
+          <div className="bg-[#BDF3FF] border-l-8 border-[#00C3FF] px-6 py-4 mx-6 mt-4 ">
             <p className="text-sm text-cyan-900">
               If you're experiencing issues with transactions, here's what you can do:
             </p>
           </div>
 
           {/* Issues List */}
-          <div className="px-6 py-4 space-y-3">
-            {issues.map((issue: Issue) => (
-              <div key={issue.id} className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-6 py-2">
+            {issues.map((issue: Issue, index: number) => (
+              <div key={issue.id}>
                 <button
                   onClick={() => toggleIssue(issue.id)}
-                  className="w-full px-5 py-4 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+                  className="w-full px-0 py-3 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
                 >
                   <span className="text-sm font-medium text-gray-700">
                     {issue.title}
@@ -81,12 +81,16 @@ export default function WalletIntegration() {
                 </button>
                 
                 <div className={`transition-all duration-300 ease-in-out ${openIssues[issue.id] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-                  <div className="px-5 py-4 bg-gray-50 border-t border-gray-200">
+                  <div className="px-0 pb-3 bg-white">
                     <p className="text-sm text-gray-600 leading-relaxed">
                       {issue.content}
                     </p>
                   </div>
                 </div>
+                
+                {index < issues.length - 1 && (
+                  <div className="border-b-[1.5px] border-[#540D8D]"></div>
+                )}
               </div>
             ))}
           </div>
