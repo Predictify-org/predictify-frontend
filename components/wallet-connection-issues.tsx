@@ -30,8 +30,8 @@ export default function WalletConnectionIssues() {
   };
 
   return (
-    <div className="min-h-screen  p-4 md:p-8 flex items-center justify-center">
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden border-4 border-purple-600">
+    <div className="min-h-screen p-4 md:p-8 flex items-center justify-center">
+      <div className="w-full max-w-2xl bg-white rounded-lg shadow-xl overflow-hidden">
         {/* Main Header */}
         <div 
           className="bg-white px-6 py-5 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
@@ -46,22 +46,22 @@ export default function WalletConnectionIssues() {
         {/* Collapsible Content */}
         <div className={`transition-all duration-300 ease-in-out ${isMainOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
           {/* Yellow Banner */}
-          <div className="bg-yellow-100 border-l-4 border-yellow-400 px-6 py-4 mx-6 mt-4 rounded">
-            <p className="text-sm text-gray-800">
+          <div className="bg-[#FFE10059] border-l-[8px] border-[#FFEE00] px-6 py-4 mx-6 mt-4">
+            <p className="text-sm text-[#7B6D00] text-center">
               Most wallet connection issues can be resolve by the following steps
             </p>
           </div>
 
           {/* Steps */}
-          <div className="px-6 py-4 space-y-3">
+          <div className="px-6 py-4">
             {steps.map((step: Step) => (
-              <div key={step.id} className="border border-gray-200 rounded-lg overflow-hidden">
+              <div key={step.id}>
                 <button
                   onClick={() => toggleStep(step.id)}
-                  className="w-full px-5 py-4 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+                  className="w-full px-0 py-4 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
                 >
-                  <span className="text-sm font-medium text-gray-700">
-                    Step {step.id}: {step.title}
+                  <span className="text-sm font-medium text-gray-800">
+                    Step {step.id}; {step.title}
                   </span>
                   <span className="text-purple-600">
                     {openSteps[step.id] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -69,20 +69,22 @@ export default function WalletConnectionIssues() {
                 </button>
                 
                 <div className={`transition-all duration-300 ease-in-out ${openSteps[step.id] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-                  <div className="px-5 py-4 bg-gray-50 border-t border-gray-200">
-                    <p className="text-sm text-gray-600">
+                  <div className="px-0 pb-4 bg-white">
+                    <p className="text-sm text-gray-600 leading-snug">
                       Detailed instructions for {step.title.toLowerCase()} would appear here. 
                       Follow these guidelines to resolve your wallet connection issues.
                     </p>
                   </div>
                 </div>
+                
+                <div className="border-b-[1.5px] border-[#540D8D]"></div>
               </div>
             ))}
           </div>
 
           {/* Support Banner */}
-          <div className="bg-cyan-50 border border-cyan-200 rounded-lg px-6 py-4 mx-6 mb-6 mt-2">
-            <p className="text-sm text-cyan-900 text-center">
+          <div className="bg-[#00D0FF42] px-6 py-5 mx-6 mb-6 mt-4">
+            <p className="text-sm text-[#0087A5]">
               If you still experience issues after trying all these steps, please contact our support team for assistance
             </p>
           </div>
