@@ -36,3 +36,15 @@ Manage notification preferences.
 Manage connected wallets and security options.
 
 https://www.figma.com/design/0WWKE7970cnVtuuTFv8lSI/Predictify?node-id=430-1462&m=draw
+
+
+# KYC Verification Flow #37
+
+i designed and implement a smooth KYC (Know Your Customer) verification flow to ensure compliance and prevent fraud.
+
+having the required acceptance Criteria
+Multi-step KYC flow (upload ID, selfie verification, progress indicator).
+Ability to check KYC status from user profile.
+Clear success/failure messages with retry option.
+
+https://www.figma.com/design/0WWKE7970cnVtuuTFv8lSI/Predictify?node-id=488-1547&m=draw
