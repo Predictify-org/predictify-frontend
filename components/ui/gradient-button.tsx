@@ -11,6 +11,7 @@ interface GradientButtonProps {
   className?: string;
   onClick?: () => void;
   fullWidth?: boolean;
+  asChild?: boolean;
 }
 
 export function GradientButton({
@@ -20,6 +21,7 @@ export function GradientButton({
   className,
   onClick,
   fullWidth = false,
+  asChild = false,
 }: GradientButtonProps) {
   const baseClasses =
     "relative font-bold transition-all duration-300 transform hover:scale-105";
@@ -49,8 +51,9 @@ export function GradientButton({
       onClick={onClick}
       variant={variant === "secondary" ? "outline" : "default"}
       size={size === "lg" ? "lg" : "default"}
+      asChild={asChild}
     >
-      {variant === "primary" && (
+      {variant === "primary" && !asChild && (
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-md blur opacity-50 -z-10"></div>
       )}
       {children}

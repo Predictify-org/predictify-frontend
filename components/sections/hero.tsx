@@ -1,12 +1,14 @@
 "use client"
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/cards/stat-card";
-import { Wallet, ArrowRight } from "lucide-react";
+import { Wallet, ArrowRight, TrendingUp, Globe, BarChart3, CheckCircle2, Coins } from "lucide-react";
 import { HERO_STATS } from "../constants/data";
 import { GradientButton } from "../ui/gradient-button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ConnectWalletButton from "../ui/connectWalletButton";
 import { ConnectWalletModal } from "../connect-wallet-modal";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export function Hero() {
       const [isMounted, setIsMounted] = useState(false);
@@ -14,6 +16,13 @@ export function Hero() {
       const [isConnected, setIsConnected] = useState(false);
       const [walletName, setWalletName] = useState<string | null>(null);
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
+    
+    // Listen for global open-connect-wallet event from navbar/drawer
+    useEffect(() => {
+      const handler = () => setIsWalletModalOpen(true)
+      document.addEventListener("open-connect-wallet", handler as EventListener)
+      return () => document.removeEventListener("open-connect-wallet", handler as EventListener)
+    }, [])
     
     const handleWalletConnect = (name: string, address: string) => {
       setIsConnected(true);
@@ -28,64 +37,183 @@ export function Hero() {
       setWalletAddress(null);
     };
   return (
-    <section className="relative py-16 sm:py-20 md:py-32 lg:py-40">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-        <div className="max-w-6xl mx-auto">
-          <Badge className="mb-6 sm:mb-8 bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 text-cyan-300 border border-cyan-500/30 backdrop-blur-sm shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/20 transition-all duration-300 transform hover:scale-105">
-            🚀 Now Live on Mainnet
-          </Badge>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#5B21B6] via-[#6B21A8] to-[#7C3AED] font-sans">
+    {/* Gradient Orbs */}
+    <div className="pointer-events-none absolute inset-0">
+      <div className="absolute left-0 top-0 h-[600px] w-[600px] rounded-full bg-[#C397EB33] blur-[120px]" />
+      <div className="absolute bottom-0 right-0 h-[600px] w-[600px] rounded-full bg-[#4F46E533] blur-[120px]" />
+    </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-white mb-6 sm:mb-8 leading-tight">
-            Predict the Future,
-            <br className="hidden sm:block" />
-            <span className="relative inline-block">
-              <span className="bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-400 bg-clip-text text-transparent animate-pulse">
-                Earn Rewards
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-400 bg-clip-text text-transparent blur-sm opacity-50 -z-10">
-                Earn Rewards
-              </div>
-            </span>
-          </h1>
+    {/* Content Container */}
+    <div className="relative mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
+      <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+        {/* Left Column - Hero Content */}
+        <div className="flex flex-col justify-center">
+          {/* Badge */}
+          <div className="mb-8 inline-flex w-fit items-center rounded-full bg-[#312E81] px-4 py-2 text-sm text-white backdrop-blur-sm">
+            The Future of Prediction Markets
+          </div>
 
-          <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-slate-300 mb-8 sm:mb-12 max-w-4xl mx-auto leading-relaxed">
-            The world's first decentralized prediction platform. Make
-            predictions on real-world events, sports, crypto prices, and more.
-            Powered by blockchain technology.
+          {/* Main Heading */}
+          <div className="mb-6 space-y-2">
+            <h1 className="text-6xl font-bold leading-tight text-white lg:text-7xl">Predict.</h1>
+            <h1 className="text-6xl font-bold leading-tight text-white lg:text-7xl">Repeat.</h1>
+            <div className="inline-block bg-gradient-to-r from-[#7C3AED] to-[#5B21B6] px-4 py-2 rounded-lg">
+              <h1 className="text-6xl font-bold leading-tight text-white lg:text-7xl">Earn.</h1>
+            </div>
+          </div>
+
+          {/* Description */}
+          <p className="mb-8 max-w-lg text-lg leading-relaxed text-white/90">
+            Join the decentralized prediction platform where your insights turn into rewards. Powered by blockchain
+            technology for transparent and instant payouts.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-16 sm:mb-20">
-            <GradientButton size="lg" fullWidth>
-              <Wallet className="w-5 h-5 sm:w-6 sm:h-6 mr-3" />
-              <ConnectWalletButton
-                isConnected={isConnected}
-                walletName={walletName}
-                walletAddress={walletAddress}
-                onConnectClick={() => setIsWalletModalOpen(true)}
-                onOpenModal={() => setIsWalletModalOpen(true)}
-              />
-              <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 ml-3" />
-            </GradientButton>
-
-            <GradientButton variant="secondary" size="lg" fullWidth>
-              View Live Markets
-            </GradientButton>
+          {/* CTA Buttons */}
+          <div className="mb-12 flex items-center flex-wrap gap-4">
+            <Button
+              size="lg"
+              variant="outline"
+              className="group border-white/50 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+            >
+              Start Predicting
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-2 border-white/60 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+            >
+              Learn More
+            </Button>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 max-w-3xl mx-auto">
-            {HERO_STATS.map((stat, index) => (
-              <StatCard key={index} stat={stat} index={index} />
-            ))}
+          {/* User Count */}
+          <div className="flex items-center gap-4">
+            <div className="flex -space-x-1">
+              <div className="h-12 w-12 rounded-full border-3 border-white/40 bg-gradient-to-br from-purple-400 to-purple-600" />
+              <div className="h-12 w-12 rounded-full border-3 border-white/40 bg-gradient-to-br from-blue-400 to-blue-600" />
+              <div className="h-12 w-12 rounded-full border-3 border-white/40 bg-gradient-to-br from-pink-400 to-pink-600" />
+            </div>
+            <p className="text-sm text-white/60">Join 10,000+ predictors worldwide</p>
           </div>
         </div>
-          <ConnectWalletModal
-                  isOpen={isWalletModalOpen}
-                  onOpenChange={setIsWalletModalOpen}
-                  onWalletConnect={handleWalletConnect}
-                  onWalletDisconnect={handleWalletDisconnect}
-                />
+
+        {/* Right Column - Prediction Markets Preview */}
+        <div className="relative flex items-center justify-center">
+          {/* Win Notification Badge */}
+          <div className="absolute right-0 -top-4 z-20 animate-fade-in rounded-xl bg-gradient-to-r from-[#4F46E533] to-[#9333EA] p-2 shadow-2xl">
+            <div className="flex items-center gap-2">
+              <div className="rounded-full bg-white/20 p-1.5">
+                <Coins className="h-4 w-4 text-white" />
+              </div>
+              <span className="text-sm font-semibold text-white">+250 USDC Won!</span>
+            </div>
+          </div>
+
+          {/* Markets Card */}
+          <Card className="w-full max-w-md border-white/10 bg-gradient-to-b from-[#48097B] to-[#111827] p-6 backdrop-blur-xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-white">Popular Prediction Markets</h2>
+              <button className="text-sm text-purple-300 hover:text-purple-200">View All</button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Market 1 - Bitcoin Price */}
+              <Card className="border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm">
+                <div className="mb-3 flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-lg bg-blue-500/20 p-2">
+                      <TrendingUp className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white">Bitcoin Price</h3>
+                      <p className="text-sm text-white/70">Will BTC exceed $75K by Q3 2023?</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-green-400 mb-1">Yes: 68%</div>
+                    <div className="text-sm text-red-400">No: 32%</div>
+                  </div>
+                </div>
+                <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full w-[68%] bg-gradient-to-r from-green-500 to-green-400" />
+                </div>
+                <div className="flex justify-between text-xs text-white/60">
+                  <span>Pool: 1,245 USDC</span>
+                  <span>Ends in 3 days</span>
+                </div>
+              </Card>
+
+              {/* Market 2 - US Election */}
+              <Card className="border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm">
+                <div className="mb-3 flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-lg bg-purple-500/20 p-2">
+                      <Globe className="h-5 w-5 text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white">US Election 2024</h3>
+                      <p className="text-sm text-white/70">Democratic party to win?</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-green-400">Yes: 53%</div>
+                    <div className="text-sm text-red-400">No: 47%</div>
+                  </div>
+                </div>
+                <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full w-[53%] bg-gradient-to-r from-green-500 to-green-400" />
+                </div>
+                <div className="flex justify-between text-xs text-white/60">
+                  <span>Pool: 5,890 USDC</span>
+                  <span>Ends in 8 months</span>
+                </div>
+              </Card>
+
+              {/* Market 3 - Tesla Earnings */}
+              <Card className="border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm">
+                <div className="mb-3 flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-lg bg-green-500/20 p-2">
+                      <BarChart3 className="h-5 w-5 text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white">Tesla Q2 Earnings</h3>
+                      <p className="text-sm text-white/70">Will exceed analyst expectations?</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-green-400">Yes: 72%</div>
+                    <div className="text-sm text-red-400">No: 28%</div>
+                  </div>
+                </div>
+                <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full w-[72%] bg-gradient-to-r from-green-500 to-green-400" />
+                </div>
+                <div className="flex justify-between text-xs text-white/60">
+                  <span>Pool: 2,456 USDC</span>
+                  <span>Ends in 14 days</span>
+                </div>
+              </Card>
+
+              {/* Place Prediction Button */}
+              <Button className="w-full bg-[#4F46E5] py-6 text-white hover:bg-[#4F46E5]/90">
+                Place Your Prediction
+              </Button>
+            </div>
+          </Card>
+
+          {/* Success Notification Badge */}
+          <div className="absolute bottom-0 right-0 z-20 animate-fade-in rounded-2xl bg-green-500 p-3 shadow-2xl">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-white" />
+              <span className="text-sm font-semibold text-white">Prediction Correct!</span>
+            </div>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
+  </div>
   );
 }
