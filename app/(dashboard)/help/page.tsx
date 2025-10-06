@@ -1,5 +1,5 @@
 import { ContactSupportForm } from "@/components/contact-support-form";
-import { OtherWaysToGetHelp } from "@/components/other-way-get-help";
+import { OtherWaysToGetHelp } from "@/components/other-way-to-get-help";
 
 export default function HelpPage() {
   return (
