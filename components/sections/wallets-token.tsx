@@ -1,7 +1,6 @@
 import React from "react";
 import Image from "next/image";
 
-// --- Icon Definitions (Using simple inline SVGs to match the design's aesthetic) ---
 
 const MetaMaskIcon = () => (
   <Image
@@ -102,10 +101,6 @@ const TOKENS = [
 
 // --- Sub Components ---
 
-/**
- * WalletCard Component
- * Implements uniform sizing, hover elevation, and keyboard focus ring.
- */
 type WalletCardProps = {
   name: string;
   icon: React.ComponentType;
@@ -114,7 +109,7 @@ type WalletCardProps = {
 
 const WalletCard = ({ name, icon: Icon, alt }: WalletCardProps) => (
   <a
-    href="#" // Placeholder link
+    href="#"
     className="
             flex flex-col items-center justify-center p-6 space-y-3
             bg-[#1F2937] border border-[##374151] rounded-xl
@@ -128,10 +123,6 @@ const WalletCard = ({ name, icon: Icon, alt }: WalletCardProps) => (
   </a>
 );
 
-/**
- * TokenCard Component
- * Implements uniform sizing and ticker caption.
- */
 type TokenCardProps = {
   ticker: string;
   icon: React.ComponentType;
@@ -150,24 +141,19 @@ const TokenCard = ({ ticker, icon: Icon, alt }: TokenCardProps) => (
       <Icon />
     </div>
     <div className="text-center">
-      {/* Changed text color and weight for better visibility, consistent with WalletCard */}
       <span className="text-white text-sm font-semibold">{ticker}</span>
     </div>
   </div>
 );
 
-/**
- * Main WalletsAndTokensSection Component (Aliased as App for single-file mandate)
- */
+
 const WalletsTokens = () => {
-  // Separate the main four wallets from Phantom for the specific layout requirement
   const mainWallets = WALLETS.slice(0, 4);
   const phantomWallet = WALLETS.find((w) => w.name === "Phantom");
 
   return (
     <section className="py-20 font-sans">
       <div className="bg-slate-900/70 p-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        {/* Title & Subcopy */}
         <div className="mb-12">
           <span className="inline-flex items-center rounded-full bg-purple-900/50 px-3 py-1 text-xs font-medium text-purple-300 ring-1 ring-inset ring-purple-600/50 uppercase tracking-widest">
             Compatibility
@@ -181,15 +167,12 @@ const WalletsTokens = () => {
           </p>
         </div>
 
-        {/* --- Compatible Wallets Section --- */}
         <div className="mb-16">
           <h2 className="text-2xl font-bold text-white mb-8">
             Compatible Wallets
           </h2>
 
-          {/* Wallets Grid Layout */}
           <div className="flex flex-col items-center">
-            {/* First Row: 4 main wallets (MetaMask, Coinbase, WalletConnect, Trust Wallet) */}
             <div
               className="
                             grid grid-cols-2 gap-6
@@ -203,7 +186,6 @@ const WalletsTokens = () => {
               ))}
             </div>
 
-            {/* Second Row: Centered Phantom Wallet */}
             {phantomWallet && (
               <div className="max-w-sm w-full">
                 <WalletCard {...phantomWallet} />
@@ -212,13 +194,11 @@ const WalletsTokens = () => {
           </div>
         </div>
 
-        {/* --- Supported Tokens Section --- */}
         <div className="pt-8">
           <h2 className="text-2xl font-bold text-white mb-8">
             Supported Tokens
           </h2>
 
-          {/* Tokens Grid/Row Layout */}
           <div
             className="
                         grid grid-cols-3 gap-8
@@ -237,7 +217,6 @@ const WalletsTokens = () => {
   );
 };
 
-// Export the main component as App for the single-file React environment
 export default function App() {
   return <WalletsTokens />;
 }

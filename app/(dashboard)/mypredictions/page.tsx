@@ -220,8 +220,6 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
       </div>
 
       <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-        {/* Text colors adjusted for white background */}
-        {/* Stake */}
         <div>
           <p className="text-[#6B7280] text-[15px]">Stake</p>
           <p className="text-gray-900 font-medium text-[15px]">
@@ -229,7 +227,6 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
           </p>
         </div>
 
-        {/* Odds */}
         <div>
           <p className="text-gray-600 text-[15px]">Odds</p>
           <p className="text-gray-900 font-medium text-[15px]">
@@ -237,7 +234,6 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
           </p>
         </div>
 
-        {/* Potential Winnings */}
         <div>
           <p className="text-[#6B7280] text-[15px]">Potential Winnings</p>
           <p className="text-gray-900 font-medium text-[15px]">
@@ -255,7 +251,9 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
         {(status === "won" || status === "lost") && resolvedDate && (
           <div className="col-span-2">
             <p className="text-[#6B7280] text-[15px] mt-1">Resolved Date</p>
-            <p className="text-gray-900 font-medium text-[15px]">{resolvedDate}</p>
+            <p className="text-gray-900 font-medium text-[15px]">
+              {resolvedDate}
+            </p>
           </div>
         )}
       </div>
@@ -263,9 +261,7 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
   );
 };
 
-/**
- * PredictionsList component handles the internal filtering and rendering of cards.
- */
+
 const PredictionsList: React.FC = () => {
   const TABS: FilterTab[] = ["All", "Active", "Pending", "Completed"];
   const [activeTab, setActiveTab] = useState<FilterTab>("All");
