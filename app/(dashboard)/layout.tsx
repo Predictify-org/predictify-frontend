@@ -21,7 +21,12 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { SearchInput } from "@/components/navbar/SearchInput";
-import { Home, List, Settings as SettingsIcon, MessageCircle } from "lucide-react";
+import {
+  Home,
+  List,
+  Settings as SettingsIcon,
+  MessageCircle,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { Navbar } from "@/components/navbar/Navbar";
@@ -78,13 +83,28 @@ export default function DashboardLayout({
           <div className="p-4">
             <div className="flex items-center gap-2">
               <div className="h-7 w-7 rounded-full border border-white/20 grid place-items-center">
-                <Image src="/images/predictify-logo.png" alt="Predictify" width={30} height={30} />
+                <Image
+                  src="/images/predictify-logo.png"
+                  alt="Predictify"
+                  width={30}
+                  height={30}
+                />
               </div>
               <span className="text-lg font-semibold text-[#E3D365]">Predictify</span>
+              <span
+                className="text-lg font-semibold"
+                style={{ color: "#E3D365" }}
+              >
+                Predictify
+              </span>
             </div>
             <div className="my-4 h-px w-full bg-white/10" />
             <div className="mt-4">
-              <SearchInput variant="sidebar" className="w-full max-w-none" placeholder="Search" />
+              <SearchInput
+                variant="sidebar"
+                className="w-full max-w-none"
+                placeholder="Search"
+              />
             </div>
           </div>
 
@@ -98,6 +118,8 @@ export default function DashboardLayout({
             >
               <span className="inline-flex items-center gap-3">
                 <Home className="h-5 w-5 text-[#8AA0FF]" /> Dashboard
+                <Home className="h-5 w-5 text-[#8AA0FF]" />
+                Dashboard
               </span>
               <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white text-[#1B0F2B] text-xs px-2">
                 10
@@ -108,6 +130,10 @@ export default function DashboardLayout({
               href="/bets"
               className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${
                 pathname === "/bets" ? "bg-white/5" : ""
+            <Link
+              href="/mypredictions"
+              className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${
+                pathname === "/mypredictions" ? "bg-white/5" : ""
               }`}
             >
               <List className="mr-3 h-5 w-5 text-[#8AA0FF]" />
@@ -224,6 +250,16 @@ export default function DashboardLayout({
                 </div>
               )}
             </div>
+            <Link
+              href="/help"
+              className="flex items-center rounded-md px-3 py-2 hover:bg-white/5"
+            >
+              <MessageCircle
+                className="mr-3 h-5 w-5 text-[#8AA0FF]"
+                strokeWidth={2.5}
+              />
+              Help & Support
+            </Link>
           </nav>
 
           {/* Footer */}
@@ -233,12 +269,20 @@ export default function DashboardLayout({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar className="w-[40px] h-[40px] rounded-[76.88px] opacity-100">
-                  <AvatarImage className="object-cover" src="/images/avatar2.png" alt="User" />
+                  <AvatarImage
+                    className="object-cover"
+                    src="/images/avatar2.png"
+                    alt="User"
+                  />
                   <AvatarFallback>U</AvatarFallback>
                 </Avatar>
                 <div className="leading-tight">
-                  <div className="text-sm font-semibold text-white">Azunyan U. Wu</div>
-                  <div className="text-[14px] text-[#C7D2FE] leading-5">Basic Member</div>
+                  <div className="text-sm font-semibold text-white">
+                    Azunyan U. Wu
+                  </div>
+                  <div className="text-[14px] text-[#C7D2FE] leading-5">
+                    Basic Member
+                  </div>
                 </div>
               </div>
               <button
@@ -255,7 +299,7 @@ export default function DashboardLayout({
         {/* Main Content */}
         <main className="flex-1 overflow-auto">
           <Navbar />
-          <div className="p-4 md:p-6">{children}</div>
+          <div className="">{children}</div>
         </main>
       </div>
     </div>
