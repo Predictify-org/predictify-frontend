@@ -30,7 +30,7 @@ export default function WalletConnectionIssues() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 flex items-center justify-center">
+    <div className=" p-4 md:p-8 flex items-center justify-center">
       <div className="w-full max-w-2xl bg-white rounded-lg shadow-xl overflow-hidden">
         {/* Main Header */}
         <div 

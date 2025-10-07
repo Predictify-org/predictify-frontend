@@ -1,4 +1,4 @@
-import { CTA } from "@/components/sections/cta"
+// import { CTA } from "@/components/sections/cta"
 import Features from "@/components/sections/features"
 import { Footer } from "@/components/sections/footer"
 import { Hero } from "@/components/sections/hero"
@@ -14,7 +14,7 @@ export default function MarketingRoute() {
       <Features />
       <HowItWorks />
       <WalletsTokens />
-      <CTA />
+      {/* <CTA/> */}
       <Footer />
     </div>
   )
