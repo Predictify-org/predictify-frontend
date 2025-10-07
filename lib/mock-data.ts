@@ -1,4 +1,4 @@
-import { Bet } from './types';
+import { Bet, Transaction } from './types';
 
 export const mockActiveBets: Bet[] = [
   {
@@ -127,3 +127,106 @@ export const categoryColors = {
     progress: 'bg-orange-500'
   }
 } as const;
+
+
+ export const allTransactions: Transaction[] = [
+        {
+            date: '10/06/2023',
+            type: 'deposit',
+            amount: '+50 XLM',
+            status: 'completed',
+            description: 'Deposit from external wallet',
+            icon: 'down',
+            amountColor: 'text-green-500',
+            currency: 'XLM',
+            numericAmount: 50
+        },
+        {
+            date: '09/06/2023',
+            type: 'bet',
+            amount: '-10 XLM',
+            status: 'completed',
+            description: 'Bet on Lakers vs Heat',
+            icon: 'up',
+            amountColor: 'text-red-500',
+            currency: 'XLM',
+            numericAmount: -10
+        },
+        {
+            date: '08/06/2023',
+            type: 'win',
+            amount: '+18 XLM',
+            status: 'completed',
+            description: 'Won bet on Formula 1: Monaco Grand Prix',
+            icon: 'down',
+            amountColor: 'text-green-500',
+            currency: 'XLM',
+            numericAmount: 18
+        },
+        {
+            date: '07/06/2023',
+            type: 'withdraw',
+            amount: '-25 XLM',
+            status: 'completed',
+            description: 'Withdrawal to external wallet',
+            icon: 'up',
+            amountColor: 'text-red-500',
+            currency: 'XLM',
+            numericAmount: -25
+        },
+        {
+            date: '06/06/2023',
+            type: 'bet',
+            amount: '-15 USDC',
+            status: 'completed',
+            description: 'Bet on Ethereum price',
+            icon: 'up',
+            amountColor: 'text-red-500',
+            currency: 'USDC',
+            numericAmount: -15
+        },
+        {
+            date: '05/06/2023',
+            type: 'refund',
+            amount: '+5 USDC',
+            status: 'completed',
+            description: 'Refund for canceled event',
+            icon: 'refresh',
+            amountColor: 'text-green-500',
+            currency: 'USDC',
+            numericAmount: 5
+        },
+        {
+            date: '06/06/2023',
+            type: 'bet',
+            amount: '-15 USDC',
+            status: 'completed',
+            description: 'Bet on Ethereum price',
+            icon: 'up',
+            amountColor: 'text-red-500',
+            currency: 'USDC',
+            numericAmount: -15
+        },
+        {
+            date: '05/06/2023',
+            type: 'refund',
+            amount: '+5 USDC',
+            status: 'completed',
+            description: 'Refund for canceled event',
+            icon: 'refresh',
+            amountColor: 'text-green-500',
+            currency: 'USDC',
+            numericAmount: 5
+        },
+        {
+            date: '04/06/2023',
+            type: 'deposit',
+            amount: '+100 USDC',
+            status: 'pending',
+            description: 'Deposit from bank account',
+            icon: 'down',
+            amountColor: 'text-green-500',
+            currency: 'USDC',
+            numericAmount: 100
+        }
+    ];

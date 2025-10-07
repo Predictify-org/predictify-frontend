@@ -13,7 +13,8 @@ const STEPS = [
       "One-click connection process",
       "Secure and private",
     ],
-    icon: <Wallet className="w-12 h-12 text-indigo-400" strokeWidth={2.92} />,
+    icon: <Wallet className="w-12 h-12 text-blue-400" strokeWidth={2.92} />,
+    iconBg: "bg-blue-500/20",
   },
   {
     number: "2",
@@ -24,7 +25,8 @@ const STEPS = [
       "Set your prediction amount",
       "Real-time odds calculation",
     ],
-    icon: <BarChart3 className="w-12 h-12 text-indigo-400" strokeWidth={2.92} />,
+    icon: <BarChart3 className="w-12 h-12 text-purple-400" strokeWidth={2.92} />,
+    iconBg: "bg-purple-500/20",
   },
   {
     number: "3",
@@ -36,6 +38,7 @@ const STEPS = [
       "Track your earnings history",
     ],
     icon: <CircleDollarSign className="w-12 h-12 text-emerald-400" strokeWidth={2.92} />,
+    iconBg: "bg-emerald-500/20",
   },
 ];
 
@@ -50,14 +53,15 @@ export function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="relative py-16 sm:py-20 lg:py-32 backdrop-blur-[12px]"
+      className="relative py-20 sm:py-24 lg:py-40 backdrop-blur-[12px]"
       aria-labelledby="how-it-works-heading"
       style={{
-        background: 'linear-gradient(180deg, rgba(17, 24, 39, 0.5) 0%, rgba(0, 0, 0, 0.5) 100%)',
+        background: 'linear-gradient(180deg, rgba(45, 27, 105, 0.6) 0%, rgba(17, 24, 39, 0.8) 50%, rgba(0, 0, 0, 0.6) 100%)',
       }}
     >
+      {/* Decorative Background Pattern */}
       <div
-        className="absolute inset-0 opacity-20 pointer-events-none"
+        className="absolute inset-0 opacity-40 pointer-events-none"
         aria-hidden="true"
         style={{
           backgroundImage: `url('/images/Container.png')`,
@@ -68,8 +72,8 @@ export function HowItWorks() {
       />
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-16 sm:mb-20">
-          <div className="inline-flex items-center justify-center mb-6">
+        <div className="text-center mb-20 sm:mb-24">
+          <div className="inline-flex items-center justify-center mb-8">
             <span className="px-6 py-2 rounded-full bg-indigo-900 text-white text-[17.38px] leading-[29.21px] font-medium">
               Simple Process
             </span>
@@ -77,7 +81,7 @@ export function HowItWorks() {
 
           <h2
             id="how-it-works-heading"
-            className="text-[44.69px] leading-[58.42px] font-bold text-white mb-6"
+            className="text-[44.69px] leading-[58.42px] font-bold text-white mb-8"
           >
             How Predictify Works
           </h2>
@@ -88,7 +92,7 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
           {STEPS.map((step) => (
             <StepCard key={step.number} {...step} />
           ))}
