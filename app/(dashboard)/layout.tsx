@@ -19,7 +19,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import { SearchInput } from "@/components/navbar/SearchInput";
-import { Home, List, Settings as SettingsIcon, MessageCircle } from "lucide-react";
+import {
+  Home,
+  List,
+  Settings as SettingsIcon,
+  MessageCircle,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -98,30 +103,70 @@ export default function DashboardLayout({
           <div className="p-4">
             <div className="flex items-center gap-2">
               <div className="h-7 w-7 rounded-full border border-white/20 grid place-items-center">
-                <Image src="/images/predictify-logo.png" alt="Predictify" width={30} height={30} />
+                <Image
+                  src="/images/predictify-logo.png"
+                  alt="Predictify"
+                  width={30}
+                  height={30}
+                />
               </div>
-              <span className="text-lg font-semibold" style={{ color: "#E3D365" }}>Predictify</span>
+              <span
+                className="text-lg font-semibold"
+                style={{ color: "#E3D365" }}
+              >
+                Predictify
+              </span>
             </div>
             <div className="my-4 h-px w-full bg-white/10" />
             <div className="mt-4">
-              <SearchInput variant="sidebar" className="w-full max-w-none" placeholder="Search" />
+              <SearchInput
+                variant="sidebar"
+                className="w-full max-w-none"
+                placeholder="Search"
+              />
             </div>
           </div>
           <nav className="mt-2 grid gap-1 lg:gap-3 text-[15px] px-2">
-            <Link href="/dashboard" className={`flex items-center justify-between rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/dashboard" ? "bg-white/5" : ""}`}>
-              <span className="inline-flex items-center gap-3"><Home className="h-5 w-5 text-[#8AA0FF]" />Dashboard</span>
-              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white text-[#1B0F2B] text-xs px-2">10</span>
+            <Link
+              href="/dashboard"
+              className={`flex items-center justify-between rounded-md px-3 py-2 hover:bg-white/5 ${
+                pathname === "/dashboard" ? "bg-white/5" : ""
+              }`}
+            >
+              <span className="inline-flex items-center gap-3">
+                <Home className="h-5 w-5 text-[#8AA0FF]" />
+                Dashboard
+              </span>
+              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white text-[#1B0F2B] text-xs px-2">
+                10
+              </span>
             </Link>
-            <Link href="/bets" className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/bets" ? "bg-white/5" : ""}`}>
+            <Link
+              href="/mypredictions"
+              className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${
+                pathname === "/mypredictions" ? "bg-white/5" : ""
+              }`}
+            >
               <List className="mr-3 h-5 w-5 text-[#8AA0FF]" />
               My Predictions
             </Link>
-            <Link href="/settings" className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${pathname === "/settings" ? "bg-white/5" : ""}`}>
+            <Link
+              href="/settings"
+              className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${
+                pathname === "/settings" ? "bg-white/5" : ""
+              }`}
+            >
               <SettingsIcon className="mr-3 h-5 w-5 text-[#8AA0FF]" />
               Settings
             </Link>
-            <Link href="/help" className="flex items-center rounded-md px-3 py-2 hover:bg-white/5">
-              <MessageCircle className="mr-3 h-5 w-5 text-[#8AA0FF]" strokeWidth={2.5} />
+            <Link
+              href="/help"
+              className="flex items-center rounded-md px-3 py-2 hover:bg-white/5"
+            >
+              <MessageCircle
+                className="mr-3 h-5 w-5 text-[#8AA0FF]"
+                strokeWidth={2.5}
+              />
               Help & Support
             </Link>
           </nav>
@@ -131,15 +176,26 @@ export default function DashboardLayout({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar className="w-[40px] h-[40px] rounded-[76.88px] opacity-100">
-                  <AvatarImage className="object-cover" src="/images/avatar2.png" alt="User" />
+                  <AvatarImage
+                    className="object-cover"
+                    src="/images/avatar2.png"
+                    alt="User"
+                  />
                   <AvatarFallback>U</AvatarFallback>
                 </Avatar>
                 <div className="leading-tight">
-                  <div className="text-sm font-semibold text-white">Azunyan U. Wu</div>
-                  <div className="text-[14px] text-[#C7D2FE] leading-5">Basic Member</div>
+                  <div className="text-sm font-semibold text-white">
+                    Azunyan U. Wu
+                  </div>
+                  <div className="text-[14px] text-[#C7D2FE] leading-5">
+                    Basic Member
+                  </div>
                 </div>
               </div>
-              <button type="button" className="w-[40px] h-[40px] flex items-center justify-center rounded-[123px] bg-[#540D8D] hover:bg-[#6B1DAB] opacity-100">
+              <button
+                type="button"
+                className="w-[40px] h-[40px] flex items-center justify-center rounded-[123px] bg-[#540D8D] hover:bg-[#6B1DAB] opacity-100"
+              >
                 <LogOut className="w-[28px] h-[28px] text-white" />
               </button>
             </div>
@@ -147,7 +203,7 @@ export default function DashboardLayout({
         </aside>
         <main className="flex-1 overflow-auto">
           <Navbar />
-          <div className="p-4 md:p-6">{children}</div>
+          <div className="">{children}</div>
         </main>
       </div>
     </div>

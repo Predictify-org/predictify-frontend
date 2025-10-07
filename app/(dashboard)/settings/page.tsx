@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { SyntheticEvent, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,7 +18,7 @@ export default function SettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saveError, setSaveError] = useState(false)
 
-  const handleSave = (e) => {
+  const handleSave = (e: SyntheticEvent) => {
     e.preventDefault()
     // Simulate API call
     setTimeout(() => {
