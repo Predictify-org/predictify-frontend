@@ -1,4 +1,3 @@
-
 export type PredictionStatus = 'active' | 'pending' | 'won' | 'lost';
 
 export interface Prediction {
