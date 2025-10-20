@@ -5,11 +5,13 @@ import { Hero } from "@/components/sections/hero"
 import { HowItWorks } from "@/app/(marketing)/_sections/how-it-works"
 import WalletsTokens from "@/components/sections/wallets-token"
 import { AnimatedBackground } from "@/components/ui/animated-background"
+import Navbar from "@/app/(marketing)/_components/navbar"
 
 export default function MarketingRoute() {
   return (
     <div className="min-h-screen bg-[#540D8D] relative overflow-hidden">
       <AnimatedBackground />
+      <Navbar transparent />
       <Hero />
       <Features />
       <HowItWorks />

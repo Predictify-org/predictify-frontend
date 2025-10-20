@@ -117,7 +117,6 @@ export default function DashboardLayout({
               }`}
             >
               <span className="inline-flex items-center gap-3">
-                <Home className="h-5 w-5 text-[#8AA0FF]" /> Dashboard
                 <Home className="h-5 w-5 text-[#8AA0FF]" />
                 Dashboard
               </span>
@@ -130,6 +129,12 @@ export default function DashboardLayout({
               href="/bets"
               className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${
                 pathname === "/bets" ? "bg-white/5" : ""
+              }`}
+            >
+              <BarChart3 className="mr-3 h-5 w-5 text-[#8AA0FF]" />
+              Bets
+            </Link>
+
             <Link
               href="/mypredictions"
               className={`flex items-center rounded-md px-3 py-2 hover:bg-white/5 ${

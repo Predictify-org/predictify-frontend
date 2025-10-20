@@ -2,9 +2,13 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react"
-import { Menu, Wallet } from "lucide-react"
+import { Menu, Wallet, Bell, Sun, Moon, ChevronDown } from "lucide-react"
 import MobileDrawer from "./mobile-drawer"
 import Image from "next/image"
+import { SearchInput } from "@/components/navbar/SearchInput"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useTheme } from "next-themes"
 
 interface NavbarProps {
   transparent?: boolean
@@ -22,6 +26,8 @@ export default function Navbar({ transparent }: NavbarProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const headerRef = useRef<HTMLDivElement | null>(null)
   const [scrolled, setScrolled] = useState(false)
+  const { theme, setTheme } = useTheme()
+  const [notificationCount] = useState(2) // Mock notification count
 
   // Sticky translucent header with gradient/blur and subtle border on scroll
   useEffect(() => {
@@ -65,6 +71,10 @@ export default function Navbar({ transparent }: NavbarProps) {
     }
   }
 
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark")
+  }
+
   return (
     <div
       ref={headerRef}
@@ -74,50 +84,132 @@ export default function Navbar({ transparent }: NavbarProps) {
         } ${scrolled ? "border-b border-white/10" : "border-b border-transparent"}`
       }
     >
-      <div className="mx-auto max-w-7xl px-2 sm:px-4">
-        <div className="flex h-14 items-center justify-between">
-          <div className="flex items-center gap-3 -ml-1 md:-ml-2">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        {/* Desktop Layout */}
+        <div className="hidden lg:flex items-center justify-between h-16">
+          {/* Left: Logo */}
+          <div className="flex items-center">
             <Link href="/" className="flex items-center">
               <Image src="/Frame.svg" alt="Predictify" width={120} height={24} priority />
             </Link>
           </div>
 
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-6">
-            {navLinks.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                onClick={handleSmoothScroll(l.href)}
-                aria-current={activeHash === l.href ? "page" : undefined}
-                className={`text-sm font-medium tracking-wide transition-colors hover:text-white ${
-                  activeHash === l.href ? "text-white" : "text-slate-300"
-                }`}
-              >
-                {l.label}
-              </Link>
-            ))}
+          {/* Center: Search Bar */}
+          <div className="flex-1 max-w-md mx-8">
+            <SearchInput 
+              placeholder="Search for token, event, wallet address"
+              className="w-full"
+            />
           </div>
 
-          {/* CTA group */}
-          <div className="hidden md:flex items-center gap-2">
-            <button
-              onClick={() => document.dispatchEvent(new CustomEvent("open-connect-wallet"))}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#48097b] text-white px-4 py-2 text-sm font-semibold shadow-sm hover:bg-[#3f076c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 mr-1 sm:mr-2"
+          {/* Right: Actions */}
+          <div className="flex items-center gap-3">
+            {/* Stellar Network Switcher */}
+            <Button
+              variant="ghost"
+              className="flex items-center gap-2 text-white hover:bg-white/10 px-3 py-2"
             >
-              <Wallet className="w-4 h-4" />
+              <div className="w-4 h-4 rounded-full bg-gradient-to-r from-blue-400 to-purple-500"></div>
+              <span className="text-sm font-medium">Stellar</span>
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+
+            {/* Connect Wallet */}
+            <Button
+              onClick={() => document.dispatchEvent(new CustomEvent("open-connect-wallet"))}
+              className="bg-[#48097b] hover:bg-[#3f076c] text-white px-4 py-2 text-sm font-semibold"
+            >
+              <Wallet className="w-4 h-4 mr-2" />
               Connect Wallet
-            </button>
+            </Button>
+
+            {/* Notifications */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative text-white hover:bg-white/10"
+            >
+              <Bell className="w-5 h-5" />
+              {notificationCount > 0 && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-xs text-white font-bold">{notificationCount}</span>
+                </div>
+              )}
+            </Button>
+
+            {/* Theme Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-white hover:bg-white/10"
+            >
+              <Sun className="w-5 h-5 dark:hidden" />
+              <Moon className="w-5 h-5 hidden dark:block" />
+            </Button>
+
+            {/* User Avatar */}
+            <Avatar className="w-8 h-8">
+              <AvatarImage src="/images/avatar.jpg" alt="User" />
+              <AvatarFallback className="bg-[#48097b] text-white">U</AvatarFallback>
+            </Avatar>
+          </div>
+        </div>
+
+        {/* Mobile Layout */}
+        <div className="lg:hidden">
+          {/* Top row */}
+          <div className="flex items-center justify-between py-3">
+            <Link href="/" className="flex items-center">
+              <Image src="/Frame.svg" alt="Predictify" width={100} height={20} priority />
+            </Link>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative text-white"
+              >
+                <Bell className="w-5 h-5" />
+                {notificationCount > 0 && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full"></div>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDrawerOpen(true)}
+              >
+                <Menu className="w-5 h-5 text-white" />
+              </Button>
+            </div>
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            aria-label="Open menu"
-            className="md:hidden inline-flex items-center justify-center rounded-md p-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+          {/* Search row */}
+          <div className="pb-3">
+            <SearchInput 
+              placeholder="Search for token, event, wallet address"
+              className="w-full"
+            />
+          </div>
+
+          {/* Actions row */}
+          <div className="flex items-center justify-between pb-3">
+            <Button
+              variant="ghost"
+              className="flex items-center gap-2 text-white hover:bg-white/10 px-3 py-2"
+            >
+              <div className="w-4 h-4 rounded-full bg-gradient-to-r from-blue-400 to-purple-500"></div>
+              <span className="text-sm font-medium">Stellar</span>
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={() => document.dispatchEvent(new CustomEvent("open-connect-wallet"))}
+              className="bg-[#48097b] hover:bg-[#3f076c] text-white px-4 py-2 text-sm font-semibold"
+            >
+              <Wallet className="w-4 h-4 mr-2" />
+              Connect Wallet
+            </Button>
+          </div>
         </div>
       </div>
 
