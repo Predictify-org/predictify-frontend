@@ -1,17 +1,24 @@
 export type PredictionStatus = 'active' | 'pending' | 'won' | 'lost';
-export type FilterTab = 'All' | 'Active' | 'Pending' | 'Completed';
-export type Token = 'XLM' | 'USDC';
 
 export interface Prediction {
   id: string;
-  title: string;
-  description: string;
-  stakeAmount: number;
-  stakeToken: Token;
+  eventTitle: string;
+  eventId: string;
+  category: string;
+  stake: number;
   odds: number;
   potentialWinnings: number;
-  winningsToken: Token;
-  eventDate: string; // MM/DD/YYYY
-  resolvedDate?: string; // MM/DD/YYYY - Only for 'won' or 'lost'
   status: PredictionStatus;
+  date: string;
+  outcome?: string;
+  resolved?: string;
 }
+
+export interface PredictionStats {
+  totalWagered: number;
+  totalWon: number;
+  totalLost: number;
+  netProfit: number;
+}
+
+export type PredictionFilterTab = 'all' | 'active' | 'pending' | 'completed';
