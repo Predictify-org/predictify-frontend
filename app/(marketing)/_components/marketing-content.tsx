@@ -1,19 +1,16 @@
-
 "use client"
 
 // import { CTA } from "@/components/sections/cta"
 import Features from "@/components/sections/features"
 import { Footer } from "@/components/sections/footer"
 import { Hero } from "@/components/sections/hero"
-import { HowItWorks } from "@/components/sections/how-it-work"
+import { HowItWorks } from "@/app/(marketing)/_sections/how-it-works"
 import WalletsTokens from "@/components/sections/wallets-token"
 import { AnimatedBackground } from "@/components/ui/animated-background"
-import { Navbar } from "@/components/navbar/Navbar"
 
-export default function HomePage() {
+export default function MarketingContent() {
   return (
-    <div className="min-h-screen bg-[#540D8D] relative overflow-hidden">
-      <Navbar transparent />
+    <>
       <AnimatedBackground />
       <Hero />
       <Features />
@@ -21,6 +18,6 @@ export default function HomePage() {
       <WalletsTokens />
       {/* <CTA/> */}
       <Footer />
-    </div>
+    </>
   )
 }
