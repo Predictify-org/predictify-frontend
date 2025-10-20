@@ -1,6 +1,31 @@
-import { StepCard } from "@/components/cards/step-card";
-import { HOW_IT_WORKS_STEPS } from "../constants/data";
 import { SectionHeader } from "../ui/section-header";
+
+const steps = [
+  {
+    step: "1",
+    title: "Connect Wallet",
+    description: "Connect your Web3 wallet to get started",
+    gradient: "from-cyan-500 to-blue-500",
+  },
+  {
+    step: "2", 
+    title: "Browse Markets",
+    description: "Explore live prediction markets across sports, crypto, politics, and more",
+    gradient: "from-blue-500 to-purple-500",
+  },
+  {
+    step: "3",
+    title: "Make Predictions", 
+    description: "Place your bets using supported tokens. All transactions are secured on-chain",
+    gradient: "from-purple-500 to-pink-500",
+  },
+  {
+    step: "4",
+    title: "Earn Rewards",
+    description: "Win big when your predictions are correct. Payouts are instant and automatic",
+    gradient: "from-pink-500 to-emerald-500",
+  },
+];
 
 export function HowItWorks() {
   return (
@@ -13,8 +38,14 @@ export function HowItWorks() {
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 lg:gap-12">
-          {HOW_IT_WORKS_STEPS.map((step, index) => (
-            <StepCard key={index} step={step} index={index} />
+          {steps.map((step, index) => (
+            <div key={index} className="text-center">
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r ${step.gradient} flex items-center justify-center text-white font-bold text-xl`}>
+                {step.step}
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">{step.title}</h3>
+              <p className="text-gray-300">{step.description}</p>
+            </div>
           ))}
         </div>
       </div>
