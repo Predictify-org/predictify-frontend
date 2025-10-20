@@ -9,6 +9,9 @@ import WalletsTokens from "@/components/sections/wallets-token"
 import { AnimatedBackground } from "@/components/ui/animated-background"
 import Navbar from "@/app/(marketing)/_components/navbar"
 
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = 'force-dynamic'
+
 export default function MarketingRoute() {
   return (
     <div className="min-h-screen bg-[#540D8D] relative overflow-hidden">
