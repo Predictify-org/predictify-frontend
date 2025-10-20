@@ -1,0 +1,10 @@
+{
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "functions": {
+    "app/**/*.tsx": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}

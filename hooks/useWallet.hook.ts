@@ -64,7 +64,7 @@ import {
   WalletNetwork,
 } from "@creit.tech/stellar-wallets-kit";
 import { useState } from "react";
-import { kit } from "../constants/wallet-kits.constant";
+import { getKit } from "../constants/wallet-kits.constant";
 
 export const useWallet = () => {
   const walletState = useWalletContext();
@@ -76,6 +76,7 @@ export const useWallet = () => {
       setIsConnecting(true);
       setError(null);
 
+      const kit = getKit();
       kit.setWallet(walletId);
 
       const { address } = await kit.getAddress();
@@ -110,6 +111,7 @@ export const useWallet = () => {
   const disconnectWallet = async () => {
     try {
       setError(null);
+      const kit = getKit();
       await kit.disconnect();
       walletState.disconnect();
       return { success: true };
@@ -129,6 +131,7 @@ export const useWallet = () => {
         throw new Error("No wallet connected");
       }
 
+      const kit = getKit();
       const { signedTxXdr } = await kit.signTransaction(xdr, {
         address: walletState.address,
         networkPassphrase: WalletNetwork.TESTNET,
