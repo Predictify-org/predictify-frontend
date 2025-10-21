@@ -23,7 +23,7 @@ export default function MarketingRoute() {
       <KpiStrip />
       <Features />
       <HowItWorks />
-     <WalletsTokens />
+      <WalletsTokens />
       <CTA />
       <Footer />
     </div>
