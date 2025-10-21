@@ -8,14 +8,9 @@ import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Predictify - Prediction Platform",
-  description: "Join thousands of predictors worldwide and start earning from your knowledge and intuition today.",
+  title: "Prediction Platform Admin",
+  description: "Admin interface for managing prediction events",
   generator: "v0.dev",
-  icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
-  },
 };
 
 export default function RootLayout({

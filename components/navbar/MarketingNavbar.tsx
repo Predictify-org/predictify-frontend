@@ -90,7 +90,7 @@ export default function Navbar({ transparent }: NavbarProps) {
           {/* Left: Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
-              <Image src="/images/predictify-logo.png" alt="Predictify" width={120} height={24} priority />
+              <Image src="/Frame.svg" alt="Predictify" width={120} height={24} priority />
             </Link>
           </div>
 
@@ -161,7 +161,7 @@ export default function Navbar({ transparent }: NavbarProps) {
           {/* Top row */}
           <div className="flex items-center justify-between py-3">
             <Link href="/" className="flex items-center">
-              <Image src="/images/predictify-logo.png" alt="Predictify" width={100} height={20} priority />
+              <Image src="/Frame.svg" alt="Predictify" width={100} height={20} priority />
             </Link>
             <div className="flex items-center gap-2">
               <Button
