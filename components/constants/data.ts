@@ -12,7 +12,10 @@ import {
   Smartphone,
   CreditCard,
   CircleDot,
-  Linkedin
+  Linkedin,
+  Search,
+  Target,
+  Trophy
 } from "lucide-react";
 import type {
   Feature,
@@ -86,34 +89,54 @@ export const FEATURES: Feature[] = [
   },
 ];
 
-export const HOW_IT_WORKS_STEPS: Step[] = [
+export const HOW_IT_WORKS_STEPS_DATA = [
   {
-    step: "1",
+    number: "1",
     title: "Connect Wallet",
-    description:
-      "Connect your Web3 wallet (MetaMask, WalletConnect, etc.) to get started",
-    gradient: "from-cyan-500 to-blue-500",
+    description: "Connect your Web3 wallet to get started with Predictify",
+    bullets: [
+      "Secure wallet connection",
+      "Multi-chain support",
+      "Instant verification"
+    ],
+    iconComponent: Wallet,
+    iconBg: "bg-cyan-900/30"
   },
   {
-    step: "2",
+    number: "2", 
     title: "Browse Markets",
-    description:
-      "Explore live prediction markets across sports, crypto, politics, and more",
-    gradient: "from-blue-500 to-purple-500",
+    description: "Explore live prediction markets across sports, crypto, politics, and more",
+    bullets: [
+      "Real-time market data",
+      "Multiple categories",
+      "Live odds updates"
+    ],
+    iconComponent: Search,
+    iconBg: "bg-blue-900/30"
   },
   {
-    step: "3",
-    title: "Make Predictions",
-    description:
-      "Place your bets using supported tokens. All transactions are secured on-chain",
-    gradient: "from-purple-500 to-pink-500",
+    number: "3",
+    title: "Make Predictions", 
+    description: "Place your bets using supported tokens. All transactions are secured on-chain",
+    bullets: [
+      "Secure transactions",
+      "Multiple tokens",
+      "Smart contract protection"
+    ],
+    iconComponent: Target,
+    iconBg: "bg-purple-900/30"
   },
   {
-    step: "4",
+    number: "4",
     title: "Earn Rewards",
-    description:
-      "Win big when your predictions are correct. Payouts are instant and automatic",
-    gradient: "from-pink-500 to-emerald-500",
+    description: "Win big when your predictions are correct. Payouts are instant and automatic",
+    bullets: [
+      "Instant payouts",
+      "Automatic distribution",
+      "Transparent results"
+    ],
+    iconComponent: Trophy,
+    iconBg: "bg-emerald-900/30"
   },
 ];
 
