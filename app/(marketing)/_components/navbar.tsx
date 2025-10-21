@@ -78,7 +78,7 @@ export default function Navbar({ transparent }: NavbarProps) {
         <div className="flex h-14 items-center justify-between">
           <div className="flex items-center gap-3 -ml-1 md:-ml-2">
             <Link href="/" className="flex items-center">
-              <Image src="/Frame.svg" alt="Predictify" width={120} height={24} priority />
+              <Image src="/images/predictify-logo.png" alt="Predictify" width={120} height={24} priority />
             </Link>
           </div>
 
