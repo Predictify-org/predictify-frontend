@@ -43,21 +43,13 @@ export function CTA() {
             Join thousands of predictors worldwide and start earning from your knowledge and intuition today.
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row sm:gap-6">
-            <button
-              onClick={() => setIsWalletModalOpen(true)}
-              className="group relative inline-flex w-full items-center justify-center overflow-hidden rounded-lg bg-white px-8 py-3.5 text-base font-semibold text-purple-600 shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-white/50 active:scale-100 sm:w-auto"
-            >
-              <span className="relative z-10 flex items-center">
-                <ConnectWalletButton
-                  isConnected={isConnected}
-                  walletName={walletName}
-                  walletAddress={walletAddress}
-                  onConnectClick={() => setIsWalletModalOpen(true)}
-                  onOpenModal={() => setIsWalletModalOpen(true)}
-                />
-              </span>
-              <div className="absolute inset-0 -z-0 bg-gradient-to-r from-purple-50 to-blue-50 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-            </button>
+            <ConnectWalletButton
+              isConnected={isConnected}
+              walletName={walletName}
+              walletAddress={walletAddress}
+              onConnectClick={() => setIsWalletModalOpen(true)}
+              onOpenModal={() => setIsWalletModalOpen(true)}
+            />
             <button
               className="inline-flex w-full items-center justify-center rounded-lg border-2 border-white/30 bg-white/10 px-8 py-3.5 font-medium text-white backdrop-blur-sm transition-all duration-200 hover:border-white/50 hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/30 active:bg-white/15 sm:w-auto"
             >
