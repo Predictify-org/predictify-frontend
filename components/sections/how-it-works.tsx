@@ -65,7 +65,7 @@ export function HowItWorks() {
         aria-hidden="true"
         style={{
           backgroundImage: `url('/images/Container.png')`,
-          backgroundSize: '1221px 1618.26px',
+          backgroundSize: '800px 1618.26px',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
         }}
