@@ -22,7 +22,7 @@ const TrustWalletIcon = () => (
 );
 
 const PhantomIcon = () => (
-    <Image src="/assets/tokens/phantom.svg" alt="Phantom Logo" width={93} height={93} />
+    <Image src="/assets/wallets/phantom.svg" alt="Phantom Logo" width={93} height={93} />
 
 );
 
@@ -128,14 +128,15 @@ const TokenCard = ({ ticker, icon: Icon, alt }: TokenCardProps) => (
 /**
  * Main WalletsAndTokensSection Component (Aliased as App for single-file mandate)
  */
-const WalletsTokens = () => {
+export const WalletsTokens = () => {
     // Separate the main four wallets from Phantom for the specific layout requirement
     const mainWallets = WALLETS.slice(0, 4);
     const phantomWallet = WALLETS.find(w => w.name === 'Phantom');
 
     return (
         <section className="py-20 font-sans">
-            <div className="bg-slate-900/70 p-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div className="bg-slate-900/70 p-16 mx-36 max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+            >
                 
                 {/* Title & Subcopy */}
                 <div className="mb-12">
