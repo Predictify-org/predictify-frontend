@@ -9,6 +9,7 @@ import ConnectWalletButton from "../ui/connectWalletButton";
 import { ConnectWalletModal } from "../connect-wallet-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import KpiStrip from "@/app/(marketing)/_sections/kpi-strip";
 
 export function Hero() {
       const [isMounted, setIsMounted] = useState(false);
@@ -37,12 +38,8 @@ export function Hero() {
       setWalletAddress(null);
     };
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#5B21B6] via-[#6B21A8] to-[#7C3AED] font-sans">
-    {/* Gradient Orbs */}
-    <div className="pointer-events-none absolute inset-0">
-      <div className="absolute left-0 top-0 h-[600px] w-[600px] rounded-full bg-[#C397EB33] blur-[120px]" />
-      <div className="absolute bottom-0 right-0 h-[600px] w-[600px] rounded-full bg-[#4F46E533] blur-[120px]" />
-    </div>
+    <div className="relative overflow-hidden font-sans">
+
 
     {/* Content Container */}
     <div className="relative mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
