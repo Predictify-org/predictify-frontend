@@ -5,22 +5,40 @@ try {
   // ignore error
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Only ignore build errors in development for faster iteration
+  // In production, we want to catch all errors
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: !isProduction,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    // Only ignore TypeScript errors in development
+    // In production, all type errors should be fixed
+    ignoreBuildErrors: !isProduction,
   },
   images: {
-    unoptimized: true,
+    // Enable image optimization in production
+    unoptimized: false,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  // Production optimizations
+  ...(isProduction && {
+    compress: true,
+    poweredByHeader: false,
+  }),
 }
 
 mergeConfig(nextConfig, userConfig)
