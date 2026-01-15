@@ -1,19 +1,25 @@
 {
-  "name": "my-v0-project",
+  "name": "predictify-frontend",
   "version": "0.1.0",
+  "description": "Decentralized prediction market platform built on Stellar blockchain",
   "private": true,
   "packageManager": "pnpm@10.18.3",
   "engines": {
-    "pnpm": ">=10.18.0"
+    "pnpm": ">=10.18.0",
+    "node": ">=18.0.0"
   },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "clean": "rm -rf .next node_modules/.cache",
+    "validate": "pnpm type-check && pnpm lint && pnpm test"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^1.7.3",
