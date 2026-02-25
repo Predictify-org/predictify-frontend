@@ -1,10 +1,16 @@
 "use client"
 
 import * as React from "react"
+/* NEW: Added Link for navigation to create event page */
+import Link from "next/link"
+/* NEW: Added Plus icon for create event button */
+import { Plus } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+/* NEW: Added Button for the Create Event primary action */
+import { Button } from "@/components/ui/button"
 import { EventsToolbar } from "./events-toolbar"
 import { EventsTable } from "./events-table"
 import { EventsPagination } from "./pagination"
@@ -32,11 +38,21 @@ export function EventsSection({ className }: EventsSectionProps) {
 
   return (
     <div className={cn("w-full max-w-7xl mx-auto p-4 space-y-6", className)}>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-purple-600">Events</h1>
+      {/* MODIFIED: Added Create Event button alongside the title */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl font-bold text-[#540D8D]">Events</h1>
+          {/* NEW: Primary "Create Event" button linking to the new event form */}
+          <Button asChild className="bg-[#540D8D] hover:bg-[#6B1DAB] text-white w-full sm:w-auto">
+            <Link href="/events/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Event
+            </Link>
+          </Button>
+        </div>
 
         <Tabs value={filters.status} onValueChange={handleTabChange}>
-          <TabsList className="bg-[#F1F5F9] p-1 sm:p-1.5 rounded-full h-auto w-fit overflow-x-auto">
+          <TabsList className="bg-black text-white p-1 sm:p-1.5 rounded-full h-auto w-fit overflow-x-auto">
             <div className="flex">
               <TabsTrigger
                 value="ongoing"
@@ -47,7 +63,7 @@ export function EventsSection({ className }: EventsSectionProps) {
                 {eventCounts.ongoing > 0 && (
                   <Badge
                     variant="secondary"
-                    className="ml-1 sm:ml-2 h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-white text-xs text-[#540D8D] flex items-center justify-center p-0 font-medium"
+                    className="ml-1 sm:ml-2 h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-black text-xs text-white flex items-center justify-center p-0 font-medium"
                   >
                     {eventCounts.ongoing}
                   </Badge>

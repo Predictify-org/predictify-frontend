@@ -2,6 +2,7 @@ import { create } from "zustand"
 import type { Event, EventFilters, EventSort, PaginationState } from "@/types/events"
 
 // Mock data matching the designs
+// MODIFIED: Added `participants` field to each event
 const mockEvents: Event[] = [
   {
     id: "1",
@@ -14,6 +15,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "90:09:32:55",
     timeRemainingMs: 90 * 24 * 60 * 60 * 1000 + 9 * 60 * 60 * 1000 + 32 * 60 * 1000 + 55 * 1000,
+    participants: 1245,
   },
   {
     id: "2",
@@ -26,6 +28,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "29:09:32:55",
     timeRemainingMs: 29 * 24 * 60 * 60 * 1000 + 9 * 60 * 60 * 1000 + 32 * 60 * 1000 + 55 * 1000,
+    participants: 5432,
   },
   {
     id: "3",
@@ -38,6 +41,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "00:01:32:55",
     timeRemainingMs: 1 * 60 * 60 * 1000 + 32 * 60 * 1000 + 55 * 1000,
+    participants: 876,
   },
   {
     id: "4",
@@ -50,6 +54,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "00:00:32:55",
     timeRemainingMs: 32 * 60 * 1000 + 55 * 1000,
+    participants: 654,
   },
   {
     id: "5",
@@ -62,6 +67,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "45:12:15:30",
     timeRemainingMs: 45 * 24 * 60 * 60 * 1000 + 12 * 60 * 60 * 1000 + 15 * 60 * 1000 + 30 * 1000,
+    participants: 2341,
   },
   {
     id: "6",
@@ -74,6 +80,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "60:05:45:20",
     timeRemainingMs: 60 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000 + 45 * 60 * 1000 + 20 * 1000,
+    participants: 1102,
   },
   {
     id: "7",
@@ -86,6 +93,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "75:06:30:45",
     timeRemainingMs: 75 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000 + 30 * 60 * 1000 + 45 * 1000,
+    participants: 789,
   },
   {
     id: "8",
@@ -98,6 +106,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "120:11:59:15",
     timeRemainingMs: 120 * 24 * 60 * 60 * 1000 + 11 * 60 * 60 * 1000 + 59 * 60 * 1000 + 15 * 1000,
+    participants: 3210,
   },
   {
     id: "9",
@@ -110,6 +119,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "35:02:00:00",
     timeRemainingMs: 35 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000,
+    participants: 4567,
   },
   {
     id: "10",
@@ -122,6 +132,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "15:00:00:00",
     timeRemainingMs: 15 * 24 * 60 * 60 * 1000,
+    participants: 543,
   },
   {
     id: "11",
@@ -134,6 +145,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "25:06:00:00",
     timeRemainingMs: 25 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000,
+    participants: 918,
   },
   {
     id: "12",
@@ -146,6 +158,7 @@ const mockEvents: Event[] = [
     status: "ongoing",
     timeRemaining: "55:04:00:00",
     timeRemainingMs: 55 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000,
+    participants: 1678,
   },
   {
     id: "13",
@@ -158,6 +171,7 @@ const mockEvents: Event[] = [
     status: "upcoming",
     timeRemaining: "180:19:00:00",
     timeRemainingMs: 180 * 24 * 60 * 60 * 1000 + 19 * 60 * 60 * 1000,
+    participants: 312,
   },
   {
     id: "14",
@@ -170,6 +184,7 @@ const mockEvents: Event[] = [
     status: "upcoming",
     timeRemaining: "200:12:00:00",
     timeRemainingMs: 200 * 24 * 60 * 60 * 1000 + 12 * 60 * 60 * 1000,
+    participants: 456,
   },
   {
     id: "15",
@@ -182,6 +197,7 @@ const mockEvents: Event[] = [
     status: "past",
     timeRemaining: "00:00:00:00",
     timeRemainingMs: 0,
+    participants: 8901,
   },
   {
     id: "16",
@@ -194,6 +210,7 @@ const mockEvents: Event[] = [
     status: "past",
     timeRemaining: "00:00:00:00",
     timeRemainingMs: 0,
+    participants: 6743,
   },
 ]
 
@@ -218,6 +235,8 @@ interface EventsStore {
   setStatus: (status: "ongoing" | "upcoming" | "past") => void
   applyFilters: () => void
   loadEvents: () => Promise<void>
+  /** NEW: Delete an event by its id */
+  deleteEvent: (id: string) => void
 }
 
 export const useEventsStore = create<EventsStore>((set, get) => ({
@@ -365,6 +384,14 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
     } catch (error) {
       set({ loading: false, error: "Failed to load events" })
     }
+  },
+
+  /** NEW: Delete an event by id and re-apply filters */
+  deleteEvent: (id: string) => {
+    set((state) => ({
+      events: state.events.filter((event) => event.id !== id),
+    }))
+    get().applyFilters()
   },
 }))
 

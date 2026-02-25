@@ -10,6 +10,8 @@ export interface Event {
   status: "ongoing" | "upcoming" | "past"
   timeRemaining?: string
   timeRemainingMs?: number
+  /** NEW: Number of participants in this prediction event */
+  participants: number
 }
 
 export interface EventFilters {

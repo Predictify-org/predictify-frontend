@@ -1,9 +1,34 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
+/* NEW: Added lucide icons for row actions */
+import { Edit, MoreHorizontal, Trash2, Users, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+/* NEW: Added Button for action triggers */
+import { Button } from "@/components/ui/button"
+/* NEW: Added DropdownMenu for row action menus */
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+/* NEW: Added AlertDialog for delete confirmation */
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { EventsTableSkeleton } from "./events-table-skeleton"
 import { useEventsStore, formatTimeRemaining, getTimeRemainingColor } from "@/lib/events-store"
 import type { Event } from "@/types/events"
@@ -88,7 +113,11 @@ function TimeRemainingProgress({ event }: { event: Event }) {
 }
 
 export function EventsTable({ className }: EventsTableProps) {
-  const { filteredEvents, loading, pagination } = useEventsStore()
+  /* MODIFIED: Added deleteEvent from store */
+  const { filteredEvents, loading, pagination, deleteEvent } = useEventsStore()
+
+  /* NEW: State to track which event is pending delete confirmation */
+  const [deleteTarget, setDeleteTarget] = React.useState<Event | null>(null)
 
   // Calculate paginated events
   const startIndex = (pagination.page - 1) * pagination.pageSize
@@ -99,25 +128,57 @@ export function EventsTable({ className }: EventsTableProps) {
     return <EventsTableSkeleton />
   }
 
+  {/* NEW: Enhanced empty state with icon illustration and contextual messaging */}
   if (filteredEvents.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-muted-foreground">
-          <p className="text-lg font-medium">No events found</p>
-          <p className="text-sm">Try adjusting your filters or search terms</p>
+      <div className="flex flex-col items-center bg-black text-white justify-center py-16 px-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-black text-white mb-4">
+          <Calendar className="h-8 w-8 text-[#540D8D]" />
         </div>
+        <h3 className="text-lg font-semibold text-foreground mb-1">No events found</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-sm">
+          {"There are no prediction events matching your current filters. Try adjusting your search or filter criteria."}
+        </p>
       </div>
     )
   }
 
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="rounded-lg border border-gray-200 overflow-hidden bg-white">
+      {/* NEW: Delete confirmation AlertDialog triggered by row action */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {"This action cannot be undone. This will permanently delete the event "}
+              <span className="font-semibold text-foreground">{deleteTarget?.title}</span>
+              {" and remove all associated predictions and participant data."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-600"
+              onClick={() => {
+                if (deleteTarget) {
+                  deleteEvent(deleteTarget.id)
+                  setDeleteTarget(null)
+                }
+              }}
+            >
+              Delete Event
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="rounded-lg border-b border-[#540D8D] overflow-hidden bg-black text-white">
         {/* Responsive table container with horizontal scroll */}
         <div className="overflow-x-auto">
           <Table className="min-w-[800px] sm:min-w-full">
             <TableHeader>
-              <TableRow className="hover:bg-transparent border-b border-gray-200 bg-gray-50">
+              <TableRow className="hover:bg-[#540D8D] text-white border-b border-[#540D8D]/50 bg-black">
                 <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[200px] sm:min-w-0">
                   Event Title
                 </TableHead>
@@ -133,6 +194,14 @@ export function EventsTable({ className }: EventsTableProps) {
                 <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[160px] sm:min-w-0">
                   Time Remaining
                 </TableHead>
+                {/* NEW: Participants column header */}
+                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[120px] sm:min-w-0">
+                  Participants
+                </TableHead>
+                {/* NEW: Actions column header */}
+                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-right min-w-[80px] sm:min-w-0">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -140,13 +209,13 @@ export function EventsTable({ className }: EventsTableProps) {
                 <TableRow
                   key={event.id}
                   className={cn(
-                    "hover:bg-gray-50/50 transition-colors border-0",
-                    index !== paginatedEvents.length - 1 && "border-b border-gray-100",
+                    "hover:bg-[#540D8D] transition-colors border-0",
+                    index !== paginatedEvents.length - 1 && "border-b border-[#540D8D]",
                   )}
                 >
                   <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[200px] sm:min-w-0">
                     <div className="space-y-1">
-                      <div className="font-medium text-sm leading-tight text-black">{event.title}</div>
+                      <div className="font-medium text-sm leading-tight text-White">{event.title}</div>
                       <div className="text-xs text-muted-foreground">#{event.txHash}</div>
                     </div>
                   </TableCell>
@@ -156,9 +225,9 @@ export function EventsTable({ className }: EventsTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0">
-                    <div className="font-medium text-sm text-black">{event.odds}</div>
+                    <div className="font-medium text-sm text-white">{event.odds}</div>
                   </TableCell>
-                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[180px] sm:min-w-0 text-black">
+                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[180px] sm:min-w-0 text-white">
                     <div className="text-xs sm:text-sm leading-tight">
                       <div className="sm:hidden">
                         {/* Mobile: Stack dates vertically */}
@@ -173,6 +242,41 @@ export function EventsTable({ className }: EventsTableProps) {
                   </TableCell>
                   <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[160px] sm:min-w-0">
                     <TimeRemainingProgress event={event} />
+                  </TableCell>
+                  {/* NEW: Participants cell showing formatted participant count */}
+                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[120px] sm:min-w-0">
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Users className="h-4 w-4" />
+                      <span className="font-medium text-foreground">{event.participants.toLocaleString()}</span>
+                    </div>
+                  </TableCell>
+                  {/* NEW: Actions cell with dropdown menu for Edit/Delete */}
+                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Open actions menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link href={`/events/${event.id}/edit`} className="flex items-center gap-2">
+                            <Edit className="h-4 w-4" />
+                            Edit Event
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
+                          onSelect={() => setDeleteTarget(event)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete Event
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
