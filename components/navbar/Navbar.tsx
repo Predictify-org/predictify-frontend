@@ -1,356 +1,163 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { usePathname } from "next/navigation";
 import { SearchInput } from "./SearchInput";
 import { NetworkSwitcher } from "./NetworkSwitcher";
 import { WalletMenu } from "./WalletMenu";
 import { ConnectWalletAction } from "./ConnectWalletAction";
-import { NavItem } from "./NavItem";
-import { usePathname } from "next/navigation";
-import {
-  Bell,
-  Moon,
-  Sun,
-  Plus,
-  Info,
-  Home,
-  List,
-  Settings as SettingsIcon,
-  LifeBuoy,
-  LogOut,
-  MessageCircle,
-} from "lucide-react";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { useWalletContext } from "@/context/WalletContext";
-import { ArrowDown, Notification, Chat } from "../icons";
 import { useTheme } from "next-themes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
-import {
-  mockNavbarState as navbarState,
-  mockUser as user,
-} from "./navbar.mock";
+import { mockUser as user, mockNavbarState as navbarState } from "./navbar.mock";
 
 const NAV_ITEMS = [
-  { name: "Dashboard", href: "/dashboard" },
-  { name: "My Predictions", href: "/bets" },
-  { name: "Events", href: "/events" },
-  { name: "Verification", href: "/verification" },
-  { name: "Disputes", href: "/disputes" },
-  { name: "Finances", href: "/finances" },
-  { name: "Settings", href: "/settings" },
+  { name: "Markets", href: "/markets", icon: "trending_up" },
+  { name: "Portfolio", href: "/portfolio", icon: "pie_chart" },
+  { name: "Analytics", href: "/analytics", icon: "bar_chart" },
+  { name: "Admin", href: "/admin", icon: "admin_panel_settings" },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
-  const [network, setNetwork] = React.useState(navbarState.networkName);
+  const [network, setNetwork] = useState(navbarState.networkName);
   const { theme, setTheme } = useTheme();
-  const [isWalletModalOpen, setIsWalletModalOpen] = React.useState(false);
-  const { address, connected, isLoading } = useWalletContext();
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const { connected, isLoading } = useWalletContext();
 
-  function truncateMiddle(value: string, visible = 4) {
-    if (!value) return "";
-    return value.length <= visible * 2
-      ? value
-      : `${value.slice(0, visible)}…${value.slice(-visible)}`;
-  }
-
-  function toggleTheme() {
+  const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
-  }
-
-  const currentTitle = React.useMemo(() => {
-    const found = NAV_ITEMS.find((i) => i.href === pathname);
-    if (found) return found.name;
-    try {
-      const segment = pathname?.split("/").filter(Boolean)[0];
-      return segment
-        ? segment[0]?.toUpperCase() + segment.slice(1)
-        : "Dashboard";
-    } catch {
-      return "Dashboard";
-    }
-  }, [pathname]);
+  };
 
   return (
-    <header
-      className="sticky top-0 z-40 px-4 backdrop-blur md:px-6"
-      style={{
-        background: "linear-gradient(180deg, #540D8D 69.23%, #540D8D 100%)",
-      }}
-    >
-      {/* Top row (mobile) */}
-      <div className="flex items-center justify-between py-3 lg:hidden">
-        {/* Mobile: nav drawer */}
-        <div className="-ml-2 lg:ml-0 flex items-center gap-0">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                className="lg:hidden bg-transparent border-0 justify-start px-2"
-                aria-label="Open navigation"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="!h-[24px] !w-[24px]"
-                >
-                  <line x1="4" x2="20" y1="12" y2="12" />
-                  <line x1="4" x2="20" y1="6" y2="6" />
-                  <line x1="4" x2="20" y1="18" y2="18" />
-                </svg>
-              </Button>
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="w-80 sm:max-w-sm border-none bg-gradient-to-b from-[#11051D] via-[#150627] to-[#540D8D] text-white p-4"
-              closeClassName="grid place-items-center h-6 w-6 rounded-full border border-white text-white opacity-90 bg-transparent hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/70 focus:ring-offset-2 focus:ring-offset-transparent"
-              closeIconClassName="h-3 w-3"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-full border border-white/20 grid place-items-center">
-                    <Image
-                      src="/images/predictify-logo.png"
-                      alt="Predictify"
-                      width={30}
-                      height={30}
-                    />
-                  </div>
-                  <span
-                    className="text-lg font-semibold"
-                    style={{ color: "#E3D365" }}
-                  >
-                    Predictify
-                  </span>
-                </div>
-              </div>
-              <div className="my-4 h-px w-full bg-white/10" />
-              <div className="mt-4">
-                <SearchInput
-                  variant="sidebar"
-                  className="w-full max-w-none"
-                  placeholder="Search"
-                />
-              </div>
-              <nav className="mt-6 grid gap-3 text-[15px]">
-                <NavItem
-                  href="/dashboard"
-                  label="Dashboard"
-                  icon={<Home className="h-5 w-5 text-[#A5B4FC]" />}
-                  isActive={pathname === "/dashboard"}
-                  endBadgeText={`${navbarState.notificationCount}`}
-                />
-                <NavItem
-                  href="/bets"
-                  label="My Predictions"
-                  icon={<List className="h-5 w-5 text-[#A5B4FC]" />}
-                  isActive={pathname === "/bets"}
-                />
-                <NavItem
-                  href="/settings"
-                  label="Settings"
-                  icon={<SettingsIcon className="h-5 w-5 text-[#A5B4FC]" />}
-                  isActive={pathname === "/settings"}
-                />
-                <NavItem
-                  href="/help"
-                  label="Help & Support"
-                  icon={
-                    <MessageCircle
-                      className="h-5 w-5 text-[#8AA0FF]"
-                      strokeWidth={2.5}
-                    />
-                  }
-                />
-                <button
-                  type="button"
-                  className="flex items-center rounded-md px-3 py-2 hover:bg-white/5 text-left"
-                >
-                  <LogOut className="mr-3 h-5 w-5 text-[#A5B4FC]" />
-                  Logout
-                </button>
-              </nav>
-            </SheetContent>
-          </Sheet>
-          <span className="text-xl font-semibold text-white">
-            {currentTitle}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="p-0 relative text-white"
-            aria-label="Notifications"
-          >
-            <Notification className="!h-[22px] !w-[22px]" />
-            {navbarState.notificationCount > 0 && (
-              <div className="h-[12px] w-[12px] bg-[#EB6945] z-10 rounded-full absolute top-[10px] right-[8px]" />
-            )}
-          </Button>
-          <div>
-            <div className="border-[0.24px] border-[#FFFFFF] p-1 bg-[#67289A] rounded-full">
-              <Avatar className="h-8 w-8 border-[0.86px] border-[#E8EAED]">
-                <AvatarImage
-                  className="object-cover"
-                  src={user.avatarUrl}
-                  alt={user.name}
-                />
-                <AvatarFallback>{user.name?.[0] || "U"}</AvatarFallback>
-              </Avatar>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Second row (mobile): network + wallet */}
-      <div className="lg:hidden flex justify-end lg:justify-start items-center gap-3 py-3">
-        <NetworkSwitcher network={network} onChange={setNetwork} />
-        {isLoading ? (
-          <Button
-            variant="secondary"
-            className="h-8 rounded-full flex items-center border border-[#540D8D] dark:border-white dark:border-[0.24px] bg-[#540D8D1F] dark:bg-[#FFFFFF1C] dark:text-white opacity-50"
-            disabled
-          >
-            <span className="text-[#540D8D] text-sm dark:text-white">
-              Loading...
-            </span>
-          </Button>
-        ) : connected ? (
-          <WalletMenu />
-        ) : (
-          <ConnectWalletAction
-            compact
-            onOpenModal={() => setIsWalletModalOpen(true)}
-          />
-        )}
-      </div>
-
-      {/* Third row (mobile): search */}
-      <div className="lg:hidden pb-3">
-        <SearchInput className="w-full max-w-none" />
-      </div>
-
-      {/* Desktop layout */}
-      <div className="hidden h-16 items-center gap-3 lg:flex">
-        {/* Mobile: nav drawer */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="lg:hidden"
-              aria-label="Open navigation"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5"
-              >
-                <line x1="4" x2="20" y1="12" y2="12" />
-                <line x1="4" x2="20" y1="6" y2="6" />
-                <line x1="4" x2="20" y1="18" y2="18" />
-              </svg>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-64 sm:max-w-sm">
-            <nav className="grid gap-2 text-lg font-medium">
+    <>
+      {/* Desktop Top Navbar */}
+      <nav className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl shadow-[0_0_40px_-5px_rgba(105,218,255,0.08)] hidden md:block border-b border-slate-800/15">
+        <div className="flex justify-between items-center px-6 h-20 w-full max-w-none">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="text-2xl font-bold tracking-tighter text-cyan-400 font-headline">
+              Predictify
+            </Link>
+            <div className="flex gap-6 items-center">
               {NAV_ITEMS.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || (pathname === '/' && item.href === '/markets');
                 return (
                   <Link
-                    key={item.name}
+                    key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
+                    className={`text-sm transition-all duration-300 font-medium ${
                       isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-muted"
+                        ? "text-cyan-400 border-b-2 border-cyan-400 pb-1"
+                        : "text-slate-400 hover:text-slate-200"
                     }`}
                   >
                     {item.name}
                   </Link>
                 );
               })}
-            </nav>
-          </SheetContent>
-        </Sheet>
-        {/* Search */}
-        <div className="flex w-full items-center gap-3 md:gap-4">
-          <div className="flex-1">
-            <SearchInput />
+            </div>
           </div>
-          {/* Right group (desktop) */}
-          <div className="items-center gap-2 hidden lg:flex">
+          <div className="flex items-center gap-4">
+            <div className="relative group hidden lg:block">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+              <input
+                className="bg-[#192540] border-none rounded-xl pl-10 pr-4 py-2 text-sm w-64 focus:ring-1 focus:ring-cyan-400 transition-all bg-opacity-40 text-white placeholder-slate-400"
+                placeholder="Search markets..."
+                type="text"
+              />
+            </div>
+            
             <NetworkSwitcher network={network} onChange={setNetwork} />
+            
             {isLoading ? (
-              <Button
-                variant="secondary"
-                className="h-8 rounded-full flex items-center border border-[#540D8D] dark:border-white dark:border-[0.24px] bg-[#540D8D1F] dark:bg-[#FFFFFF1C] dark:text-white opacity-50"
-                disabled
-              >
-                <span className="text-[#540D8D] text-sm dark:text-white">
-                  Loading...
-                </span>
-              </Button>
-            ) : (
+              <button disabled className="bg-[#69daff]/50 text-[#004a5d] px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-[#69daff]/10">
+                Loading...
+              </button>
+            ) : connected ? (
               <WalletMenu />
+            ) : (
+              <button 
+                onClick={() => setIsWalletModalOpen(true)}
+                className="bg-gradient-to-br from-[#69daff] to-[#00cffc] text-[#004a5d] font-bold px-6 py-2.5 rounded-xl text-sm active:scale-95 duration-150 transition-all shadow-lg shadow-[#69daff]/10"
+              >
+                Connect Wallet
+              </button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative text-white"
-              aria-label="Notifications"
-            >
-              <Notification />
-              {navbarState.notificationCount > 0 && (
-                <div className="absolute top-[10px] right-[8px] h-2.5 w-2.5 rounded-full bg-[#EB6945]" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              className="bg-transparent hover:bg-transparent"
-              size="icon"
+            
+            <button
               onClick={toggleTheme}
-              aria-label="Toggle theme"
+              className="text-slate-400 hover:text-white transition-colors flex items-center justify-center p-2 rounded-lg hover:bg-slate-800"
               title="Toggle theme"
             >
-              <Sun className="h-5 w-5 hidden dark:block" />
-              <Moon className="h-5 w-5 dark:hidden" />
-            </Button>
+              <span className="material-symbols-outlined">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+            </button>
           </div>
         </div>
-      </div>
-      {/* Mobile: connect wallet modal */}
+      </nav>
+
+      {/* Mobile Top Header */}
+      <header className="fixed top-0 w-full z-40 bg-slate-950/80 backdrop-blur-xl h-20 flex justify-between items-center px-6 shadow-[0_0_40px_-5px_rgba(105,218,255,0.08)] border-b border-slate-800/15 md:hidden">
+        <Link href="/" className="text-2xl font-bold tracking-tighter text-cyan-400 font-headline">
+          Predictify
+        </Link>
+        <div className="flex items-center gap-2">
+          {isLoading ? (
+            <button disabled className="bg-[#69daff]/50 text-[#004a5d] px-4 py-2 rounded-md text-xs font-bold">
+              ...
+            </button>
+          ) : connected ? (
+             <Avatar className="h-8 w-8 border border-slate-600">
+               <AvatarImage src={user?.avatarUrl} alt={user?.name} />
+               <AvatarFallback>{user?.name?.[0] || "U"}</AvatarFallback>
+             </Avatar>
+          ) : (
+            <button 
+              onClick={() => setIsWalletModalOpen(true)}
+              className="bg-gradient-to-br from-[#69daff] to-[#00cffc] text-[#004a5d] px-4 py-2 rounded-md font-bold text-xs"
+            >
+              Connect
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Mobile Bottom Navbar */}
+      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[72px] px-4 bg-slate-950/90 backdrop-blur-lg shadow-2xl border-t border-slate-800/15">
+        {NAV_ITEMS.map((item) => {
+          const isActive = pathname === item.href || (pathname === '/' && item.href === '/markets');
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={
+                isActive
+                  ? "flex flex-col items-center justify-center bg-cyan-500/20 text-cyan-300 rounded-xl px-3 min-h-[44px] min-w-[44px] py-1 transition-all"
+                  : "flex flex-col items-center justify-center text-slate-500 hover:text-cyan-200 min-h-[44px] min-w-[44px] py-1 transition-all"
+              }
+            >
+              <span
+                className="material-symbols-outlined text-[20px]"
+                style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
+              >
+                {item.icon}
+              </span>
+              <span className="text-[10px] font-medium font-body mt-0.5">
+                {item.name}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+
       <ConnectWalletModal
         isOpen={isWalletModalOpen}
         onOpenChange={setIsWalletModalOpen}
+        onWalletConnect={() => {}}
+        onWalletDisconnect={() => {}}
       />
-    </header>
+    </>
   );
 }
