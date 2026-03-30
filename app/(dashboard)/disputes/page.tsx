@@ -2,6 +2,9 @@
 
 import { useState } from "react"
 import { AlertTriangle, CheckCircle, Filter, Search } from "lucide-react"
+import { DisputePanel } from "@/components/disputes/DisputePanel"
+import { mockDisputesByState } from "@/components/disputes/mock-data"
+import type { DisputeData, DisputeState } from "@/types/disputes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -106,6 +109,11 @@ export default function DisputesPage() {
   const [selectedDispute, setSelectedDispute] = useState(null)
   const [resolution, setResolution] = useState("")
   const [resolutionNotes, setResolutionNotes] = useState("")
+  const [selectedDisputeData, setSelectedDisputeData] = useState<DisputeData>(mockDisputesByState.none)
+
+  const handleDisputeStateChange = (next: DisputeState, updated: Partial<DisputeData>) => {
+    setSelectedDisputeData((prev) => ({ ...prev, ...updated, state: next }))
+  }
 
   // Filter disputes based on search query and filters
   const filteredDisputes = disputes.filter((dispute) => {
@@ -325,6 +333,32 @@ export default function DisputesPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Dispute Panel */}
+      <div className="mt-6">
+        <DisputePanel data={selectedDisputeData} onStateChange={handleDisputeStateChange} />
+      </div>
+
+      {/* Dev-only state switcher */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-4 rounded-md border border-dashed border-muted-foreground/40 p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Dev: Switch dispute state
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(['none', 'open', 'voting', 'ended', 'executed'] as const).map((s) => (
+              <Button
+                key={s}
+                variant={selectedDisputeData.state === s ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedDisputeData(mockDisputesByState[s])}
+              >
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
