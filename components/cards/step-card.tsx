@@ -33,30 +33,30 @@ export function StepCard({
         </div>
       </div>
 
-      <h3 className="text-[24.83px] leading-[40.89px] font-semibold text-white mb-8 text-center mt-2">
+      <h3 className="text-h3 text-white mb-8 text-center mt-2">
         {title}
       </h3>
 
       <div className="flex justify-center mb-8">
-        <div className={`w-[93.47px] h-[93.47px] rounded-full ${iconBg} flex items-center justify-center`}>
+        <div className={`w-24 h-24 rounded-full ${iconBg} flex items-center justify-center`}>
           {icon}
         </div>
       </div>
 
-      <p className="text-[19.86px] leading-[35.05px] text-slate-300 text-center mb-8">
+      <p className="text-body-lg text-slate-300 text-center mb-8">
         {description}
       </p>
 
       <ul className="space-y-4 flex-grow" role="list">
         {bullets.map((bullet, index) => (
           <li key={index} className="flex items-start gap-3">
-            <div className="mt-0.5 flex-shrink-0 relative w-[32px] h-[32px]">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[24px] h-[24px] rounded-full border-[2.5px] border-[#22C55E]"></div>
+            <div className="mt-0.5 flex-shrink-0 relative w-8 h-8">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-[#22C55E]"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <Check className="w-[20px] h-[20px] text-[#22C55E]" strokeWidth={2.5} />
+                <Check className="w-5 h-5 text-[#22C55E]" strokeWidth={2.5} />
               </div>
             </div>
-            <span className="text-slate-300 text-[17.38px] leading-[29.21px]">
+            <span className="text-slate-300 text-h5">
               {bullet}
             </span>
           </li>
