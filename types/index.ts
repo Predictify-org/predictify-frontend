@@ -1,5 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 
+export type { ActivityEvent, ActivityEventType, ActivityGroupType, GroupedActivity, ActivityTimelineState } from "./activity";
+export { ACTIVITY_GROUPING_RULES, ACTIVITY_GROUP_CONFIG, ACTIVITY_EVENT_ICONS, GROUPING_STRATEGY, DEFAULT_ACTIVITY_TIMEFRAME } from "./activity";
+
 export interface Feature {
   icon: LucideIcon;
   title: string;
