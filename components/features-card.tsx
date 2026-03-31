@@ -19,9 +19,9 @@ export const FeatureCard: FC<{ feature: Feature }> = ({ feature }) => {
         {feature.icon}
       </div>
 
-      <h3 className="text-[25px] font-bold mb-3 text-white">{feature.title}</h3>
+      <h3 className="text-h4 font-bold mb-3 text-white">{feature.title}</h3>
 
-      <p className="text-[20px] text-[#D1D5DB] leading-10">
+      <p className="text-body-lg text-[#D1D5DB] leading-relaxed">
         {feature.body}
       </p>
     </div>

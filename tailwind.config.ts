@@ -10,6 +10,37 @@ const config: Config = {
   ],
   theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ['system-ui', '-apple-system', 'sans-serif'],
+  			mono: ['ui-monospace', 'SFMono-Regular', 'monospace'],
+  		},
+  		fontSize: {
+  			// Headings
+  			'h1': ['2.5rem', { lineHeight: '3.5rem', fontWeight: '700', letterSpacing: '-0.02em' }], // 40px
+  			'h2': ['2rem', { lineHeight: '2.75rem', fontWeight: '700', letterSpacing: '-0.01em' }], // 32px
+  			'h3': ['1.5rem', { lineHeight: '2.25rem', fontWeight: '700', letterSpacing: '-0.01em' }], // 24px
+  			'h4': ['1.25rem', { lineHeight: '1.875rem', fontWeight: '600', letterSpacing: '0' }], // 20px
+  			'h5': ['1.125rem', { lineHeight: '1.625rem', fontWeight: '600', letterSpacing: '0' }], // 18px
+  			'h6': ['1rem', { lineHeight: '1.5rem', fontWeight: '600', letterSpacing: '0' }], // 16px
+  			
+  			// Body
+  			'body-lg': ['1.125rem', { lineHeight: '1.75rem', fontWeight: '400', letterSpacing: '0' }], // 18px
+  			'body-md': ['1rem', { lineHeight: '1.5rem', fontWeight: '400', letterSpacing: '0' }], // 16px
+  			'body-sm': ['0.875rem', { lineHeight: '1.375rem', fontWeight: '400', letterSpacing: '0' }], // 14px
+  			
+  			// Captions & Labels
+  			'caption': ['0.75rem', { lineHeight: '1.125rem', fontWeight: '500', letterSpacing: '0.02em' }], // 12px
+  			'label': ['0.875rem', { lineHeight: '1.375rem', fontWeight: '500', letterSpacing: '0' }], // 14px
+  			
+  			// Numeric/Stats
+  			'stat-lg': ['2rem', { lineHeight: '2.5rem', fontWeight: '700', letterSpacing: '-0.01em' }], // 32px
+  			'stat-md': ['1.5rem', { lineHeight: '2rem', fontWeight: '700', letterSpacing: '0' }], // 24px
+  			'stat-sm': ['1.125rem', { lineHeight: '1.625rem', fontWeight: '700', letterSpacing: '0' }], // 18px
+  			
+  			// Mono (for code)
+  			'mono-sm': ['0.875rem', { lineHeight: '1.375rem', fontWeight: '400', letterSpacing: '0' }],
+  			'mono-md': ['1rem', { lineHeight: '1.5rem', fontWeight: '400', letterSpacing: '0' }],
+  		},
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',

@@ -71,19 +71,19 @@ export function HowItWorks() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-20 sm:mb-24">
           <div className="inline-flex items-center justify-center mb-8">
-            <span className="px-6 py-2 rounded-full bg-indigo-900 text-white text-[17.38px] leading-[29.21px] font-medium">
+            <span className="px-6 py-2 rounded-full bg-indigo-900 text-white text-h5 font-medium">
               Simple Process
             </span>
           </div>
 
           <h2
             id="how-it-works-heading"
-            className="text-[44.69px] leading-[58.42px] font-bold text-white mb-8"
+            className="text-h2-responsive font-bold text-white mb-8"
           >
             How Predictify Works
           </h2>
 
-          <p className="text-[24.83px] leading-[40.89px] text-slate-300 max-w-4xl mx-auto">
+          <p className="text-h3-responsive text-slate-300 max-w-4xl mx-auto">
             Making predictions and earning rewards has never been easier. Follow these simple
             steps to get started.
           </p>
