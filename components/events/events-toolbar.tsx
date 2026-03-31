@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { useEventsStore } from "@/lib/events-store"
 import type { EventSort } from "@/types/events"
+import { SearchInput } from "@/components/navbar/SearchInput"
 
 interface EventsToolbarProps {
   className?: string
@@ -167,17 +168,15 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
 
           {/* Search Input Below (Mobile) */}
           {showSearchInput && (
-            <div className="border-t border-gray-200 p-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                <Input
-                  placeholder="Search"
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                  className="pl-9 border-gray-200"
-                  autoFocus
-                />
-              </div>
+            <div className="border-t border-gray-200 p-3 relative z-50">
+              <SearchInput 
+                placeholder="Search events..." 
+                className="w-full text-black placeholder:text-gray-500 !border-gray-200"
+                onSubmit={(val) => {
+                  setSearchValue(val);
+                  setSearch(val);
+                }}
+              />
             </div>
           )}
         </div>
@@ -272,15 +271,15 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
 
       {/* Search Input Below (Desktop) */}
       {showSearchInput && (
-        <div className="hidden md:block">
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-            <Input
-              placeholder="Search"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              className="pl-9 border-gray-200"
-              autoFocus
+        <div className="hidden md:block relative z-50">
+          <div className="w-[400px]">
+            <SearchInput 
+              placeholder="Search events..." 
+              className="w-full text-black placeholder:text-gray-500 !border-gray-200"
+              onSubmit={(val) => {
+                setSearchValue(val);
+                setSearch(val);
+              }}
             />
           </div>
         </div>
