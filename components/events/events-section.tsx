@@ -15,13 +15,14 @@ import { EventsToolbar } from "./events-toolbar"
 import { EventsTable } from "./events-table"
 import { EventsPagination } from "./pagination"
 import { useEventsStore, getEventCounts } from "@/lib/events-store"
+import { ErrorBanner } from "@/components/ui/error-banner"
 
 interface EventsSectionProps {
   className?: string
 }
 
 export function EventsSection({ className }: EventsSectionProps) {
-  const { events, filters, setStatus, loadEvents } = useEventsStore()
+  const { events, filters, error, setStatus, loadEvents } = useEventsStore()
 
   // Get event counts for each tab
   const eventCounts = React.useMemo(() => getEventCounts(events), [events])
@@ -87,6 +88,15 @@ export function EventsSection({ className }: EventsSectionProps) {
           </TabsList>
         </Tabs>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <ErrorBanner
+          message={error}
+          onRetry={loadEvents}
+          className="mb-2"
+        />
+      )}
 
       {/* Tab Content */}
       <Tabs value={filters.status} onValueChange={handleTabChange} className="w-full">

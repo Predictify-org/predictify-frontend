@@ -18,6 +18,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Clock, DollarSign, Users, BarChart2, Loader2 } from "lucide-react";
 import { formatDistanceToNowStrict, parseISO, isValid } from "date-fns";
+import { EventDetailSkeleton } from "@/components/skeletons/event-detail-skeleton";
+import { ErrorBanner } from "@/components/ui/error-banner";
+import { AsyncButton } from "@/components/ui/async-button";
 
 interface EventOption {
   id: string;
@@ -104,6 +107,8 @@ export default function EventDetailsPage() {
   const [timeLeft, setTimeLeft] = useState<string>(() =>
     calculateTimeLeft(eventData.deadline)
   );
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [betAmount, setBetAmount] = useState<string>("");
   const [isSubmittingBet, setIsSubmittingBet] = useState(false);
@@ -111,6 +116,14 @@ export default function EventDetailsPage() {
   const [submitSuccessMessage, setSubmitSuccessMessage] = useState<
     string | null
   >(null);
+
+  // Simulate initial data fetch
+  useEffect(() => {
+    setIsLoading(true);
+    setFetchError(null);
+    const t = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(t);
+  }, [eventId]);
 
   useEffect(() => {
     if (eventId && eventId !== eventData.id) {
@@ -215,6 +228,29 @@ export default function EventDetailsPage() {
     : undefined;
   const potentialPayout =
     currentOdds && betAmount ? parseFloat(betAmount || "0") * currentOdds : 0;
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <EventDetailSkeleton />
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <ErrorBanner
+          message={fetchError}
+          onRetry={() => {
+            setIsLoading(true);
+            setFetchError(null);
+            setTimeout(() => setIsLoading(false), 800);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -501,26 +537,15 @@ export default function EventDetailsPage() {
                 )}
               </CardContent>
               <CardFooter>
-                <Button
+                <AsyncButton
                   type="submit"
                   className="w-full"
-                  disabled={
-                    isEventClosed ||
-                    isSubmittingBet ||
-                    !selectedOption ||
-                    !betAmount ||
-                    !!error
-                  }
+                  loading={isSubmittingBet}
+                  loadingText="Placing Bet..."
+                  disabled={isEventClosed || !selectedOption || !betAmount || !!error}
                 >
-                  {isSubmittingBet ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Placing Bet...
-                    </>
-                  ) : (
-                    "Place Bet"
-                  )}
-                </Button>
+                  Place Bet
+                </AsyncButton>
               </CardFooter>
             </form>
           </Card>
