@@ -12,103 +12,106 @@ Timeframe: apply this checklist to any screen touched in the last 96 hours befor
 - Check one normal state and one stressed state such as empty, error, loading, or success.
 - Compare the PR screenshots against the checklist below instead of relying on memory.
 
-## 1. Screen Frame And Navigation
+## Screen Shells And Navigation
 
 - [ ] The page has one clear screen title that matches the main task.
-- [ ] Landmark content is visually grouped so users can tell header, body, side panel, and footer apart.
-- [ ] Repeated navigation does not visually overpower the primary task.
-- [ ] Sticky headers, drawers, modals, and sheets do not cover the focused element or critical messaging.
-- [ ] Dense dashboards still preserve a readable scan order from top-left to bottom-right.
+- [ ] Header, body, side panel, and footer regions are visually distinct enough to scan quickly.
+- [ ] Repeated navigation does not overpower the primary task area.
+- [ ] Sticky headers, floating bars, and side panels do not cover focused elements or critical messaging.
+- [ ] Dense layouts still preserve a readable scan order from top-left to bottom-right.
+- [ ] Keyboard focus moves through navigation and page content in a predictable order.
+- [ ] Focus remains visible when drawers, sheets, and route transitions appear.
+- [ ] Motion used in page transitions or sticky navigation does not distract from task completion.
 
-Passing pattern: a settings screen shows one page title, grouped cards with clear section headings, and sticky controls that do not cover active fields.
+Passing pattern: a dashboard has one page title, a clear primary content region, and sticky controls that never cover active fields.
 
-Failing pattern: a modal opens over the page but hides the confirmation button or page-level error banner behind it.
+Failing pattern: a floating header hides the focused field, or a drawer opens and focus jumps behind the active panel.
 
-## 2. Text And Contrast
-
-- [ ] Body text, labels, helper text, and badges remain readable against their background in all supported themes.
-- [ ] Muted text is still readable for essential information such as deadlines, helper copy, and table metadata.
-- [ ] Status colors are supported by text or icon meaning and not color alone.
-- [ ] Disabled controls are still legible enough to explain what is unavailable.
-- [ ] Placeholder text is never the only place where critical instructions live.
-
-Passing pattern: "3 high priority disputes" uses an icon plus text, and helper text is still readable without zooming.
-
-Failing pattern: an error is shown only by red border color, or a low-contrast gray label disappears on card backgrounds.
-
-## 3. Forms, Labels, And Instructions
+## Forms And Authentication Screens
 
 - [ ] Every input, select, switch, checkbox, radio group, date picker, and textarea has a visible label.
 - [ ] Required fields are identified consistently and do not rely on placeholder text alone.
-- [ ] Helper text appears next to the field it explains, not in a separate paragraph far away.
-- [ ] Compound controls such as option builders, filter bars, and date pickers include enough visible context to understand the expected value.
-- [ ] Icon-only buttons inside forms have an adjacent text label, tooltip, or visible group heading that explains the action.
-
-Passing pattern: "Platform Fee (%)" has a visible label, a numeric input, and helper text directly below describing the allowed range.
-
-Failing pattern: an "Add" icon button appears next to an input with no nearby text clarifying whether it adds a row, saves the value, or opens a picker.
-
-## 4. Errors, Validation, And Status Messaging
-
-- [ ] Validation messages say what went wrong and what to do next.
-- [ ] Error copy is placed near the affected field or task, not only in a global toast.
-- [ ] Success, warning, and destructive states use distinct language and visual treatment.
-- [ ] Time-sensitive actions explain deadlines, retries, or irreversible outcomes in plain language.
-- [ ] Empty, loading, and no-results states still guide the next action.
-
-Passing pattern: "Invalid email or password" appears above the login form, and a field-level message explains missing required data when relevant.
-
-Failing pattern: a save action closes the form with no visible success feedback, or a destructive state uses the same styling as an informational note.
-
-## 5. Interactive Controls And Focus
-
-- [ ] Every interactive element has a visible focus state that stands out from hover and selected states.
-- [ ] Focus order follows the visual layout and does not jump into hidden panels or disabled controls.
-- [ ] Tabs, accordions, drawers, and popovers show which item is active and which item currently has keyboard focus.
-- [ ] Click targets are large enough for touch use, especially icon buttons, switches, pagination, and row actions.
-- [ ] Keyboard users can reach all primary actions without getting trapped in widgets.
-
-Passing pattern: tabbing through a new-event form moves from title to description to category to deadline to visibility controls in a predictable order.
-
-Failing pattern: focus disappears on a ghost icon button, or tab focus enters a hidden tab panel before the visible Save button.
-
-## 6. Motion And State Changes
-
-- [ ] Animation supports understanding and does not delay task completion.
-- [ ] Important content does not slide, pulse, or autoplay in a way that competes with form entry.
-- [ ] Loading states preserve layout so content does not jump when data appears.
-- [ ] Hover-only motion is not required to discover actions.
-- [ ] Reduced-motion behavior is defined for page transitions, chart animation, counters, and decorative backgrounds.
-
-Passing pattern: a loading skeleton holds card height in place and the final content fades in without shifting buttons away from the pointer.
-
-Failing pattern: success banners auto-dismiss before the user can read them, or animated counters rapidly change values with no reduced-motion fallback.
-
-## Component-Type Spot Checks
-
-### Forms And Authentication Screens
-
 - [ ] Labels remain visible while typing.
-- [ ] Password, OTP, and email fields expose errors near the field and at form level when needed.
-- [ ] Secondary actions such as "Forgot password?" remain visually subordinate to the primary submit action.
+- [ ] Helper text appears next to the field it explains, not in a separate paragraph far away.
+- [ ] Placeholder text is never the only place where critical instructions live.
+- [ ] Validation messages say what went wrong and what to do next.
+- [ ] Error copy appears near the affected field or form, not only in a toast.
+- [ ] Success and destructive states are visually distinct and not color-only.
+- [ ] The main submit path is reachable and understandable by keyboard users.
+- [ ] Focus states stand out from hover and selected states on every field and button.
+- [ ] Password, OTP, and email entry flows show clear state changes without excessive motion.
 
-### Data-Dense Dashboard Screens
+Passing pattern: a login screen shows visible labels, an inline error message, and a clear primary submit button with visible focus.
 
-- [ ] KPI cards, charts, and status rows have readable labels and do not rely on color-only meaning.
-- [ ] Badge, icon, and trend treatments remain understandable for color-blind users.
-- [ ] Table or card actions are discoverable by keyboard and touch, not just hover.
+Failing pattern: an input depends on placeholder text for context, or an invalid state is shown only with a red border.
 
-### Settings, Preferences, And Admin Panels
+## Settings, Preferences, And Admin Panels
 
+- [ ] Grouped controls use headings, cards, or separators that make the hierarchy obvious.
 - [ ] Switches clearly describe what turns on or off and what changes immediately.
-- [ ] Grouped controls use headings or separators that make the hierarchy obvious.
-- [ ] Success and error feedback remains visible long enough to review.
+- [ ] Helper text for toggles, thresholds, and policy settings remains readable against the background.
+- [ ] Tabbed settings views show both the active tab and the currently focused tab trigger clearly.
+- [ ] Success, warning, and error feedback stays visible long enough to review.
+- [ ] High-impact settings explain deadlines, irreversible outcomes, or retry steps in plain language.
+- [ ] Save, cancel, and destructive actions are visually distinct from each other.
+- [ ] Dense admin controls still provide touch-friendly hit areas for buttons, switches, and row actions.
+- [ ] Auto-updating banners, counters, or status chips do not animate in ways that interrupt form entry.
 
-### Overlays, Popovers, Drawers, And Modals
+Passing pattern: a settings screen groups platform, security, and notification controls into clear sections with readable helper text and durable save feedback.
+
+Failing pattern: all controls appear in one undifferentiated block, or a success message disappears before a reviewer can read it.
+
+## Data Views, Dashboards, And Reporting Screens
+
+- [ ] KPI cards, charts, badges, and status rows remain readable against their backgrounds.
+- [ ] Trend, warning, and success states are understandable without relying on color alone.
+- [ ] Muted metadata such as date ranges, counts, and deadlines remains readable.
+- [ ] Card actions, pagination, and row-level controls are discoverable by keyboard and touch, not just hover.
+- [ ] Charts, placeholders, and loading states preserve layout so content does not jump when data appears.
+- [ ] Focus order follows the visual order across cards, tabs, filters, and actions.
+- [ ] Empty, loading, and no-results states guide the next action instead of leaving dead ends.
+- [ ] Decorative count-up or chart animations support comprehension and have a reduced-motion fallback.
+
+Passing pattern: a KPI grid uses text plus icon meaning, readable metadata, and stable loading placeholders that do not shift buttons.
+
+Failing pattern: a chart uses color as the only meaning cue, or row actions appear only on hover with no visible keyboard path.
+
+## Overlays, Popovers, Drawers, Modals, And Pickers
 
 - [ ] The trigger, title, body, and primary action are all visible without accidental clipping.
 - [ ] Focus stays inside the active overlay until it is dismissed.
-- [ ] Background content is visually de-emphasized but still stable when the overlay closes.
+- [ ] Opening an overlay moves focus to a logical starting point inside it.
+- [ ] Closing an overlay returns focus to a sensible trigger or nearby control.
+- [ ] Popovers, selects, date pickers, and menus do not render off-screen on desktop or mobile.
+- [ ] Background content is visually de-emphasized but remains stable when the overlay closes.
+- [ ] Focus states remain visible on icon-only controls and compact menu items.
+- [ ] Motion used for opening and closing overlays does not block the user from acting quickly.
+
+Passing pattern: a date picker opens aligned to its trigger, keeps focus within the popover, and closes back to the trigger without layout shift.
+
+Failing pattern: a modal clips the primary action below the fold, or focus escapes into the page behind it.
+
+## Lists, Tables, Filters, And Option Builders
+
+- [ ] Filter controls have visible labels or nearby headings that explain what they change.
+- [ ] Icon-only add, remove, copy, or clear actions have enough visible context to make the action obvious.
+- [ ] Rows, cards, and option groups preserve readable spacing and touch-friendly targets.
+- [ ] Repeated actions such as remove, reorder, and expand show visible focus and active states.
+- [ ] Validation for dynamic rows explains which row failed and what to fix.
+- [ ] Empty rows, loading rows, and no-results states still guide the next action.
+- [ ] Animated insertion, removal, or reordering does not disrupt orientation or cause focus loss.
+
+Passing pattern: a dynamic option builder labels the group, gives each row a predictable focus path, and keeps add/remove controls understandable.
+
+Failing pattern: a trash icon appears with no visible context, or inserting a row causes focus to disappear.
+
+## Cross-Screen Accessibility Checks
+
+- [ ] Body text, labels, helper text, and badges remain readable in all supported themes.
+- [ ] Disabled controls stay legible enough to explain what is unavailable.
+- [ ] Click and tap targets are large enough for frequent actions, especially icon buttons and compact controls.
+- [ ] Hover-only behavior is never required to discover a critical action.
+- [ ] Reduced-motion behavior is defined for page transitions, counters, charts, decorative backgrounds, and overlays.
 
 ## Minimum Screenshots Required In PR Review
 
@@ -129,17 +132,17 @@ Use these checks as examples during review.
 
 ### `app/(auth)/login`
 
-- Pass: visible labels for email and password, inline destructive alert for failed login, clear primary action.
-- Risk to watch: the alert is page-level only, so field-specific validation should not be added later without nearby messaging.
+- Pass: visible labels for email and password, inline destructive alert for failed login, clear primary action, and a short keyboard path.
+- Risk to watch: the alert is page-level only, so future field-specific validation should not be added without nearby messaging.
 
 ### `app/(dashboard)/settings`
 
-- Pass: most inputs and switches have visible labels and helper text, sections are grouped with headings and separators.
+- Pass: most inputs and switches have visible labels and helper text, sections are grouped with headings and separators, and the screen maps well to the settings/admin checklist.
 - Risk to watch: success feedback auto-clears after 3 seconds, which is easy to miss for slower readers.
 - Risk to watch: tabbed settings UIs need visible focus treatment and clear active-state contrast during review.
 
 ### `app/(dashboard)/events/new`
 
-- Pass: main fields are labeled, preview helps confirm content before submit, primary and secondary actions are separated.
+- Pass: main fields are labeled, preview helps confirm content before submit, and primary and secondary actions are separated.
 - Risk to watch: icon-only add and remove buttons need strong visible focus and clear accessible intent in design review.
-- Risk to watch: deadline picker, category select, and dynamic option rows should be checked for keyboard order and overlay clipping.
+- Risk to watch: deadline picker, category select, and dynamic option rows should be checked against the overlay and option-builder sections for keyboard order and clipping.
