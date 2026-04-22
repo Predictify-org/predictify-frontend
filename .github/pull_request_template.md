@@ -1,29 +1,29 @@
-# 🚀 Pull Request
+# Pull Request
 
-## 📝 Description
+## Description
 <!-- Provide a brief description of what this PR accomplishes -->
 
-## 🎯 Type of Change
+## Type of Change
 <!-- Mark the appropriate option(s) with an 'x' -->
 
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📚 Documentation update
-- [ ] ⚡ Performance improvement
-- [ ] 🔧 Refactoring (no functional changes)
-- [ ] 🎨 Style/UI changes
-- [ ] 🧪 Test updates
-- [ ] 🔄 CI/CD changes
-- [ ] 🔒 Security improvements
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+- [ ] Performance improvement
+- [ ] Refactoring (no functional changes)
+- [ ] Style/UI changes
+- [ ] Test updates
+- [ ] CI/CD changes
+- [ ] Security improvements
 
-## 🔗 Related Issues
+## Related Issues
 <!-- Link to related issues using keywords like "Closes", "Fixes", "Resolves" -->
 
 Closes #[issue-number]
 Related to #[issue-number]
 
-## 📋 Changes Made
+## Changes Made
 <!-- Provide a detailed list of changes made -->
 
 ### Files Modified
@@ -34,24 +34,31 @@ Related to #[issue-number]
 - [Describe the main changes and their impact]
 - [Include any architectural decisions made]
 
-## 🧪 Testing
+## Testing
 <!-- Describe how you tested your changes -->
 
-- [ ] ✅ Unit tests added/updated
-- [ ] ✅ Integration tests added/updated
-- [ ] ✅ Manual testing completed
-- [ ] ✅ Cross-browser testing (if applicable)
-- [ ] ✅ Mobile responsiveness tested (if applicable)
-- [ ] ✅ Accessibility testing completed
-- [ ] ✅ Performance testing (if applicable)
+- [ ] Unit tests added/updated
+- [ ] Integration tests added/updated
+- [ ] Manual testing completed
+- [ ] Cross-browser testing (if applicable)
+- [ ] Mobile responsiveness tested (if applicable)
+- [ ] Accessibility testing completed
+- [ ] Performance testing (if applicable)
 
 ### Test Coverage
 - [ ] New code is covered by tests
 - [ ] Existing tests still pass
 - [ ] Test coverage meets project standards
 
-## 📸 Screenshots/Videos
+## Screenshots/Videos
 <!-- Add screenshots or videos showing the changes (if applicable) -->
+
+### Minimum screenshots for UI/design PRs
+- [ ] Desktop default state
+- [ ] Mobile default state
+- [ ] One stressed state: error, empty, loading, success, validation, open menu, or open modal
+- [ ] Focus-visible screenshot for the primary interactive element (required when focus behavior changed)
+- [ ] Open overlay screenshot for modal, drawer, popover, select, or date picker (required when applicable)
 
 ### Before
 <!-- Screenshot of the current state -->
@@ -59,36 +66,36 @@ Related to #[issue-number]
 ### After
 <!-- Screenshot of the new state -->
 
-## ✅ Pre-submission Checklist
+## Pre-submission Checklist
 <!-- Complete all items before submitting -->
 
 ### Code Quality
-- [ ] ✅ Code follows project style guidelines
-- [ ] ✅ Self-review completed
-- [ ] ✅ Code is self-documenting
-- [ ] ✅ No console errors or warnings
-- [ ] ✅ No linting errors
-- [ ] ✅ No TypeScript errors (if applicable)
+- [ ] Code follows project style guidelines
+- [ ] Self-review completed
+- [ ] Code is self-documenting
+- [ ] No console errors or warnings
+- [ ] No linting errors
+- [ ] No TypeScript errors (if applicable)
 
 ### Functionality
-- [ ] ✅ All tests pass
-- [ ] ✅ Feature works as expected
-- [ ] ✅ No breaking changes introduced
-- [ ] ✅ Performance impact assessed
+- [ ] All tests pass
+- [ ] Feature works as expected
+- [ ] No breaking changes introduced
+- [ ] Performance impact assessed
 
 ### Documentation
-- [ ] ✅ README updated (if applicable)
-- [ ] ✅ Code comments added where necessary
-- [ ] ✅ API documentation updated (if applicable)
-- [ ] ✅ Changelog updated (if applicable)
+- [ ] README updated (if applicable)
+- [ ] Code comments added where necessary
+- [ ] API documentation updated (if applicable)
+- [ ] Changelog updated (if applicable)
 
 ### Security & Accessibility
-- [ ] ✅ Security considerations addressed
-- [ ] ✅ Accessibility standards met
-- [ ] ✅ No sensitive data exposed
-- [ ] ✅ Input validation implemented
+- [ ] Security considerations addressed
+- [ ] Accessibility standards met
+- [ ] No sensitive data exposed
+- [ ] Input validation implemented
 
-## ⚠️ Breaking Changes
+## Breaking Changes
 <!-- Describe any breaking changes and migration steps -->
 
 **Breaking Changes:**
@@ -97,7 +104,7 @@ Related to #[issue-number]
 **Migration Steps:**
 - [Provide steps for users to migrate]
 
-## 🔧 Additional Notes
+## Additional Notes
 <!-- Any other information that reviewers should know -->
 
 ### Dependencies
@@ -117,7 +124,7 @@ Related to #[issue-number]
 - [ ] Tested on Edge
 - [ ] Tested on mobile devices
 
-## 🏷️ Labels
+## Labels
 <!-- Add appropriate labels for this PR -->
 
 - `feature` - for new features
@@ -129,7 +136,7 @@ Related to #[issue-number]
 - `backend` - for backend changes
 - `ui/ux` - for design changes
 
-## 👥 Reviewers
+## Reviewers
 <!-- Tag relevant team members for review -->
 
 - [ ] Frontend team review
@@ -139,4 +146,4 @@ Related to #[issue-number]
 
 ---
 
-**Note:** Please ensure all checkboxes are completed before submitting this PR. This helps maintain code quality and speeds up the review process. 
+**Note:** Please ensure all checkboxes are completed before submitting this PR. This helps maintain code quality and speeds up the review process.
