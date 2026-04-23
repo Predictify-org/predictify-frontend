@@ -60,6 +60,7 @@ Related to #[issue-number]
 - [ ] Focus-visible screenshot for the primary interactive element (required when focus behavior changed)
 - [ ] Open overlay screenshot for modal, drawer, popover, select, or date picker (required when applicable)
 - [ ] Quick actions closed and open states (required for toolbar, FAB, or bottom-sheet action changes)
+- [ ] Keyboard-open mobile screenshot and desktop sticky state (required for sticky action panel changes)
 
 ### Before
 <!-- Screenshot of the current state -->
