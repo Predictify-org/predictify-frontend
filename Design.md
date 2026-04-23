@@ -19,3 +19,7 @@ Use [DESIGN_ACCESSIBILITY_CHECKLIST.md](./DESIGN_ACCESSIBILITY_CHECKLIST.md) for
 ## Mobile Portfolio Actions
 
 Use [DESIGN_MOBILE_PORTFOLIO_QUICK_ACTIONS.md](./DESIGN_MOBILE_PORTFOLIO_QUICK_ACTIONS.md) for mobile quick-action placement, confirmation rules, and PR evidence on portfolio screens.
+
+## Sticky Action Panels
+
+Use [DESIGN_STICKY_ACTION_PANEL.md](./DESIGN_STICKY_ACTION_PANEL.md) for market-detail sticky CTA behavior, lifecycle content, and mobile keyboard guidance.
