@@ -59,6 +59,7 @@ Related to #[issue-number]
 - [ ] One stressed state: error, empty, loading, success, validation, open menu, or open modal
 - [ ] Focus-visible screenshot for the primary interactive element (required when focus behavior changed)
 - [ ] Open overlay screenshot for modal, drawer, popover, select, or date picker (required when applicable)
+- [ ] Quick actions closed and open states (required for toolbar, FAB, or bottom-sheet action changes)
 
 ### Before
 <!-- Screenshot of the current state -->
