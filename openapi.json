@@ -476,10 +476,45 @@
       }
     },
     "/auth/wallet": {
+      "get": {
+        "operationId": "issueWalletChallenge",
+        "summary": "Issue wallet authentication challenge",
+        "description": "Returns a one-time challenge message bound to the provided Stellar public key. The challenge expires quickly and is stored server-side to prevent replay.",
+        "tags": ["Authentication"],
+        "parameters": [
+          {
+            "name": "publicKey",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Stellar public key (G... address)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Challenge issued",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WalletAuthChallengeResponse" },
+                "example": {
+                  "data": {
+                    "publicKey": "GATODH2T75IVFB7MG6ZKKIFPWFNVJBXVPUMTYV5ANT2O2ZWL7GSDZWNRW",
+                    "nonce": "b5f6bb4a-3d1d-4d04-b392-8a8d580bfbb1",
+                    "message": "StreamPay wallet authentication challenge\nNetwork: Test SDF Network ; September 2015\nPublic key: GATODH2T75IVFB7MG6ZKKIFPWFNVJBXVPUMTYV5ANT2O2ZWL7GSDZWNRW\nNonce: b5f6bb4a-3d1d-4d04-b392-8a8d580bfbb1\nExpires at: 2026-05-01T10:00:00Z",
+                    "expiresAt": "2026-05-01T10:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "422": { "$ref": "#/components/responses/UnprocessableEntity" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      },
       "post": {
         "operationId": "authenticateWallet",
         "summary": "Authenticate with wallet",
-        "description": "Authenticates a Stellar wallet by verifying a signed challenge message. Returns a short-lived JWT (15 minutes). In dev, signature `AAAAAA==` always succeeds.",
+        "description": "Authenticates a Stellar wallet by verifying a signed challenge message. Returns a short-lived JWT (15 minutes).",
         "tags": ["Authentication"],
         "requestBody": {
           "required": true,
@@ -488,8 +523,9 @@
               "schema": { "$ref": "#/components/schemas/WalletAuthRequest" },
               "example": {
                 "publicKey": "GATODH2T75IVFB7MG6ZKKIFPWFNVJBXVPUMTYV5ANT2O2ZWL7GSDZWNRW",
+                "nonce": "b5f6bb4a-3d1d-4d04-b392-8a8d580bfbb1",
                 "signature": "AAAAAA==",
-                "message": "Sign this message to authenticate with StreamPay. Nonce: abc123"
+                "message": "StreamPay wallet authentication challenge\nNetwork: Test SDF Network ; September 2015\nPublic key: GATODH2T75IVFB7MG6ZKKIFPWFNVJBXVPUMTYV5ANT2O2ZWL7GSDZWNRW\nNonce: b5f6bb4a-3d1d-4d04-b392-8a8d580bfbb1\nExpires at: 2026-05-01T10:00:00Z"
               }
             }
           }
@@ -781,10 +817,26 @@
         "type": "object",
         "properties": {
           "publicKey": { "type": "string", "description": "Stellar public key (G... address)", "example": "GATODH2T75IVFB7MG6ZKKIFPWFNVJBXVPUMTYV5ANT2O2ZWL7GSDZWNRW" },
+          "nonce": { "type": "string", "description": "Server-issued challenge nonce", "example": "b5f6bb4a-3d1d-4d04-b392-8a8d580bfbb1" },
           "signature": { "type": "string", "description": "Base64-encoded signature of the challenge message", "example": "AAAAAA==" },
           "message": { "type": "string", "description": "The challenge message that was signed" }
         },
-        "required": ["publicKey", "signature", "message"]
+        "required": ["publicKey", "nonce", "signature", "message"]
+      },
+      "WalletAuthChallengeResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "publicKey": { "type": "string" },
+              "nonce": { "type": "string" },
+              "message": { "type": "string" },
+              "expiresAt": { "type": "string", "format": "date-time" }
+            },
+            "required": ["publicKey", "nonce", "message", "expiresAt"]
+          }
+        }
       },
       "WalletAuthResponse": {
         "type": "object",
