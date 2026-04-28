@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MechanicHelp } from "@/components/patterns/MechanicHelp";
+import { oracleDelayHelp, platformFeesHelp } from "@/components/patterns/mechanic-help-content";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -234,7 +236,13 @@ export default function EventDetailsPage() {
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Event Status</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>Event Status</CardTitle>
+                <MechanicHelp content={oracleDelayHelp} />
+              </div>
+              <CardDescription>
+                Markets may stay in resolving while oracle confirmations arrive after the betting window closes.
+              </CardDescription>
             </CardHeader>
             {/* <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
               <div className="flex items-center gap-2">
@@ -457,7 +465,10 @@ export default function EventDetailsPage() {
             <form onSubmit={handleBetSubmit}>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="bet-amount">Bet Amount ($)</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="bet-amount">Bet Amount ($)</Label>
+                    <MechanicHelp content={platformFeesHelp} />
+                  </div>
                   <Input
                     id="bet-amount"
                     type="number"
