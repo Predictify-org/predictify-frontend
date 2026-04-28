@@ -76,14 +76,21 @@ export function StreamRow({ stream }: StreamRowProps) {
       </dl>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", alignItems: "flex-end" }}>
-        <button 
-          className="button button--secondary stream-row__action" 
+        <button
+          className="button button--secondary stream-row__action"
           type="button"
           onClick={handleAction}
           disabled={isProcessing || isIncidentMode}
         >
           {isProcessing ? "Processing..." : stream.nextAction}
         </button>
+        <a
+          aria-label={`Print receipt for stream ${stream.recipient}`}
+          className="stream-row__receipt-link"
+          href={`/streams/${stream.id}/receipt`}
+        >
+          Print receipt
+        </a>
         {isIncidentMode && (
           <span style={{ color: "orange", fontSize: "0.75rem", maxWidth: "200px", textAlign: "right" }}>
             On-chain operations are paused.
