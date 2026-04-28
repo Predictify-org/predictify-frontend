@@ -40,6 +40,7 @@ The application will fail to boot without these required variables:
 
 - **Fail-fast validation**: Application refuses to start with invalid configuration
 - **No silent defaults**: Never falls back to mainnet automatically
+- **Explicit CORS allowlist**: Public API origin access is controlled by `ALLOWED_ORIGINS`
 - **CI guardrails**: CI is enforced to use testnet only
 - **Secret redaction**: All secrets are automatically redacted from logs
 - **UI safety labels**: Testnet assets are clearly labeled to prevent confusion
