@@ -54,6 +54,16 @@ See [docs/network-security.md](docs/network-security.md) for the complete securi
 - Short months use actual day counts (no 30/32-day months).
 - Local time display may shift with DST; calculations remain UTC.
 
+## Horizon/Soroban resilience notes
+
+The resilience wrapper in app/lib/stellarClient.ts provides a short-TTL read-through cache for account
+and balance reads, plus circuit breaking and per-client timeouts/concurrency limits. When the circuit
+is open, stale cached reads may be served to keep non-critical UI paths responsive. These reads are
+eventually consistent; balances and account state may lag the chain by the cache TTL or stale window.
+
+Auth and write operations are never cached. Cache keys must include the tenant and account address to
+prevent cross-tenant data leakage.
+
 ## Prerequisites
 
 - Node.js 18+
