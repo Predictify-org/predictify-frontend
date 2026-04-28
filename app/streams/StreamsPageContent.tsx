@@ -100,9 +100,14 @@ export function StreamsPageContent({
           <h1 className="page-hero__title">Manage every stream from one list.</h1>
           <p className="page-hero__description">{streamListCopy.description}</p>
         </div>
-        <button className="button button--primary" type="button">
-          {streamListCopy.primaryCta}
-        </button>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <button className="button button--secondary" type="button">
+            Export History
+          </button>
+          <button className="button button--primary" type="button">
+            {streamListCopy.primaryCta}
+          </button>
+        </div>
       </section>
 
       <section className="stream-layout" aria-labelledby="streams-overview-title">

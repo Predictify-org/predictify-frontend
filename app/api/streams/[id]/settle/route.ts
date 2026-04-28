@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
 import { db, idempotencyToken } from "@/app/lib/db";
+import { getCorrelationContext } from "@/app/lib/logger";
+import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { getStellarSettlementClient } from "@/app/lib/stellar";
 
 function createErrorResponse(code: string, message: string, status: number) {
@@ -7,12 +10,16 @@ function createErrorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
 }
 
+function getHeader(request: Request, name: string): string | null {
+  return request.headers?.get?.(name) ?? null;
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const idempotencyKey = request.headers.get("Idempotency-Key");
+  const idempotencyKey = getHeader(request, "Idempotency-Key");
   const token = idempotencyKey ? idempotencyToken(`streams.settle.${id}`, idempotencyKey) : null;
 
   if (token && db.idempotency.has(token)) {
@@ -24,41 +31,59 @@ export async function POST(
     return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
 
-  // Org Policy Check
-  const actorAddress = _request.headers.get("Actor-Wallet-Address");
-  const policyResult = checkStreamOrgPolicy(id, actorAddress ?? "", "settle");
-
+  const actorAddress = getHeader(request, "Actor-Wallet-Address");
+  const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "settle") : null;
   if (policyResult) {
     if (!policyResult.allowed) {
       return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
     }
     if (policyResult.requiresApproval) {
-      return createErrorResponse("APPROVAL_REQUIRED", "This action requires multi-sig approval. Please initiate an approval request.", 409);
+      return createErrorResponse(
+        "APPROVAL_REQUIRED",
+        "This action requires multi-sig approval. Please initiate an approval request.",
+        409
+      );
     }
   }
 
   if (stream.status !== "active" && stream.status !== "paused") {
     return createErrorResponse("INVALID_STREAM_STATE", "Only active or paused streams can be settled", 409);
   }
+
+  const before = structuredClone(stream);
   const txHash = `fake-tx-${crypto.randomUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
-  stream.status = "ended";
-  stream.nextAction = "withdraw";
-  stream.settlementTxHash = txHash;
-  stream.withdrawal = {
-    state: "pending",
-    requestedAt: now,
-    lastCheckedAt: now,
-    attempts: 0,
+  const updatedStream = {
+    ...stream,
+    nextAction: "withdraw" as const,
     settlementTxHash: txHash,
+    status: "ended" as const,
+    updatedAt: now,
+    withdrawal: {
+      attempts: 0,
+      lastCheckedAt: now,
+      requestedAt: now,
+      settlementTxHash: txHash,
+      state: "pending" as const,
+    },
   };
-  stream.updatedAt = now;
-  db.streams.set(id, stream);
+  db.streams.set(id, updatedStream);
 
   try {
     const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
-    const payload = { data: { ...stream, settlement } };
+    recordPrivilegedStreamAuditEvent({
+      action: "stream.settle",
+      after: updatedStream,
+      before,
+      metadata: {
+        settlementTxHash: settlement.txHash,
+      },
+      request,
+      streamId: id,
+      targetAccount: updatedStream.recipient,
+    });
 
+    const payload = { data: { ...updatedStream, settlement } };
     if (token) {
       db.idempotency.set(token, payload);
     }

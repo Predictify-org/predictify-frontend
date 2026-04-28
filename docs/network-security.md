@@ -4,6 +4,8 @@
 
 This document describes the security hardening implemented for Stellar network configuration in StreamPay-Frontend. The changes prevent dangerous configuration mistakes that could lead to real asset loss.
 
+For internal worker-to-API authentication and Kubernetes network policy guidance, see `docs/internal-service-auth.md`.
+
 ## Security Problem Statement
 
 The following dangerous scenarios are now prevented:

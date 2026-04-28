@@ -1,4 +1,15 @@
-import { Stream, ActivityEvent } from "@/app/types/openapi";
+import type { ActivityEvent, ExportJob, Stream } from "@/app/types/openapi";
+
+export type { ExportJob };
+export type ExportJobStatus = ExportJob["status"];
+
+export interface ExportAuditRecord {
+  id: string;
+  exportId: string;
+  type: "export.requested" | "export.downloaded" | "export.expired";
+  timestamp: string;
+  details?: Record<string, unknown>;
+}
 
 const initialStreams: Stream[] = [
   {
@@ -53,10 +64,6 @@ function createActivityMap(): Map<string, ActivityEvent> {
 export const db = {
   streams: createStreamsMap(),
   activity: createActivityMap(),
-
-export const db = {
-  streams: createInitialStreams(),
-  activity: createInitialActivity(),
   idempotency: new Map<string, unknown>(),
   exportJobs: new Map<string, ExportJob>(),
   exportAudit: new Array<ExportAuditRecord>(),
@@ -79,6 +86,9 @@ export function resetDb(): void {
   }
 
   db.idempotency.clear();
+  db.exportJobs.clear();
+  db.exportAudit.length = 0;
+  db.exportProcessing.clear();
 }
 
 export function encodeCursor(id: string): string {
