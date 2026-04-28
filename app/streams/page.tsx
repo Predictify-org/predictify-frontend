@@ -1,7 +1,7 @@
 import { EmptyState } from "../components/EmptyState";
 import { StreamRow, type StreamRowData } from "../components/StreamRow";
 
-export type StreamsViewState = "empty" | "loading" | "populated";
+type StreamsViewState = "empty" | "loading" | "populated";
 
 const streamListCopy = {
   description:
@@ -18,7 +18,7 @@ const streamListCopy = {
   primaryCta: "Create Stream",
 } as const;
 
-export const mockStreams: StreamRowData[] = [
+const mockStreams: StreamRowData[] = [
   {
     id: "stream-ada",
     nextAction: "Pause",
@@ -86,7 +86,7 @@ function StreamListSkeleton() {
   );
 }
 
-export function StreamsPageContent({
+function StreamsPageContent({
   state = "populated",
   streams = mockStreams,
 }: StreamsPageContentProps) {
