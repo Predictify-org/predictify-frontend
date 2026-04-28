@@ -28,6 +28,7 @@ export enum ContractStreamStatus {
   PAUSED = "PAUSED",
   SETTLED = "SETTLED",
   ENDED = "ENDED",
+  CANCELLED = "CANCELLED",
 }
 
 export interface OnChainStream {

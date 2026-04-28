@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
-import { db } from "@/app/lib/db";
+import { db, idempotencyToken, withLock } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
@@ -41,52 +41,76 @@ export async function POST(
   }
   recordRequest(url.pathname);
 
-  const stream = db.streams.get(id);
-  if (!stream) {
-    return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
-  }
-
   const actorAddress = getHeader(request, "Actor-Wallet-Address");
-  const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "withdraw") : null;
-  if (policyResult) {
-    if (!policyResult.allowed) {
-      return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
-    }
-    if (policyResult.requiresApproval) {
-      return createErrorResponse(
-        "APPROVAL_REQUIRED",
-        "This action requires multi-sig approval. Please initiate an approval request.",
-        409
-      );
-    }
+  const idempotencyKey = getHeader(request, "Idempotency-Key");
+  const token = idempotencyKey ? idempotencyToken(`streams.withdraw.${id}`, idempotencyKey) : null;
+
+  if (token && db.idempotency.has(token)) {
+    return NextResponse.json(db.idempotency.get(token));
   }
 
-  if (stream.status !== "ended") {
-    if (stream.status === "withdrawn") {
-      return NextResponse.json({ data: stream });
+  return withLock(id, async () => {
+    if (token && db.idempotency.has(token)) {
+      return NextResponse.json(db.idempotency.get(token));
     }
-    return createErrorResponse("INVALID_STREAM_STATE", "Only ended streams can be withdrawn from", 409);
-  }
 
-  const before = structuredClone(stream);
-  const { alert, stream: updated } = await evaluateWithdrawalState(stream, new Date(), fetch);
-  db.streams.set(id, updated);
-  recordPrivilegedStreamAuditEvent({
-    action: "stream.withdraw",
-    after: updated,
-    before,
-    metadata: {
-      resultingStatus: updated.status,
-      withdrawalState: updated.withdrawal?.state ?? null,
-    },
-    request,
-    streamId: id,
-    targetAccount: updated.recipient,
-  });
+    const stream = db.streams.get(id);
+    if (!stream) {
+      return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+    }
 
-  return NextResponse.json({
-    alert,
-    data: updated,
-    withdrawal: updated.withdrawal,
+    const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "withdraw") : null;
+    if (policyResult) {
+      if (!policyResult.allowed) {
+        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+      }
+      if (policyResult.requiresApproval) {
+        return createErrorResponse(
+          "APPROVAL_REQUIRED",
+          "This action requires multi-sig approval. Please initiate an approval request.",
+          409
+        );
+      }
+    }
+
+    if (stream.status !== "ended") {
+      if (stream.status === "withdrawn") {
+        const payload = { data: stream, withdrawal: stream.withdrawal };
+        if (token) {
+          db.idempotency.set(token, payload);
+        }
+        return NextResponse.json(payload);
+      }
+      return createErrorResponse("INVALID_STREAM_STATE", "Only ended streams can be withdrawn from", 409);
+    }
+
+    const before = structuredClone(stream);
+    const { alert, stream: updated } = await evaluateWithdrawalState(stream, new Date(), fetch);
+    db.streams.set(id, updated);
+
+    const payload = {
+      alert,
+      data: updated,
+      withdrawal: updated.withdrawal,
+    };
+
+    recordPrivilegedStreamAuditEvent({
+      action: "stream.withdraw",
+      after: updated,
+      before,
+      metadata: {
+        resultingStatus: updated.status,
+        withdrawalState: updated.withdrawal?.state ?? null,
+      },
+      request,
+      streamId: id,
+      targetAccount: updated.recipient,
+    });
+
+    if (token) {
+      db.idempotency.set(token, payload);
+    }
+
+    return NextResponse.json(payload);
   });
 }

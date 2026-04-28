@@ -1,4 +1,5 @@
-export type StreamStatus = "draft" | "active" | "paused" | "ended";
+import { StreamStatus, StreamAction } from "@/app/types/openapi";
+import { transition } from "./state-machine";
 
 export type StreamRecord = {
   availableBalance: bigint;
@@ -9,7 +10,9 @@ export type StreamRecord = {
   tenantId: string;
 };
 
-export type StreamCommandType = "pause" | "resume" | "settle_tick" | "stop";
+export type StreamCommandType = StreamAction | "settle_tick" | (string & {});
+
+const VALID_COMMAND_TYPES = new Set<string>(["start", "pause", "stop", "settle", "withdraw", "settle_tick"]);
 
 export type StreamCommand = {
   actorTenantId: string;
@@ -144,7 +147,7 @@ export class InMemoryStreamStore {
   }
 
   private maybeGetIdempotentResult(streamId: string, command: StreamCommand): StreamResult | undefined {
-    if (!command.idempotencyKey || (command.type !== "pause" && command.type !== "resume")) {
+    if (!command.idempotencyKey) {
       return undefined;
     }
 
@@ -161,7 +164,7 @@ export class InMemoryStreamStore {
   }
 
   private persistIdempotentResult(streamId: string, command: StreamCommand, result: StreamResult): void {
-    if (!command.idempotencyKey || (command.type !== "pause" && command.type !== "resume")) {
+    if (!command.idempotencyKey) {
       return;
     }
 
@@ -178,35 +181,9 @@ export class InMemoryStreamStore {
     return undefined;
   }
 
-  private applyPause(stream: StreamRecord): StreamResult {
-    if (stream.status === "paused") {
-      return { ok: true, stream: cloneStream(stream) };
-    }
-
-    if (stream.status !== "active") {
-      return streamError(409, "ILLEGAL_TRANSITION", `Pause is illegal from status ${stream.status}.`);
-    }
-
-    stream.status = "paused";
-    return { ok: true, stream: cloneStream(stream) };
-  }
-
-  private applyResume(stream: StreamRecord): StreamResult {
-    if (stream.status === "active") {
-      return { ok: true, stream: cloneStream(stream) };
-    }
-
-    if (stream.status !== "paused") {
-      return streamError(409, "ILLEGAL_TRANSITION", `Resume is illegal from status ${stream.status}.`);
-    }
-
-    stream.status = "active";
-    return { ok: true, stream: cloneStream(stream) };
-  }
-
   private applySettleTick(stream: StreamRecord, settleAmount: bigint, at: number): StreamResult {
-    if (stream.status === "ended") {
-      return streamError(409, "ILLEGAL_TRANSITION", "Cannot settle an ended stream.");
+    if (stream.status === "ended" || stream.status === "withdrawn") {
+      return streamError(409, "ILLEGAL_TRANSITION", "Cannot settle an ended or withdrawn stream.");
     }
 
     if (settleAmount < 0n) {
@@ -224,21 +201,12 @@ export class InMemoryStreamStore {
     return { ok: true, stream: cloneStream(stream) };
   }
 
-  private applyStop(stream: StreamRecord): StreamResult {
-    if (stream.status === "ended") {
-      return { ok: true, stream: cloneStream(stream) };
-    }
-
-    stream.status = "ended";
-    return { ok: true, stream: cloneStream(stream) };
-  }
-
   private trackMetricAttempt(type: StreamCommandType): void {
     if (type === "pause") {
       this.metrics.pauseAttempts += 1;
     }
 
-    if (type === "resume") {
+    if (type === "start") {
       this.metrics.resumeAttempts += 1;
     }
   }
@@ -252,7 +220,7 @@ export class InMemoryStreamStore {
       }
     }
 
-    if (type === "resume") {
+    if (type === "start") {
       if (result.ok) {
         this.metrics.resumeSuccess += 1;
       } else {
@@ -292,22 +260,18 @@ export class InMemoryStreamStore {
 
       let result: StreamResult;
 
-      switch (command.type) {
-        case "pause":
-          result = this.applyPause(stream);
-          break;
-        case "resume":
-          result = this.applyResume(stream);
-          break;
-        case "settle_tick":
-          result = this.applySettleTick(stream, command.settleAmount ?? 0n, command.at ?? Date.now());
-          break;
-        case "stop":
-          result = this.applyStop(stream);
-          break;
-        default:
-          result = streamError(400, "INVALID_COMMAND", "Unsupported command.");
-          break;
+      if (!VALID_COMMAND_TYPES.has(command.type)) {
+        result = streamError(400, "INVALID_COMMAND", `Unsupported command type: ${command.type}.`);
+      } else if (command.type === "settle_tick") {
+        result = this.applySettleTick(stream, command.settleAmount ?? 0n, command.at ?? Date.now());
+      } else {
+        const actionResult = transition(stream.status, command.type as StreamAction);
+        if (actionResult.ok) {
+          stream.status = actionResult.nextStatus;
+          result = { ok: true, stream: cloneStream(stream) };
+        } else {
+          result = streamError(409, actionResult.code, actionResult.error);
+        }
       }
 
       this.trackMetricResult(command.type, result);
@@ -347,6 +311,6 @@ export async function resumeRoute(store: InMemoryStreamStore, request: PauseResu
   return store.applyEvent(request.streamId, {
     actorTenantId: request.actorTenantId,
     idempotencyKey,
-    type: "resume",
+    type: "start",
   });
 }

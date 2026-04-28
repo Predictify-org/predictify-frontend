@@ -95,6 +95,7 @@ App will be at `http://localhost:3000`.
 | `npm test`     | Run Jest tests        |
 | `npm run test:e2e` | Run HTTP lifecycle E2E tests |
 | `npm run lint` | Next.js ESLint        |
+| `npm run reconcile` | Run nightly reconciliation job |
 
 ## CI/CD
 
