@@ -1,0 +1,15 @@
+BEGIN:VCALENDAR
+PRODID:-//StreamPay//Design Crit Invite//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:designcrit-20260430-1000@streampay
+DTSTAMP:20260429T000000Z
+DTSTART:20260430T100000
+DTEND:20260430T103000
+SUMMARY:Design Crit — Streams list: Search & Filters (v1)
+DESCRIPTION:30-minute design critique to validate search scope (recipient label), status/asset chips, mobile filter sheet, and accessibility notes.\nAgenda: see attached checklist.\nFigma: <Figma file URL>
+LOCATION:Zoom / Google Meet
+END:VEVENT
+END:VCALENDAR
