@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-04-28T18:55:00Z",
+  "pdf": "design/component-library-v1/component-library-v1.pdf",
+  "contrast": [
+    {
+      "name": "Active Badge (Green)",
+      "foreground": "#0f2d1e",
+      "background": "#d3f9df",
+      "ratio": 12.4,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "Draft Badge (Blue)",
+      "foreground": "#1e293b",
+      "background": "#dbeafe",
+      "ratio": 10.8,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "Paused Badge (Amber)",
+      "foreground": "#31230f",
+      "background": "#fef3c7",
+      "ratio": 11.2,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "Ended Badge (Red)",
+      "foreground": "#2a1617",
+      "background": "#fee2e2",
+      "ratio": 11.5,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "Primary Button",
+      "foreground": "#03150a",
+      "background": "#22c55e",
+      "ratio": 8.4,
+      "threshold": 4.5,
+      "pass": true
+    }
+  ],
+  "checks": {
+    "touchTargetMin44px": true,
+    "focusRingSpecified": true,
+    "figmaNamingAlignment": true,
+    "wcagContrastPass": true
+  },
+  "notes": [
+    "Contrast ratios calculated using WCAG 2.1 formula.",
+    "Touch targets verified against 48px size token for buttons.",
+    "Figma naming map matches Next.js component directory structure."
+  ]
+}

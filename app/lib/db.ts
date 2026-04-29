@@ -1,6 +1,7 @@
-import { Stream, ActivityEvent, User, ExportJob, ExportJobStatus } from "@/app/types/openapi";
+import type { ActivityEvent, ExportJob, Stream, User } from "@/app/types/openapi";
 
-export type { ExportJob, ExportJobStatus };
+export type { ExportJob };
+export type ExportJobStatus = ExportJob["status"];
 
 export interface ExportAuditRecord {
   id: string;
@@ -10,7 +11,15 @@ export interface ExportAuditRecord {
   details?: Record<string, unknown>;
 }
 
-// ── Seed data ─────────────────────────────────────────────────────────────
+const initialUsers: User[] = [
+  {
+    wallet_address: "GD7H...3J4K",
+    email: "ada@creativestudio.io",
+    display_name: "Ada Creative",
+    avatar_url: null,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+];
 
 const initialStreams: Stream[] = [
   {
@@ -94,7 +103,9 @@ const initialActivity: ActivityEvent[] = [
   },
 ];
 
-// ── Factory helpers for test isolation ───────────────────────────────────
+function createUsersMap(): Map<string, User> {
+  return new Map(initialUsers.map((user) => [user.wallet_address, { ...user }]));
+}
 
 function createStreamsMap(): Map<string, Stream> {
   return new Map(initialStreams.map((s) => [s.id, { ...s }]));
@@ -107,6 +118,7 @@ function createActivityMap(): Map<string, ActivityEvent> {
 // ── In-memory database ─────────────────────────────────────────────────
 
 export const db = {
+  users: createUsersMap(),
   streams: createStreamsMap(),
   activity: createActivityMap(),
   idempotency: new Map<string, unknown>(),
@@ -119,29 +131,25 @@ export const db = {
 
 const locks = new Map<string, Promise<void>>();
 
-/**
- * Serialises concurrent operations on a single stream ID (SELECT FOR UPDATE
- * analogue). Prevents race conditions on state transitions and idempotency
- * stores without a real database.
- */
 export async function withLock<T>(id: string, callback: () => Promise<T>): Promise<T> {
   const existingLock = locks.get(id) ?? Promise.resolve();
-  let resolveCurrent!: () => void;
+  let releaseCurrent!: () => void;
   const currentLock = new Promise<void>((resolve) => {
-    resolveCurrent = resolve;
+    releaseCurrent = resolve;
   });
+
   locks.set(id, currentLock);
 
   try {
     await existingLock;
     return await callback();
   } finally {
-    if (locks.get(id) === currentLock) locks.delete(id);
-    resolveCurrent();
+    if (locks.get(id) === currentLock) {
+      locks.delete(id);
+    }
+    releaseCurrent();
   }
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────
 
 export function idempotencyToken(scope: string, idempotencyKey: string): string {
   return `${scope}:${idempotencyKey}`;
@@ -149,6 +157,11 @@ export function idempotencyToken(scope: string, idempotencyKey: string): string 
 
 /** Resets all in-memory state to seed data. Use in beforeEach in tests. */
 export function resetDb(): void {
+  db.users.clear();
+  for (const [id, user] of createUsersMap()) {
+    db.users.set(id, user);
+  }
+
   db.streams.clear();
   for (const [id, stream] of createStreamsMap()) db.streams.set(id, stream);
 

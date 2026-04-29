@@ -5,6 +5,7 @@ declare namespace NodeJS {
     SERVICE_NAME?: string;
     NODE_ENV?: string;
     INTERNAL_AUTH_TOKEN?: string;
+    ALLOWED_ORIGINS?: string;
     ANOMALY_CREATION_THRESHOLD?: string;
     ANOMALY_SETTLE_THRESHOLD?: string;
     CI?: string;

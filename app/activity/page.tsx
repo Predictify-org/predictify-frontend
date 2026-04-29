@@ -1,6 +1,7 @@
 "use client";
 
 import { EmptyState } from "../components/EmptyState";
+import Link from "next/link";
 
 export default function ActivityPage() {
   return (

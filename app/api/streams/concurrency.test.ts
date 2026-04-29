@@ -1,20 +1,15 @@
 /** @jest-environment node */
 import { POST as settlePOST } from "./[id]/settle/route";
 import { POST as withdrawPOST } from "./[id]/withdraw/route";
-import { db } from "@/app/lib/db";
+import { db, resetDb } from "@/app/lib/db";
+import { resetRateLimitStore } from "@/app/lib/rate-limit-store";
 
 describe("Concurrency Hardening", () => {
   const streamId = "stream-ada";
 
   beforeEach(() => {
-    // Reset stream state
-    const stream = db.streams.get(streamId);
-    if (stream) {
-      // @ts-ignore
-      stream.status = "active";
-      db.streams.set(streamId, stream);
-    }
-    db.idempotency.clear();
+    resetDb();
+    resetRateLimitStore();
   });
 
   it("prevents double-settlement under high concurrency (100 parallel requests)", async () => {
@@ -59,27 +54,36 @@ describe("Concurrency Hardening", () => {
     expect(data1).toEqual(data2);
   });
 
-  it("prevents double-withdrawal", async () => {
-    // First settle it manually in the DB
+  it("returns the same payload for concurrent idempotent withdraw retries", async () => {
     const stream = db.streams.get(streamId)!;
-    // @ts-ignore
     stream.status = "ended";
+    stream.nextAction = "withdraw";
+    stream.settlementTxHash = "fake-tx-shared";
     db.streams.set(streamId, stream);
 
-    const requests = Array.from({ length: 50 }).map(() => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        _embedded: { records: [{ hash: "fake-tx-shared", successful: true }] },
+        _links: { next: { href: "https://horizon-testnet.stellar.org?cursor=withdraw-1" } },
+      }),
+    }) as unknown as typeof fetch;
+
+    const requests = Array.from({ length: 10 }).map(() => {
       const req = new Request(`http://localhost/api/streams/${streamId}/withdraw`, {
-        method: "POST"
+        method: "POST",
+        headers: { "Idempotency-Key": "withdraw-key-1" },
       });
       return withdrawPOST(req, { params: Promise.resolve({ id: streamId }) });
     });
 
     const results = await Promise.all(requests);
+    const payloads = await Promise.all(results.map((response) => response.json()));
 
-    const successCount = results.filter(r => r.status === 200).length;
-    const conflictCount = results.filter(r => r.status === 409).length;
-
-    expect(successCount).toBe(1);
-    expect(conflictCount).toBe(49);
+    expect(results.every((response) => response.status === 200)).toBe(true);
+    expect(payloads.every((payload) => payload.data.status === "withdrawn")).toBe(true);
+    expect(payloads.every((payload) => payload.withdrawal.state === "succeeded")).toBe(true);
+    expect(payloads.every((payload) => JSON.stringify(payload) === JSON.stringify(payloads[0]))).toBe(true);
     expect(db.streams.get(streamId)?.status).toBe("withdrawn");
   });
 });

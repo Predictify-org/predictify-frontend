@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { db, withLock } from "@/app/lib/db";
-import { transition } from "@/app/lib/state-machine";
+import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
+import { db, idempotencyToken, withLock } from "@/app/lib/db";
+import { getCorrelationContext } from "@/app/lib/logger";
+import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { getStellarSettlementClient } from "@/app/lib/stellar";
 
 type Context = { params: Promise<{ id: string }> };
@@ -9,17 +11,25 @@ function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
-export async function POST(request: Request, { params }: Context) {
-  const { id } = await params;
-  const idempotencyKey = request.headers.get("Idempotency-Key");
+function getHeader(request: Request, name: string): string | null {
+  return request.headers?.get?.(name) ?? null;
+}
 
-  if (idempotencyKey && db.idempotency.has(idempotencyKey)) {
-    return NextResponse.json(db.idempotency.get(idempotencyKey));
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const idempotencyKey = getHeader(request, "Idempotency-Key");
+  const token = idempotencyKey ? idempotencyToken(`streams.settle.${id}`, idempotencyKey) : null;
+
+  if (token && db.idempotency.has(token)) {
+    return NextResponse.json(db.idempotency.get(token));
   }
 
   return withLock(id, async () => {
-    if (idempotencyKey && db.idempotency.has(idempotencyKey)) {
-      return NextResponse.json(db.idempotency.get(idempotencyKey));
+    if (token && db.idempotency.has(token)) {
+      return NextResponse.json(db.idempotency.get(token));
     }
 
     const stream = db.streams.get(id);
@@ -27,26 +37,66 @@ export async function POST(request: Request, { params }: Context) {
       return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
 
-    const result = transition(stream.status, "settle");
-    if (!result.ok) {
-      return errorResponse(result.code, result.error, 409);
+    const actorAddress = getHeader(request, "Actor-Wallet-Address");
+    const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "settle") : null;
+    if (policyResult) {
+      if (!policyResult.allowed) {
+        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+      }
+      if (policyResult.requiresApproval) {
+        return createErrorResponse(
+          "APPROVAL_REQUIRED",
+          "This action requires multi-sig approval. Please initiate an approval request.",
+          409
+        );
+      }
     }
 
-    const client = getStellarSettlementClient();
-    const receipt = await client.settleStream({ streamId: id });
+    if (stream.status !== "active" && stream.status !== "paused") {
+      return createErrorResponse("INVALID_STREAM_STATE", "Only active or paused streams can be settled", 409);
+    }
 
-    stream.status = result.nextStatus;
-    stream.nextAction = "withdraw";
-    stream.settlementTxHash = receipt.txHash;
-    stream.updatedAt = new Date().toISOString();
-    db.streams.set(id, stream);
-
-    const responseData = {
-      data: { ...stream, settlement: { txHash: receipt.txHash, settledAt: receipt.settledAt } },
+    const before = structuredClone(stream);
+    const txHash = `fake-tx-${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const updatedStream = {
+      ...stream,
+      nextAction: "withdraw" as const,
+      settlementTxHash: txHash,
+      status: "ended" as const,
+      updatedAt: now,
+      withdrawal: {
+        attempts: 0,
+        lastCheckedAt: now,
+        requestedAt: now,
+        settlementTxHash: txHash,
+        state: "pending" as const,
+      },
     };
+    db.streams.set(id, updatedStream);
 
-    if (idempotencyKey) db.idempotency.set(idempotencyKey, responseData);
+    try {
+      const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
+      recordPrivilegedStreamAuditEvent({
+        action: "stream.settle",
+        after: updatedStream,
+        before,
+        metadata: {
+          settlementTxHash: settlement.txHash,
+        },
+        request,
+        streamId: id,
+        targetAccount: updatedStream.recipient,
+      });
 
-    return NextResponse.json(responseData);
+      const payload = { data: { ...updatedStream, settlement } };
+      if (token) {
+        db.idempotency.set(token, payload);
+      }
+
+      return NextResponse.json(payload);
+    } catch {
+      return createErrorResponse("SETTLEMENT_FAILED", "Failed to settle stream on Stellar/Soroban", 502);
+    }
   });
 }
