@@ -74,11 +74,23 @@ export interface ValidatedConfig {
 const SECRET_PATTERNS = [
   /secret/i,
   /private[_\s]?key/i,
+  /api[_\s]?key/i,
   /password/i,
   /token/i,
   /auth/i,
   /seed/i,
   /mnemonic/i,
+  /signing[_\s]?key/i,
+  /access[_\s]?key/i,
+];
+
+/**
+ * Patterns that are explicitly NOT secrets (public information)
+ */
+const NOT_SECRET_PATTERNS = [
+  /public/i,
+  /pubkey/i,
+  /public[_\s]?key/i,
 ];
 
 /**
@@ -86,6 +98,13 @@ const SECRET_PATTERNS = [
  */
 export function isSecret(key: string, value: string): boolean {
   const keyLower = key.toLowerCase();
+  
+  // First check if it's explicitly NOT a secret (public keys, etc.)
+  if (NOT_SECRET_PATTERNS.some(pattern => pattern.test(keyLower))) {
+    return false;
+  }
+  
+  // Check if it matches secret patterns
   return SECRET_PATTERNS.some(pattern => pattern.test(keyLower)) || 
          (keyLower.includes('jwt') && value.length > 20);
 }
