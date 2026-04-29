@@ -41,30 +41,100 @@ const ChartContainer = React.forwardRef<
     children: React.ComponentProps<
       typeof RechartsPrimitive.ResponsiveContainer
     >["children"]
+    accessibilityLabel?: string
+    accessibilitySummary?: string
+    accessibilityData?: Record<string, any>[]
   }
->(({ id, className, children, config, ...props }, ref) => {
-  const uniqueId = React.useId()
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
+>(
+  (
+    {
+      id,
+      className,
+      children,
+      config,
+      accessibilityLabel,
+      accessibilitySummary,
+      accessibilityData,
+      ...props
+    },
+    ref
+  ) => {
+    const uniqueId = React.useId()
+    const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
+    const [showTable, setShowTable] = React.useState(false)
 
-  return (
-    <ChartContext.Provider value={{ config }}>
-      <div
-        data-chart={chartId}
-        ref={ref}
-        className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
-          className
-        )}
-        {...props}
-      >
-        <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
-          {children}
-        </RechartsPrimitive.ResponsiveContainer>
-      </div>
-    </ChartContext.Provider>
-  )
-})
+    return (
+      <ChartContext.Provider value={{ config }}>
+        <div
+          data-chart={chartId}
+          ref={ref}
+          role="region"
+          aria-label={accessibilityLabel || "Chart"}
+          tabIndex={0}
+          className={cn(
+            "group relative flex aspect-video flex-col justify-center text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
+            className
+          )}
+          {...props}
+        >
+          {/* Skip link/Toggle for Table */}
+          {accessibilityData && (
+            <button
+              onClick={() => setShowTable(!showTable)}
+              className="absolute left-4 top-4 z-50 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground opacity-0 focus-visible:opacity-100 transition-opacity"
+            >
+              {showTable ? "Hide Data Table" : "View as Data Table"}
+            </button>
+          )}
+
+          {/* Screen Reader Summary */}
+          {accessibilitySummary && (
+            <div className="sr-only" aria-live="polite">
+              {accessibilitySummary}
+            </div>
+          )}
+
+          <ChartStyle id={chartId} config={config} />
+          
+          <div className={cn("flex-1", showTable ? "hidden" : "flex")}>
+            <RechartsPrimitive.ResponsiveContainer>
+              {children}
+            </RechartsPrimitive.ResponsiveContainer>
+          </div>
+
+          {/* Fallback Data Table */}
+          {showTable && accessibilityData && (
+            <div className="flex-1 overflow-auto p-4 bg-muted/50 rounded-md">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    {Object.keys(accessibilityData[0] || {}).map((key) => (
+                      <th key={key} className="p-2 font-semibold capitalize">
+                        {config[key]?.label || key}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {accessibilityData.map((row, i) => (
+                    <tr key={i} className="border-b border-border/50 last:border-0">
+                      {Object.values(row).map((val, j) => (
+                        <td key={j} className="p-2">
+                          {typeof val === "number" ? val.toLocaleString() : String(val)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </ChartContext.Provider>
+    )
+  }
+)
 ChartContainer.displayName = "Chart"
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
