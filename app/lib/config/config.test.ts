@@ -1,6 +1,6 @@
 /**
  * Unit Tests for Stellar Network Configuration
- * 
+ *
  * Tests fail-fast validation, secret redaction, and network profile management.
  */
 
@@ -24,22 +24,18 @@ import { resetBootstrap } from './bootstrap';
 
 describe('Stellar Network Configuration', () => {
   beforeEach(() => {
-    // Reset config cache before each test
     resetConfigCache();
     resetBootstrap();
-    // Clear environment variables
-    delete process.env.STELLAR_NETWORK;
-    delete process.env.JWT_SECRET;
-    delete process.env.NODE_ENV;
-    delete process.env.SERVICE_NAME;
-    delete process.env.INTERNAL_AUTH_TOKEN;
-    delete process.env.INTERNAL_SERVICE_HMAC_KEYS;
-    delete process.env.INTERNAL_SERVICE_CURRENT_KEY_ID;
-    delete process.env.INTERNAL_SERVICE_CLOCK_SKEW_SECONDS;
-    delete process.env.ANOMALY_CREATION_THRESHOLD;
-    delete process.env.ANOMALY_SETTLE_THRESHOLD;
-    delete process.env.CI;
-    delete process.env.GITHUB_ACTIONS;
+    delete (process.env as any).STELLAR_NETWORK;
+    delete (process.env as any).JWT_SECRET;
+    delete (process.env as any).NODE_ENV;
+    delete (process.env as any).SERVICE_NAME;
+    delete (process.env as any).INTERNAL_AUTH_TOKEN;
+    delete (process.env as any).ALLOWED_ORIGINS;
+    delete (process.env as any).ANOMALY_CREATION_THRESHOLD;
+    delete (process.env as any).ANOMALY_SETTLE_THRESHOLD;
+    delete (process.env as any).CI;
+    delete (process.env as any).GITHUB_ACTIONS;
   });
 
   describe('Network Profiles', () => {
@@ -103,19 +99,31 @@ describe('Stellar Network Configuration', () => {
   describe('Config Validation - Required Variables', () => {
     it('should fail if STELLAR_NETWORK is missing', () => {
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       expect(() => validateConfig()).toThrow(ConfigValidationError);
       expect(() => validateConfig()).toThrow('STELLAR_NETWORK environment variable is required');
     });
 
     it('should fail if JWT_SECRET is missing', () => {
       process.env.STELLAR_NETWORK = 'testnet';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       expect(() => validateConfig()).toThrow(ConfigValidationError);
       expect(() => validateConfig()).toThrow('JWT_SECRET environment variable is required');
+    });
+
+    it('should fail if ALLOWED_ORIGINS is missing', () => {
+      process.env.STELLAR_NETWORK = 'testnet';
+      process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      expect(() => validateConfig()).toThrow(ConfigValidationError);
+      expect(() => validateConfig()).toThrow(
+        'ALLOWED_ORIGINS environment variable is required'
+      );
     });
 
     it('should fail if JWT_SECRET is too short', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'short';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       expect(() => validateConfig()).toThrow(ConfigValidationError);
       expect(() => validateConfig()).toThrow('JWT_SECRET must be at least 32 characters');
     });
@@ -123,7 +131,8 @@ describe('Stellar Network Configuration', () => {
     it('should fail if production uses default JWT_SECRET', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'streampay-dev-secret-do-not-use-in-prod';
-      process.env.NODE_ENV = 'production';
+      (process.env as any).NODE_ENV = 'production';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       expect(() => validateConfig()).toThrow(ConfigValidationError);
       expect(() => validateConfig()).toThrow(
         'Production environment cannot use default JWT_SECRET'
@@ -133,8 +142,20 @@ describe('Stellar Network Configuration', () => {
     it('should fail if network is invalid', () => {
       process.env.STELLAR_NETWORK = 'invalid' as any;
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       expect(() => validateConfig()).toThrow(ConfigValidationError);
       expect(() => validateConfig()).toThrow('Invalid STELLAR_NETWORK');
+    });
+
+    it('should fail if ALLOWED_ORIGINS contains a wildcard in production', () => {
+      process.env.STELLAR_NETWORK = 'testnet';
+      process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      (process.env as any).NODE_ENV = 'production';
+      process.env.ALLOWED_ORIGINS = '*';
+      expect(() => validateConfig()).toThrow(ConfigValidationError);
+      expect(() => validateConfig()).toThrow(
+        'Production environment cannot use wildcard ALLOWED_ORIGINS'
+      );
     });
   });
 
@@ -142,6 +163,7 @@ describe('Stellar Network Configuration', () => {
     it('should fail if CI uses mainnet', () => {
       process.env.STELLAR_NETWORK = 'mainnet';
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       process.env.CI = 'true';
       expect(() => validateConfig()).toThrow(ConfigValidationError);
       expect(() => validateConfig()).toThrow(
@@ -152,6 +174,7 @@ describe('Stellar Network Configuration', () => {
     it('should fail if CI uses production JWT_SECRET', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'production-secret-key-at-least-32-chars';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       process.env.CI = 'true';
       expect(() => validateConfig()).toThrow(ConfigValidationError);
       expect(() => validateConfig()).toThrow(
@@ -162,6 +185,7 @@ describe('Stellar Network Configuration', () => {
     it('should allow CI with testnet and dev secret', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'streampay-dev-secret-do-not-use-in-prod';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       process.env.CI = 'true';
       const config = validateConfig();
       expect(config.network.name).toBe('testnet');
@@ -172,6 +196,7 @@ describe('Stellar Network Configuration', () => {
     it('should fail if anomaly threshold is invalid', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       process.env.ANOMALY_CREATION_THRESHOLD = 'invalid';
       expect(() => validateConfig()).toThrow(ConfigValidationError);
       expect(() => validateConfig()).toThrow(
@@ -182,6 +207,7 @@ describe('Stellar Network Configuration', () => {
     it('should fail if anomaly threshold is negative', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       process.env.ANOMALY_CREATION_THRESHOLD = '-10';
       expect(() => validateConfig()).toThrow(ConfigValidationError);
     });
@@ -189,6 +215,7 @@ describe('Stellar Network Configuration', () => {
     it('should use default thresholds if not provided', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       const config = validateConfig();
       expect(config.anomalyThresholds.creationBurstLimit).toBe(50);
       expect(config.anomalyThresholds.settleRateLimit).toBe(20);
@@ -197,6 +224,7 @@ describe('Stellar Network Configuration', () => {
     it('should use custom thresholds if provided', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       process.env.ANOMALY_CREATION_THRESHOLD = '100';
       process.env.ANOMALY_SETTLE_THRESHOLD = '30';
       const config = validateConfig();
@@ -259,28 +287,33 @@ describe('Stellar Network Configuration', () => {
     it('should validate testnet configuration successfully', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
-      process.env.NODE_ENV = 'development';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
+      (process.env as any).NODE_ENV = 'development';
       const config = validateConfig();
       expect(config.network.name).toBe('testnet');
       expect(config.jwtSecret).toBe('test-secret-at-least-32-characters-long');
       expect(config.environment).toBe('development');
       expect(config.network.isProduction).toBe(false);
+      expect(config.allowedOrigins).toEqual(['http://localhost:3000']);
     });
 
     it('should validate mainnet configuration successfully', () => {
       process.env.STELLAR_NETWORK = 'mainnet';
       process.env.JWT_SECRET = 'production-secret-key-at-least-32-chars';
-      process.env.NODE_ENV = 'production';
+      process.env.ALLOWED_ORIGINS = 'https://app.production.example.com';
+      (process.env as any).NODE_ENV = 'production';
       const config = validateConfig();
       expect(config.network.name).toBe('mainnet');
       expect(config.jwtSecret).toBe('production-secret-key-at-least-32-chars');
       expect(config.environment).toBe('production');
       expect(config.network.isProduction).toBe(true);
+      expect(config.allowedOrigins).toEqual(['https://app.production.example.com']);
     });
 
     it('should cache configuration after first call', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       const config1 = getConfig();
       const config2 = getConfig();
       expect(config1).toBe(config2);
@@ -321,7 +354,7 @@ describe('Stellar Network Configuration', () => {
         },
         public: 'data',
       };
-      const redacted = redactSecrets(obj);
+      const redacted = redactSecrets(obj) as any;
       expect(redacted.config.JWT_SECRET).toBe('[REDACTED]');
       expect(redacted.config.apiKey).toBe('[REDACTED]');
       expect(redacted.public).toBe('data');
@@ -344,6 +377,7 @@ describe('Stellar Network Configuration', () => {
     it('should reset cache correctly', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
       const config1 = getConfig();
       resetConfigCache();
       const config2 = getConfig();

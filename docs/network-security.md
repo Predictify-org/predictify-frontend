@@ -57,7 +57,19 @@ import { bootstrapApplication } from './config/bootstrap';
 const config = bootstrapApplication();
 ```
 
-### 3. Secret Redaction in Logging
+### 3. Browser API Allowlist and CORS
+
+**Files:** `middleware.ts`, `app/lib/cors.ts`, `app/lib/config/index.ts`
+
+The public API surface is protected by an explicit `ALLOWED_ORIGINS` allowlist. The value is a comma-separated list of valid origins, such as `https://app.partner.com,http://localhost:3000`.
+
+- `ALLOWED_ORIGINS` is required for all environments.
+- In `production`, wildcard origin `*` is not permitted.
+- Preflight responses use a 10-minute cache (`Access-Control-Max-Age: 600`) to avoid breaking deploys while preserving explicit origin validation.
+- No `Access-Control-Allow-Origin` header is reflected for disallowed browser origins.
+- The API does not enable credentialed CORS by default, so bearer tokens remain the expected auth mechanism.
+
+### 4. Secret Redaction in Logging
 
 **File:** `app/lib/logger.ts`
 

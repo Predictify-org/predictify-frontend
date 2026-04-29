@@ -1,58 +1,27 @@
+/// <reference types="node" />
 import "@testing-library/jest-dom";
-import { randomUUID } from "node:crypto";
-import { ReadableStream, TransformStream, WritableStream } from "node:stream/web";
-import { TextDecoder, TextEncoder } from "node:util";
 
-if (typeof global.TextEncoder === "undefined") {
-  (global as any).TextEncoder = TextEncoder;
+// =============================================================================
+// Test Environment Configuration
+// =============================================================================
+// SECURITY: Tests run in testnet mode only to prevent accidental mainnet usage
+// These values are safe for testing - they match the dev secrets documented
+// in .env.example and are NOT production credentials
+// =============================================================================
+
+// Set required environment variables for testing
+process.env.STELLAR_NETWORK = process.env.STELLAR_NETWORK || "testnet";
+process.env.JWT_SECRET = process.env.JWT_SECRET || "streampay-dev-secret-do-not-use-in-prod";
+process.env.NODE_ENV = process.env.NODE_ENV || "test";
+process.env.SERVICE_NAME = process.env.SERVICE_NAME || "streampay-frontend-test";
+
+// Security validation for test environment
+if (process.env.STELLAR_NETWORK !== "testnet") {
+  throw new Error(
+    "SECURITY: Tests must run on testnet only. " +
+    `STELLAR_NETWORK was set to: ${process.env.STELLAR_NETWORK}`
+  );
 }
 
-if (typeof global.TextDecoder === "undefined") {
-  (global as any).TextDecoder = TextDecoder;
-}
-
-if (typeof global.ReadableStream === "undefined") {
-  (global as any).ReadableStream = ReadableStream;
-}
-
-if (typeof global.TransformStream === "undefined") {
-  (global as any).TransformStream = TransformStream;
-}
-
-if (typeof global.WritableStream === "undefined") {
-  (global as any).WritableStream = WritableStream;
-}
-
-const {
-  fetch,
-  Headers,
-  Request,
-  Response,
-} = require("next/dist/compiled/@edge-runtime/primitives/fetch");
-
-if (typeof global.crypto === "undefined") {
-  (global as any).crypto = {
-    randomUUID: () => randomUUID(),
-  };
-} else if (typeof global.crypto.randomUUID === "undefined") {
-  (global.crypto as any).randomUUID = () => randomUUID();
-}
-
-if (typeof global.fetch === "undefined") {
-  (global as any).fetch = fetch;
-}
-
-if (typeof global.Headers === "undefined") {
-  (global as any).Headers = Headers;
-}
-
-if (typeof global.Request === "undefined") {
-  (global as any).Request = Request;
-}
-
-if (typeof global.Response === "undefined") {
-  (global as any).Response = Response;
-}
-
-process.env.STELLAR_NETWORK ??= "testnet";
-process.env.JWT_SECRET ??= "test-secret-at-least-32-characters-long";
+// Reset config cache before each test to ensure clean state
+// This is handled in individual test files via resetConfigCache()

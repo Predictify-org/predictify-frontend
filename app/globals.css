@@ -305,6 +305,16 @@ a:hover {
   justify-self: start;
 }
 
+.stream-row__receipt-link {
+  color: var(--muted-light);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-transform: uppercase;
+}
+
 .button {
   border: 1px solid transparent;
   border-radius: 999px;
@@ -842,5 +852,353 @@ a:hover {
 @media (min-width: 48rem) {
   .checklist-shell {
     padding: 3rem 2rem 5rem;
+  }
+}
+
+/* ─── Stream Receipt ──────────────────────────────────────────────────────── */
+
+.receipt-shell {
+  display: grid;
+  gap: 1.5rem;
+  margin: 0 auto;
+  max-width: 56rem;
+  padding: 2rem 1rem 4rem;
+}
+
+.receipt-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.receipt-doc {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  color: #111827;
+  padding: 2.5rem;
+}
+
+/* Header */
+.receipt-header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.receipt-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.receipt-brand__wordmark {
+  color: #111827;
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.receipt-brand__tagline {
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.receipt-network-badge {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.3rem 0.75rem;
+  text-transform: uppercase;
+}
+
+.receipt-network-badge[data-network="mainnet"] {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+/* Dividers */
+.receipt-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 1.5rem 0;
+}
+
+.receipt-divider--thick {
+  border-top-width: 2px;
+  border-color: #111827;
+  margin: 2rem 0 1.5rem;
+}
+
+/* Sections */
+.receipt-section {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.receipt-section--identity {
+  gap: 0.625rem;
+}
+
+/* Typography */
+.receipt-h1 {
+  color: #111827;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.receipt-h2 {
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ID row */
+.receipt-id-row {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+/* Status badge — print-safe, no CSS variables */
+.receipt-status-badge {
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  color: #374151;
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.3rem 0.875rem;
+  text-transform: uppercase;
+}
+
+.receipt-status-badge--active  { background: #dcfce7; border-color: #86efac; color: #15803d; }
+.receipt-status-badge--draft   { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.receipt-status-badge--paused  { background: #fefce8; border-color: #fde047; color: #854d0e; }
+.receipt-status-badge--ended   { background: #f3f4f6; border-color: #d1d5db; color: #374151; }
+.receipt-status-badge--withdrawn { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
+
+/* Key-value list */
+.receipt-kv {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.receipt-kv--inline {
+  gap: 0;
+}
+
+.receipt-kv > div {
+  display: grid;
+  gap: 0.125rem;
+  grid-template-columns: 10rem minmax(0, 1fr);
+}
+
+.receipt-kv dt {
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding-top: 0.1rem;
+}
+
+.receipt-kv dd {
+  color: #111827;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* Mono text (IDs, hashes) */
+.receipt-mono {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
+  color: #1f2937;
+  font-family: ui-monospace, "Cascadia Code", "Fira Mono", monospace;
+  font-size: 0.875em;
+  letter-spacing: 0.01em;
+  padding: 0.1em 0.35em;
+}
+
+/* Address / hash with copy button */
+.receipt-address-wrap {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+/* Copy button (hidden in print) */
+.receipt-copy-btn {
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  text-transform: uppercase;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.receipt-copy-btn:hover {
+  border-color: #6b7280;
+  color: #374151;
+}
+
+/* Support ID */
+.receipt-support-id {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+/* Footer */
+.receipt-footer {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.receipt-footer__legal {
+  color: #6b7280;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  max-width: 72ch;
+}
+
+.receipt-footer__timestamp {
+  color: #9ca3af;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Visibility helpers */
+.no-print { }
+.print-only { display: none; }
+
+/* ─── Print Media ─────────────────────────────────────────────────────────── */
+
+@media print {
+  /* A4 page with 20 mm safe margins */
+  @page {
+    margin: 20mm;
+    size: A4 portrait;
+  }
+
+  /* Force white background, black ink throughout */
+  html,
+  body,
+  .receipt-shell,
+  .receipt-doc {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Strip screen chrome */
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide everything that isn't the receipt */
+  body > *:not(.receipt-shell) {
+    display: none !important;
+  }
+
+  .receipt-shell {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* Document card: no decorative border/shadow in print */
+  .receipt-doc {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  /* Hide interactive/on-screen-only elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show print-only elements (full addresses/hashes) */
+  .print-only {
+    display: inline !important;
+  }
+
+  /* Mono text — no background box in print, just lighter grey */
+  .receipt-mono {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  /* Dividers render well in grayscale */
+  .receipt-divider {
+    border-color: #999999 !important;
+  }
+
+  .receipt-divider--thick {
+    border-color: #000000 !important;
+  }
+
+  /* Status badge: border + text only (no colour fill) for grayscale safety */
+  .receipt-status-badge {
+    background: transparent !important;
+    border-color: #000000 !important;
+    color: #000000 !important;
+  }
+
+  /* Network badge */
+  .receipt-network-badge {
+    background: transparent !important;
+    border-color: #666666 !important;
+    color: #333333 !important;
+  }
+
+  /* Typography — ensure black */
+  .receipt-h1,
+  .receipt-h2,
+  .receipt-brand__wordmark,
+  .receipt-kv dd {
+    color: #000000 !important;
+  }
+
+  .receipt-kv dt,
+  .receipt-brand__tagline,
+  .receipt-footer__legal,
+  .receipt-footer__timestamp,
+  .receipt-support-id {
+    color: #444444 !important;
+  }
+
+  /* Keep everything on one page; allow section breaks only at dividers */
+  .receipt-section {
+    break-inside: avoid;
+  }
+
+  .receipt-divider {
+    break-after: avoid;
   }
 }

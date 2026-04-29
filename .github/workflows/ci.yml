@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  # CI is strictly testnet-only to prevent accidental production usage
+  STELLAR_NETWORK: testnet
+  JWT_SECRET: streampay-dev-secret-do-not-use-in-prod
+  NODE_ENV: test
+  CI: true
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
@@ -21,8 +28,32 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate environment configuration
+        run: |
+          echo "=== CI Environment Validation ==="
+          echo "STELLAR_NETWORK: $STELLAR_NETWORK"
+          echo "NODE_ENV: $NODE_ENV"
+          
+          # Security: Fail if STELLAR_NETWORK is not testnet
+          if [ "$STELLAR_NETWORK" != "testnet" ]; then
+            echo "❌ SECURITY ERROR: CI must use testnet only"
+            exit 1
+          fi
+          
+          # Security: Fail if attempting to use production secrets
+          if [ "$JWT_SECRET" != "streampay-dev-secret-do-not-use-in-prod" ]; then
+            echo "❌ SECURITY ERROR: CI must use dev secrets only"
+            exit 1
+          fi
+          
+          echo "✅ CI environment validation passed - testnet only"
+
       - name: Build
         run: npm run build
+        env:
+          STELLAR_NETWORK: testnet
+          JWT_SECRET: streampay-dev-secret-do-not-use-in-prod
+          NODE_ENV: production
 
       - name: Run tests
         run: npm test

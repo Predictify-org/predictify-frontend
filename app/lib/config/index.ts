@@ -39,6 +39,8 @@ interface RequiredEnvVars {
   SERVICE_NAME?: string;
   /** Node environment */
   NODE_ENV: string;
+  /** Comma-separated browser origin allowlist for public API requests */
+  ALLOWED_ORIGINS: string;
 }
 
 /**
@@ -68,11 +70,7 @@ export interface ValidatedConfig {
   serviceName: string;
   environment: string;
   internalAuthToken?: string;
-  internalServiceAuth?: {
-    currentKeyId: string;
-    keys: Record<string, string>;
-    allowedClockSkewSeconds: number;
-  };
+  allowedOrigins: string[];
   anomalyThresholds: {
     creationBurstLimit: number;
     settleRateLimit: number;
@@ -85,12 +83,24 @@ export interface ValidatedConfig {
 const SECRET_PATTERNS = [
   /secret/i,
   /private[_\s]?key/i,
+  /api[_\s]?key/i,
   /password/i,
   /token/i,
   /api[_\s]?key/i,
   /auth/i,
   /seed/i,
   /mnemonic/i,
+  /signing[_\s]?key/i,
+  /access[_\s]?key/i,
+];
+
+/**
+ * Patterns that are explicitly NOT secrets (public information)
+ */
+const NOT_SECRET_PATTERNS = [
+  /public/i,
+  /pubkey/i,
+  /public[_\s]?key/i,
 ];
 
 /**
@@ -98,6 +108,13 @@ const SECRET_PATTERNS = [
  */
 export function isSecret(key: string, value: string): boolean {
   const keyLower = key.toLowerCase();
+  
+  // First check if it's explicitly NOT a secret (public keys, etc.)
+  if (NOT_SECRET_PATTERNS.some(pattern => pattern.test(keyLower))) {
+    return false;
+  }
+  
+  // Check if it matches secret patterns
   return SECRET_PATTERNS.some(pattern => pattern.test(keyLower)) || 
          (keyLower.includes('jwt') && value.length > 20);
 }
@@ -140,6 +157,49 @@ function validateCIEnvironment(env: string, network: StellarNetwork): void {
       'CI must use test/dev secrets only.'
     );
   }
+}
+
+function validateAllowedOrigins(rawValue: string | undefined, environment: string): string[] {
+  if (!rawValue) {
+    throw new ConfigValidationError(
+      'ALLOWED_ORIGINS environment variable is required and must be a comma-separated list of origins.'
+    );
+  }
+
+  const values = rawValue
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  if (values.length === 0) {
+    throw new ConfigValidationError(
+      'ALLOWED_ORIGINS must contain at least one origin.'
+    );
+  }
+
+  if (environment === 'production' && values.includes('*')) {
+    throw new ConfigValidationError(
+      'Production environment cannot use wildcard ALLOWED_ORIGINS. ' +
+      'Specify explicit origins instead.'
+    );
+  }
+
+  const normalizedOrigins = values.map((origin) => {
+    if (origin === '*') {
+      return origin;
+    }
+
+    try {
+      const url = new URL(origin);
+      return url.origin;
+    } catch {
+      throw new ConfigValidationError(
+        `ALLOWED_ORIGINS must be a comma-separated list of valid origins. Invalid origin: ${origin}`
+      );
+    }
+  });
+
+  return Array.from(new Set(normalizedOrigins));
 }
 
 /**
@@ -309,7 +369,7 @@ function validateAnomalyThresholds(
  * @throws ConfigValidationError if configuration is invalid
  */
 export function validateConfig(): ValidatedConfig {
-  const env = process.env as RequiredEnvVars & OptionalEnvVars;
+  const env = process.env as unknown as RequiredEnvVars & OptionalEnvVars;
   
   // Validate network
   const networkProfile = validateStellarNetwork(env.STELLAR_NETWORK);
@@ -319,6 +379,9 @@ export function validateConfig(): ValidatedConfig {
   
   // Validate CI environment
   validateCIEnvironment(env.NODE_ENV || 'development', networkProfile.name);
+  
+  // Validate ALLOWED_ORIGINS for browser API requests
+  const allowedOrigins = validateAllowedOrigins(env.ALLOWED_ORIGINS, env.NODE_ENV || 'development');
   
   // Validate anomaly thresholds
   const anomalyThresholds = validateAnomalyThresholds(
@@ -334,7 +397,7 @@ export function validateConfig(): ValidatedConfig {
     serviceName: env.SERVICE_NAME || 'streampay-frontend',
     environment: env.NODE_ENV || 'development',
     internalAuthToken: env.INTERNAL_AUTH_TOKEN,
-    internalServiceAuth,
+    allowedOrigins,
     anomalyThresholds,
   };
   
