@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { MechanicHelp } from "@/components/patterns/MechanicHelp"
+import { platformFeesHelp } from "@/components/patterns/mechanic-help-content"
 import { format } from "date-fns"
 
 // Mock data for financial overview
@@ -117,7 +119,10 @@ export default function FinancesPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Platform Fees</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Total Platform Fees</CardTitle>
+              <MechanicHelp content={platformFeesHelp} />
+            </div>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -237,7 +242,10 @@ export default function FinancesPage() {
         <TabsContent value="distribution" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Fee Distribution by Category</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>Fee Distribution by Category</CardTitle>
+                <MechanicHelp content={platformFeesHelp} />
+              </div>
               <CardDescription>Breakdown of platform fees by prediction category</CardDescription>
             </CardHeader>
             <CardContent>

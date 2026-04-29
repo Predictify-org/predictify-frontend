@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { MechanicHelp } from "@/components/patterns/MechanicHelp"
+import { disputesHelp } from "@/components/patterns/mechanic-help-content"
 import {
   Dialog,
   DialogContent,
@@ -153,8 +155,16 @@ export default function DisputesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Dispute Resolution</h1>
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Dispute Resolution</h1>
+            <MechanicHelp content={disputesHelp} />
+          </div>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Keep the primary workflow focused, with deeper guidance available on demand for evidence, staking, and review timing.
+          </p>
+        </div>
       </div>
 
       <Tabs defaultValue="pending" className="space-y-4">
