@@ -1,0 +1,49 @@
+groups:
+  - name: StreamPaySettlementAlerts
+    rules:
+      - alert: HighStellarSubmissionFailureRate
+        expr: |
+          sum(rate(streampay_stellar_submissions_total{status="failure"}[5m])) 
+          / 
+          sum(rate(streampay_stellar_submissions_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: settlement
+        annotations:
+          summary: "High Stellar/Soroban submission failure rate"
+          description: "Over 5% of Stellar submissions have failed in the last 5 minutes. Current rate is {{ $value | humanizePercentage }}."
+          runbook_url: "https://github.com/Ghoost-404/StreamPay-Frontend/blob/main/docs/runbooks/RUNBOOK_SETTLEMENT_FAILURES.md"
+
+      - alert: SettlementJobStuck
+        expr: streampay_settlement_job_oldest_seconds > 1800
+        for: 5m
+        labels:
+          severity: warning
+          service: settlement
+        annotations:
+          summary: "Settlement job pending for too long"
+          description: "The oldest pending settlement job has been in the queue for {{ $value | duration }}. Threshold is 30m."
+          runbook_url: "https://github.com/Ghoost-404/StreamPay-Frontend/blob/main/docs/runbooks/RUNBOOK_SETTLEMENT_FAILURES.md"
+
+      - alert: DLQGrowthDetected
+        expr: streampay_dlq_depth > 10
+        for: 2m
+        labels:
+          severity: critical
+          service: settlement
+        annotations:
+          summary: "Dead Letter Queue depth exceeded"
+          description: "The settlement DLQ currently has {{ $value }} messages. Manual intervention required to drain or replay."
+          runbook_url: "https://github.com/Ghoost-404/StreamPay-Frontend/blob/main/docs/runbooks/RUNBOOK_SETTLEMENT_FAILURES.md"
+
+      - alert: SettlementLatencySLOViolation
+        expr: histogram_quantile(0.95, sum by (le) (rate(streampay_settlement_duration_seconds_bucket[5m]))) > 60
+        for: 5m
+        labels:
+          severity: warning
+          service: settlement
+        annotations:
+          summary: "Settlement p95 latency SLO violation"
+          description: "The p95 time from user click to chain success is {{ $value | humanizeDuration }}. SLO is 60s."
+          runbook_url: "https://github.com/Ghoost-404/StreamPay-Frontend/blob/main/docs/runbooks/RUNBOOK_SETTLEMENT_FAILURES.md"

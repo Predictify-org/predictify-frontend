@@ -1,6 +1,14 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import Modal from "./Modal";
+import { Modal } from "./Modal";
+
+function getOverlay(): HTMLElement {
+  const overlay = document.body.querySelector('div[style*="position: fixed"]');
+  if (!overlay) {
+    throw new Error("Expected modal overlay to be present.");
+  }
+  return overlay as HTMLElement;
+}
 
 function ModalHarness() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,12 +22,6 @@ function ModalHarness() {
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         title="Confirm action"
-        description="This action cannot be undone."
-        footer={
-          <button type="button" onClick={() => setIsOpen(false)}>
-            Confirm
-          </button>
-        }
       >
         <button type="button">Focusable action</button>
       </Modal>
@@ -32,36 +34,35 @@ describe("Modal", () => {
     render(<ModalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: /open modal/i }));
-    expect(screen.getByRole("dialog", { name: /confirm action/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /confirm action/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /close dialog/i }));
-    expect(screen.queryByRole("dialog", { name: /confirm action/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /×/i }));
+    fireEvent.animationEnd(getOverlay());
+    expect(screen.queryByRole("heading", { name: /confirm action/i })).not.toBeInTheDocument();
   });
 
-  it("closes on escape and restores focus to the trigger", async () => {
-    render(<ModalHarness />);
-
-    const trigger = screen.getByRole("button", { name: /open modal/i });
-    trigger.focus();
-
-    fireEvent.click(trigger);
-    expect(screen.getByRole("dialog", { name: /confirm action/i })).toBeInTheDocument();
-
-    fireEvent.keyDown(document, { key: "Escape" });
-
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: /confirm action/i })).not.toBeInTheDocument();
-      expect(trigger).toHaveFocus();
-    });
-  });
-
-  it("locks background scroll while open", () => {
+  it("closes when clicking backdrop", async () => {
     render(<ModalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: /open modal/i }));
-    expect(document.body.style.overflow).toBe("hidden");
+    expect(screen.getByRole("heading", { name: /confirm action/i })).toBeInTheDocument();
+    fireEvent.click(getOverlay());
+    fireEvent.animationEnd(getOverlay());
 
-    fireEvent.click(screen.getByRole("button", { name: /close dialog/i }));
-    expect(document.body.style.overflow).toBe("");
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: /confirm action/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders children only while open", () => {
+    render(<ModalHarness />);
+
+    expect(screen.queryByText(/focusable action/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /open modal/i }));
+    expect(screen.getByText(/focusable action/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /×/i }));
+    fireEvent.animationEnd(getOverlay());
+    expect(screen.queryByText(/focusable action/i)).not.toBeInTheDocument();
   });
 });

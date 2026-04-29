@@ -1,0 +1,172 @@
+{
+  "generatedAt": "2026-04-28T10:59:02.537367+00:00",
+  "pdf": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\export-pack\\streampay-stellar-v1-review-pack.pdf",
+  "pdfBytes": 843061,
+  "slides": [
+    {
+      "slide": 1,
+      "name": "exec-summary",
+      "path": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\export-pack\\previews\\01-exec-summary.png",
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 513,
+      "nonBlank": true
+    },
+    {
+      "slide": 2,
+      "name": "home-hero",
+      "path": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\export-pack\\previews\\02-home-hero.png",
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 689,
+      "nonBlank": true
+    },
+    {
+      "slide": 3,
+      "name": "streams-list",
+      "path": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\export-pack\\previews\\03-streams-list.png",
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 606,
+      "nonBlank": true
+    },
+    {
+      "slide": 4,
+      "name": "create-stream",
+      "path": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\export-pack\\previews\\04-create-stream.png",
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 645,
+      "nonBlank": true
+    },
+    {
+      "slide": 5,
+      "name": "stream-detail",
+      "path": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\export-pack\\previews\\05-stream-detail.png",
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 615,
+      "nonBlank": true
+    },
+    {
+      "slide": 6,
+      "name": "settle-withdraw-modal",
+      "path": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\export-pack\\previews\\06-settle-withdraw-modal.png",
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 568,
+      "nonBlank": true
+    },
+    {
+      "slide": 7,
+      "name": "activity",
+      "path": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\export-pack\\previews\\07-activity.png",
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 604,
+      "nonBlank": true
+    },
+    {
+      "slide": 8,
+      "name": "product-tbd-handoff",
+      "path": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\export-pack\\previews\\08-product-tbd-handoff.png",
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 519,
+      "nonBlank": true
+    }
+  ],
+  "contrast": [
+    {
+      "name": "slide body",
+      "foreground": "#101827",
+      "background": "#f6f8fb",
+      "ratio": 16.7,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "slide muted text",
+      "foreground": "#475569",
+      "background": "#f6f8fb",
+      "ratio": 7.12,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "app primary text",
+      "foreground": "#e4e4e7",
+      "background": "#0a0a0f",
+      "ratio": 15.57,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "app muted text",
+      "foreground": "#a1a1aa",
+      "background": "#0a0a0f",
+      "ratio": 7.71,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "accent button text",
+      "foreground": "#03150a",
+      "background": "#22c55e",
+      "ratio": 8.26,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "active badge",
+      "foreground": "#d3f9df",
+      "background": "#0f2d1e",
+      "ratio": 13.0,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "draft badge",
+      "foreground": "#dbeafe",
+      "background": "#1e293b",
+      "ratio": 11.99,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "paused badge",
+      "foreground": "#fef3c7",
+      "background": "#31230f",
+      "ratio": 13.69,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "ended badge",
+      "foreground": "#fee2e2",
+      "background": "#2a1617",
+      "ratio": 14.03,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "danger button",
+      "foreground": "#ffffff",
+      "background": "#b91c1c",
+      "ratio": 6.47,
+      "threshold": 4.5,
+      "pass": true
+    }
+  ],
+  "checks": {
+    "slideCount": 8,
+    "allPreviewsNonBlank": true,
+    "allPreviewDimensionsExpected": true,
+    "contrastPairsPass": true
+  },
+  "notes": [
+    "WCAG check is a quick self-check of key text/background pairs, not a full audit.",
+    "Focus/keyboard states are documented as handoff requirements and still need prototype review.",
+    "Design crit with product and engineering stakeholders remains pending outside this local export."
+  ]
+}
