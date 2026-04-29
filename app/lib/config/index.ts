@@ -47,8 +47,14 @@ interface RequiredEnvVars {
  * Optional environment variables with defaults
  */
 interface OptionalEnvVars {
-  /** Internal auth token for service-to-service communication */
+  /** Deprecated shared token for service-to-service communication */
   INTERNAL_AUTH_TOKEN?: string;
+  /** JSON object map of HMAC key IDs to shared secrets */
+  INTERNAL_SERVICE_HMAC_KEYS?: string;
+  /** Active key ID used by workers when signing requests */
+  INTERNAL_SERVICE_CURRENT_KEY_ID?: string;
+  /** Allowed request freshness window in seconds */
+  INTERNAL_SERVICE_CLOCK_SKEW_SECONDS?: string;
   /** Anomaly detection threshold for stream creation burst */
   ANOMALY_CREATION_THRESHOLD?: string;
   /** Anomaly detection threshold for settlement rate spike */
@@ -80,6 +86,7 @@ const SECRET_PATTERNS = [
   /api[_\s]?key/i,
   /password/i,
   /token/i,
+  /api[_\s]?key/i,
   /auth/i,
   /seed/i,
   /mnemonic/i,
@@ -244,6 +251,92 @@ function validateJwtSecret(secret: string | undefined): string {
   return secret;
 }
 
+function validateInternalServiceAuth(
+  env: RequiredEnvVars & OptionalEnvVars
+): ValidatedConfig["internalServiceAuth"] {
+  const hasHmacConfig =
+    typeof env.INTERNAL_SERVICE_HMAC_KEYS === "string" ||
+    typeof env.INTERNAL_SERVICE_CURRENT_KEY_ID === "string" ||
+    typeof env.INTERNAL_SERVICE_CLOCK_SKEW_SECONDS === "string";
+
+  if (!hasHmacConfig) {
+    if (env.NODE_ENV === "production" && env.INTERNAL_AUTH_TOKEN) {
+      throw new ConfigValidationError(
+        "INTERNAL_AUTH_TOKEN is not allowed in production. Configure INTERNAL_SERVICE_HMAC_KEYS and INTERNAL_SERVICE_CURRENT_KEY_ID instead."
+      );
+    }
+    return undefined;
+  }
+
+  if (!env.INTERNAL_SERVICE_HMAC_KEYS) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_HMAC_KEYS is required when internal service auth is enabled"
+    );
+  }
+
+  if (!env.INTERNAL_SERVICE_CURRENT_KEY_ID) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_CURRENT_KEY_ID is required when internal service auth is enabled"
+    );
+  }
+
+  let parsedKeys: unknown;
+  try {
+    parsedKeys = JSON.parse(env.INTERNAL_SERVICE_HMAC_KEYS);
+  } catch {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_HMAC_KEYS must be a valid JSON object of key IDs to secrets"
+    );
+  }
+
+  if (!parsedKeys || typeof parsedKeys !== "object" || Array.isArray(parsedKeys)) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_HMAC_KEYS must be a JSON object of key IDs to secrets"
+    );
+  }
+
+  const keys = Object.entries(parsedKeys as Record<string, unknown>).reduce<Record<string, string>>(
+    (accumulator, [keyId, secret]) => {
+      if (typeof secret !== "string" || secret.length < 32) {
+        throw new ConfigValidationError(
+          `INTERNAL_SERVICE_HMAC_KEYS['${keyId}'] must be a string at least 32 characters long`
+        );
+      }
+      accumulator[keyId] = secret;
+      return accumulator;
+    },
+    {}
+  );
+
+  if (Object.keys(keys).length === 0) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_HMAC_KEYS must contain at least one signing key"
+    );
+  }
+
+  if (!keys[env.INTERNAL_SERVICE_CURRENT_KEY_ID]) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_CURRENT_KEY_ID must reference a key present in INTERNAL_SERVICE_HMAC_KEYS"
+    );
+  }
+
+  const allowedClockSkewSeconds = env.INTERNAL_SERVICE_CLOCK_SKEW_SECONDS
+    ? Number(env.INTERNAL_SERVICE_CLOCK_SKEW_SECONDS)
+    : 300;
+
+  if (!Number.isFinite(allowedClockSkewSeconds) || allowedClockSkewSeconds <= 0) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_CLOCK_SKEW_SECONDS must be a positive number"
+    );
+  }
+
+  return {
+    currentKeyId: env.INTERNAL_SERVICE_CURRENT_KEY_ID,
+    keys,
+    allowedClockSkewSeconds,
+  };
+}
+
 /**
  * Validate anomaly detection thresholds
  */
@@ -295,6 +388,8 @@ export function validateConfig(): ValidatedConfig {
     env.ANOMALY_CREATION_THRESHOLD,
     env.ANOMALY_SETTLE_THRESHOLD
   );
+
+  const internalServiceAuth = validateInternalServiceAuth(env);
   
   const config: ValidatedConfig = {
     network: networkProfile,

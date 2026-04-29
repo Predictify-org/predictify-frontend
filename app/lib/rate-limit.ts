@@ -4,6 +4,10 @@ import { getRateLimitStore } from "./rate-limit-store";
 
 const JWT_SECRET = process.env.JWT_SECRET || "streampay-dev-secret-do-not-use-in-prod";
 
+function getHeader(request: Request, name: string): string | null {
+  return request.headers?.get?.(name) ?? null;
+}
+
 export interface ClientIdentity {
   type: "api_key" | "wallet" | "ip";
   value: string;
@@ -11,11 +15,11 @@ export interface ClientIdentity {
 }
 
 function extractApiKey(request: Request): string | null {
-  return request.headers.get("X-API-Key");
+  return getHeader(request, "X-API-Key");
 }
 
 function extractWalletFromJwt(request: Request): string | null {
-  const authHeader = request.headers.get("authorization");
+  const authHeader = getHeader(request, "authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return null;
   }
@@ -31,8 +35,8 @@ function extractWalletFromJwt(request: Request): string | null {
 
 function extractIp(request: Request): string {
   return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
+    getHeader(request, "x-forwarded-for")?.split(",")[0]?.trim() ||
+    getHeader(request, "x-real-ip") ||
     "unknown"
   );
 }

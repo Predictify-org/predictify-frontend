@@ -233,6 +233,56 @@ describe('Stellar Network Configuration', () => {
     });
   });
 
+  describe('Config Validation - Internal Service Auth', () => {
+    it('should parse HMAC key configuration', () => {
+      process.env.STELLAR_NETWORK = 'testnet';
+      process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.INTERNAL_SERVICE_HMAC_KEYS = JSON.stringify({
+        current: 'a'.repeat(32),
+        next: 'b'.repeat(32),
+      });
+      process.env.INTERNAL_SERVICE_CURRENT_KEY_ID = 'current';
+      process.env.INTERNAL_SERVICE_CLOCK_SKEW_SECONDS = '120';
+
+      const config = validateConfig();
+
+      expect(config.internalServiceAuth).toEqual({
+        allowedClockSkewSeconds: 120,
+        currentKeyId: 'current',
+        keys: {
+          current: 'a'.repeat(32),
+          next: 'b'.repeat(32),
+        },
+      });
+    });
+
+    it('should reject deprecated shared internal auth token in production', () => {
+      process.env.STELLAR_NETWORK = 'testnet';
+      process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.NODE_ENV = 'production';
+      process.env.INTERNAL_AUTH_TOKEN = 'legacy-admin-password';
+
+      expect(() => validateConfig()).toThrow(ConfigValidationError);
+      expect(() => validateConfig()).toThrow(
+        'INTERNAL_AUTH_TOKEN is not allowed in production'
+      );
+    });
+
+    it('should require current key id to match configured HMAC keys', () => {
+      process.env.STELLAR_NETWORK = 'testnet';
+      process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
+      process.env.INTERNAL_SERVICE_HMAC_KEYS = JSON.stringify({
+        next: 'b'.repeat(32),
+      });
+      process.env.INTERNAL_SERVICE_CURRENT_KEY_ID = 'current';
+
+      expect(() => validateConfig()).toThrow(ConfigValidationError);
+      expect(() => validateConfig()).toThrow(
+        'INTERNAL_SERVICE_CURRENT_KEY_ID must reference a key present in INTERNAL_SERVICE_HMAC_KEYS'
+      );
+    });
+  });
+
   describe('Config Validation - Success Path', () => {
     it('should validate testnet configuration successfully', () => {
       process.env.STELLAR_NETWORK = 'testnet';

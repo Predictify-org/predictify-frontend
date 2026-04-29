@@ -258,9 +258,9 @@ function normalizeRole(role: string | null): AuditActorRole | null {
 
 export function buildRequestId(request: Request): string {
   return (
-    request.headers.get("x-request-id") ??
-    request.headers.get("x-vercel-id") ??
-    request.headers.get("idempotency-key") ??
+    request.headers?.get?.("x-request-id") ??
+    request.headers?.get?.("x-vercel-id") ??
+    request.headers?.get?.("idempotency-key") ??
     `mock-request-${randomUUID()}`
   );
 }
@@ -271,8 +271,8 @@ export function resolveAuditActor(request: Request): AuditActor {
     return { id: authenticatedActor.actorId, role: authenticatedActor.role };
   }
 
-  const headerRole = normalizeRole(request.headers.get("x-streampay-actor-role"));
-  const headerActorId = request.headers.get("x-streampay-actor-id");
+  const headerRole = normalizeRole(request.headers?.get?.("x-streampay-actor-role") ?? null);
+  const headerActorId = request.headers?.get?.("x-streampay-actor-id") ?? null;
   if (headerRole && headerActorId) {
     return { id: headerActorId, role: headerRole };
   }
