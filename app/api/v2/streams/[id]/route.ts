@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/lib/db";
+import { toV2Stream } from "@/app/lib/api-version";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -7,16 +8,21 @@ function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
-export async function GET(request: Request, { params }: Context) {
+/** GET /api/v2/streams/:id — single stream in v2 shape. */
+export async function GET(_request: Request, { params }: Context) {
   const { id } = await params;
   const stream = db.streams.get(id);
   if (!stream) {
     return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
-  return NextResponse.json({ data: stream, links: { self: `/api/v1/streams/${id}` } });
+  return NextResponse.json({
+    data: toV2Stream(stream),
+    links: { self: `/api/v2/streams/${id}` },
+  });
 }
 
-export async function DELETE(request: Request, { params }: Context) {
+/** DELETE /api/v2/streams/:id */
+export async function DELETE(_request: Request, { params }: Context) {
   const { id } = await params;
   const stream = db.streams.get(id);
   if (!stream) {

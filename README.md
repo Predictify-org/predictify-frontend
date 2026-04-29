@@ -2,6 +2,30 @@
 
 **StreamPay** dashboard — Next.js app for Stellar wallet integration and payment stream management.
 
+See [CHANGELOG.md](CHANGELOG.md) for the full API version history.
+
+## API Versioning
+
+StreamPay uses URL-path versioning (`/api/v1/`, `/api/v2/`).
+
+| Path | Status | Sunset |
+|------|--------|--------|
+| `/api/v2/streams/*` | **Current** | — |
+| `/api/v1/streams/*` | Deprecated 2026-04-28 | **2026-12-31** |
+| `/api/streams/*` | Alias for v1 | Same as v1 |
+
+**Policy**
+- Breaking changes always increment the major version.
+- Deprecated versions receive a minimum **90-day notice** before sunset.
+- Every response from a deprecated path carries `Deprecation` and `Sunset`
+  headers ([RFC 9745](https://www.rfc-editor.org/rfc/rfc9745)).
+- After the sunset date, deprecated paths return `410 Gone` with a
+  machine-readable body and a link to the migration guide.
+
+**Wallet partners on v1:** see [docs/api-v2-migration.md](docs/api-v2-migration.md)
+for the full migration guide, including field-by-field diffs and a migration
+checklist. Deadline: **2026-12-31**.
+
 ## Overview
 
 Next.js 15 (React, TypeScript) frontend for the StreamPay protocol. Users will connect Stellar wallets and create/manage payment streams from this dashboard.

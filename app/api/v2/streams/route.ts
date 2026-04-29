@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { db, encodeCursor, decodeCursor, idempotencyToken } from "@/app/lib/db";
+import { toV2Stream } from "@/app/lib/api-version";
 
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
+/** GET /api/v2/streams — paginated stream list in v2 shape. */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const cursor = searchParams.get("cursor");
@@ -26,19 +28,29 @@ export async function GET(request: Request) {
   const page = streams.slice(0, limit);
   const hasNext = streams.length > limit;
   const nextCursor =
-    hasNext && page.length > 0 ? encodeCursor(page[page.length - 1].id) : null;
+    hasNext && page.length > 0
+      ? encodeCursor(page[page.length - 1].id)
+      : null;
 
   return NextResponse.json({
-    data: page,
+    data: page.map(toV2Stream),
     meta: { hasNext, nextCursor, total: db.streams.size },
-    links: { self: `/api/v1/streams?limit=${limit}` },
+    links: { self: `/api/v2/streams?limit=${limit}` },
   });
 }
 
+/**
+ * POST /api/v2/streams — create a stream, respond with v2 shape.
+ *
+ * Breaking changes vs v1:
+ *   - Response body uses `allowed_actions`, `created_at`, `updated_at`
+ *     instead of `nextAction`, `createdAt`, `updatedAt`.
+ *   - `settlement` is always present (null when not yet settled).
+ */
 export async function POST(request: Request) {
   const idempotencyKey = request.headers.get("Idempotency-Key");
   const token = idempotencyKey
-    ? idempotencyToken("streams.create", idempotencyKey)
+    ? idempotencyToken("v2.streams.create", idempotencyKey)
     : null;
 
   if (token && db.idempotency.has(token)) {
@@ -81,7 +93,11 @@ export async function POST(request: Request) {
 
   db.streams.set(id, newStream);
 
-  const payload = { data: newStream, links: { self: `/api/v1/streams/${id}` } };
+  const payload = {
+    data: toV2Stream(newStream),
+    links: { self: `/api/v2/streams/${id}` },
+  };
+
   if (token) db.idempotency.set(token, payload);
 
   return NextResponse.json(payload, { status: 201 });
