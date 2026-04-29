@@ -226,6 +226,11 @@ interface EventsStore {
   sort: EventSort
   pagination: PaginationState
 
+  // Infinite scroll state
+  hasNextPage: boolean
+  isFetchingNextPage: boolean
+  lastFetchTime: number | null
+
   // Actions
   setFilters: (filters: Partial<EventFilters>) => void
   setSort: (sort: EventSort) => void
@@ -237,7 +242,14 @@ interface EventsStore {
   loadEvents: () => Promise<void>
   /** NEW: Delete an event by its id */
   deleteEvent: (id: string) => void
+  /** NEW: Load next page for infinite scroll */
+  loadNextPage: () => Promise<void>
+  /** NEW: Check if data is stale and needs refresh */
+  isDataStale: () => boolean
 }
+
+// Stale time threshold: 60 seconds
+const STALE_TIME_MS = 60 * 1000
 
 export const useEventsStore = create<EventsStore>((set, get) => ({
   // Initial state
@@ -267,6 +279,11 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
     pageSize: 5, // Reduced page size to better show pagination
     total: 0,
   },
+
+  // Infinite scroll state
+  hasNextPage: true,
+  isFetchingNextPage: false,
+  lastFetchTime: null,
 
   // Actions
   setFilters: (newFilters) => {
@@ -379,7 +396,10 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
     try {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      set({ loading: false })
+      set({ 
+        loading: false,
+        lastFetchTime: Date.now(),
+      })
       get().applyFilters()
     } catch (error) {
       set({ loading: false, error: "Failed to load events" })
@@ -392,6 +412,49 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
       events: state.events.filter((event) => event.id !== id),
     }))
     get().applyFilters()
+  },
+
+  /** NEW: Load next page for infinite scroll */
+  loadNextPage: async () => {
+    const { isFetchingNextPage, hasNextPage, pagination, filteredEvents } = get()
+    
+    if (isFetchingNextPage || !hasNextPage) return
+
+    set({ isFetchingNextPage: true, error: null })
+    
+    try {
+      // Simulate API call for next page
+      await new Promise((resolve) => setTimeout(resolve, 800))
+      
+      const nextPage = pagination.page + 1
+      const startIndex = (nextPage - 1) * pagination.pageSize
+      const endIndex = startIndex + pagination.pageSize
+      
+      // Check if we've reached the end
+      const hasMore = endIndex < filteredEvents.length
+      
+      set((state) => ({
+        pagination: {
+          ...state.pagination,
+          page: nextPage,
+        },
+        hasNextPage: hasMore,
+        isFetchingNextPage: false,
+        lastFetchTime: Date.now(),
+      }))
+    } catch (error) {
+      set({ 
+        isFetchingNextPage: false, 
+        error: "Failed to load more events" 
+      })
+    }
+  },
+
+  /** NEW: Check if data is stale and needs refresh */
+  isDataStale: () => {
+    const { lastFetchTime } = get()
+    if (!lastFetchTime) return true
+    return Date.now() - lastFetchTime > STALE_TIME_MS
   },
 }))
 
