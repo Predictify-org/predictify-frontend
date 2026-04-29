@@ -1,10 +1,9 @@
-import { NextResponse, NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
+import { NextResponse } from "next/server";
 import { getClientIdentity, checkRateLimit, rateLimitResponse } from "@/app/lib/rate-limit";
 import { recordThrottle, recordRequest } from "@/app/lib/rate-limit-metrics";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
-
-const JWT_SECRET = process.env.JWT_SECRET || "streampay-dev-secret-do-not-use-in-prod";
+import { getCorrelationContext } from "@/app/lib/logger";
+import { tryAuthenticateRequest } from "@/app/lib/auth";
 
 function createErrorResponse(code: string, message: string, status: number) {
   const context = getCorrelationContext();
@@ -23,15 +22,19 @@ export async function GET(request: Request) {
   }
   recordRequest(url.pathname);
 
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  const actor = tryAuthenticateRequest(request);
+  if (!actor) {
     return createErrorResponse("UNAUTHORIZED", "Missing or invalid authorization header", 401);
   }
-  const token = authHeader.slice(7);
-  try {
-    const verified = jwt.verify(token, JWT_SECRET) as { sub?: string };
-    if (!verified.sub) {
-      return createErrorResponse("UNAUTHORIZED", "Invalid or expired token", 401);
-    }
+
+  return NextResponse.json({
+    data: {
+      wallet_address: actor.walletAddress,
+      email: null,
+      display_name: actor.walletAddress,
+      avatar_url: null,
+      created_at: new Date().toISOString(),
+    },
+    links: { self: "/api/identity/me" },
   });
 }

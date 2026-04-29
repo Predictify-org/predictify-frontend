@@ -39,8 +39,9 @@ function parseTraceparent(traceparent: string | null): string | undefined {
 
 // Extract correlation context from headers
 export function extractCorrelationContext(headers: Headers): CorrelationContext {
-  const requestId = headers.get('x-request-id') || headers.get('request-id') || generateUUID();
-  const correlationId = headers.get('x-correlation-id') || headers.get('correlation-id') || requestId;
+  const correlationIdHeader = headers.get('x-correlation-id') || headers.get('correlation-id');
+  const requestId = headers.get('x-request-id') || headers.get('request-id') || correlationIdHeader || generateUUID();
+  const correlationId = correlationIdHeader || requestId;
   const traceparent = parseTraceparent(headers.get('traceparent'));
   const streamId = headers.get('x-stream-id') || headers.get('stream-id') || undefined;
   const jobId = headers.get('x-job-id') || headers.get('job-id') || undefined;
@@ -144,5 +145,22 @@ export function createChildContext(parentContext: CorrelationContext, updates: P
   };
 }
 
-// Context helpers (re-exported from correlation-middleware for convenience)
-export { withStreamContext, withJobContext, withStellarContext, withWebhookContext, withRetryContext } from './correlation-middleware';
+export function withStreamContext(streamId: string) {
+  updateCorrelationContext({ stream_id: streamId });
+}
+
+export function withJobContext(jobId: string, queueName?: string) {
+  updateCorrelationContext({ job_id: jobId, queue_name: queueName });
+}
+
+export function withStellarContext(txHash: string) {
+  updateCorrelationContext({ stellar_tx_hash: txHash });
+}
+
+export function withWebhookContext(webhookId: string) {
+  updateCorrelationContext({ webhook_id: webhookId });
+}
+
+export function withRetryContext(retryCount: number) {
+  updateCorrelationContext({ retry_count: retryCount });
+}

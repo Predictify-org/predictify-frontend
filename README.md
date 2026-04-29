@@ -40,6 +40,7 @@ The application will fail to boot without these required variables:
 
 - **Fail-fast validation**: Application refuses to start with invalid configuration
 - **No silent defaults**: Never falls back to mainnet automatically
+- **Explicit CORS allowlist**: Public API origin access is controlled by `ALLOWED_ORIGINS`
 - **CI guardrails**: CI is enforced to use testnet only
 - **Secret redaction**: All secrets are automatically redacted from logs
 - **UI safety labels**: Testnet assets are clearly labeled to prevent confusion
@@ -53,6 +54,16 @@ See [docs/network-security.md](docs/network-security.md) for the complete securi
 - Mid-month starts and last-day pauses are prorated using inclusive UTC days.
 - Short months use actual day counts (no 30/32-day months).
 - Local time display may shift with DST; calculations remain UTC.
+
+## Horizon/Soroban resilience notes
+
+The resilience wrapper in app/lib/stellarClient.ts provides a short-TTL read-through cache for account
+and balance reads, plus circuit breaking and per-client timeouts/concurrency limits. When the circuit
+is open, stale cached reads may be served to keep non-critical UI paths responsive. These reads are
+eventually consistent; balances and account state may lag the chain by the cache TTL or stale window.
+
+Auth and write operations are never cached. Cache keys must include the tenant and account address to
+prevent cross-tenant data leakage.
 
 ## Prerequisites
 

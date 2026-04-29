@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { StreamService } from "@/app/lib/stream-service";
-import { NextResponse, NextRequest } from "next/server";
-import { db, withLock } from "@/app/lib/db";
+import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
+import { db, idempotencyToken, withLock } from "@/app/lib/db";
+import { getCorrelationContext } from "@/app/lib/logger";
+import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
+import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
+import { getLimitForRoute } from "@/app/lib/rate-limit-config";
+import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 import { evaluateWithdrawalState } from "@/app/lib/withdraw-finality";
 
 function createErrorResponse(code: string, message: string, status: number) {
@@ -9,23 +13,45 @@ function createErrorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
 }
 
+function getHeader(request: Request, name: string): string | null {
+  return request.headers?.get?.(name) ?? null;
+}
+
+function getRequestUrl(request: Request, fallbackPath: string): URL {
+  try {
+    return request.url ? new URL(request.url) : new URL(`http://localhost${fallbackPath}`);
+  } catch {
+    return new URL(`http://localhost${fallbackPath}`);
+  }
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const idempotencyKey = request.headers.get("Idempotency-Key");
+  const url = getRequestUrl(request, `/api/streams/${id}/withdraw`);
+  const limitType = getLimitForRoute("POST", url.pathname);
+  const identity = getClientIdentity(request);
+  const result = await checkRateLimit(identity, limitType);
 
-  // 1. Quick idempotency check before locking
-  if (idempotencyKey && db.idempotency.has(idempotencyKey)) {
-    return NextResponse.json(db.idempotency.get(idempotencyKey));
+  if (!result.allowed) {
+    recordThrottle(url.pathname, limitType, identity.type, identity.displayValue);
+    return rateLimitResponse(result.retryAfter!);
+  }
+  recordRequest(url.pathname);
+
+  const actorAddress = getHeader(request, "Actor-Wallet-Address");
+  const idempotencyKey = getHeader(request, "Idempotency-Key");
+  const token = idempotencyKey ? idempotencyToken(`streams.withdraw.${id}`, idempotencyKey) : null;
+
+  if (token && db.idempotency.has(token)) {
+    return NextResponse.json(db.idempotency.get(token));
   }
 
-  // 2. Acquire lock for this stream ID
-  return await withLock(id, async () => {
-    // 3. Double-check idempotency inside the lock
-    if (idempotencyKey && db.idempotency.has(idempotencyKey)) {
-      return NextResponse.json(db.idempotency.get(idempotencyKey));
+  return withLock(id, async () => {
+    if (token && db.idempotency.has(token)) {
+      return NextResponse.json(db.idempotency.get(token));
     }
 
     const stream = db.streams.get(id);
@@ -33,24 +59,58 @@ export async function POST(
       return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
 
-    // 4. Validate state
+    const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "withdraw") : null;
+    if (policyResult) {
+      if (!policyResult.allowed) {
+        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+      }
+      if (policyResult.requiresApproval) {
+        return createErrorResponse(
+          "APPROVAL_REQUIRED",
+          "This action requires multi-sig approval. Please initiate an approval request.",
+          409
+        );
+      }
+    }
+
     if (stream.status !== "ended") {
-      return createErrorResponse("INVALID_STREAM_STATE", `Only ended streams can be withdrawn from. Current status: ${stream.status}`, 409);
+      if (stream.status === "withdrawn") {
+        const payload = { data: stream, withdrawal: stream.withdrawal };
+        if (token) {
+          db.idempotency.set(token, payload);
+        }
+        return NextResponse.json(payload);
+      }
+      return createErrorResponse("INVALID_STREAM_STATE", "Only ended streams can be withdrawn from", 409);
     }
 
-    // 5. Update state
-    stream.status = "withdrawn";
-    stream.nextAction = undefined;
-    stream.updatedAt = new Date().toISOString();
-    db.streams.set(id, stream);
+    const before = structuredClone(stream);
+    const { alert, stream: updated } = await evaluateWithdrawalState(stream, new Date(), fetch);
+    db.streams.set(id, updated);
 
-    const responseData = { data: stream };
+    const payload = {
+      alert,
+      data: updated,
+      withdrawal: updated.withdrawal,
+    };
 
-    // 6. Store idempotency result
-    if (idempotencyKey) {
-      db.idempotency.set(idempotencyKey, responseData);
+    recordPrivilegedStreamAuditEvent({
+      action: "stream.withdraw",
+      after: updated,
+      before,
+      metadata: {
+        resultingStatus: updated.status,
+        withdrawalState: updated.withdrawal?.state ?? null,
+      },
+      request,
+      streamId: id,
+      targetAccount: updated.recipient,
+    });
+
+    if (token) {
+      db.idempotency.set(token, payload);
     }
 
-    return NextResponse.json(responseData);
+    return NextResponse.json(payload);
   });
 }

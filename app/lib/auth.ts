@@ -48,7 +48,7 @@ function normalizeRole(role: string | undefined): AuditActorRole {
 }
 
 export function tryAuthenticateRequest(request: Request): AuthenticatedActor | null {
-  const authHeader = request.headers.get("authorization");
+  const authHeader = request.headers?.get?.("authorization") ?? null;
   if (!authHeader?.startsWith("Bearer ")) {
     return null;
   }

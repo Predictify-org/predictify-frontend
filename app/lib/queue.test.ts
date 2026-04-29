@@ -1,6 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { MockQueue, settlementQueue } from './queue';
 import { withCorrelationContext, logger, type CorrelationContext } from './logger';
+
+const vi = jest;
 
 describe('Mock Queue System', () => {
   beforeEach(() => {

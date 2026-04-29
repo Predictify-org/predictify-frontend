@@ -39,14 +39,22 @@ interface RequiredEnvVars {
   SERVICE_NAME?: string;
   /** Node environment */
   NODE_ENV: string;
+  /** Comma-separated browser origin allowlist for public API requests */
+  ALLOWED_ORIGINS: string;
 }
 
 /**
  * Optional environment variables with defaults
  */
 interface OptionalEnvVars {
-  /** Internal auth token for service-to-service communication */
+  /** Deprecated shared token for service-to-service communication */
   INTERNAL_AUTH_TOKEN?: string;
+  /** JSON object map of HMAC key IDs to shared secrets */
+  INTERNAL_SERVICE_HMAC_KEYS?: string;
+  /** Active key ID used by workers when signing requests */
+  INTERNAL_SERVICE_CURRENT_KEY_ID?: string;
+  /** Allowed request freshness window in seconds */
+  INTERNAL_SERVICE_CLOCK_SKEW_SECONDS?: string;
   /** Anomaly detection threshold for stream creation burst */
   ANOMALY_CREATION_THRESHOLD?: string;
   /** Anomaly detection threshold for settlement rate spike */
@@ -62,6 +70,7 @@ export interface ValidatedConfig {
   serviceName: string;
   environment: string;
   internalAuthToken?: string;
+  allowedOrigins: string[];
   anomalyThresholds: {
     creationBurstLimit: number;
     settleRateLimit: number;
@@ -74,11 +83,24 @@ export interface ValidatedConfig {
 const SECRET_PATTERNS = [
   /secret/i,
   /private[_\s]?key/i,
+  /api[_\s]?key/i,
   /password/i,
   /token/i,
+  /api[_\s]?key/i,
   /auth/i,
   /seed/i,
   /mnemonic/i,
+  /signing[_\s]?key/i,
+  /access[_\s]?key/i,
+];
+
+/**
+ * Patterns that are explicitly NOT secrets (public information)
+ */
+const NOT_SECRET_PATTERNS = [
+  /public/i,
+  /pubkey/i,
+  /public[_\s]?key/i,
 ];
 
 /**
@@ -86,6 +108,13 @@ const SECRET_PATTERNS = [
  */
 export function isSecret(key: string, value: string): boolean {
   const keyLower = key.toLowerCase();
+  
+  // First check if it's explicitly NOT a secret (public keys, etc.)
+  if (NOT_SECRET_PATTERNS.some(pattern => pattern.test(keyLower))) {
+    return false;
+  }
+  
+  // Check if it matches secret patterns
   return SECRET_PATTERNS.some(pattern => pattern.test(keyLower)) || 
          (keyLower.includes('jwt') && value.length > 20);
 }
@@ -128,6 +157,49 @@ function validateCIEnvironment(env: string, network: StellarNetwork): void {
       'CI must use test/dev secrets only.'
     );
   }
+}
+
+function validateAllowedOrigins(rawValue: string | undefined, environment: string): string[] {
+  if (!rawValue) {
+    throw new ConfigValidationError(
+      'ALLOWED_ORIGINS environment variable is required and must be a comma-separated list of origins.'
+    );
+  }
+
+  const values = rawValue
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  if (values.length === 0) {
+    throw new ConfigValidationError(
+      'ALLOWED_ORIGINS must contain at least one origin.'
+    );
+  }
+
+  if (environment === 'production' && values.includes('*')) {
+    throw new ConfigValidationError(
+      'Production environment cannot use wildcard ALLOWED_ORIGINS. ' +
+      'Specify explicit origins instead.'
+    );
+  }
+
+  const normalizedOrigins = values.map((origin) => {
+    if (origin === '*') {
+      return origin;
+    }
+
+    try {
+      const url = new URL(origin);
+      return url.origin;
+    } catch {
+      throw new ConfigValidationError(
+        `ALLOWED_ORIGINS must be a comma-separated list of valid origins. Invalid origin: ${origin}`
+      );
+    }
+  });
+
+  return Array.from(new Set(normalizedOrigins));
 }
 
 /**
@@ -179,6 +251,92 @@ function validateJwtSecret(secret: string | undefined): string {
   return secret;
 }
 
+function validateInternalServiceAuth(
+  env: RequiredEnvVars & OptionalEnvVars
+): ValidatedConfig["internalServiceAuth"] {
+  const hasHmacConfig =
+    typeof env.INTERNAL_SERVICE_HMAC_KEYS === "string" ||
+    typeof env.INTERNAL_SERVICE_CURRENT_KEY_ID === "string" ||
+    typeof env.INTERNAL_SERVICE_CLOCK_SKEW_SECONDS === "string";
+
+  if (!hasHmacConfig) {
+    if (env.NODE_ENV === "production" && env.INTERNAL_AUTH_TOKEN) {
+      throw new ConfigValidationError(
+        "INTERNAL_AUTH_TOKEN is not allowed in production. Configure INTERNAL_SERVICE_HMAC_KEYS and INTERNAL_SERVICE_CURRENT_KEY_ID instead."
+      );
+    }
+    return undefined;
+  }
+
+  if (!env.INTERNAL_SERVICE_HMAC_KEYS) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_HMAC_KEYS is required when internal service auth is enabled"
+    );
+  }
+
+  if (!env.INTERNAL_SERVICE_CURRENT_KEY_ID) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_CURRENT_KEY_ID is required when internal service auth is enabled"
+    );
+  }
+
+  let parsedKeys: unknown;
+  try {
+    parsedKeys = JSON.parse(env.INTERNAL_SERVICE_HMAC_KEYS);
+  } catch {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_HMAC_KEYS must be a valid JSON object of key IDs to secrets"
+    );
+  }
+
+  if (!parsedKeys || typeof parsedKeys !== "object" || Array.isArray(parsedKeys)) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_HMAC_KEYS must be a JSON object of key IDs to secrets"
+    );
+  }
+
+  const keys = Object.entries(parsedKeys as Record<string, unknown>).reduce<Record<string, string>>(
+    (accumulator, [keyId, secret]) => {
+      if (typeof secret !== "string" || secret.length < 32) {
+        throw new ConfigValidationError(
+          `INTERNAL_SERVICE_HMAC_KEYS['${keyId}'] must be a string at least 32 characters long`
+        );
+      }
+      accumulator[keyId] = secret;
+      return accumulator;
+    },
+    {}
+  );
+
+  if (Object.keys(keys).length === 0) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_HMAC_KEYS must contain at least one signing key"
+    );
+  }
+
+  if (!keys[env.INTERNAL_SERVICE_CURRENT_KEY_ID]) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_CURRENT_KEY_ID must reference a key present in INTERNAL_SERVICE_HMAC_KEYS"
+    );
+  }
+
+  const allowedClockSkewSeconds = env.INTERNAL_SERVICE_CLOCK_SKEW_SECONDS
+    ? Number(env.INTERNAL_SERVICE_CLOCK_SKEW_SECONDS)
+    : 300;
+
+  if (!Number.isFinite(allowedClockSkewSeconds) || allowedClockSkewSeconds <= 0) {
+    throw new ConfigValidationError(
+      "INTERNAL_SERVICE_CLOCK_SKEW_SECONDS must be a positive number"
+    );
+  }
+
+  return {
+    currentKeyId: env.INTERNAL_SERVICE_CURRENT_KEY_ID,
+    keys,
+    allowedClockSkewSeconds,
+  };
+}
+
 /**
  * Validate anomaly detection thresholds
  */
@@ -211,7 +369,7 @@ function validateAnomalyThresholds(
  * @throws ConfigValidationError if configuration is invalid
  */
 export function validateConfig(): ValidatedConfig {
-  const env = process.env as RequiredEnvVars & OptionalEnvVars;
+  const env = process.env as unknown as RequiredEnvVars & OptionalEnvVars;
   
   // Validate network
   const networkProfile = validateStellarNetwork(env.STELLAR_NETWORK);
@@ -222,11 +380,16 @@ export function validateConfig(): ValidatedConfig {
   // Validate CI environment
   validateCIEnvironment(env.NODE_ENV || 'development', networkProfile.name);
   
+  // Validate ALLOWED_ORIGINS for browser API requests
+  const allowedOrigins = validateAllowedOrigins(env.ALLOWED_ORIGINS, env.NODE_ENV || 'development');
+  
   // Validate anomaly thresholds
   const anomalyThresholds = validateAnomalyThresholds(
     env.ANOMALY_CREATION_THRESHOLD,
     env.ANOMALY_SETTLE_THRESHOLD
   );
+
+  const internalServiceAuth = validateInternalServiceAuth(env);
   
   const config: ValidatedConfig = {
     network: networkProfile,
@@ -234,6 +397,7 @@ export function validateConfig(): ValidatedConfig {
     serviceName: env.SERVICE_NAME || 'streampay-frontend',
     environment: env.NODE_ENV || 'development',
     internalAuthToken: env.INTERNAL_AUTH_TOKEN,
+    allowedOrigins,
     anomalyThresholds,
   };
   

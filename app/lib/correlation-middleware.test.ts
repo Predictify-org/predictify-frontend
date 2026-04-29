@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   withCorrelationMiddleware,
@@ -11,6 +11,8 @@ import {
   withRetryContext,
 } from './correlation-middleware';
 import { getCorrelationContext } from './logger';
+
+const vi = jest;
 
 // Mock Next.js server module
 vi.mock('next/server', () => ({
