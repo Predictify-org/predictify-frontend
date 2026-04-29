@@ -5,9 +5,10 @@ import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 
-function createErrorResponse(code: string, message: string, status: number) {
-  const context = getCorrelationContext();
-  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
+type Context = { params: Promise<{ id: string }> };
+
+function errorResponse(code: string, message: string, status: number) {
+  return NextResponse.json({ error: { code, message } }, { status });
 }
 
 function getRequestUrl(request: Request, fallbackPath: string): URL {
@@ -45,16 +46,13 @@ export async function GET(
 
   const stream = db.streams.get(id);
   if (!stream) {
-    return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+    return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
 
   return NextResponse.json({ data: stream, links: { self: `/api/v1/streams/${id}` } });
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: Request, { params }: Context) {
   const { id } = await params;
   const rateLimited = await enforceRateLimit(request, "DELETE", `/api/streams/${id}`);
   if (rateLimited) {
@@ -63,7 +61,7 @@ export async function DELETE(
 
   const stream = db.streams.get(id);
   if (!stream) {
-    return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+    return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
 
   if (stream.status === "active" || stream.status === "paused") {

@@ -108,12 +108,14 @@ function createUsersMap(): Map<string, User> {
 }
 
 function createStreamsMap(): Map<string, Stream> {
-  return new Map(initialStreams.map((stream) => [stream.id, { ...stream }]));
+  return new Map(initialStreams.map((s) => [s.id, { ...s }]));
 }
 
 function createActivityMap(): Map<string, ActivityEvent> {
-  return new Map(initialActivity.map((event) => [event.id, { ...event }]));
+  return new Map(initialActivity.map((e) => [e.id, { ...e }]));
 }
+
+// ── In-memory database ─────────────────────────────────────────────────
 
 export const db = {
   users: createUsersMap(),
@@ -124,6 +126,8 @@ export const db = {
   exportAudit: new Array<ExportAuditRecord>(),
   exportProcessing: new Map<string, Promise<void>>(),
 };
+
+// ── Concurrency: per-stream lock ──────────────────────────────────────────
 
 const locks = new Map<string, Promise<void>>();
 
@@ -151,6 +155,7 @@ export function idempotencyToken(scope: string, idempotencyKey: string): string 
   return `${scope}:${idempotencyKey}`;
 }
 
+/** Resets all in-memory state to seed data. Use in beforeEach in tests. */
 export function resetDb(): void {
   db.users.clear();
   for (const [id, user] of createUsersMap()) {
@@ -158,14 +163,10 @@ export function resetDb(): void {
   }
 
   db.streams.clear();
-  for (const [id, stream] of createStreamsMap()) {
-    db.streams.set(id, stream);
-  }
+  for (const [id, stream] of createStreamsMap()) db.streams.set(id, stream);
 
   db.activity.clear();
-  for (const [id, event] of createActivityMap()) {
-    db.activity.set(id, event);
-  }
+  for (const [id, event] of createActivityMap()) db.activity.set(id, event);
 
   db.idempotency.clear();
   db.exportJobs.clear();

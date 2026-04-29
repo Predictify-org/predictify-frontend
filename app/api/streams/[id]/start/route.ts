@@ -6,9 +6,10 @@ import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 
-function createErrorResponse(code: string, message: string, status: number) {
-  const context = getCorrelationContext();
-  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
+type Context = { params: Promise<{ id: string }> };
+
+function errorResponse(code: string, message: string, status: number) {
+  return NextResponse.json({ error: { code, message } }, { status });
 }
 
 function getHeader(request: Request, name: string): string | null {
@@ -41,7 +42,7 @@ export async function POST(
 
   const stream = db.streams.get(id);
   if (!stream) {
-    return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+    return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
 
   const actorAddress = getHeader(request, "Actor-Wallet-Address");
@@ -59,9 +60,10 @@ export async function POST(
     }
   }
 
-  if (stream.status !== "draft") {
-    return createErrorResponse("INVALID_STREAM_STATE", "Only draft streams can be started", 409);
-  }
+  stream.status = result.nextStatus;
+  stream.nextAction = "pause";
+  stream.updatedAt = new Date().toISOString();
+  db.streams.set(id, stream);
 
   const updatedStream = {
     ...stream,
