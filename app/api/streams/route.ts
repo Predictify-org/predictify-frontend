@@ -5,8 +5,13 @@ import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
+}
+
 function errorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message } }, { status });
+  return createErrorResponse(code, message, status);
 }
 
 function getRequestUrl(request: Request, fallbackPath: string): URL {
@@ -134,38 +139,4 @@ export async function POST(request: Request) {
   } catch {
     return errorResponse("INVALID_REQUEST", "Request body must be valid JSON", 400);
   }
-
-  const { recipient, rate, schedule } = body as {
-    recipient?: string;
-    rate?: string;
-    schedule?: string;
-  };
-
-  if (!recipient || !rate || !schedule) {
-    return errorResponse(
-      "VALIDATION_ERROR",
-      "Missing required fields: recipient, rate, schedule",
-      422,
-    );
-  }
-
-  const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
-  const now = new Date().toISOString();
-  const newStream = {
-    id,
-    recipient: String(recipient),
-    rate: String(rate),
-    schedule: String(schedule),
-    status: "draft" as const,
-    nextAction: "start" as const,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  db.streams.set(id, newStream);
-
-  const payload = { data: newStream, links: { self: `/api/v1/streams/${id}` } };
-  if (token) db.idempotency.set(token, payload);
-
-  return NextResponse.json(payload, { status: 201 });
 }

@@ -1,159 +1,312 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, Address, BytesN, Env, Symbol};
 
-/// Represents the contract's admin and configuration state.
-#[derive(Clone)]
-#[contracttype]
-pub struct State {
-    /// The contract administrator (has authority to upgrade)
-    pub admin: Address,
-    /// Optional: contract version for reference
-    pub version: u32,
-    /// Flag: whether initialization has been completed
-    pub initialized: bool,
-}
+mod error;
 
-/// Error codes for contract operations
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-#[repr(u32)]
-pub enum ContractError {
-    AlreadyInitialized = 1,
-    NotInitialized = 2,
-    Unauthorized = 3,
-    InvalidWasmHash = 4,
-}
+use core::cmp::min;
 
-impl ContractError {
-    pub fn into_result(self) -> Result<(), ContractError> {
-        Err(self)
-    }
-}
-
-const STATE_KEY: &str = "STATE";
-const VERSION: u32 = 1;
+pub use error::Error;
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
 
 #[contract]
-pub struct StreamPayStream;
+pub struct Contract;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum StreamStatus {
+    Draft,
+    Active,
+    Paused,
+    Settled,
+    Ended,
+    Cancelled,
+}
+
+#[derive(Clone, Debug)]
+#[contracttype]
+pub struct Stream {
+    pub id: u64,
+    pub sender: Address,
+    pub recipient: Address,
+    pub token: Address,
+    pub total_amount: i128,
+    pub released_amount: i128,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub duration: u64,
+    pub last_update: u64,
+    pub status: StreamStatus,
+}
+
+#[derive(Clone)]
+#[contracttype]
+enum DataKey {
+    Admin,
+    Paused,
+    NextStreamId,
+    Stream(u64),
+    TokenAllowed(Address),
+}
 
 #[contractimpl]
-impl StreamPayStream {
-    /// Initialize the contract with an admin address.
-    /// 
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `admin` - The wallet address that will have admin privileges
-    /// 
-    /// # Errors
-    /// Returns `AlreadyInitialized` if called more than once.
-    /// 
-    /// # Events
-    /// Emits "initialized" event with the admin address.
-    pub fn initialize(env: Env, admin: Address) -> Result<(), ContractError> {
-        // Verify initialization hasn't already occurred
-        let state: Option<State> = env.storage().instance().get(&Symbol::new(&env, STATE_KEY));
-        if state.is_some() {
-            return Err(ContractError::AlreadyInitialized);
+impl Contract {
+    /// Initializes contract administration for pause and token allow-listing.
+    pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
+        if env.storage().persistent().has(&DataKey::Admin) {
+            return Err(Error::InvalidState);
         }
 
-        // Create and store the initial state
-        let new_state = State {
-            admin: admin.clone(),
-            version: VERSION,
-            initialized: true,
+        admin.require_auth();
+        env.storage().persistent().set(&DataKey::Admin, &admin);
+        env.storage().persistent().set(&DataKey::Paused, &false);
+        Ok(())
+    }
+
+    /// Sets the emergency pause flag. Only the initialized admin may call this.
+    pub fn set_paused(env: Env, admin: Address, paused: bool) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        env.storage().persistent().set(&DataKey::Paused, &paused);
+        Ok(())
+    }
+
+    /// Allows or blocks a token for future stream creation.
+    pub fn set_token_allowed(
+        env: Env,
+        admin: Address,
+        token: Address,
+        allowed: bool,
+    ) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        env.storage()
+            .persistent()
+            .set(&DataKey::TokenAllowed(token), &allowed);
+        Ok(())
+    }
+
+    /// Creates a funded stream.
+    ///
+    /// The sender escrows the full `total_amount` at creation for both Draft
+    /// and Active streams. Draft streams keep `start_time`/`end_time` at zero
+    /// and accrue nothing until `start_stream` anchors them to the activation
+    /// ledger timestamp.
+    pub fn create_stream(
+        env: Env,
+        sender: Address,
+        recipient: Address,
+        token: Address,
+        total_amount: i128,
+        duration: u64,
+        draft: bool,
+    ) -> Result<u64, Error> {
+        require_not_paused(&env)?;
+        sender.require_auth();
+
+        if total_amount <= 0 {
+            return Err(Error::InvalidAmount);
+        }
+
+        if is_token_blocked(&env, &token) {
+            return Err(Error::TokenNotAllowed);
+        }
+
+        if duration == 0 {
+            return Err(Error::InvalidTimeRange);
+        }
+
+        let id = next_stream_id(&env);
+        let now = env.ledger().timestamp();
+        let (start_time, end_time, last_update, status) = if draft {
+            (0, 0, 0, StreamStatus::Draft)
+        } else {
+            (
+                now,
+                now.checked_add(duration).ok_or(Error::InvalidTimeRange)?,
+                now,
+                StreamStatus::Active,
+            )
         };
 
-        env.storage().instance().set(&Symbol::new(&env, STATE_KEY), &new_state);
-        env.storage().instance().extend_ttl(17280, 34560); // ~1 day
-
-        // Emit initialization event
-        env.events().publish(
-            (Symbol::new(&env, "initialized"),),
-            admin,
+        token::Client::new(&env, &token).transfer(
+            &sender,
+            &env.current_contract_address(),
+            &total_amount,
         );
 
-        Ok(())
+        let stream = Stream {
+            id,
+            sender,
+            recipient,
+            token,
+            total_amount,
+            released_amount: 0,
+            start_time,
+            end_time,
+            duration,
+            last_update,
+            status,
+        };
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Stream(id), &stream);
+        env.storage()
+            .persistent()
+            .set(&DataKey::NextStreamId, &(id + 1));
+
+        Ok(id)
     }
 
-    /// Constructor alias for initialization (called once on deployment).
-    /// This is an alternative entry point that may be called by the deployer.
-    pub fn __constructor(env: Env, admin: Address) -> Result<(), ContractError> {
-        Self::initialize(env, admin)
+    /// Activates a Draft stream.
+    ///
+    /// Only the stream sender may start it. Activation changes status to Active
+    /// and sets `start_time`, `last_update`, and `end_time` from the activation
+    /// ledger timestamp plus the configured duration.
+    pub fn start_stream(env: Env, stream_id: u64) -> Result<Stream, Error> {
+        require_not_paused(&env)?;
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if stream.status != StreamStatus::Draft {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        stream.status = StreamStatus::Active;
+        stream.start_time = now;
+        stream.last_update = now;
+        stream.end_time = now
+            .checked_add(stream.duration)
+            .ok_or(Error::InvalidTimeRange)?;
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Stream(stream_id), &stream);
+
+        Ok(stream)
     }
 
-    /// Upgrade the contract to a new WASM implementation.
-    /// 
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `new_wasm_hash` - The SHA256 hash of the new WASM binary (32 bytes)
-    /// 
-    /// # Errors
-    /// Returns `NotInitialized` if initialize() hasn't been called.
-    /// Returns `Unauthorized` if caller is not the admin.
-    /// 
-    /// # Behavior
-    /// - Requires admin authorization via env.require_auth() for the stored admin
-    /// - Updates contract code to the new WASM
-    /// - Preserves all existing Stream storage entries
-    /// - Emits "upgraded" event with the new WASM hash
-    /// 
-    /// # Storage Migration
-    /// The upgrade does not modify existing Stream entries. Any schema changes
-    /// must be handled by:
-    /// 1. A migration function called explicitly after upgrade, or
-    /// 2. Backward-compatible schema design
-    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), ContractError> {
-        // Verify contract is initialized
-        let state: Option<State> = env.storage().instance().get(&Symbol::new(&env, STATE_KEY));
-        let state = state.ok_or(ContractError::NotInitialized)?;
+    /// Returns a stored stream by id.
+    pub fn get_stream(env: Env, stream_id: u64) -> Result<Stream, Error> {
+        get_existing_stream(&env, stream_id)
+    }
 
-        // Require admin authorization
-        state.admin.require_auth();
+    /// Returns the amount accrued and available for withdrawal at this ledger.
+    ///
+    /// Draft streams always return zero because accrual starts only after
+    /// `start_stream` anchors the activation time.
+    pub fn withdrawable(env: Env, stream_id: u64) -> Result<i128, Error> {
+        let stream = get_existing_stream(&env, stream_id)?;
+        Ok(withdrawable_amount(&env, &stream))
+    }
 
-        // Update the contract WASM via the deployer interface
-        env.deployer().update_current_contract_wasm(new_wasm_hash.clone());
+    /// Withdraws accrued escrow to the recipient.
+    pub fn withdraw(env: Env, stream_id: u64, amount: i128) -> Result<i128, Error> {
+        require_not_paused(&env)?;
+        if amount <= 0 {
+            return Err(Error::InvalidAmount);
+        }
 
-        // Emit upgraded event with the new WASM hash
-        env.events().publish(
-            (Symbol::new(&env, "upgraded"),),
-            new_wasm_hash,
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.recipient.require_auth();
+
+        if stream.status == StreamStatus::Settled {
+            return Err(Error::AlreadySettled);
+        }
+
+        if stream.status != StreamStatus::Active {
+            return Err(Error::InvalidState);
+        }
+
+        let available = withdrawable_amount(&env, &stream);
+        if amount > available {
+            return Err(Error::OverWithdraw);
+        }
+
+        stream.released_amount += amount;
+        stream.last_update = env.ledger().timestamp();
+
+        if stream.released_amount == stream.total_amount {
+            stream.status = StreamStatus::Settled;
+        }
+
+        token::Client::new(&env, &stream.token).transfer(
+            &env.current_contract_address(),
+            &stream.recipient,
+            &amount,
         );
 
-        Ok(())
+        env.storage()
+            .persistent()
+            .set(&DataKey::Stream(stream_id), &stream);
+
+        Ok(amount)
+    }
+}
+
+fn next_stream_id(env: &Env) -> u64 {
+    match env.storage().persistent().get(&DataKey::NextStreamId) {
+        Some(id) => id,
+        None => 1,
+    }
+}
+
+fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::Stream(stream_id))
+        .ok_or(Error::NotFound)
+}
+
+fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
+    if stream.status != StreamStatus::Active || stream.start_time == 0 {
+        return 0;
     }
 
-    /// Retrieve the current contract state.
-    /// 
-    /// # Returns
-    /// The current `State` struct containing admin, version, and initialization flag.
-    /// 
-    /// # Errors
-    /// Returns `NotInitialized` if initialize() hasn't been called.
-    pub fn get_state(env: Env) -> Result<State, ContractError> {
-        let state: Option<State> = env.storage().instance().get(&Symbol::new(&env, STATE_KEY));
-        state.ok_or(ContractError::NotInitialized)
+    let now = env.ledger().timestamp();
+    let elapsed = min(now, stream.end_time) - stream.start_time;
+    let accrued = (stream.total_amount * elapsed as i128) / stream.duration as i128;
+
+    accrued - stream.released_amount
+}
+
+fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
+    caller.require_auth();
+
+    let admin: Address = env
+        .storage()
+        .persistent()
+        .get(&DataKey::Admin)
+        .ok_or(Error::NotFound)?;
+
+    if admin != *caller {
+        return Err(Error::Unauthorized);
     }
 
-    /// Check if the contract has been initialized.
-    /// 
-    /// # Returns
-    /// `true` if initialize() has been called, `false` otherwise.
-    pub fn is_initialized(env: Env) -> bool {
-        let state: Option<State> = env.storage().instance().get(&Symbol::new(&env, STATE_KEY));
-        state.is_some()
+    Ok(())
+}
+
+fn require_not_paused(env: &Env) -> Result<(), Error> {
+    let paused = match env.storage().persistent().get(&DataKey::Paused) {
+        Some(value) => value,
+        None => false,
+    };
+
+    if paused {
+        return Err(Error::ContractPaused);
     }
 
-    /// Get the current admin address.
-    /// 
-    /// # Returns
-    /// The admin `Address` if initialized.
-    /// 
-    /// # Errors
-    /// Returns `NotInitialized` if initialize() hasn't been called.
-    pub fn get_admin(env: Env) -> Result<Address, ContractError> {
-        let state = Self::get_state(env)?;
-        Ok(state.admin)
+    Ok(())
+}
+
+fn is_token_blocked(env: &Env, token: &Address) -> bool {
+    match env
+        .storage()
+        .persistent()
+        .get::<DataKey, bool>(&DataKey::TokenAllowed(token.clone()))
+    {
+        Some(allowed) => !allowed,
+        None => false,
     }
 }
 
 #[cfg(test)]
-mod tests;
+mod test;

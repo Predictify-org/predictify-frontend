@@ -418,5 +418,5 @@ export async function del<T = unknown>(
 }
 
 // Re-export types for convenience
-export type { StreamPayError, ApiClientOptions };
+export type { StreamPayError };
 export { isNetworkError };
