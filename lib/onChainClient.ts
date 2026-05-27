@@ -2,7 +2,9 @@ import { OnChainStream, ContractStreamStatus } from '../types';
 
 /**
  * Mock On-Chain Client for StreamPay.
- * In production, this would use the Stellar SDK or a Soroban RPC client.
+ * In production, this should be replaced with a Soroban RPC-backed adapter.
+ * See `contracts/contracts/streampay-stream/README.md` for the contract
+ * deployment guide and the expected `OnChainStream` field mapping.
  */
 export const onChainClient = {
   async fetchStream(streamId: string): Promise<OnChainStream | null> {
