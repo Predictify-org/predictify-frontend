@@ -38,14 +38,22 @@ export async function GET(request: Request) {
   const status = searchParams.get("status");
   const limit = Math.min(Number.parseInt(searchParams.get("limit") ?? "20", 10), 100);
 
-  let streams = Array.from(db.streams.values()).sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+  let streams = Array.from(db.streams.values()).sort((left, right) => {
+    const timeCompare = left.createdAt.localeCompare(right.createdAt);
+    return timeCompare !== 0 ? timeCompare : left.id.localeCompare(right.id);
+  });
 
   if (status) {
     streams = streams.filter((stream) => stream.status === status);
   }
 
   if (cursor) {
-    const cursorId = decodeCursor(cursor);
+    let cursorId: string;
+    try {
+      cursorId = decodeCursor(cursor);
+    } catch {
+      return errorResponse("INVALID_CURSOR", "Malformed cursor", 422);
+    }
     const cursorIndex = streams.findIndex((stream) => stream.id === cursorId);
     if (cursorIndex >= 0) {
       streams = streams.slice(cursorIndex + 1);
@@ -64,7 +72,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     data: paginatedStreams,
     links: { self: `/api/v1/streams?limit=${limit}` },
-    meta: { hasNext, nextCursor, total: db.streams.size },
+    meta: { hasNext, nextCursor, total: streams.length },
   });
 }
 
