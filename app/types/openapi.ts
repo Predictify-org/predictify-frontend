@@ -139,6 +139,7 @@ export type ExportJobStatus = "pending" | "ready" | "failed" | "expired";
 
 export interface ExportJob {
   id: string;
+  ownerId: string;
   requestedAt: string;
   status: ExportJobStatus;
   signedUrl?: string;

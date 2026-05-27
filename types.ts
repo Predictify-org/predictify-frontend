@@ -2,6 +2,9 @@
  * Aggregate metric snapshot for a specific tenant within a rolling window.
  */
 export interface MetricSnapshot {
+  stellarSubmissionsTotal?: number;
+  stellarSubmissionsFailed?: number;
+  dlqDepth?: number;
   tenantId: string;
   streamCreations: number;
   settleAttempts: number;
@@ -9,6 +12,8 @@ export interface MetricSnapshot {
 }
 
 export interface AnomalyThresholds {
+  submissionFailureThreshold?: number;
+  maxDlqDepth?: number;
   creationBurstLimit: number; // e.g., new streams per hour
   settleRateLimit: number;    // e.g., settle attempts per hour
 }

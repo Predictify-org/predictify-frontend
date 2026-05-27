@@ -2,14 +2,9 @@ import { OnChainStream, OnChainCancellationResult, ContractStreamStatus } from '
 
 /**
  * Mock On-Chain Client for StreamPay.
- *
- * In production this wraps the Stellar SDK / Soroban RPC client.
- * All amounts are i128 raw units — no per-decimal logic here.
- *
- * Two streams intentionally use different tokens to demonstrate that
- * cancel_stream (and all other money paths) keep escrow fully isolated:
- *   stream_1 → XLM
- *   stream_2 → USDC:GA5Z...
+ * In production, this should be replaced with a Soroban RPC-backed adapter.
+ * See `contracts/contracts/streampay-stream/README.md` for the contract
+ * deployment guide and the expected `OnChainStream` field mapping.
  */
 export const onChainClient = {
   async fetchStream(streamId: string): Promise<OnChainStream | null> {
