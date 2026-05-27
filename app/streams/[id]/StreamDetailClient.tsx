@@ -8,7 +8,7 @@ import { NetworkBadge } from "../../components/NetworkBadge";
 import { PaymentTimeline } from "../../components/PaymentTimeline";
 import { ErrorToast } from "../../components/ErrorToast";
 import { fetchWithIdempotency } from "../../../lib/apiClient";
-import { isStreamPayError, formatErrorForDisplay } from "../../lib/errors";
+import { isStreamPayError, normalizeError } from "../../lib/errors";
 import type { StreamPayError } from "../../lib/errors";
 
 type StreamDetailClientProps = {
@@ -134,7 +134,7 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
     } catch (err: unknown) {
       const normalizedError = isStreamPayError(err) 
         ? err 
-        : formatErrorForDisplay(err as StreamPayError);
+        : normalizeError(err);
       
       if (process.env.NODE_ENV === 'development') {
         console.error('Stream action failed:', err);
@@ -164,7 +164,7 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
               {stream.label || "Payment Stream"}
             </h1>
             <div className="detail-badges-wrap">
-              <StatusBadge status={stream.status as StreamStatus} />
+              <StatusBadge status={(stream.status === "withdrawn" ? "ended" : stream.status) as any} />
               <NetworkBadge showLabel={true} />
             </div>
           </div>
