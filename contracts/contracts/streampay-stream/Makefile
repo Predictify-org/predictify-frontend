@@ -2,7 +2,7 @@ default: build
 
 all: test
 
-test:
+test: build
 	cargo test
 
 build:
