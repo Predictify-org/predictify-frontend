@@ -7,6 +7,23 @@ use soroban_sdk::{
     Address, Env,
 };
 
+#[derive(Debug)]
+struct BudgetSnapshot {
+    cpu_instructions: u64,
+    memory_bytes: u64,
+    disk_read_entries: u32,
+    memory_read_entries: u32,
+    write_entries: u32,
+    disk_read_bytes: u32,
+    write_bytes: u32,
+}
+
+impl BudgetSnapshot {
+    fn total_read_entries(&self) -> u32 {
+        self.disk_read_entries + self.memory_read_entries
+    }
+}
+
 struct TestData {
     env: Env,
     client: ContractClient<'static>,
@@ -50,6 +67,80 @@ macro_rules! assert_contract_error {
             other => panic!("expected contract error {:?}, got {:?}", $expected, other),
         }
     };
+}
+
+fn measure_invocation<T>(env: &Env, invoke: impl FnOnce() -> T) -> (T, BudgetSnapshot) {
+    let mut budget = env.cost_estimate().budget();
+    budget.reset_unlimited();
+
+    let result = invoke();
+
+    let budget = env.cost_estimate().budget();
+    let resources = env.cost_estimate().resources();
+    let snapshot = BudgetSnapshot {
+        cpu_instructions: budget.cpu_instruction_cost(),
+        memory_bytes: budget.memory_bytes_cost(),
+        disk_read_entries: resources.disk_read_entries,
+        memory_read_entries: resources.memory_read_entries,
+        write_entries: resources.write_entries,
+        disk_read_bytes: resources.disk_read_bytes,
+        write_bytes: resources.write_bytes,
+    };
+
+    (result, snapshot)
+}
+
+fn assert_budget_ceiling(
+    snapshot: &BudgetSnapshot,
+    max_cpu_instructions: u64,
+    max_memory_bytes: u64,
+    max_total_read_entries: u32,
+    max_write_entries: u32,
+    max_disk_read_bytes: u32,
+    max_write_bytes: u32,
+) {
+    assert!(
+        snapshot.cpu_instructions <= max_cpu_instructions,
+        "cpu instructions {} exceeded ceiling {}: {:?}",
+        snapshot.cpu_instructions,
+        max_cpu_instructions,
+        snapshot
+    );
+    assert!(
+        snapshot.memory_bytes <= max_memory_bytes,
+        "memory bytes {} exceeded ceiling {}: {:?}",
+        snapshot.memory_bytes,
+        max_memory_bytes,
+        snapshot
+    );
+    assert!(
+        snapshot.total_read_entries() <= max_total_read_entries,
+        "read entries {} exceeded ceiling {}: {:?}",
+        snapshot.total_read_entries(),
+        max_total_read_entries,
+        snapshot
+    );
+    assert!(
+        snapshot.write_entries <= max_write_entries,
+        "write entries {} exceeded ceiling {}: {:?}",
+        snapshot.write_entries,
+        max_write_entries,
+        snapshot
+    );
+    assert!(
+        snapshot.disk_read_bytes <= max_disk_read_bytes,
+        "disk read bytes {} exceeded ceiling {}: {:?}",
+        snapshot.disk_read_bytes,
+        max_disk_read_bytes,
+        snapshot
+    );
+    assert!(
+        snapshot.write_bytes <= max_write_bytes,
+        "write bytes {} exceeded ceiling {}: {:?}",
+        snapshot.write_bytes,
+        max_write_bytes,
+        snapshot
+    );
 }
 
 #[test]
@@ -231,4 +322,71 @@ fn blocked_token_returns_token_not_allowed() {
             .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &10, &true,),
         Error::TokenNotAllowed
     );
+}
+
+#[test]
+fn budget_create_stream_stays_within_ceiling() {
+    let data = setup();
+    data.client.initialize(&data.admin);
+
+    let (stream_id, snapshot) = measure_invocation(&data.env, || {
+        data.client.create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.token,
+            &1_000,
+            &100,
+            &false,
+        )
+    });
+
+    assert_eq!(stream_id, 1);
+    assert_budget_ceiling(&snapshot, 270_000, 45_000, 9, 5, 100, 1_400);
+}
+
+#[test]
+fn budget_withdraw_stays_within_ceiling() {
+    let data = setup();
+    data.client.initialize(&data.admin);
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+    data.env.ledger().set_timestamp(1_050);
+
+    let (withdrawn, snapshot) =
+        measure_invocation(&data.env, || data.client.withdraw(&stream_id, &500));
+
+    assert_eq!(withdrawn, 500);
+    assert_budget_ceiling(&snapshot, 275_000, 45_000, 8, 4, 100, 1_100);
+}
+
+#[test]
+fn budget_full_withdraw_settle_stays_within_ceiling() {
+    let data = setup();
+    data.client.initialize(&data.admin);
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+    data.env.ledger().set_timestamp(1_100);
+
+    let (withdrawn, snapshot) =
+        measure_invocation(&data.env, || data.client.withdraw(&stream_id, &1_000));
+
+    assert_eq!(withdrawn, 1_000);
+    assert_budget_ceiling(&snapshot, 275_000, 45_000, 8, 4, 100, 1_100);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.status, StreamStatus::Settled);
 }

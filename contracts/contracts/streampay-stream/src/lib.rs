@@ -1,70 +1,35 @@
 #![no_std]
 
 mod error;
+mod storage;
 
 use core::cmp::min;
 
 pub use error::Error;
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
+use soroban_sdk::{contract, contractimpl, token, Address, Env};
+pub use storage::{Stream, StreamStatus};
 
 #[contract]
 pub struct Contract;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[contracttype]
-pub enum StreamStatus {
-    Draft,
-    Active,
-    Paused,
-    Settled,
-    Ended,
-    Cancelled,
-}
-
-#[derive(Clone, Debug)]
-#[contracttype]
-pub struct Stream {
-    pub id: u64,
-    pub sender: Address,
-    pub recipient: Address,
-    pub token: Address,
-    pub total_amount: i128,
-    pub released_amount: i128,
-    pub start_time: u64,
-    pub end_time: u64,
-    pub duration: u64,
-    pub last_update: u64,
-    pub status: StreamStatus,
-}
-
-#[derive(Clone)]
-#[contracttype]
-enum DataKey {
-    Admin,
-    Paused,
-    NextStreamId,
-    Stream(u64),
-    TokenAllowed(Address),
-}
 
 #[contractimpl]
 impl Contract {
     /// Initializes contract administration for pause and token allow-listing.
     pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
-        if env.storage().persistent().has(&DataKey::Admin) {
+        if storage::has_admin(&env) {
             return Err(Error::InvalidState);
         }
 
         admin.require_auth();
-        env.storage().persistent().set(&DataKey::Admin, &admin);
-        env.storage().persistent().set(&DataKey::Paused, &false);
+        storage::set_admin(&env, &admin);
+        storage::set_paused(&env, false);
         Ok(())
     }
 
     /// Sets the emergency pause flag. Only the initialized admin may call this.
     pub fn set_paused(env: Env, admin: Address, paused: bool) -> Result<(), Error> {
         require_admin(&env, &admin)?;
-        env.storage().persistent().set(&DataKey::Paused, &paused);
+        storage::set_paused(&env, paused);
         Ok(())
     }
 
@@ -76,9 +41,7 @@ impl Contract {
         allowed: bool,
     ) -> Result<(), Error> {
         require_admin(&env, &admin)?;
-        env.storage()
-            .persistent()
-            .set(&DataKey::TokenAllowed(token), &allowed);
+        storage::set_token_allowed(&env, &token, allowed);
         Ok(())
     }
 
@@ -104,7 +67,7 @@ impl Contract {
             return Err(Error::InvalidAmount);
         }
 
-        if is_token_blocked(&env, &token) {
+        if storage::is_token_blocked(&env, &token) {
             return Err(Error::TokenNotAllowed);
         }
 
@@ -112,7 +75,7 @@ impl Contract {
             return Err(Error::InvalidTimeRange);
         }
 
-        let id = next_stream_id(&env);
+        let id = storage::next_stream_id(&env);
         let now = env.ledger().timestamp();
         let (start_time, end_time, last_update, status) = if draft {
             (0, 0, 0, StreamStatus::Draft)
@@ -124,12 +87,9 @@ impl Contract {
                 StreamStatus::Active,
             )
         };
+        let contract_address = env.current_contract_address();
 
-        token::Client::new(&env, &token).transfer(
-            &sender,
-            &env.current_contract_address(),
-            &total_amount,
-        );
+        token::Client::new(&env, &token).transfer(&sender, &contract_address, &total_amount);
 
         let stream = Stream {
             id,
@@ -145,12 +105,7 @@ impl Contract {
             status,
         };
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(id), &stream);
-        env.storage()
-            .persistent()
-            .set(&DataKey::NextStreamId, &(id + 1));
+        storage::set_stream(&env, id, &stream);
 
         Ok(id)
     }
@@ -177,9 +132,7 @@ impl Contract {
             .checked_add(stream.duration)
             .ok_or(Error::InvalidTimeRange)?;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(stream_id), &stream);
+        storage::set_stream(&env, stream_id, &stream);
 
         Ok(stream)
     }
@@ -195,7 +148,7 @@ impl Contract {
     /// `start_stream` anchors the activation time.
     pub fn withdrawable(env: Env, stream_id: u64) -> Result<i128, Error> {
         let stream = get_existing_stream(&env, stream_id)?;
-        Ok(withdrawable_amount(&env, &stream))
+        Ok(withdrawable_amount(env.ledger().timestamp(), &stream))
     }
 
     /// Withdraws accrued escrow to the recipient.
@@ -216,13 +169,14 @@ impl Contract {
             return Err(Error::InvalidState);
         }
 
-        let available = withdrawable_amount(&env, &stream);
+        let now = env.ledger().timestamp();
+        let available = withdrawable_amount(now, &stream);
         if amount > available {
             return Err(Error::OverWithdraw);
         }
 
         stream.released_amount += amount;
-        stream.last_update = env.ledger().timestamp();
+        stream.last_update = now;
 
         if stream.released_amount == stream.total_amount {
             stream.status = StreamStatus::Settled;
@@ -234,34 +188,21 @@ impl Contract {
             &amount,
         );
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(stream_id), &stream);
+        storage::set_stream(&env, stream_id, &stream);
 
         Ok(amount)
     }
 }
 
-fn next_stream_id(env: &Env) -> u64 {
-    match env.storage().persistent().get(&DataKey::NextStreamId) {
-        Some(id) => id,
-        None => 1,
-    }
-}
-
 fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
-    env.storage()
-        .persistent()
-        .get(&DataKey::Stream(stream_id))
-        .ok_or(Error::NotFound)
+    storage::get_stream(env, stream_id).ok_or(Error::NotFound)
 }
 
-fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
+fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
     if stream.status != StreamStatus::Active || stream.start_time == 0 {
         return 0;
     }
 
-    let now = env.ledger().timestamp();
     let elapsed = min(now, stream.end_time) - stream.start_time;
     let accrued = (stream.total_amount * elapsed as i128) / stream.duration as i128;
 
@@ -271,11 +212,7 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
     caller.require_auth();
 
-    let admin: Address = env
-        .storage()
-        .persistent()
-        .get(&DataKey::Admin)
-        .ok_or(Error::NotFound)?;
+    let admin: Address = storage::get_admin(env).ok_or(Error::NotFound)?;
 
     if admin != *caller {
         return Err(Error::Unauthorized);
@@ -285,27 +222,11 @@ fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
 }
 
 fn require_not_paused(env: &Env) -> Result<(), Error> {
-    let paused = match env.storage().persistent().get(&DataKey::Paused) {
-        Some(value) => value,
-        None => false,
-    };
-
-    if paused {
+    if storage::is_paused(env) {
         return Err(Error::ContractPaused);
     }
 
     Ok(())
-}
-
-fn is_token_blocked(env: &Env, token: &Address) -> bool {
-    match env
-        .storage()
-        .persistent()
-        .get::<DataKey, bool>(&DataKey::TokenAllowed(token.clone()))
-    {
-        Some(allowed) => !allowed,
-        None => false,
-    }
 }
 
 #[cfg(test)]
