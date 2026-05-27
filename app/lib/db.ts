@@ -34,6 +34,8 @@ const initialStreams: Stream[] = [
     email: "ada@creativestudio.io",
     label: "Design Retainer Q2",
     partnerId: "PARTNER-123",
+    // Native XLM stream — default token.
+    token: "XLM",
   },
   {
     id: "stream-kemi",
@@ -46,6 +48,7 @@ const initialStreams: Stream[] = [
     updatedAt: "2026-04-28T11:00:00Z",
     email: "kemi@onboarding.io",
     memo: "April Support batch",
+    token: "XLM",
   },
   {
     id: "stream-yusuf",
@@ -56,6 +59,7 @@ const initialStreams: Stream[] = [
     nextAction: "withdraw",
     createdAt: "2026-04-15T08:00:00Z",
     updatedAt: "2026-04-27T20:00:00Z",
+    token: "XLM",
   },
 ];
 

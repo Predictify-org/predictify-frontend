@@ -726,16 +726,28 @@
           "status": { "$ref": "#/components/schemas/StreamStatus" },
           "nextAction": { "$ref": "#/components/schemas/StreamAction" },
           "createdAt": { "type": "string", "format": "date-time" },
-          "updatedAt": { "type": "string", "format": "date-time" }
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "token": {
+            "type": "string",
+            "description": "SEP-41 token address for this stream's escrow. Use 'XLM' for native lumens or 'CODE:ISSUER' for any Stellar Classic asset (e.g. 'USDC:GA5Z...'). Amounts are always i128 raw units — no per-decimal logic in the contract layer. Defaults to 'XLM' when omitted.",
+            "example": "XLM",
+            "default": "XLM"
+          }
         },
-        "required": ["id", "recipient", "rate", "schedule", "status", "createdAt", "updatedAt"]
+        "required": ["id", "recipient", "rate", "schedule", "status", "createdAt", "updatedAt", "token"]
       },
       "CreateStreamRequest": {
         "type": "object",
         "properties": {
           "recipient": { "type": "string", "description": "Recipient name or label", "example": "Ada Creative Studio" },
           "rate": { "type": "string", "description": "Payment rate and interval", "example": "120 XLM / month" },
-          "schedule": { "type": "string", "description": "Human-readable payment schedule", "example": "Pays every 30 days" }
+          "schedule": { "type": "string", "description": "Human-readable payment schedule", "example": "Pays every 30 days" },
+          "token": {
+            "type": "string",
+            "description": "SEP-41 token address for this stream's escrow. Accepts 'XLM', 'native', or 'CODE:ISSUER' (e.g. 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335XOP3IA2M3QC2ED2AAA7Z5TJH'). When an admin allowlist is configured, only listed tokens are accepted. Defaults to 'XLM'.",
+            "example": "XLM",
+            "default": "XLM"
+          }
         },
         "required": ["recipient", "rate", "schedule"]
       },

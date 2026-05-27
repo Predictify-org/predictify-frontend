@@ -4,9 +4,15 @@ import { getCorrelationContext, logger } from "@/app/lib/logger";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
+import { checkTokenAllowed, normaliseToken } from "@/app/lib/token-allowlist";
 
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
+}
+
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
 }
 
 function getRequestUrl(request: Request, fallbackPath: string): URL {
@@ -89,10 +95,17 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { rate, recipient, schedule } = body as {
+    const { rate, recipient, schedule, token: rawToken } = body as {
       rate?: string;
       recipient?: string;
       schedule?: string;
+      /**
+       * SEP-41 token address for this stream's escrow.
+       * Accepts "XLM", "native", or "CODE:ISSUER" (e.g. "USDC:GA5Z...").
+       * Defaults to "XLM" when omitted.
+       * Amounts are i128 raw units — no per-decimal logic in the contract.
+       */
+      token?: string;
     };
 
     if (!recipient || !rate || !schedule) {
@@ -101,6 +114,26 @@ export async function POST(request: Request) {
       });
       return createErrorResponse("VALIDATION_ERROR", "Missing required fields: recipient, rate, schedule", 422);
     }
+
+    // ── SEP-41 token validation ──────────────────────────────────────────────
+    // Normalise the token (defaults to XLM) and check against the allowlist.
+    // The allowlist is admin-gated: when empty (disabled) every well-formed
+    // token is accepted; when non-empty only listed tokens are accepted.
+    const tokenStr = rawToken?.trim() || "XLM";
+    let normalisedToken: string;
+    try {
+      normalisedToken = normaliseToken(tokenStr);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return createErrorResponse("INVALID_TOKEN", `Invalid token format: ${msg}`, 422);
+    }
+
+    const allowlistResult = checkTokenAllowed(normalisedToken);
+    if (!allowlistResult.accepted) {
+      logger.warn("Stream creation rejected: token not in allowlist", { token: normalisedToken });
+      return createErrorResponse("TOKEN_NOT_ALLOWED", allowlistResult.reason, 422);
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
@@ -113,6 +146,10 @@ export async function POST(request: Request) {
       schedule,
       status: "draft" as const,
       updatedAt: now,
+      // Each stream carries its own SEP-41 token address.  Every subsequent
+      // money-movement operation (withdraw, settle, cancel) MUST use this
+      // field to construct its token client — never a hardcoded asset.
+      token: normalisedToken,
     };
 
     db.streams.set(id, newStream);
@@ -126,38 +163,4 @@ export async function POST(request: Request) {
   } catch {
     return errorResponse("INVALID_REQUEST", "Request body must be valid JSON", 400);
   }
-
-  const { recipient, rate, schedule } = body as {
-    recipient?: string;
-    rate?: string;
-    schedule?: string;
-  };
-
-  if (!recipient || !rate || !schedule) {
-    return errorResponse(
-      "VALIDATION_ERROR",
-      "Missing required fields: recipient, rate, schedule",
-      422,
-    );
-  }
-
-  const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
-  const now = new Date().toISOString();
-  const newStream = {
-    id,
-    recipient: String(recipient),
-    rate: String(rate),
-    schedule: String(schedule),
-    status: "draft" as const,
-    nextAction: "start" as const,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  db.streams.set(id, newStream);
-
-  const payload = { data: newStream, links: { self: `/api/v1/streams/${id}` } };
-  if (token) db.idempotency.set(token, payload);
-
-  return NextResponse.json(payload, { status: 201 });
 }

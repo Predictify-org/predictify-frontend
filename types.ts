@@ -34,6 +34,16 @@ export enum ContractStreamStatus {
 export interface OnChainStream {
   id: string;
   recipient_address: string;
+  /**
+   * SEP-41 token address for this stream's escrow.
+   *
+   * - "XLM" or "native" → Stellar native lumens.
+   * - "CODE:ISSUER"      → Any SEP-41 / Stellar Classic asset.
+   *
+   * Amounts (`total_amount`, `released_amount`, `velocity`) are always i128
+   * raw units — no per-decimal logic in the contract layer.
+   */
+  token: string;
   total_amount: bigint;
   released_amount: bigint;
   velocity: bigint;

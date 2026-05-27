@@ -11,6 +11,7 @@ export const onChainClient = {
       "stream_1": {
         id: "stream_1",
         recipient_address: "GDVLR...123",
+        token: "XLM",
         total_amount: 1000000000n,
         released_amount: 500000000n,
         velocity: 100n,
@@ -20,6 +21,8 @@ export const onChainClient = {
       "stream_2": {
         id: "stream_2",
         recipient_address: "GDVLR...456",
+        // Different token from stream_1 — fully isolated escrow.
+        token: "USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335XOP3IA2M3QC2ED2AAA7Z5TJH",
         total_amount: 2000000000n,
         released_amount: 1100000000n, // Intentional mismatch for testing
         velocity: 200n,

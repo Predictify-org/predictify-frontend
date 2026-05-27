@@ -4,11 +4,17 @@ import { db, idempotencyToken, withLock } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { getStellarSettlementClient } from "@/app/lib/stellar";
+import { getTokenClientForStream } from "@/app/lib/sep41-token-client";
 
 type Context = { params: Promise<{ id: string }> };
 
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
+}
+
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
 }
 
 function getHeader(request: Request, name: string): string | null {
@@ -76,13 +82,22 @@ export async function POST(
     db.streams.set(id, updatedStream);
 
     try {
-      const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
+      // Obtain the token client bound to THIS stream's token address.
+      // Never mix token clients across streams — each stream escrows its own
+      // SEP-41 asset independently.
+      const tokenClient = getTokenClientForStream(stream);
+      const settlement = await getStellarSettlementClient().settleStream({
+        streamId: id,
+        token: tokenClient.tokenAddress,
+      });
       recordPrivilegedStreamAuditEvent({
         action: "stream.settle",
         after: updatedStream,
         before,
         metadata: {
           settlementTxHash: settlement.txHash,
+          // Record which token was settled so the audit trail is unambiguous.
+          token: tokenClient.tokenAddress,
         },
         request,
         streamId: id,
