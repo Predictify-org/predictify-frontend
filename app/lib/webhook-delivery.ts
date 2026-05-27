@@ -388,7 +388,7 @@ export class WebhookDeliveryClient {
 
         if (success) {
           this.recordSuccess(endpoint.id);
-          return { success: true, statusCode };
+          return { success: true, statusCode, shouldRetry: false };
         }
 
         const shouldRetry = isRetryableStatus(statusCode);

@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { db, encodeCursor, decodeCursor } from "@/app/lib/db";
 import { getClientIdentity, checkRateLimit, rateLimitResponse } from "@/app/lib/rate-limit";
 import { recordThrottle, recordRequest } from "@/app/lib/rate-limit-metrics";
@@ -42,25 +42,18 @@ export async function GET(request: Request) {
     if (type) {
       events = events.filter((e) => e.type === type);
     }
+  }
 
-    if (cursor) {
-      const cursorId = decodeCursor(cursor);
-      const cursorIndex = events.findIndex((e) => e.id === cursorId);
-      if (cursorIndex >= 0) {
-        events = events.slice(cursorIndex + 1);
-      }
-    }
-
-    const paginatedEvents = events.slice(0, limit);
-    const hasNext = events.length > limit;
-    const nextCursor = hasNext && paginatedEvents.length > 0 ? encodeCursor(paginatedEvents[paginatedEvents.length - 1].id) : null;
+  const paginatedEvents = events.slice(0, limit);
+  const hasNext = events.length > limit;
+  const nextCursor = hasNext && paginatedEvents.length > 0 ? encodeCursor(paginatedEvents[paginatedEvents.length - 1].id) : null;
 
     logger.info("Activity list completed", { count: paginatedEvents.length, total: db.activity.size });
 
-    return NextResponse.json({
-      data: paginatedEvents,
-      meta: { hasNext, nextCursor, total: db.activity.size },
-      links: { self: `/api/v1/activity?limit=${limit}` },
-    });
+  return NextResponse.json({
+    data: paginatedEvents,
+    meta: { hasNext, nextCursor, total: db.activity.size },
+    links: { self: `/api/v1/activity?limit=${limit}` },
   });
 }
+

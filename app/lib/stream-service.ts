@@ -50,7 +50,7 @@ export class StreamService {
     // Emit event for real-time updates
     const { eventBus } = require("./event-bus");
     eventBus.emitStreamUpdated(streamId, stream);
-    if (stream.status === "settled" || stream.status === "ended") {
+    if ((stream.status as string) === "settled" || stream.status === "ended") {
       eventBus.emitSettleFinished(streamId, stream);
     }
 

@@ -7,8 +7,13 @@ import { getStellarSettlementClient } from "@/app/lib/stellar";
 
 type Context = { params: Promise<{ id: string }> };
 
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
+}
+
 function errorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message } }, { status });
+  return createErrorResponse(code, message, status);
 }
 
 function getHeader(request: Request, name: string): string | null {
@@ -79,8 +84,8 @@ export async function POST(
       const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
       recordPrivilegedStreamAuditEvent({
         action: "stream.settle",
-        after: updatedStream,
-        before,
+        after: updatedStream as unknown as Record<string, unknown>,
+        before: before as unknown as Record<string, unknown>,
         metadata: {
           settlementTxHash: settlement.txHash,
         },
