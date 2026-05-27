@@ -8,3 +8,4 @@ coverage/
 .codex
 *.log
 .DS_Store
+contracts/target/

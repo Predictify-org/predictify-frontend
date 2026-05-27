@@ -166,6 +166,13 @@ export class WebhookDeliveryStore {
   }
 
   /**
+   * Get all delivery records
+   */
+  getAllDeliveries(): WebhookDeliveryRecord[] {
+    return Array.from(this.deliveries.values());
+  }
+
+  /**
    * Get all deliveries for an endpoint
    */
   getDeliveriesByEndpoint(endpointId: string): WebhookDeliveryRecord[] {

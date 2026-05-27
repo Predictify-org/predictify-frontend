@@ -27,6 +27,7 @@ export interface WebhookEndpoint {
   id: string;
   url: string;
   secret?: string;
+  previousSecrets?: string[];
   maxRetries: number;
   circuitBreakerThreshold?: number;
 }
@@ -192,47 +193,129 @@ export function isRetryableStatus(statusCode?: number): boolean {
 
 export function generateWebhookSignature(
   payload: string,
-  secret: string,
+  secret: string | string[],
   timestamp: string,
   deliveryId: string,
 ): string {
+  // Signature format: `t=timestamp,id=deliveryId,v1=signature[,v1=previousSignature]`
   const signableContent = `${timestamp}.${deliveryId}.${payload}`;
-  const signature = crypto
-    .createHmac('sha256', secret)
-    .update(signableContent)
-    .digest('hex');
-  return `t=${timestamp},id=${deliveryId},v1=${signature}`;
+  const signatures = normalizeSigningSecrets(secret).map((signingSecret) => {
+    const signature = crypto
+      .createHmac('sha256', signingSecret)
+      .update(signableContent)
+      .digest('hex');
+
+    return `v1=${signature}`;
+  });
+
+  return `t=${timestamp},id=${deliveryId},${signatures.join(',')}`;
 }
 
 export function verifyWebhookSignature(
   payload: string,
-  secret: string,
+  secret: string | string[],
   signatureHeader: string,
   timestamp: string,
   deliveryId: string,
   toleranceMs = 300_000,
 ): boolean {
-  const requestTime = parseInt(timestamp, 10);
-  if (isNaN(requestTime) || Math.abs(Date.now() - requestTime) > toleranceMs) return false;
+  // Check timestamp freshness
+  const requestTime = parseWebhookTimestampMs(timestamp);
+  const now = Date.now();
+  if (!requestTime || Math.abs(now - requestTime) > toleranceMs) {
+    return false;
+  }
 
-  const parts = signatureHeader.split(',').reduce((acc, part) => {
-    const [key, value] = part.split('=');
-    acc[key] = value;
-    return acc;
-  }, {} as Record<string, string>);
+  const parts = parseWebhookSignatureHeader(signatureHeader);
 
-  if (!parts.v1 || parts.id !== deliveryId || parts.t !== timestamp) return false;
+  if (parts.signatures.length === 0 || parts.id !== deliveryId || parts.t !== timestamp) {
+    return false;
+  }
 
-  const expected = generateWebhookSignature(payload, secret, timestamp, deliveryId);
-  const expectedSig = expected.split('v1=')[1];
+  const expectedSignatures = normalizeSigningSecrets(secret)
+    .map((signingSecret) => generateWebhookSignature(payload, signingSecret, timestamp, deliveryId))
+    .flatMap((header) => parseWebhookSignatureHeader(header).signatures);
 
-  return crypto.timingSafeEqual(
-    Buffer.from(parts.v1, 'hex'),
-    Buffer.from(expectedSig, 'hex'),
+  return parts.signatures.some((providedSignature) =>
+    expectedSignatures.some((expectedSignature) =>
+      signaturesMatch(providedSignature, expectedSignature)
+    )
   );
 }
 
-// ── Delivery client ───────────────────────────────────────────────────────────
+function normalizeSigningSecrets(secret: string | string[]): string[] {
+  const secrets = Array.isArray(secret) ? secret : [secret];
+  return secrets.filter((value) => value.length > 0);
+}
+
+function parseWebhookTimestampMs(timestamp: string): number | null {
+  if (!/^\d+$/.test(timestamp)) {
+    return null;
+  }
+
+  const seconds = Number(timestamp);
+  if (!Number.isSafeInteger(seconds)) {
+    return null;
+  }
+
+  return seconds * 1000;
+}
+
+function parseWebhookSignatureHeader(signatureHeader: string): {
+  t?: string;
+  id?: string;
+  signatures: string[];
+} {
+  return signatureHeader.split(',').reduce(
+    (acc, part) => {
+      const separatorIndex = part.indexOf('=');
+      if (separatorIndex === -1) {
+        return acc;
+      }
+
+      const key = part.slice(0, separatorIndex).trim();
+      const value = part.slice(separatorIndex + 1).trim();
+
+      if (key === 'v1') {
+        acc.signatures.push(value);
+      } else if (key === 't' || key === 'id') {
+        acc[key] = value;
+      }
+
+      return acc;
+    },
+    { signatures: [] } as { t?: string; id?: string; signatures: string[] }
+  );
+}
+
+function signaturesMatch(providedSignature: string, expectedSignature: string): boolean {
+  if (!/^[a-f0-9]{64}$/i.test(providedSignature) || !/^[a-f0-9]{64}$/i.test(expectedSignature)) {
+    return false;
+  }
+
+  const provided = Buffer.from(providedSignature, 'hex');
+  const expected = Buffer.from(expectedSignature, 'hex');
+
+  if (provided.length !== expected.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(provided, expected);
+}
+
+/**
+ * HTTP status code classification
+ */
+export function isRetryableStatus(statusCode?: number): boolean {
+  if (!statusCode) return true; // Network errors are retryable
+
+  // Retry on 5xx and specific 4xx errors
+  if (statusCode >= 500) return true;
+  if (statusCode === 408) return true; // Request Timeout
+  if (statusCode === 429) return true; // Too Many Requests
+
+  // Do not retry on other 4xx errors (client errors)
+  if (statusCode >= 400 && statusCode < 500) return false;
 
 export class WebhookDeliveryClient {
   private retryConfig: RetryConfig;
@@ -335,9 +418,27 @@ export class WebhookDeliveryClient {
         correlation_id: context?.correlation_id,
       });
 
-      if (success) {
-        this.recordSuccess(endpoint.id);
-        return { success: true, statusCode, shouldRetry: false };
+      // Prepare headers
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'User-Agent': 'StreamPay-Webhook-Client/1.0',
+        'X-StreamPay-Delivery-Id': deliveryId,
+        'X-StreamPay-Event-Id': event.id,
+        'X-StreamPay-Event-Type': event.eventType,
+        'X-StreamPay-Nonce': `${event.id}:${deliveryId}:${attemptNumber}`,
+        'X-StreamPay-Timestamp': timestamp,
+        'X-StreamPay-Attempt': attemptNumber.toString(),
+      };
+
+      // Sign with HMAC per attempt
+      if (endpoint.secret) {
+        const signature = generateWebhookSignature(
+          payload,
+          [endpoint.secret, ...(endpoint.previousSecrets ?? [])],
+          timestamp,
+          deliveryId
+        );
+        headers['X-StreamPay-Signature'] = signature;
       }
 
       const retryable = isRetryableStatus(statusCode);
@@ -364,7 +465,68 @@ export class WebhookDeliveryClient {
           delivery_id: deliveryId, attempt: attemptNumber,
           correlation_id: context?.correlation_id,
         });
-      } else {
+
+        if (success) {
+          this.recordSuccess(endpoint.id);
+          return { success: true, statusCode, shouldRetry: false };
+        }
+
+        const shouldRetry = isRetryableStatus(statusCode);
+        this.recordFailure(endpoint.id);
+
+        if (shouldRetry && attemptNumber < this.retryConfig.maxRetries) {
+          const nextDelay = calculateNextRetryDelay(attemptNumber, this.retryConfig);
+          const nextRetryAt = new Date(Date.now() + nextDelay).toISOString();
+          return {
+            success: false,
+            statusCode,
+            shouldRetry: true,
+            nextRetryAt,
+            error: `HTTP ${statusCode}`,
+          };
+        }
+
+        return {
+          success: false,
+          statusCode,
+          shouldRetry: false,
+          error: `HTTP ${statusCode}: ${response.statusText}`,
+        };
+      } catch (error) {
+        clearTimeout(timeoutId);
+
+        if (error instanceof Error && error.name === 'AbortError') {
+          const errorMsg = 'Request timeout (30s)';
+          logger.warn('Webhook delivery timeout', {
+            delivery_id: deliveryId,
+            endpoint_id: endpoint.id,
+            endpoint_url: endpoint.url,
+            event_id: event.id,
+            attempt: attemptNumber,
+            correlation_id: context?.correlation_id,
+          });
+
+          this.recordFailure(endpoint.id);
+
+          if (attemptNumber < this.retryConfig.maxRetries) {
+            const nextDelay = calculateNextRetryDelay(attemptNumber, this.retryConfig);
+            const nextRetryAt = new Date(Date.now() + nextDelay).toISOString();
+            return {
+              success: false,
+              shouldRetry: true,
+              nextRetryAt,
+              error: errorMsg,
+            };
+          }
+
+          return {
+            success: false,
+            shouldRetry: false,
+            error: errorMsg,
+          };
+        }
+
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         logger.error('Webhook delivery error', {
           delivery_id: deliveryId, attempt: attemptNumber, error: errorMsg,
           correlation_id: context?.correlation_id,
