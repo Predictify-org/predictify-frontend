@@ -5,8 +5,13 @@ import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 
 type Context = { params: Promise<{ id: string }> };
 
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
+}
+
 function errorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message } }, { status });
+  return createErrorResponse(code, message, status);
 }
 
 function getHeader(request: Request, name: string): string | null {

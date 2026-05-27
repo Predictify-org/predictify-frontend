@@ -9,6 +9,7 @@ export interface WebhookEndpoint {
   id: string;
   url: string;
   secret?: string;
+  previousSecrets?: string[];
   maxRetries: number;
   circuitBreakerThreshold?: number; // consecutive failures before circuit opens
 }
@@ -108,18 +109,22 @@ export function calculateNextRetryDelay(
  */
 export function generateWebhookSignature(
   payload: string,
-  secret: string,
+  secret: string | string[],
   timestamp: string,
   deliveryId: string
 ): string {
-  // Signature format: `t=timestamp,id=deliveryId,v1=signature`
+  // Signature format: `t=timestamp,id=deliveryId,v1=signature[,v1=previousSignature]`
   const signableContent = `${timestamp}.${deliveryId}.${payload}`;
-  const signature = crypto
-    .createHmac('sha256', secret)
-    .update(signableContent)
-    .digest('hex');
+  const signatures = normalizeSigningSecrets(secret).map((signingSecret) => {
+    const signature = crypto
+      .createHmac('sha256', signingSecret)
+      .update(signableContent)
+      .digest('hex');
 
-  return `t=${timestamp},id=${deliveryId},v1=${signature}`;
+    return `v1=${signature}`;
+  });
+
+  return `t=${timestamp},id=${deliveryId},${signatures.join(',')}`;
 }
 
 /**
@@ -127,38 +132,94 @@ export function generateWebhookSignature(
  */
 export function verifyWebhookSignature(
   payload: string,
-  secret: string,
+  secret: string | string[],
   signatureHeader: string,
   timestamp: string,
   deliveryId: string,
   toleranceMs: number = 300000 // 5 minutes
 ): boolean {
   // Check timestamp freshness
-  const requestTime = parseInt(timestamp, 10);
+  const requestTime = parseWebhookTimestampMs(timestamp);
   const now = Date.now();
-  if (isNaN(requestTime) || Math.abs(now - requestTime) > toleranceMs) {
+  if (!requestTime || Math.abs(now - requestTime) > toleranceMs) {
     return false;
   }
 
-  // Parse signature header
-  const parts = signatureHeader.split(',').reduce((acc, part) => {
-    const [key, value] = part.split('=');
-    acc[key] = value;
-    return acc;
-  }, {} as Record<string, string>);
+  const parts = parseWebhookSignatureHeader(signatureHeader);
 
-  if (!parts.v1 || parts.id !== deliveryId || parts.t !== timestamp) {
+  if (parts.signatures.length === 0 || parts.id !== deliveryId || parts.t !== timestamp) {
     return false;
   }
 
-  // Verify signature
-  const expected = generateWebhookSignature(payload, secret, timestamp, deliveryId);
-  const expectedSig = expected.split('v1=')[1];
-  
-  return crypto.timingSafeEqual(
-    Buffer.from(parts.v1, 'hex'),
-    Buffer.from(expectedSig, 'hex')
+  const expectedSignatures = normalizeSigningSecrets(secret)
+    .map((signingSecret) => generateWebhookSignature(payload, signingSecret, timestamp, deliveryId))
+    .flatMap((header) => parseWebhookSignatureHeader(header).signatures);
+
+  return parts.signatures.some((providedSignature) =>
+    expectedSignatures.some((expectedSignature) =>
+      signaturesMatch(providedSignature, expectedSignature)
+    )
   );
+}
+
+function normalizeSigningSecrets(secret: string | string[]): string[] {
+  const secrets = Array.isArray(secret) ? secret : [secret];
+  return secrets.filter((value) => value.length > 0);
+}
+
+function parseWebhookTimestampMs(timestamp: string): number | null {
+  if (!/^\d+$/.test(timestamp)) {
+    return null;
+  }
+
+  const seconds = Number(timestamp);
+  if (!Number.isSafeInteger(seconds)) {
+    return null;
+  }
+
+  return seconds * 1000;
+}
+
+function parseWebhookSignatureHeader(signatureHeader: string): {
+  t?: string;
+  id?: string;
+  signatures: string[];
+} {
+  return signatureHeader.split(',').reduce(
+    (acc, part) => {
+      const separatorIndex = part.indexOf('=');
+      if (separatorIndex === -1) {
+        return acc;
+      }
+
+      const key = part.slice(0, separatorIndex).trim();
+      const value = part.slice(separatorIndex + 1).trim();
+
+      if (key === 'v1') {
+        acc.signatures.push(value);
+      } else if (key === 't' || key === 'id') {
+        acc[key] = value;
+      }
+
+      return acc;
+    },
+    { signatures: [] } as { t?: string; id?: string; signatures: string[] }
+  );
+}
+
+function signaturesMatch(providedSignature: string, expectedSignature: string): boolean {
+  if (!/^[a-f0-9]{64}$/i.test(providedSignature) || !/^[a-f0-9]{64}$/i.test(expectedSignature)) {
+    return false;
+  }
+
+  const provided = Buffer.from(providedSignature, 'hex');
+  const expected = Buffer.from(expectedSignature, 'hex');
+
+  if (provided.length !== expected.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(provided, expected);
 }
 
 /**
@@ -290,13 +351,19 @@ export class WebhookDeliveryClient {
         'X-StreamPay-Delivery-Id': deliveryId,
         'X-StreamPay-Event-Id': event.id,
         'X-StreamPay-Event-Type': event.eventType,
+        'X-StreamPay-Nonce': `${event.id}:${deliveryId}:${attemptNumber}`,
         'X-StreamPay-Timestamp': timestamp,
         'X-StreamPay-Attempt': attemptNumber.toString(),
       };
 
       // Sign with HMAC per attempt
       if (endpoint.secret) {
-        const signature = generateWebhookSignature(payload, endpoint.secret, timestamp, deliveryId);
+        const signature = generateWebhookSignature(
+          payload,
+          [endpoint.secret, ...(endpoint.previousSecrets ?? [])],
+          timestamp,
+          deliveryId
+        );
         headers['X-StreamPay-Signature'] = signature;
       }
 
@@ -330,7 +397,7 @@ export class WebhookDeliveryClient {
 
         if (success) {
           this.recordSuccess(endpoint.id);
-          return { success: true, statusCode };
+          return { success: true, statusCode, shouldRetry: false };
         }
 
         const shouldRetry = isRetryableStatus(statusCode);
