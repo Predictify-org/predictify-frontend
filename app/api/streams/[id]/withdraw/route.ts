@@ -7,6 +7,7 @@ import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 import { evaluateWithdrawalState } from "@/app/lib/withdraw-finality";
+import { checkNotPaused } from "@/app/lib/admin-guard";
 
 function createErrorResponse(code: string, message: string, status: number) {
   const context = getCorrelationContext();
@@ -48,6 +49,11 @@ export async function POST(
   if (token && db.idempotency.has(token)) {
     return NextResponse.json(db.idempotency.get(token));
   }
+
+  // Global pause circuit breaker — withdraw is blocked when paused.
+  // cancel and settle remain allowed so recipients can always recover vested funds.
+  const pauseError = checkNotPaused("withdraw");
+  if (pauseError) return pauseError;
 
   return withLock(id, async () => {
     if (token && db.idempotency.has(token)) {
