@@ -89,6 +89,18 @@ eventually consistent; balances and account state may lag the chain by the cache
 Auth and write operations are never cached. Cache keys must include the tenant and account address to
 prevent cross-tenant data leakage.
 
+## Persistence seam
+
+Backend stream, idempotency, export, and activity state now sits behind a
+pluggable repository interface.
+
+- Default adapter: in-memory (`app/lib/repositories/in-memory.ts`)
+- Durable seam: PostgreSQL-oriented adapter contract (`app/lib/repositories/postgres.ts`)
+- Design notes and rollout plan: [docs/persistent-store-interface.md](docs/persistent-store-interface.md)
+
+The default runtime behavior remains in-memory until the SQL migration track
+cuts the durable adapter in.
+
 ## Prerequisites
 
 - Node.js 18+

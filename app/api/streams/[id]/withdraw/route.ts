@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
-import { db, idempotencyToken, withLock } from "@/app/lib/db";
+import { getStore, idempotencyToken, withLock } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
@@ -29,6 +29,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { idempotencyStore, streamRepository } = getStore();
   const { id } = await params;
   const url = getRequestUrl(request, `/api/streams/${id}/withdraw`);
   const limitType = getLimitForRoute("POST", url.pathname);
@@ -45,16 +46,16 @@ export async function POST(
   const idempotencyKey = getHeader(request, "Idempotency-Key");
   const token = idempotencyKey ? idempotencyToken(`streams.withdraw.${id}`, idempotencyKey) : null;
 
-  if (token && db.idempotency.has(token)) {
-    return NextResponse.json(db.idempotency.get(token));
+  if (token && idempotencyStore.has(token)) {
+    return NextResponse.json(idempotencyStore.get(token));
   }
 
   return withLock(id, async () => {
-    if (token && db.idempotency.has(token)) {
-      return NextResponse.json(db.idempotency.get(token));
+    if (token && idempotencyStore.has(token)) {
+      return NextResponse.json(idempotencyStore.get(token));
     }
 
-    const stream = db.streams.get(id);
+    const stream = streamRepository.streams.get(id);
     if (!stream) {
       return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
@@ -77,7 +78,7 @@ export async function POST(
       if (stream.status === "withdrawn") {
         const payload = { data: stream, withdrawal: stream.withdrawal };
         if (token) {
-          db.idempotency.set(token, payload);
+          idempotencyStore.set(token, payload);
         }
         return NextResponse.json(payload);
       }
@@ -86,7 +87,7 @@ export async function POST(
 
     const before = structuredClone(stream);
     const { alert, stream: updated } = await evaluateWithdrawalState(stream, new Date(), fetch);
-    db.streams.set(id, updated);
+    streamRepository.streams.set(id, updated);
 
     const payload = {
       alert,
@@ -108,7 +109,7 @@ export async function POST(
     });
 
     if (token) {
-      db.idempotency.set(token, payload);
+      idempotencyStore.set(token, payload);
     }
 
     return NextResponse.json(payload);

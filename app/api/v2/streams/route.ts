@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, encodeCursor, decodeCursor, idempotencyToken } from "@/app/lib/db";
+import { decodeCursor, encodeCursor, getStore, idempotencyToken } from "@/app/lib/db";
 import { toV2Stream } from "@/app/lib/api-version";
 
 function errorResponse(code: string, message: string, status: number) {
@@ -8,12 +8,13 @@ function errorResponse(code: string, message: string, status: number) {
 
 /** GET /api/v2/streams — paginated stream list in v2 shape. */
 export async function GET(request: Request) {
+  const { streamRepository } = getStore();
   const { searchParams } = new URL(request.url);
   const cursor = searchParams.get("cursor");
   const status = searchParams.get("status");
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 100);
 
-  let streams = Array.from(db.streams.values()).sort((a, b) => {
+  let streams = Array.from(streamRepository.streams.values()).sort((a, b) => {
     const timeCompare = a.createdAt.localeCompare(b.createdAt);
     return timeCompare !== 0 ? timeCompare : a.id.localeCompare(b.id);
   });
@@ -54,13 +55,14 @@ export async function GET(request: Request) {
  *   - `settlement` is always present (null when not yet settled).
  */
 export async function POST(request: Request) {
+  const { idempotencyStore, streamRepository } = getStore();
   const idempotencyKey = request.headers.get("Idempotency-Key");
   const token = idempotencyKey
     ? idempotencyToken("v2.streams.create", idempotencyKey)
     : null;
 
-  if (token && db.idempotency.has(token)) {
-    return NextResponse.json(db.idempotency.get(token), { status: 201 });
+  if (token && idempotencyStore.has(token)) {
+    return NextResponse.json(idempotencyStore.get(token), { status: 201 });
   }
 
   let body: Record<string, unknown>;
@@ -97,14 +99,14 @@ export async function POST(request: Request) {
     updatedAt: now,
   };
 
-  db.streams.set(id, newStream);
+  streamRepository.streams.set(id, newStream);
 
   const payload = {
     data: toV2Stream(newStream),
     links: { self: `/api/v2/streams/${id}` },
   };
 
-  if (token) db.idempotency.set(token, payload);
+  if (token) idempotencyStore.set(token, payload);
 
   return NextResponse.json(payload, { status: 201 });
 }

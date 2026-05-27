@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/app/lib/db";
+import { getStore } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
@@ -43,13 +43,14 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { streamRepository } = getStore();
   const { id } = await params;
   const rateLimited = await enforceRateLimit(request, "GET", `/api/streams/${id}`);
   if (rateLimited) {
     return rateLimited;
   }
 
-  const stream = db.streams.get(id);
+  const stream = streamRepository.streams.get(id);
   if (!stream) {
     return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
@@ -58,13 +59,14 @@ export async function GET(
 }
 
 export async function DELETE(request: Request, { params }: Context) {
+  const { streamRepository } = getStore();
   const { id } = await params;
   const rateLimited = await enforceRateLimit(request, "DELETE", `/api/streams/${id}`);
   if (rateLimited) {
     return rateLimited;
   }
 
-  const stream = db.streams.get(id);
+  const stream = streamRepository.streams.get(id);
   if (!stream) {
     return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
@@ -77,6 +79,6 @@ export async function DELETE(request: Request, { params }: Context) {
     );
   }
 
-  db.streams.delete(id);
+  streamRepository.streams.delete(id);
   return new NextResponse(null, { status: 204 });
 }

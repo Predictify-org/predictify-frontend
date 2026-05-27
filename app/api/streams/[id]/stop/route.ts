@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
-import { db } from "@/app/lib/db";
+import { getStore } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
@@ -28,6 +28,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { streamRepository } = getStore();
   const { id } = await params;
   const url = getRequestUrl(request, `/api/streams/${id}/stop`);
   const limitType = getLimitForRoute("POST", url.pathname);
@@ -40,7 +41,7 @@ export async function POST(
   }
   recordRequest(url.pathname);
 
-  const stream = db.streams.get(id);
+  const stream = streamRepository.streams.get(id);
   if (!stream) {
     return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
@@ -72,7 +73,7 @@ export async function POST(
     updatedAt: new Date().toISOString(),
   };
 
-  db.streams.set(id, updatedStream);
+  streamRepository.streams.set(id, updatedStream);
   recordPrivilegedStreamAuditEvent({
     action: "stream.stop.override",
     after: updatedStream as unknown as Record<string, unknown>,

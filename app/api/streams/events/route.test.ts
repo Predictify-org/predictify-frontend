@@ -1,7 +1,4 @@
 import { GET } from "./route";
-import { NextRequest } from "next/request";
-import { db, resetDb } from "@/app/lib/auth"; // Wait, db is in app/lib/db
-import { eventBus } from "@/app/lib/event-bus";
 import jwt from "jsonwebtoken";
 
 // Mock dependencies
