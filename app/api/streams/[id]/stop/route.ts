@@ -63,7 +63,9 @@ export async function POST(
     action: "stream.stop.override",
     after: updatedStream as unknown as Record<string, unknown>,
     before: before as unknown as Record<string, unknown>,
-    metadata: { resultingStatus: updatedStream.status },
+    metadata: {
+      resultingStatus: updatedStream.status,
+    },
     request,
     streamId: id,
     targetAccount: updatedStream.recipient,

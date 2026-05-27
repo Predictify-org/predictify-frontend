@@ -178,6 +178,17 @@ export function encodeCursor(id: string): string {
   return Buffer.from(id).toString("base64");
 }
 
+/**
+ * Decode a cursor (base64-encoded stream ID).
+ * Throws if cursor is malformed or not valid base64.
+ */
 export function decodeCursor(cursor: string): string {
-  return Buffer.from(cursor, "base64").toString("utf8");
+  if (!cursor || typeof cursor !== "string") {
+    throw new Error("Invalid cursor: must be non-empty string");
+  }
+  try {
+    return Buffer.from(cursor, "base64").toString("utf8");
+  } catch (e) {
+    throw new Error("Invalid cursor: malformed base64");
+  }
 }

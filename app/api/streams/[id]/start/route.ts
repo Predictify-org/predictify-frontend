@@ -8,8 +8,13 @@ import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 
 type Context = { params: Promise<{ id: string }> };
 
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
+}
+
 function errorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message } }, { status });
+  return createErrorResponse(code, message, status);
 }
 
 function getRequestUrl(request: Request, fallbackPath: string): URL {
@@ -41,10 +46,20 @@ export async function POST(
     return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
 
-  // Mandatory RBAC — missing actor → 403; role insufficient → 403.
-  // Actor is sourced from verified JWT first, then Actor-Wallet-Address header.
-  const rbacError = enforceStreamRbac(request, id, "start");
-  if (rbacError) return rbacError;
+  const actorAddress = getHeader(request, "Actor-Wallet-Address");
+  const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "start") : null;
+  if (policyResult) {
+    if (!policyResult.allowed) {
+      return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+    }
+    if (policyResult.requiresApproval) {
+      return createErrorResponse(
+        "APPROVAL_REQUIRED",
+        "This action requires multi-sig approval. Please initiate an approval request.",
+        409
+      );
+    }
+  }
 
   const updatedStream = {
     ...stream,
