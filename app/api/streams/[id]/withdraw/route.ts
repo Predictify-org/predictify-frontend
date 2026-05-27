@@ -1,116 +1,225 @@
+/**
+ * POST /api/streams/:id/withdraw
+ *
+ * Lets the stream recipient claim the currently vested-but-unreleased balance.
+ *
+ * ## Authorization
+ * Only the stream recipient may withdraw (mirrors `recipient.require_auth()`
+ * in the Soroban contract). The caller is identified via:
+ *   1. Verified JWT `sub` claim (preferred).
+ *   2. `Actor-Wallet-Address` header (fallback for internal callers).
+ *
+ * The resolved address must match `stream.recipientAddress`.
+ *
+ * ## Withdraw amount
+ *   - Body `{ amount: null | undefined }` → withdraw full withdrawable balance.
+ *   - Body `{ amount: "1000000" }` → withdraw exactly that many raw units.
+ *   - Over-withdraw or zero-amount → 422.
+ *
+ * ## State transitions
+ *   - `released_amount` incremented by payout.
+ *   - `last_update` set to now.
+ *   - If fully drained at/after end_time → status transitions to `ended`.
+ *
+ * ## Invariant
+ *   released_amount NEVER exceeds vested_amount after this operation.
+ *
+ * ## Idempotency
+ * Supports `Idempotency-Key` header for safe retries.
+ */
+
 import { NextResponse } from "next/server";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
 import { db, idempotencyToken, withLock } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
-import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
+import { tryAuthenticateRequest } from "@/app/lib/auth";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
-import { evaluateWithdrawalState } from "@/app/lib/withdraw-finality";
+import {
+  computeWithdraw,
+  resolveEscrowState,
+} from "@/app/lib/recipient-withdraw";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function createErrorResponse(code: string, message: string, status: number) {
-  const context = getCorrelationContext();
-  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
+  const ctx = getCorrelationContext();
+  return NextResponse.json(
+    { error: { code, message, request_id: ctx?.request_id } },
+    { status },
+  );
 }
 
-function getHeader(request: Request, name: string): string | null {
-  return request.headers?.get?.(name) ?? null;
+function getHeader(req: Request, name: string): string | null {
+  return req.headers?.get?.(name) ?? null;
 }
 
-function getRequestUrl(request: Request, fallbackPath: string): URL {
+function getRequestUrl(req: Request, fallback: string): URL {
   try {
-    return request.url ? new URL(request.url) : new URL(`http://localhost${fallbackPath}`);
+    return req.url ? new URL(req.url) : new URL(`http://localhost${fallback}`);
   } catch {
-    return new URL(`http://localhost${fallbackPath}`);
+    return new URL(`http://localhost${fallback}`);
   }
 }
+
+/**
+ * Resolve the caller's wallet address.
+ * JWT sub claim takes precedence over the raw header.
+ */
+function resolveCallerAddress(request: Request): string | null {
+  const jwt = tryAuthenticateRequest(request);
+  if (jwt?.walletAddress) return jwt.walletAddress;
+  return getHeader(request, "Actor-Wallet-Address")?.trim() || null;
+}
+
+// ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const url = getRequestUrl(request, `/api/streams/${id}/withdraw`);
+  const url      = getRequestUrl(request, `/api/streams/${id}/withdraw`);
   const limitType = getLimitForRoute("POST", url.pathname);
-  const identity = getClientIdentity(request);
-  const result = await checkRateLimit(identity, limitType);
+  const identity  = getClientIdentity(request);
+  const rl        = await checkRateLimit(identity, limitType);
 
-  if (!result.allowed) {
+  if (!rl.allowed) {
     recordThrottle(url.pathname, limitType, identity.type, identity.displayValue);
-    return rateLimitResponse(result.retryAfter!);
+    return rateLimitResponse(rl.retryAfter!);
   }
   recordRequest(url.pathname);
 
-  const actorAddress = getHeader(request, "Actor-Wallet-Address");
   const idempotencyKey = getHeader(request, "Idempotency-Key");
-  const token = idempotencyKey ? idempotencyToken(`streams.withdraw.${id}`, idempotencyKey) : null;
+  const idemToken = idempotencyKey
+    ? idempotencyToken(`streams.withdraw.${id}`, idempotencyKey)
+    : null;
 
-  if (token && db.idempotency.has(token)) {
-    return NextResponse.json(db.idempotency.get(token));
+  if (idemToken && db.idempotency.has(idemToken)) {
+    return NextResponse.json(db.idempotency.get(idemToken));
   }
 
   return withLock(id, async () => {
-    if (token && db.idempotency.has(token)) {
-      return NextResponse.json(db.idempotency.get(token));
+    if (idemToken && db.idempotency.has(idemToken)) {
+      return NextResponse.json(db.idempotency.get(idemToken));
     }
 
+    // ── Fetch stream ───────────────────────────────────────────────────────
     const stream = db.streams.get(id);
     if (!stream) {
       return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
 
-    const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "withdraw") : null;
-    if (policyResult) {
-      if (!policyResult.allowed) {
-        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
-      }
-      if (policyResult.requiresApproval) {
-        return createErrorResponse(
-          "APPROVAL_REQUIRED",
-          "This action requires multi-sig approval. Please initiate an approval request.",
-          409
-        );
-      }
+    // ── Already withdrawn — idempotent return ──────────────────────────────
+    if (stream.status === "withdrawn") {
+      const payload = { data: stream };
+      if (idemToken) db.idempotency.set(idemToken, payload);
+      return NextResponse.json(payload);
     }
 
-    if (stream.status !== "ended") {
-      if (stream.status === "withdrawn") {
-        const payload = { data: stream, withdrawal: stream.withdrawal };
-        if (token) {
-          db.idempotency.set(token, payload);
-        }
-        return NextResponse.json(payload);
-      }
-      return createErrorResponse("INVALID_STREAM_STATE", "Only ended streams can be withdrawn from", 409);
+    // ── Resolve caller ─────────────────────────────────────────────────────
+    const callerAddress = resolveCallerAddress(request);
+    if (!callerAddress) {
+      return createErrorResponse(
+        "RECIPIENT_AUTH_REQUIRED",
+        "A verified caller identity is required. Provide a Bearer JWT or Actor-Wallet-Address header.",
+        401,
+      );
     }
 
-    const before = structuredClone(stream);
-    const { alert, stream: updated } = await evaluateWithdrawalState(stream, new Date(), fetch);
-    db.streams.set(id, updated);
+    // ── Parse optional requested amount from body ──────────────────────────
+    let requestedAmount: bigint | null = null;
+    try {
+      const body = await request.clone().json().catch(() => ({}));
+      if (body?.amount !== undefined && body.amount !== null) {
+        requestedAmount = BigInt(String(body.amount));
+      }
+    } catch {
+      return createErrorResponse("INVALID_REQUEST", "Request body must be valid JSON", 400);
+    }
 
-    const payload = {
-      alert,
-      data: updated,
-      withdrawal: updated.withdrawal,
-    };
+    // ── Resolve on-chain escrow state ──────────────────────────────────────
+    const now    = new Date();
+    const escrow = resolveEscrowState(stream, now);
+    const token  = (stream as Record<string, unknown>).token as string ?? "XLM";
 
-    recordPrivilegedStreamAuditEvent({
-      action: "stream.withdraw",
-      after: updated,
-      before,
-      metadata: {
-        resultingStatus: updated.status,
-        withdrawalState: updated.withdrawal?.state ?? null,
-      },
-      request,
-      streamId: id,
-      targetAccount: updated.recipient,
+    // recipientAddress: stored on stream or fall back to stream.recipient label
+    const recipientAddress =
+      (stream as Record<string, unknown>).recipientAddress as string
+      ?? stream.recipient;
+
+    // ── Compute withdrawal ─────────────────────────────────────────────────
+    const outcome = computeWithdraw(stream, {
+      totalAmount:      escrow.totalAmount,
+      releasedAmount:   escrow.releasedAmount,
+      vestedAmount:     escrow.vestedAmount,
+      requestedAmount:  requestedAmount ?? undefined,
+      token,
+      recipientAddress,
+      callerAddress,
+      endTime:          (stream as Record<string, unknown>).endsAt as string | undefined,
+      now,
     });
 
-    if (token) {
-      db.idempotency.set(token, payload);
+    if (!outcome.ok) {
+      const httpStatus =
+        outcome.code === "RECIPIENT_AUTH_REQUIRED" ? 403 :
+        outcome.code === "INVALID_STREAM_STATE"    ? 409 :
+        422;
+      return createErrorResponse(outcome.code, outcome.message, httpStatus);
     }
 
+    const { amountPaidOut, newReleasedAmount, shouldMarkEnded } = outcome.result;
+
+    // ── Mock token transfer ────────────────────────────────────────────────
+    // In production: call getTokenClientForStream(stream).transfer(recipientAddress, amountPaidOut, id)
+    const txHash = `mock-withdraw-${crypto.randomUUID().slice(0, 8)}`;
+
+    // ── Persist updated stream ─────────────────────────────────────────────
+    const before = structuredClone(stream);
+    const updatedStream = {
+      ...stream,
+      status:    shouldMarkEnded ? ("ended" as const) : stream.status,
+      nextAction: shouldMarkEnded ? ("withdraw" as const) : stream.nextAction,
+      updatedAt: now.toISOString(),
+      // Advance released_amount — never exceeds vested_amount (invariant enforced above).
+      releasedAmount: newReleasedAmount.toString(),
+    };
+    db.streams.set(id, updatedStream);
+
+    // ── Audit log ──────────────────────────────────────────────────────────
+    recordPrivilegedStreamAuditEvent({
+      action: "stream.withdraw.recipient",
+      after:  updatedStream as unknown as Record<string, unknown>,
+      before: before        as unknown as Record<string, unknown>,
+      metadata: {
+        amountPaidOut:     amountPaidOut.toString(),
+        newReleasedAmount: newReleasedAmount.toString(),
+        vestedAmount:      escrow.vestedAmount.toString(),
+        totalAmount:       escrow.totalAmount.toString(),
+        token,
+        txHash,
+        shouldMarkEnded,
+        resultingStatus: updatedStream.status,
+      },
+      request,
+      streamId:      id,
+      targetAccount: recipientAddress,
+    });
+
+    const payload = {
+      data: updatedStream,
+      withdrawal: {
+        amountPaidOut:     amountPaidOut.toString(),
+        newReleasedAmount: newReleasedAmount.toString(),
+        token,
+        txHash,
+        withdrawnAt: now.toISOString(),
+      },
+    };
+
+    if (idemToken) db.idempotency.set(idemToken, payload);
     return NextResponse.json(payload);
   });
 }
