@@ -73,4 +73,29 @@ describe("StreamsPageContent", () => {
     expect(screen.getByText(/dst shift shown in local time/i)).toBeInTheDocument();
     expect(screen.getByText(/paused on last day; final day prorated/i)).toBeInTheDocument();
   });
+
+  it("applies the animation class only to active streams", () => {
+    const streams = [
+      {
+        id: "stream-active",
+        nextAction: "Pause",
+        rate: "100 XLM / month",
+        recipient: "Active Recipient",
+        schedule: "Daily",
+        status: "active" as const,
+      },
+      {
+        id: "stream-draft",
+        nextAction: "Start",
+        rate: "50 XLM / month",
+        recipient: "Draft Recipient",
+        schedule: "Weekly",
+        status: "draft" as const,
+      },
+    ];
+    render(<StreamsPageContent state="populated" streams={streams} />);
+    
+    expect(screen.getByText(/100 XLM \/ month/i)).toHaveClass("stream-row__accrued--animated");
+    expect(screen.getByText(/50 XLM \/ month/i)).not.toHaveClass("stream-row__accrued--animated");
+  });
 });

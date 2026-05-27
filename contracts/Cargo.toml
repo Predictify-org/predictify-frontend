@@ -1,8 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-    "contracts/streampay-stream",
+  "contracts/*",
 ]
+
+[workspace.dependencies]
+soroban-sdk = "23"
 
 [profile.release]
 opt-level = "z"
@@ -13,3 +16,8 @@ debug-assertions = false
 panic = "abort"
 codegen-units = 1
 lto = true
+
+# For more information about this profile see https://soroban.stellar.org/docs/basic-tutorials/logging#cargotoml-profile
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true

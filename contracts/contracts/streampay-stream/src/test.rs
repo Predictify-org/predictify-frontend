@@ -1,229 +1,234 @@
 #![cfg(test)]
 
-extern crate std;
+use super::*;
+use soroban_sdk::{
+    testutils::{Address as _, Ledger},
+    token::StellarAssetClient,
+    Address, Env,
+};
 
-use soroban_sdk::{testutils::Address as _, Address, Env};
+struct TestData {
+    env: Env,
+    client: ContractClient<'static>,
+    token: Address,
+    admin: Address,
+    sender: Address,
+    recipient: Address,
+}
 
-use crate::{storage, Stream, StreamPayContract, StreamPayContractClient, StreamStatus};
+fn setup() -> TestData {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().set_timestamp(1_000);
 
-fn make_stream(
-    sender: &Address,
-    recipient: &Address,
-    token: &Address,
-    status: StreamStatus,
-) -> Stream {
-    Stream {
-        sender: sender.clone(),
-        recipient: recipient.clone(),
-        token: token.clone(),
-        total_amount: 1_000_000_000_i128,
-        released_amount: 0_i128,
-        start_time: 1_000_000_u64,
-        end_time: 2_000_000_u64,
-        last_update: 1_000_000_u64,
-        status,
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let token = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
+
+    StellarAssetClient::new(&env, &token).mint(&sender, &10_000);
+
+    TestData {
+        env,
+        client,
+        token,
+        admin,
+        sender,
+        recipient,
     }
 }
 
-fn setup() -> (Env, StreamPayContractClient<'static>, Address) {
-    let env = Env::default();
-    env.mock_all_auths();
-    let contract_id = env.register_contract(None, StreamPayContract);
-    let client = StreamPayContractClient::new(&env, &contract_id);
-    let admin = Address::generate(&env);
-    client.initialize(&admin);
-    (env, client, admin)
-}
-
-#[test]
-fn test_initialize_sets_admin() {
-    let (_env, client, admin) = setup();
-    assert_eq!(client.get_admin(), admin);
-}
-
-#[test]
-fn test_initialize_sets_stream_count_to_zero() {
-    let (_env, client, _admin) = setup();
-    assert_eq!(client.stream_count(), 0u64);
-}
-
-#[test]
-#[should_panic(expected = "already initialised")]
-fn test_double_initialize_panics() {
-    let (_env, client, admin) = setup();
-    client.initialize(&admin);
-}
-
-#[test]
-fn test_stream_count_increments_per_create() {
-    let (env, client, _admin) = setup();
-    let sender = Address::generate(&env);
-    let recipient = Address::generate(&env);
-    let token = Address::generate(&env);
-    assert_eq!(client.stream_count(), 0u64);
-    client.create_stream(&make_stream(&sender, &recipient, &token, StreamStatus::Draft));
-    assert_eq!(client.stream_count(), 1u64);
-    client.create_stream(&make_stream(&sender, &recipient, &token, StreamStatus::Active));
-    assert_eq!(client.stream_count(), 2u64);
-}
-
-#[test]
-fn test_create_stream_returns_sequential_ids() {
-    let (env, client, _admin) = setup();
-    let sender = Address::generate(&env);
-    let recipient = Address::generate(&env);
-    let token = Address::generate(&env);
-    assert_eq!(client.create_stream(&make_stream(&sender, &recipient, &token, StreamStatus::Draft)), 0u64);
-    assert_eq!(client.create_stream(&make_stream(&sender, &recipient, &token, StreamStatus::Draft)), 1u64);
-    assert_eq!(client.create_stream(&make_stream(&sender, &recipient, &token, StreamStatus::Draft)), 2u64);
-}
-
-#[test]
-fn test_stream_round_trips_all_fields() {
-    let (env, client, _admin) = setup();
-    let sender = Address::generate(&env);
-    let recipient = Address::generate(&env);
-    let token = Address::generate(&env);
-    let original = Stream {
-        sender: sender.clone(),
-        recipient: recipient.clone(),
-        token: token.clone(),
-        total_amount: 5_000_000_i128,
-        released_amount: 250_000_i128,
-        start_time: 100_u64,
-        end_time: 999_u64,
-        last_update: 150_u64,
-        status: StreamStatus::Active,
+macro_rules! assert_contract_error {
+    ($result:expr, $expected:expr) => {
+        match $result {
+            Err(Ok(err)) => assert_eq!(err, $expected),
+            other => panic!("expected contract error {:?}, got {:?}", $expected, other),
+        }
     };
-    let id = client.create_stream(&original);
-    let fetched = client.get_stream(&id).expect("stream must exist");
-    assert_eq!(fetched.sender, sender);
-    assert_eq!(fetched.recipient, recipient);
-    assert_eq!(fetched.token, token);
-    assert_eq!(fetched.total_amount, 5_000_000_i128);
-    assert_eq!(fetched.released_amount, 250_000_i128);
-    assert_eq!(fetched.start_time, 100_u64);
-    assert_eq!(fetched.end_time, 999_u64);
-    assert_eq!(fetched.last_update, 150_u64);
-    assert_eq!(fetched.status, StreamStatus::Active);
 }
 
 #[test]
-fn test_get_stream_missing_id_returns_none() {
-    let (_env, client, _admin) = setup();
-    assert!(client.get_stream(&99u64).is_none());
-    assert!(client.get_stream(&0u64).is_none());
-}
+fn draft_stream_accrues_nothing_until_started() {
+    let data = setup();
 
-fn assert_status_round_trips(status: StreamStatus) {
-    let (env, client, _admin) = setup();
-    let sender = Address::generate(&env);
-    let recipient = Address::generate(&env);
-    let token = Address::generate(&env);
-    let id = client.create_stream(&make_stream(&sender, &recipient, &token, status.clone()));
-    let fetched = client.get_stream(&id).expect("stream must exist");
-    assert_eq!(fetched.status, status);
-}
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &true,
+    );
 
-#[test]
-fn test_status_draft_round_trips()     { assert_status_round_trips(StreamStatus::Draft); }
-#[test]
-fn test_status_active_round_trips()    { assert_status_round_trips(StreamStatus::Active); }
-#[test]
-fn test_status_paused_round_trips()    { assert_status_round_trips(StreamStatus::Paused); }
-#[test]
-fn test_status_settled_round_trips()   { assert_status_round_trips(StreamStatus::Settled); }
-#[test]
-fn test_status_ended_round_trips()     { assert_status_round_trips(StreamStatus::Ended); }
-#[test]
-fn test_status_cancelled_round_trips() { assert_status_round_trips(StreamStatus::Cancelled); }
+    data.env.ledger().set_timestamp(1_050);
+    assert_eq!(data.client.withdrawable(&stream_id), 0);
 
-#[test]
-fn test_update_stream_overwrites_record() {
-    let (env, client, _admin) = setup();
-    let sender = Address::generate(&env);
-    let recipient = Address::generate(&env);
-    let token = Address::generate(&env);
-    let id = client.create_stream(&make_stream(&sender, &recipient, &token, StreamStatus::Draft));
-    let updated = Stream {
-        sender: sender.clone(),
-        recipient: recipient.clone(),
-        token: token.clone(),
-        total_amount: 1_000_000_000_i128,
-        released_amount: 500_000_000_i128,
-        start_time: 1_000_000_u64,
-        end_time: 2_000_000_u64,
-        last_update: 1_500_000_u64,
-        status: StreamStatus::Active,
-    };
-    client.update_stream(&id, &updated);
-    let fetched = client.get_stream(&id).expect("stream must exist after update");
-    assert_eq!(fetched.released_amount, 500_000_000_i128);
-    assert_eq!(fetched.last_update, 1_500_000_u64);
-    assert_eq!(fetched.status, StreamStatus::Active);
+    let draft = data.client.get_stream(&stream_id);
+    assert_eq!(draft.status, StreamStatus::Draft);
+    assert_eq!(draft.start_time, 0);
+    assert_eq!(draft.end_time, 0);
+
+    data.env.ledger().set_timestamp(2_000);
+    let active = data.client.start_stream(&stream_id);
+    assert_eq!(active.status, StreamStatus::Active);
+    assert_eq!(active.start_time, 2_000);
+    assert_eq!(active.last_update, 2_000);
+    assert_eq!(active.end_time, 2_100);
+
+    assert_eq!(data.client.withdrawable(&stream_id), 0);
+
+    data.env.ledger().set_timestamp(2_050);
+    assert_eq!(data.client.withdrawable(&stream_id), 500);
 }
 
 #[test]
-#[should_panic(expected = "stream not found")]
-fn test_update_nonexistent_stream_panics() {
-    let (env, client, _admin) = setup();
-    let sender = Address::generate(&env);
-    let recipient = Address::generate(&env);
-    let token = Address::generate(&env);
-    client.update_stream(&42u64, &make_stream(&sender, &recipient, &token, StreamStatus::Active));
-}
+fn active_stream_starts_accruing_at_creation() {
+    let data = setup();
 
-// ── Storage module unit tests (must run inside env.as_contract()) ─────────────
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
 
-#[test]
-fn test_storage_next_stream_id_is_monotonic() {
-    let env = Env::default();
-    env.mock_all_auths();
-    let contract_id = env.register_contract(None, StreamPayContract);
-    env.as_contract(&contract_id, || {
-        storage::set_stream_count(&env, 0u64);
-        assert_eq!(storage::next_stream_id(&env), 0u64);
-        assert_eq!(storage::next_stream_id(&env), 1u64);
-        assert_eq!(storage::next_stream_id(&env), 2u64);
-        assert_eq!(storage::get_stream_count(&env), 3u64);
-    });
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.status, StreamStatus::Active);
+    assert_eq!(stream.start_time, 1_000);
+    assert_eq!(stream.end_time, 1_100);
+
+    data.env.ledger().set_timestamp(1_025);
+    assert_eq!(data.client.withdrawable(&stream_id), 250);
 }
 
 #[test]
-fn test_storage_stream_exists_false_for_missing() {
-    let env = Env::default();
-    env.mock_all_auths();
-    let contract_id = env.register_contract(None, StreamPayContract);
-    env.as_contract(&contract_id, || {
-        assert!(!storage::stream_exists(&env, 0u64));
-        assert!(!storage::stream_exists(&env, 999u64));
-    });
+fn starting_non_draft_is_rejected_with_invalid_state() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    assert_contract_error!(
+        data.client.try_start_stream(&stream_id),
+        Error::InvalidState
+    );
 }
 
 #[test]
-fn test_storage_set_get_stream_round_trip() {
-    let env = Env::default();
-    env.mock_all_auths();
-    let contract_id = env.register_contract(None, StreamPayContract);
-    let sender = Address::generate(&env);
-    let recipient = Address::generate(&env);
-    let token = Address::generate(&env);
-    let stream = make_stream(&sender, &recipient, &token, StreamStatus::Paused);
-    env.as_contract(&contract_id, || {
-        storage::set_stream(&env, 7u64, &stream);
-        assert!(storage::stream_exists(&env, 7u64));
-        let fetched = storage::get_stream(&env, 7u64).expect("must be present");
-        assert_eq!(fetched.status, StreamStatus::Paused);
-        assert_eq!(fetched.total_amount, 1_000_000_000_i128);
-    });
+fn invalid_create_inputs_return_stable_errors() {
+    let data = setup();
+
+    assert_contract_error!(
+        data.client
+            .try_create_stream(&data.sender, &data.recipient, &data.token, &0, &100, &true,),
+        Error::InvalidAmount
+    );
+
+    assert_contract_error!(
+        data.client
+            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &0, &true,),
+        Error::InvalidTimeRange
+    );
 }
 
 #[test]
-fn test_storage_get_stream_missing_returns_none() {
-    let env = Env::default();
-    env.mock_all_auths();
-    let contract_id = env.register_contract(None, StreamPayContract);
-    env.as_contract(&contract_id, || {
-        assert!(storage::get_stream(&env, 0u64).is_none());
-    });
+fn missing_stream_returns_not_found() {
+    let data = setup();
+
+    assert_contract_error!(data.client.try_get_stream(&999), Error::NotFound);
+}
+
+#[test]
+fn over_withdraw_is_rejected() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_010);
+
+    assert_contract_error!(
+        data.client.try_withdraw(&stream_id, &101),
+        Error::OverWithdraw
+    );
+}
+
+#[test]
+fn withdraw_settles_when_total_is_released() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_100);
+    assert_eq!(data.client.withdraw(&stream_id, &1_000), 1_000);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.status, StreamStatus::Settled);
+
+    assert_contract_error!(
+        data.client.try_withdraw(&stream_id, &1),
+        Error::AlreadySettled
+    );
+}
+
+#[test]
+fn admin_guards_return_stable_errors() {
+    let data = setup();
+    let wrong_admin = Address::generate(&data.env);
+
+    data.client.initialize(&data.admin);
+
+    assert_contract_error!(
+        data.client.try_set_paused(&wrong_admin, &true),
+        Error::Unauthorized
+    );
+
+    data.client.set_paused(&data.admin, &true);
+
+    assert_contract_error!(
+        data.client
+            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &10, &true,),
+        Error::ContractPaused
+    );
+}
+
+#[test]
+fn blocked_token_returns_token_not_allowed() {
+    let data = setup();
+
+    data.client.initialize(&data.admin);
+    data.client
+        .set_token_allowed(&data.admin, &data.token, &false);
+
+    assert_contract_error!(
+        data.client
+            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &10, &true,),
+        Error::TokenNotAllowed
+    );
 }
