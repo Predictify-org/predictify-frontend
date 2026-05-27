@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { StatusBadge, type StreamStatus } from "./StatusBadge";
+import { StreamProgress } from "./StreamProgress";
 import { ErrorToast } from "./ErrorToast";
 import { fetchWithIdempotency } from "../../lib/apiClient";
 import { isStreamPayError, formatErrorForDisplay } from "../lib/errors";
@@ -14,6 +15,14 @@ export type StreamRowData = {
   recipient: string;
   schedule: string;
   status: StreamStatus;
+  /** Amount already accrued (display units). Used by StreamProgress. */
+  accruedAmount?: number;
+  /** Total stream amount (display units). Used by StreamProgress. */
+  totalAmount?: number;
+  /** ISO-8601 stream start timestamp. Used by StreamProgress fallback. */
+  startedAt?: string;
+  /** ISO-8601 expected end timestamp. Used by StreamProgress fallback. */
+  endsAt?: string;
 };
 
 type StreamRowProps = {
@@ -96,6 +105,18 @@ export function StreamRow({ stream }: StreamRowProps) {
           <dd>{stream.status}</dd>
         </div>
       </dl>
+
+      {/* Burn-down progress bar — only rendered for non-draft streams */}
+      {stream.status !== "draft" && (
+        <StreamProgress
+          status={stream.status}
+          accruedAmount={stream.accruedAmount}
+          totalAmount={stream.totalAmount}
+          startedAt={stream.startedAt}
+          endsAt={stream.endsAt}
+          className="stream-row__progress"
+        />
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", alignItems: "flex-end" }}>
         <button
