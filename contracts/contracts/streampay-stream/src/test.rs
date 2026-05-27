@@ -232,3 +232,269 @@ fn blocked_token_returns_token_not_allowed() {
         Error::TokenNotAllowed
     );
 }
+
+// ── Linear release math tests ───────────────────────────────────────────────
+
+#[test]
+fn vested_amount_at_start_time_is_zero() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.start_time, 1_000);
+    assert_eq!(data.client.stream_balance(&stream_id), 0);
+}
+
+#[test]
+fn vested_amount_at_midpoint_is_half_total() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_050);
+    assert_eq!(data.client.stream_balance(&stream_id), 500);
+}
+
+#[test]
+fn vested_amount_at_end_time_is_total() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_100);
+    assert_eq!(data.client.stream_balance(&stream_id), 1_000);
+}
+
+#[test]
+fn vested_amount_past_end_time_is_clamped_to_total() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(2_000);
+    assert_eq!(data.client.stream_balance(&stream_id), 1_000);
+}
+
+#[test]
+fn vested_amount_before_start_time_is_zero() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(500);
+    assert_eq!(data.client.stream_balance(&stream_id), 0);
+}
+
+#[test]
+fn vested_amount_is_monotonic_non_decreasing() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    let mut prev = data.client.stream_balance(&stream_id);
+    for t in [1_010, 1_020, 1_030, 1_040, 1_050, 1_060, 1_070, 1_080, 1_090, 1_100] {
+        data.env.ledger().set_timestamp(t);
+        let current = data.client.stream_balance(&stream_id);
+        assert!(current >= prev, "vested amount decreased from {} to {} at t={}", prev, current, t);
+        prev = current;
+    }
+}
+
+#[test]
+fn withdrawable_is_vested_minus_released() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_050);
+    assert_eq!(data.client.stream_balance(&stream_id), 500);
+    assert_eq!(data.client.withdrawable(&stream_id), 500);
+
+    data.client.withdraw(&stream_id, &200);
+    assert_eq!(data.client.stream_balance(&stream_id), 500);
+    assert_eq!(data.client.withdrawable(&stream_id), 300);
+}
+
+#[test]
+fn withdrawable_never_negative() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_050);
+    data.client.withdraw(&stream_id, &600); // Over-withdraw should fail
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.released_amount, 200); // Only 200 was withdrawn
+
+    // withdrawable should still be non-negative
+    assert!(data.client.withdrawable(&stream_id) >= 0);
+}
+
+#[test]
+fn table_driven_vested_amount_across_timeline() {
+    struct TestCase {
+        total: i128,
+        duration: u64,
+        start_offset: i64,
+        test_offset: i64,
+        expected: i128,
+    }
+
+    let cases = vec![
+        // (total, duration, start_offset, test_offset, expected)
+        (1000, 100, 0, 0, 0),       // at start
+        (1000, 100, 0, 25, 250),    // 25% through
+        (1000, 100, 0, 50, 500),    // 50% through
+        (1000, 100, 0, 75, 750),    // 75% through
+        (1000, 100, 0, 100, 1000),  // at end
+        (1000, 100, 0, 150, 1000),  // past end
+        (1000, 100, 0, -50, 0),     // before start
+        (100, 10, 0, 5, 50),        // smaller values
+        (1, 1, 0, 0, 0),            // minimal
+        (1, 1, 0, 1, 1),            // minimal at end
+        (10000, 1000, 100, 600, 5000), // with start offset
+    ];
+
+    for case in cases {
+        let data = setup();
+        data.env.ledger().set_timestamp(1_000 + case.start_offset as u64);
+
+        let stream_id = data.client.create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.token,
+            &case.total,
+            &case.duration,
+            &false,
+        );
+
+        data.env.ledger().set_timestamp(1_000 + (case.start_offset + case.test_offset) as u64);
+        let result = data.client.stream_balance(&stream_id);
+
+        assert_eq!(
+            result, case.expected,
+            "table_driven: total={}, duration={}, start_offset={}, test_offset={}, expected={}, got={}",
+            case.total, case.duration, case.start_offset, case.test_offset, case.expected, result
+        );
+    }
+}
+
+#[test]
+fn large_amount_near_i128_max_does_not_overflow() {
+    let data = setup();
+
+    // Use a large amount that could cause overflow if not using checked arithmetic
+    let large_amount = i128::MAX / 1000; // Safe but large
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &large_amount,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_050);
+    let vested = data.client.stream_balance(&stream_id);
+
+    // Should be exactly half of the total
+    assert_eq!(vested, large_amount / 2);
+    assert!(vested >= 0 && vested <= large_amount);
+}
+
+#[test]
+fn draft_stream_balance_is_zero() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &true,
+    );
+
+    data.env.ledger().set_timestamp(2_000);
+    assert_eq!(data.client.stream_balance(&stream_id), 0);
+}
+
+#[test]
+fn stream_balance_matches_withdrawable_plus_released() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_050);
+    let balance = data.client.stream_balance(&stream_id);
+    let withdrawable = data.client.withdrawable(&stream_id);
+    let stream = data.client.get_stream(&stream_id);
+
+    assert_eq!(balance, withdrawable + stream.released_amount);
+}

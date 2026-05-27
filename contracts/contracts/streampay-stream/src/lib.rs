@@ -1,10 +1,12 @@
 #![no_std]
 
 mod error;
+mod release;
 
 use core::cmp::min;
 
 pub use error::Error;
+use release::{vested_amount, withdrawable};
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
 
 #[contract]
@@ -198,6 +200,24 @@ impl Contract {
         Ok(withdrawable_amount(&env, &stream))
     }
 
+    /// Returns the stream balance (vested amount) at a given ledger timestamp.
+    ///
+    /// This is a view function that computes how much of the stream has vested
+    /// based on linear accrual from start_time to end_time. It uses overflow-safe
+    /// checked arithmetic to ensure correctness even with large amounts.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream_id` - The ID of the stream to query
+    ///
+    /// # Returns
+    ///
+    /// The vested amount as an i128, always in the range `[0, total_amount]`.
+    pub fn stream_balance(env: Env, stream_id: u64) -> Result<i128, Error> {
+        let stream = get_existing_stream(&env, stream_id)?;
+        Ok(stream_balance_amount(&env, &stream))
+    }
+
     /// Withdraws accrued escrow to the recipient.
     pub fn withdraw(env: Env, stream_id: u64, amount: i128) -> Result<i128, Error> {
         require_not_paused(&env)?;
@@ -262,10 +282,16 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
     }
 
     let now = env.ledger().timestamp();
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    let accrued = (stream.total_amount * elapsed as i128) / stream.duration as i128;
+    release::withdrawable(stream, now)
+}
 
-    accrued - stream.released_amount
+fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
+    if stream.status != StreamStatus::Active || stream.start_time == 0 {
+        return 0;
+    }
+
+    let now = env.ledger().timestamp();
+    release::vested_amount(stream, now)
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
