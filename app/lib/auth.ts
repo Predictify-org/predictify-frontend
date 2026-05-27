@@ -21,77 +21,8 @@ import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
 import type { AuditActorRole } from "@/app/types/audit";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-/** Token issuer — must match the value used when signing. */
-export const JWT_ISSUER   = "streampay";
-
-/** Token audience — must match the value used when signing. */
-export const JWT_AUDIENCE = "streampay-api";
-
-/** Only HS256 is accepted. Prevents alg=none and algorithm-confusion attacks. */
-const JWT_ALGORITHMS: jwt.Algorithm[] = ["HS256"];
-
-/** JWT lifetime for newly issued tokens. */
-export const JWT_EXPIRES_IN = "15m";
-
-// ── Secret resolution ─────────────────────────────────────────────────────────
-
-const MIN_SECRET_LENGTH = 32;
-
-/**
- * Resolve and validate the JWT secret.
- *
- * - In `development` / `test`: falls back to the dev placeholder so local
- *   development works without env setup, but logs a warning.
- * - In all other environments: throws immediately if the secret is absent
- *   or shorter than MIN_SECRET_LENGTH characters.
- *
- * Called once at module load so misconfigured deployments fail at boot.
- */
-function resolveJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  const env    = process.env.NODE_ENV ?? "development";
-  const isDev  = env === "development" || env === "test";
-
-  if (!secret || secret.length === 0) {
-    if (isDev) {
-      // Dev-only fallback — never reaches production.
-      console.warn(
-        "[auth] JWT_SECRET is not set. Using insecure dev placeholder. " +
-        "Set JWT_SECRET in production.",
-      );
-      return "streampay-dev-secret-do-not-use-in-prod";
-    }
-    throw new Error(
-      "[auth] JWT_SECRET environment variable is required in non-development environments.",
-    );
-  }
-
-  if (secret.length < MIN_SECRET_LENGTH) {
-    if (isDev) {
-      console.warn(
-        `[auth] JWT_SECRET is shorter than ${MIN_SECRET_LENGTH} characters. ` +
-        "Use a longer secret in production.",
-      );
-    } else {
-      throw new Error(
-        `[auth] JWT_SECRET must be at least ${MIN_SECRET_LENGTH} characters ` +
-        `in non-development environments (got ${secret.length}).`,
-      );
-    }
-  }
-
-  return secret;
-}
-
-/**
- * The resolved JWT secret. Validated at module load — throws in production
- * if the secret is missing or too short.
- */
-export const JWT_SECRET: string = resolveJwtSecret();
-
-// ── Role helpers ──────────────────────────────────────────────────────────────
+export const INSECURE_DEV_JWT_SECRET = "streampay-dev-secret-do-not-use-in-prod";
+export const JWT_SECRET = process.env.JWT_SECRET || INSECURE_DEV_JWT_SECRET;
 
 const VALID_ROLES = new Set<AuditActorRole>([
   "user",
@@ -172,33 +103,29 @@ export function signToken(
   );
 }
 
-/**
- * Attempt to authenticate an incoming request via its `Authorization: Bearer`
- * header.
- *
- * Verifies:
- *   - Signature (HMAC-SHA256 with JWT_SECRET)
- *   - Issuer (`iss === JWT_ISSUER`)
- *   - Audience (`aud === JWT_AUDIENCE`)
- *   - Algorithm allowlist (`algorithms: ["HS256"]`) — rejects alg=none
- *   - Expiry
- *
- * Returns `null` (not an error) on any verification failure so callers can
- * decide whether to return 401 or fall through to another auth method.
- */
+export function getJwtVerificationSecret(): string | null {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret === INSECURE_DEV_JWT_SECRET) {
+    return null;
+  }
+  return secret;
+}
+
 export function tryAuthenticateRequest(request: Request): AuthenticatedActor | null {
   const authHeader = request.headers?.get?.("authorization") ?? null;
   if (!authHeader?.startsWith("Bearer ")) return null;
 
+  const secret = getJwtVerificationSecret();
+  if (!secret) {
+    return null;
+  }
+
   const token = authHeader.slice(7);
   try {
-    const verified = jwt.verify(token, JWT_SECRET, {
-      issuer:     JWT_ISSUER,
-      audience:   JWT_AUDIENCE,
-      algorithms: JWT_ALGORITHMS,
-    }) as TokenClaims;
-
-    if (!verified.sub) return null;
+    const verified = jwt.verify(token, secret, { algorithms: ["HS256"] }) as TokenClaims;
+    if (!verified.sub) {
+      return null;
+    }
 
     return {
       actorId:

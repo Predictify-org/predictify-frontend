@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getReadinessReport } from "@/app/lib/health";
 
 export async function GET() {
-  return NextResponse.json({ status: "ok" });
+  const report = await getReadinessReport();
+  return NextResponse.json(report, { status: report.status === "ok" ? 200 : 503 });
 }

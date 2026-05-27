@@ -75,6 +75,11 @@ export interface ValidatedConfig {
     creationBurstLimit: number;
     settleRateLimit: number;
   };
+  internalServiceAuth?: {
+    currentKeyId: string;
+    keys: Record<string, string>;
+    allowedClockSkewSeconds: number;
+  };
 }
 
 /**
@@ -420,6 +425,7 @@ export function validateConfig(): ValidatedConfig {
     internalAuthToken: env.INTERNAL_AUTH_TOKEN,
     allowedOrigins,
     anomalyThresholds,
+    internalServiceAuth,
   };
   
   return config;
