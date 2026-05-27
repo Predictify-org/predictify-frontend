@@ -16,8 +16,6 @@ export async function GET(request: Request) {
   };
 
   return withCorrelationContext(context, async () => {
-    const currentContext = getCorrelationContext();
-
     try {
       let dlqEntries = webhookDeliveryStore.getAllDLQEntries();
 
@@ -29,7 +27,7 @@ export async function GET(request: Request) {
       logger.info('Fetching DLQ entries', {
         count: dlqEntries.length,
         since,
-        correlation_id: currentContext?.correlation_id,
+        correlation_id: context.correlation_id,
       });
 
       const formatted = dlqEntries.map(entry => ({
@@ -60,7 +58,7 @@ export async function GET(request: Request) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Error fetching DLQ entries', {
         error: errorMsg,
-        correlation_id: currentContext?.correlation_id,
+        correlation_id: context.correlation_id,
       });
       return NextResponse.json(
         { error: 'Internal server error' },
