@@ -11,9 +11,12 @@ import {
   isValidStellarPublicKey,
   WalletLinkError,
 } from "@/app/lib/wallet-link";
+import { signToken } from "@/app/lib/auth";
 import type { AuditActorRole, AuditMetadataValue } from "@/app/types/audit";
 
-const JWT_SECRET = process.env.JWT_SECRET || "streampay-dev-secret-do-not-use-in-prod";
+// JWT_SECRET and signing are now centralised in app/lib/auth.ts.
+// This route uses signToken() which enforces issuer, audience, and HS256.
+
 const VALID_ROLES = new Set<AuditActorRole>([
   "user",
   "support",
@@ -136,13 +139,11 @@ export async function POST(request: Request) {
     return createErrorResponse("INTERNAL_ERROR", "Unable to verify wallet challenge", 500);
   }
 
-  const resolvedRole = resolveRole(role);
+  const resolvedRole    = resolveRole(role);
   const resolvedActorId = resolveActorId(actorId, publicKey);
-  const token = jwt.sign(
-    { sub: publicKey, iss: "streampay", role: resolvedRole, actorId: resolvedActorId },
-    JWT_SECRET,
-    { expiresIn: "15m" }
-  );
+
+  // Sign with issuer, audience, and HS256 — enforced by signToken().
+  const token = signToken(publicKey, { role: resolvedRole, actorId: resolvedActorId });
 
   auditLogStore.append({
     action: "wallet.link",
