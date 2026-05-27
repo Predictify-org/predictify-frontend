@@ -329,6 +329,37 @@ a:hover {
   font-weight: 600;
 }
 
+/* ─── Live Accrual Micro-interaction ─────────────────────────────────────── */
+/* 
+ * Subtle, low-amplitude motion for active streams.
+ * Amplitude: 0.15 opacity shift and 1px vertical translate.
+ * Duration: 3s (calm, non-distracting).
+ * Easing: ease-in-out for smooth transitions.
+ */
+@keyframes live-accrual-tick {
+  0%, 100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.85;
+    transform: translateY(-1px);
+  }
+}
+
+.stream-row__accrued--animated {
+  animation: live-accrual-tick 3s ease-in-out infinite;
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stream-row__accrued--animated {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
 .stream-row__action {
   justify-self: start;
 }
