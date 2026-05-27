@@ -1,5 +1,36 @@
 # `streampay-stream`
 
+## Running Tests
+
+```bash
+# From the contracts/ workspace root:
+cargo test -p streampay-stream
+
+# With output:
+cargo test -p streampay-stream -- --nocapture
+```
+
+## Coverage
+
+Install once:
+```bash
+cargo install cargo-llvm-cov
+rustup component add llvm-tools-preview
+```
+
+Run:
+```bash
+cargo llvm-cov -p streampay-stream --html
+# Report: target/llvm-cov/html/index.html
+
+# For CI / text summary:
+cargo llvm-cov -p streampay-stream --summary-only
+```
+
+Target: ≥ 95% line coverage on `src/lib.rs` and all non-test modules.
+
+
+
 Soroban contract workspace documentation for the StreamPay stream contract crate.
 
 ## Status
