@@ -2,7 +2,8 @@ import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
 import type { AuditActorRole } from "@/app/types/audit";
 
-export const JWT_SECRET = process.env.JWT_SECRET || "streampay-dev-secret-do-not-use-in-prod";
+export const INSECURE_DEV_JWT_SECRET = "streampay-dev-secret-do-not-use-in-prod";
+export const JWT_SECRET = process.env.JWT_SECRET || INSECURE_DEV_JWT_SECRET;
 
 const VALID_ROLES = new Set<AuditActorRole>([
   "user",
@@ -47,15 +48,28 @@ function normalizeRole(role: string | undefined): AuditActorRole {
   return "user";
 }
 
+export function getJwtVerificationSecret(): string | null {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret === INSECURE_DEV_JWT_SECRET) {
+    return null;
+  }
+  return secret;
+}
+
 export function tryAuthenticateRequest(request: Request): AuthenticatedActor | null {
   const authHeader = request.headers?.get?.("authorization") ?? null;
   if (!authHeader?.startsWith("Bearer ")) {
     return null;
   }
 
+  const secret = getJwtVerificationSecret();
+  if (!secret) {
+    return null;
+  }
+
   const token = authHeader.slice(7);
   try {
-    const verified = jwt.verify(token, JWT_SECRET) as TokenClaims;
+    const verified = jwt.verify(token, secret, { algorithms: ["HS256"] }) as TokenClaims;
     if (!verified.sub) {
       return null;
     }

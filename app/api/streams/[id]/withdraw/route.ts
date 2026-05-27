@@ -101,8 +101,8 @@ export async function POST(
 
     recordPrivilegedStreamAuditEvent({
       action: "stream.withdraw",
-      after:  updated as unknown as Record<string, unknown>,
-      before: before  as unknown as Record<string, unknown>,
+      after: updated as unknown as Record<string, unknown>,
+      before: before as unknown as Record<string, unknown>,
       metadata: {
         resultingStatus:  updated.status,
         withdrawalState:  updated.withdrawal?.state ?? null,
