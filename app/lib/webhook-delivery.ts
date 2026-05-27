@@ -52,6 +52,15 @@ export interface DLQEntry {
   reason: string;
   lastAttempt: WebhookDeliveryAttempt;
   createdAt: string;
+  /**
+   * Set when this DLQ entry has been successfully replayed.
+   * The value is the new deliveryId created by the replay.
+   * Presence of this field is the idempotency guard — a replayed entry
+   * will never be re-enqueued.
+   */
+  replayedDeliveryId?: string;
+  /** ISO-8601 timestamp of the successful replay. */
+  replayedAt?: string;
 }
 
 /**

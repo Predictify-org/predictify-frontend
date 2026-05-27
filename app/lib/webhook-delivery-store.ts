@@ -207,6 +207,38 @@ export class WebhookDeliveryStore {
   }
 
   /**
+   * Mark a DLQ entry as replayed and link it to the new delivery.
+   *
+   * This is the idempotency anchor for the replay endpoint:
+   * once `replayedDeliveryId` is set, subsequent replay calls return the
+   * existing result without re-enqueuing.
+   *
+   * @param dlqId          The DLQ entry to mark.
+   * @param newDeliveryId  The delivery ID created by the replay worker.
+   * @returns The updated DLQEntry, or undefined if not found.
+   */
+  markReplayed(dlqId: string, newDeliveryId: string): DLQEntry | undefined {
+    const entry = this.dlq.get(dlqId);
+    if (!entry) return undefined;
+
+    const updated: DLQEntry = {
+      ...entry,
+      replayedDeliveryId: newDeliveryId,
+      replayedAt: new Date().toISOString(),
+    };
+    this.dlq.set(dlqId, updated);
+
+    const context = getCorrelationContext();
+    logger.info('DLQ entry marked as replayed', {
+      dlq_id: dlqId,
+      new_delivery_id: newDeliveryId,
+      correlation_id: context?.correlation_id,
+    });
+
+    return updated;
+  }
+
+  /**
    * Get DLQ entry
    */
   getDLQEntry(dlqId: string): DLQEntry | undefined {

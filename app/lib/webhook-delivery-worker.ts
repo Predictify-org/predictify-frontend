@@ -195,6 +195,89 @@ export class WebhookDeliveryWorker {
   }
 
   /**
+   * Re-enqueue a DLQ entry through the delivery worker idempotently.
+   *
+   * This is the core of the DLQ replay feature (issue #234).
+   *
+   * ## Idempotency
+   * If the DLQ entry already has a `replayedDeliveryId` the method returns
+   * the existing result immediately — a double-click never double-delivers.
+   *
+   * ## Auth
+   * The caller (route handler) is responsible for verifying internal-service
+   * or admin auth before calling this method.
+   *
+   * @param dlqId  The DLQ entry to replay.
+   * @returns Result object with the new deliveryId and success flag.
+   */
+  async replayFromDLQ(dlqId: string): Promise<{
+    ok: boolean;
+    alreadyReplayed: boolean;
+    newDeliveryId?: string;
+    existingDeliveryId?: string;
+    error?: string;
+  }> {
+    const context = getCorrelationContext();
+
+    const dlqEntry = webhookDeliveryStore.getDLQEntry(dlqId);
+    if (!dlqEntry) {
+      return { ok: false, alreadyReplayed: false, error: `DLQ entry '${dlqId}' not found.` };
+    }
+
+    // ── Idempotency guard ────────────────────────────────────────────────────
+    // If already replayed, return the existing delivery ID without re-enqueuing.
+    if (dlqEntry.replayedDeliveryId) {
+      logger.info('DLQ replay skipped — already replayed (idempotent)', {
+        dlq_id: dlqId,
+        existing_delivery_id: dlqEntry.replayedDeliveryId,
+        replayed_at: dlqEntry.replayedAt,
+        correlation_id: context?.correlation_id,
+      });
+      return {
+        ok: true,
+        alreadyReplayed: true,
+        existingDeliveryId: dlqEntry.replayedDeliveryId,
+      };
+    }
+
+    // ── Re-enqueue ───────────────────────────────────────────────────────────
+    const newDeliveryId = `dlq-replay-${crypto.randomUUID()}`;
+
+    const endpoint: WebhookEndpoint = {
+      id:         dlqEntry.endpointId,
+      url:        dlqEntry.endpointUrl,
+      maxRetries: this.maxRetries,
+    };
+
+    logger.info('Replaying DLQ entry', {
+      dlq_id:          dlqId,
+      new_delivery_id: newDeliveryId,
+      endpoint_id:     endpoint.id,
+      endpoint_url:    endpoint.url,
+      event_id:        dlqEntry.eventId,
+      event_type:      dlqEntry.eventType,
+      correlation_id:  context?.correlation_id,
+    });
+
+    // Mark as replayed BEFORE dispatching to prevent a race where two
+    // concurrent replay requests both pass the idempotency check.
+    webhookDeliveryStore.markReplayed(dlqId, newDeliveryId);
+
+    // Fire-and-forget: processDelivery manages its own retry/DLQ lifecycle.
+    // We do not await here so the HTTP response returns immediately.
+    this.processDelivery(endpoint, dlqEntry.payload, newDeliveryId).catch((err) => {
+      logger.error('DLQ replay delivery failed unexpectedly', {
+        dlq_id:          dlqId,
+        new_delivery_id: newDeliveryId,
+        error:           err instanceof Error ? err.message : String(err),
+        correlation_id:  context?.correlation_id,
+      });
+    });
+
+    return { ok: true, alreadyReplayed: false, newDeliveryId };
+  }
+
+  /**
    * Retry failed delivery from retry queue
    * This would typically be called by a background job scheduler
    */

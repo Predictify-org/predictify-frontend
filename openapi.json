@@ -694,6 +694,94 @@
           "200": { "description": "Vote cast" }
         }
       }
+    },
+    "/webhooks/dlq/{dlqId}/replay": {
+      "post": {
+        "operationId": "replayDLQEntry",
+        "summary": "Replay a dead-lettered webhook delivery",
+        "description": "Re-enqueues a DLQ entry through the delivery worker idempotently.\n\n**Authorization:** Requires internal-service HMAC auth (`x-streampay-signature` headers) OR an admin JWT. This endpoint is never publicly reachable.\n\n**Idempotency:** If the entry has already been replayed, returns HTTP 200 with `alreadyReplayed: true` and the existing delivery ID — no double-delivery.\n\n**Fire-and-forget:** The replay is enqueued asynchronously; the response returns immediately. Monitor `/api/webhooks/deliveries` for the new delivery status.",
+        "tags": ["Webhooks"],
+        "parameters": [
+          {
+            "name": "dlqId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The DLQ entry ID to replay",
+            "example": "dlq-abc12345"
+          },
+          {
+            "name": "X-Correlation-ID",
+            "in": "header",
+            "schema": { "type": "string" },
+            "description": "Optional correlation ID for distributed tracing"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Replay enqueued (or already replayed — idempotent)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DLQReplayResponse" },
+                "examples": {
+                  "newReplay": {
+                    "summary": "New replay enqueued",
+                    "value": {
+                      "data": {
+                        "dlqId": "dlq-abc12345",
+                        "deliveryId": "dlq-replay-uuid-here",
+                        "alreadyReplayed": false,
+                        "endpointId": "ep-001",
+                        "endpointUrl": "https://example.com/webhook",
+                        "eventId": "evt-xyz",
+                        "eventType": "stream.settled",
+                        "replayedAt": "2026-05-27T12:00:00Z"
+                      },
+                      "links": {
+                        "dlq": "/api/webhooks/dlq",
+                        "delivery": "/api/webhooks/deliveries?endpoint_id=ep-001"
+                      }
+                    }
+                  },
+                  "alreadyReplayed": {
+                    "summary": "Already replayed (idempotent)",
+                    "value": {
+                      "data": {
+                        "dlqId": "dlq-abc12345",
+                        "deliveryId": "dlq-replay-previous-uuid",
+                        "alreadyReplayed": true,
+                        "endpointId": "ep-001",
+                        "endpointUrl": "https://example.com/webhook",
+                        "eventId": "evt-xyz",
+                        "eventType": "stream.settled",
+                        "replayedAt": "2026-05-27T11:00:00Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid internal-service auth",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } }
+          },
+          "404": {
+            "description": "DLQ entry not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" },
+                "example": { "error": { "code": "DLQ_ENTRY_NOT_FOUND", "message": "DLQ entry 'dlq-abc12345' not found.", "request_id": "req-xyz" } }
+              }
+            }
+          },
+          "502": {
+            "description": "Worker failed to enqueue the replay",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } }
+          }
+        },
+        "security": [{ "bearerAuth": [] }, { "internalServiceAuth": [] }]
+      }
     }
   },
   "components": {
@@ -703,18 +791,50 @@
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "description": "JWT obtained from POST /api/auth/wallet. Expires in 15 minutes."
+      },
+      "internalServiceAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-streampay-signature",
+        "description": "HMAC-SHA256 internal service signature. Required headers: x-streampay-signature, x-streampay-key-id, x-streampay-service-name, x-streampay-timestamp, x-streampay-content-sha256."
       }
     },
     "schemas": {
       "StreamStatus": {
         "type": "string",
-        "enum": ["draft", "active", "paused", "ended", "withdrawn"],
+        "enum": ["draft", "active", "paused", "ended", "withdrawn", "cancelled"],
         "description": "Current status in the stream lifecycle"
       },
       "StreamAction": {
         "type": "string",
-        "enum": ["start", "pause", "stop", "settle", "withdraw"],
+        "enum": ["start", "pause", "stop", "settle", "withdraw", "cancel"],
         "description": "The primary next action available for the stream"
+      },
+      "DLQReplayResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "dlqId":          { "type": "string", "description": "The DLQ entry that was replayed" },
+              "deliveryId":     { "type": "string", "description": "The delivery ID (new or existing if already replayed)" },
+              "alreadyReplayed":{ "type": "boolean", "description": "true = idempotent return of existing replay; false = new replay enqueued" },
+              "endpointId":     { "type": "string" },
+              "endpointUrl":    { "type": "string" },
+              "eventId":        { "type": "string" },
+              "eventType":      { "type": "string" },
+              "replayedAt":     { "type": "string", "format": "date-time" }
+            },
+            "required": ["dlqId", "deliveryId", "alreadyReplayed", "endpointId", "endpointUrl", "eventId", "eventType", "replayedAt"]
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "dlq":      { "type": "string" },
+              "delivery": { "type": "string" }
+            }
+          }
+        }
       },
       "Stream": {
         "type": "object",

@@ -46,6 +46,9 @@ export async function GET(request: Request) {
         timestamp: entry.lastAttempt.timestamp,
       },
       createdAt: entry.createdAt,
+      // Replay state — present once the entry has been successfully replayed.
+      replayedDeliveryId: entry.replayedDeliveryId ?? null,
+      replayedAt: entry.replayedAt ?? null,
     }));
 
     return NextResponse.json({
