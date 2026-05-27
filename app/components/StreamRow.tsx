@@ -61,7 +61,9 @@ export function StreamRow({ stream }: StreamRowProps) {
       <dl className="stream-row__meta">
         <div>
           <dt>Rate</dt>
-          <dd>{stream.rate}</dd>
+          <dd className={stream.status === "active" ? "stream-row__accrued--animated" : ""}>
+            {stream.rate}
+          </dd>
         </div>
         <div>
           <dt>Status</dt>
