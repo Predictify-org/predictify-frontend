@@ -23,6 +23,8 @@ type StreamRowProps = {
 export function StreamRow({ stream }: StreamRowProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<StreamPayError | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const isIncidentMode = process.env.NEXT_PUBLIC_DISABLE_ONCHAIN_OPERATIONS === "true";
 
   const handleDismissError = () => {
     setError(null);
