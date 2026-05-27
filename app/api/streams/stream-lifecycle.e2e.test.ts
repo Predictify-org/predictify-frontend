@@ -52,7 +52,7 @@ async function toWebRequest(request: IncomingMessage, baseUrl: string): Promise<
   const url = new URL(request.url ?? "/", baseUrl);
 
   return new Request(url, {
-    body,
+    body: body as any,
     headers,
     method,
   });

@@ -75,8 +75,8 @@ export async function POST(
   db.streams.set(id, updatedStream);
   recordPrivilegedStreamAuditEvent({
     action: "stream.stop.override",
-    after: updatedStream,
-    before,
+    after: updatedStream as any,
+    before: before as any,
     metadata: {
       resultingStatus: updatedStream.status,
     },

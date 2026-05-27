@@ -117,9 +117,16 @@ function createActivityMap(): Map<string, ActivityEvent> {
 
 // ── In-memory database ─────────────────────────────────────────────────
 
+const streamsMap = createStreamsMap();
+(streamsMap as any).findOne = function(tenant: string, id: string) {
+  const row = streamsMap.get(id);
+  if (!row) return null;
+  return (row as any).tenant === tenant ? row : null;
+};
+
 export const db = {
   users: createUsersMap(),
-  streams: createStreamsMap(),
+  streams: streamsMap as unknown as Map<string, Stream> & { findOne(tenant: string, id: string): Stream | null },
   activity: createActivityMap(),
   idempotency: new Map<string, unknown>(),
   exportJobs: new Map<string, ExportJob>(),

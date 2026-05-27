@@ -23,6 +23,8 @@ type StreamRowProps = {
 export function StreamRow({ stream }: StreamRowProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<StreamPayError | null>(null);
+  const [isIncidentMode] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleDismissError = () => {
     setError(null);

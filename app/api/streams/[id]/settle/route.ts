@@ -41,10 +41,10 @@ export async function POST(
     const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "settle") : null;
     if (policyResult) {
       if (!policyResult.allowed) {
-        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+        return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
       }
       if (policyResult.requiresApproval) {
-        return createErrorResponse(
+        return errorResponse(
           "APPROVAL_REQUIRED",
           "This action requires multi-sig approval. Please initiate an approval request.",
           409
@@ -53,7 +53,7 @@ export async function POST(
     }
 
     if (stream.status !== "active" && stream.status !== "paused") {
-      return createErrorResponse("INVALID_STREAM_STATE", "Only active or paused streams can be settled", 409);
+      return errorResponse("INVALID_STREAM_STATE", "Only active or paused streams can be settled", 409);
     }
 
     const before = structuredClone(stream);
@@ -79,8 +79,8 @@ export async function POST(
       const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
       recordPrivilegedStreamAuditEvent({
         action: "stream.settle",
-        after: updatedStream,
-        before,
+        after: updatedStream as any,
+        before: before as any,
         metadata: {
           settlementTxHash: settlement.txHash,
         },
@@ -96,7 +96,7 @@ export async function POST(
 
       return NextResponse.json(payload);
     } catch {
-      return createErrorResponse("SETTLEMENT_FAILED", "Failed to settle stream on Stellar/Soroban", 502);
+      return errorResponse("SETTLEMENT_FAILED", "Failed to settle stream on Stellar/Soroban", 502);
     }
   });
 }

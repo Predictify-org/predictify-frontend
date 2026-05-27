@@ -34,10 +34,10 @@ export async function POST(
   const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "pause") : null;
   if (policyResult) {
     if (!policyResult.allowed) {
-      return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+      return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
     }
     if (policyResult.requiresApproval) {
-      return createErrorResponse(
+      return errorResponse(
         "APPROVAL_REQUIRED",
         "This action requires multi-sig approval. Please initiate an approval request.",
         409
@@ -46,7 +46,7 @@ export async function POST(
   }
 
   if (stream.status !== "active") {
-    return createErrorResponse("INVALID_STREAM_STATE", "Only active streams can be paused", 409);
+    return errorResponse("INVALID_STREAM_STATE", "Only active streams can be paused", 409);
   }
 
   const updatedStream = {

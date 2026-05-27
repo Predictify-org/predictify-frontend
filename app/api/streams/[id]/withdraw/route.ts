@@ -96,8 +96,8 @@ export async function POST(
 
     recordPrivilegedStreamAuditEvent({
       action: "stream.withdraw",
-      after: updated,
-      before,
+      after: updated as any,
+      before: before as any,
       metadata: {
         resultingStatus: updated.status,
         withdrawalState: updated.withdrawal?.state ?? null,

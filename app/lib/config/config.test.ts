@@ -259,7 +259,7 @@ describe('Stellar Network Configuration', () => {
     it('should reject deprecated shared internal auth token in production', () => {
       process.env.STELLAR_NETWORK = 'testnet';
       process.env.JWT_SECRET = 'test-secret-at-least-32-characters-long';
-      process.env.NODE_ENV = 'production';
+      (process.env as any).NODE_ENV = 'production';
       process.env.INTERNAL_AUTH_TOKEN = 'legacy-admin-password';
 
       expect(() => validateConfig()).toThrow(ConfigValidationError);

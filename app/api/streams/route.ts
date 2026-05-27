@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       logger.warn("Stream creation validation failed", {
         fields: { rate: Boolean(rate), recipient: Boolean(recipient), schedule: Boolean(schedule) },
       });
-      return createErrorResponse("VALIDATION_ERROR", "Missing required fields: recipient, rate, schedule", 422);
+      return errorResponse("VALIDATION_ERROR", "Missing required fields: recipient, rate, schedule", 422);
     }
 
     const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
@@ -126,38 +126,4 @@ export async function POST(request: Request) {
   } catch {
     return errorResponse("INVALID_REQUEST", "Request body must be valid JSON", 400);
   }
-
-  const { recipient, rate, schedule } = body as {
-    recipient?: string;
-    rate?: string;
-    schedule?: string;
-  };
-
-  if (!recipient || !rate || !schedule) {
-    return errorResponse(
-      "VALIDATION_ERROR",
-      "Missing required fields: recipient, rate, schedule",
-      422,
-    );
-  }
-
-  const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
-  const now = new Date().toISOString();
-  const newStream = {
-    id,
-    recipient: String(recipient),
-    rate: String(rate),
-    schedule: String(schedule),
-    status: "draft" as const,
-    nextAction: "start" as const,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  db.streams.set(id, newStream);
-
-  const payload = { data: newStream, links: { self: `/api/v1/streams/${id}` } };
-  if (token) db.idempotency.set(token, payload);
-
-  return NextResponse.json(payload, { status: 201 });
 }

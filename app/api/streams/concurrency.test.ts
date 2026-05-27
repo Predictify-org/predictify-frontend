@@ -22,8 +22,8 @@ describe("Concurrency Hardening", () => {
 
     const results = await Promise.all(requests);
 
-    const successCount = results.filter(r => r.status === 200).length;
-    const conflictCount = results.filter(r => r.status === 409).length;
+    const successCount = results.filter((r: any) => r.status === 200).length;
+    const conflictCount = results.filter((r: any) => r.status === 409).length;
 
     // Only 1 should succeed, the rest should be 409
     expect(successCount).toBe(1);

@@ -49,21 +49,16 @@ export async function POST(
   const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "start") : null;
   if (policyResult) {
     if (!policyResult.allowed) {
-      return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+      return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
     }
     if (policyResult.requiresApproval) {
-      return createErrorResponse(
+      return errorResponse(
         "APPROVAL_REQUIRED",
         "This action requires multi-sig approval. Please initiate an approval request.",
         409
       );
     }
   }
-
-  stream.status = result.nextStatus;
-  stream.nextAction = "pause";
-  stream.updatedAt = new Date().toISOString();
-  db.streams.set(id, stream);
 
   const updatedStream = {
     ...stream,
