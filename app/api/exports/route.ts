@@ -1,4 +1,6 @@
+import { createHmac } from "crypto";
 import { NextResponse } from "next/server";
+import { tryAuthenticateRequest, JWT_SECRET } from "@/app/lib/auth";
 import { db, ExportJob, ExportJobStatus } from "@/app/lib/db";
 
 const EXPORT_RETENTION_DAYS = 7;
@@ -24,54 +26,38 @@ function escapeCsvField(value: string | undefined): string {
   return `"${safe}"`;
 }
 
-function createSignedUrl(jobId: string, expiresAt: string) {
-  const token = Buffer.from(`${jobId}:${expiresAt}`).toString("base64url");
+/** Creates an HMAC-SHA256 signed download URL scoped to this server. */
+function createSignedUrl(jobId: string, expiresAt: string): string {
+  const payload = `${jobId}:${expiresAt}`;
+  const sig = createHmac("sha256", JWT_SECRET).update(payload).digest("hex");
   const safeId = encodeURIComponent(jobId);
-  return `https://streampay-exports.example.com/exports/${safeId}.csv?token=${encodeURIComponent(token)}&expires=${encodeURIComponent(expiresAt)}`;
+  return `/api/exports/${safeId}?download=true&expires=${encodeURIComponent(expiresAt)}&sig=${sig}`;
 }
 
 async function generateExportArtifact(jobId: string) {
   const job = db.exportJobs.get(jobId);
-  if (!job) {
-    return;
-  }
+  if (!job) return;
 
-  const streamRows: string[] = [];
-  const eventRows: string[] = [];
-  const streams = Array.from(db.streams.values()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  const events = Array.from(db.activity.values()).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  // Scope streams and activity to the job owner
+  const streams = Array.from(db.streams.values())
+    .filter((s) => (s as { ownerId?: string }).ownerId === job.ownerId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
-  for (const stream of streams) {
-    streamRows.push([
-      "stream",
-      stream.id,
-      stream.recipient,
-      stream.rate,
-      stream.schedule,
-      stream.status,
-      "",
-      "",
-      "",
-    ]
+  const events = Array.from(db.activity.values())
+    .filter((e) => (e as { ownerId?: string }).ownerId === job.ownerId)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+  const streamRows = streams.map((stream) =>
+    ["stream", stream.id, stream.recipient, stream.rate, stream.schedule, stream.status, "", "", ""]
       .map(escapeCsvField)
-      .join(","));
-  }
+      .join(",")
+  );
 
-  for (const event of events) {
-    eventRows.push([
-      "activity",
-      event.streamId ?? "",
-      "",
-      "",
-      "",
-      "",
-      event.type,
-      event.timestamp,
-      event.description,
-    ]
+  const eventRows = events.map((event) =>
+    ["activity", event.streamId ?? "", "", "", "", "", event.type, event.timestamp, event.description]
       .map(escapeCsvField)
-      .join(","));
-  }
+      .join(",")
+  );
 
   const allRows = [
     "record_type,stream_id,recipient,rate,schedule,status,event_type,event_timestamp,description",
@@ -90,14 +76,11 @@ async function generateExportArtifact(jobId: string) {
     rows: Math.max(0, allRows.length - 1),
   });
 
-  // This example uses an external signed URL placeholder. In production, the CSV would be uploaded to S3 and retained for a short lifecycle.
-  createAuditRecord(jobId, "export.requested", { rows: allRows.length - 1, url: signedUrl });
+  createAuditRecord(jobId, "export.requested", { rows: allRows.length - 1 });
 }
 
 function scheduleExportJob(jobId: string) {
-  if (db.exportProcessing.has(jobId)) {
-    return;
-  }
+  if (db.exportProcessing.has(jobId)) return;
 
   const jobPromise = new Promise<void>((resolve) => {
     setTimeout(async () => {
@@ -105,9 +88,7 @@ function scheduleExportJob(jobId: string) {
         await generateExportArtifact(jobId);
       } catch {
         const job = db.exportJobs.get(jobId);
-        if (job) {
-          db.exportJobs.set(jobId, { ...job, status: "failed" });
-        }
+        if (job) db.exportJobs.set(jobId, { ...job, status: "failed" });
       } finally {
         db.exportProcessing.delete(jobId);
         resolve();
@@ -118,13 +99,19 @@ function scheduleExportJob(jobId: string) {
   db.exportProcessing.set(jobId, jobPromise);
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const actor = tryAuthenticateRequest(request);
+  if (!actor) {
+    return createErrorResponse("UNAUTHORIZED", "Missing or invalid authorization header", 401);
+  }
+
   const id = crypto.randomUUID();
   const requestedAt = new Date().toISOString();
   const expiresAt = new Date(Date.now() + EXPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   const job: ExportJob = {
     id,
+    ownerId: actor.walletAddress,
     requestedAt,
     status: "pending",
     expiresAt,
