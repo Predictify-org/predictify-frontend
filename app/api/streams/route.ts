@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 import { checkNotPaused } from "@/app/lib/admin-guard";
+import { checkNotPaused } from "@/app/lib/admin-guard";
 
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -87,6 +88,10 @@ export async function POST(request: Request) {
   if (token && db.idempotency.has(token)) {
     return NextResponse.json(db.idempotency.get(token), { status: 201 });
   }
+
+  // Global pause circuit breaker — create_stream is blocked during incidents.
+  const pauseError = checkNotPaused("create_stream");
+  if (pauseError) return pauseError;
 
   // Global pause circuit breaker — create_stream is blocked when paused.
   const pauseError = checkNotPaused("create_stream");
