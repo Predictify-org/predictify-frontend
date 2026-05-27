@@ -3,6 +3,7 @@ import { db, encodeCursor, decodeCursor } from "@/app/lib/db";
 import { getClientIdentity, checkRateLimit, rateLimitResponse } from "@/app/lib/rate-limit";
 import { recordThrottle, recordRequest } from "@/app/lib/rate-limit-metrics";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
+import { logger, withCorrelationContext, getCorrelationContext } from "@/app/lib/logger";
 
 function createErrorResponse(code: string, message: string, status: number) {
   const context = getCorrelationContext();
@@ -27,20 +28,19 @@ export async function GET(request: Request) {
   const type = searchParams.get("type");
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
 
-  let events = Array.from(db.activity.values()).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const context = {
+    correlation_id: request.headers.get("x-correlation-id") || `api-${crypto.randomUUID()}`,
+    request_id: `req-${crypto.randomUUID()}`,
+  };
 
-  if (streamId) {
-    events = events.filter((e) => e.streamId === streamId);
-  }
-  if (type) {
-    events = events.filter((e) => e.type === type);
-  }
+  return withCorrelationContext(context, async () => {
+    let events = Array.from(db.activity.values()).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
-  if (cursor) {
-    const cursorId = decodeCursor(cursor);
-    const cursorIndex = events.findIndex((e) => e.id === cursorId);
-    if (cursorIndex >= 0) {
-      events = events.slice(cursorIndex + 1);
+    if (streamId) {
+      events = events.filter((e) => e.streamId === streamId);
+    }
+    if (type) {
+      events = events.filter((e) => e.type === type);
     }
 
     if (cursor) {
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     const hasNext = events.length > limit;
     const nextCursor = hasNext && paginatedEvents.length > 0 ? encodeCursor(paginatedEvents[paginatedEvents.length - 1].id) : null;
 
-    logger.info('Activity list completed', { count: paginatedEvents.length, total: db.activity.size });
+    logger.info("Activity list completed", { count: paginatedEvents.length, total: db.activity.size });
 
     return NextResponse.json({
       data: paginatedEvents,
