@@ -392,3 +392,6 @@ fn is_token_blocked(env: &Env, token: &Address) -> bool {
 
 #[cfg(test)]
 mod test;
+
+#[cfg(test)]
+mod prop_test;
