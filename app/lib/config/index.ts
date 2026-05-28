@@ -232,27 +232,48 @@ function validateStellarNetwork(network: StellarNetwork): StellarNetworkProfile 
 
 /**
  * Validate JWT secret
+ *
+ * Security hardening (issue #223):
+ * - Outside development/test: missing or short secret throws immediately
+ *   (fail-fast at boot — no silent fallback to a hardcoded placeholder).
+ * - The dev placeholder is only tolerated in NODE_ENV=development|test.
  */
 function validateJwtSecret(secret: string | undefined): string {
-  if (!secret) {
+  const env   = process.env.NODE_ENV ?? "development";
+  const isDev = env === "development" || env === "test";
+
+  if (!secret || secret.length === 0) {
+    if (isDev) {
+      console.warn(
+        "[config] JWT_SECRET is not set. Using insecure dev placeholder. " +
+        "Set JWT_SECRET before deploying to production.",
+      );
+      return "streampay-dev-secret-do-not-use-in-prod";
+    }
     throw new ConfigValidationError(
-      'JWT_SECRET environment variable is required'
+      "JWT_SECRET environment variable is required in non-development environments.",
     );
   }
-  
-  if (secret === 'streampay-dev-secret-do-not-use-in-prod' && process.env.NODE_ENV === 'production') {
+
+  if (secret === "streampay-dev-secret-do-not-use-in-prod" && !isDev) {
     throw new ConfigValidationError(
-      'Production environment cannot use default JWT_SECRET. ' +
-      'Set a secure JWT_SECRET environment variable.'
+      "Production environment cannot use the default JWT_SECRET placeholder. " +
+      "Set a cryptographically random JWT_SECRET of at least 32 characters.",
     );
   }
-  
+
   if (secret.length < 32) {
-    throw new ConfigValidationError(
-      'JWT_SECRET must be at least 32 characters for security'
+    if (!isDev) {
+      throw new ConfigValidationError(
+        `JWT_SECRET must be at least 32 characters in non-development environments ` +
+        `(got ${secret.length}).`,
+      );
+    }
+    console.warn(
+      `[config] JWT_SECRET is shorter than 32 characters. Use a longer secret in production.`,
     );
   }
-  
+
   return secret;
 }
 
