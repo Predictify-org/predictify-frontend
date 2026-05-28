@@ -1,4 +1,6 @@
 import { GET } from "./route";
+import { db, resetDb } from "@/app/lib/db";
+import { eventBus } from "@/app/lib/event-bus";
 import jwt from "jsonwebtoken";
 
 // Mock dependencies

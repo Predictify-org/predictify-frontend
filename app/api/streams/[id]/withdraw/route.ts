@@ -155,22 +155,17 @@ export async function POST(
     const escrow = resolveEscrowState(stream, now);
     const token  = (stream as Record<string, unknown>).token as string ?? "XLM";
 
-    // recipientAddress: stored on stream or fall back to stream.recipient label
-    const recipientAddress =
-      (stream as Record<string, unknown>).recipientAddress as string
-      ?? stream.recipient;
-
-    // ── Compute withdrawal ─────────────────────────────────────────────────
-    const outcome = computeWithdraw(stream, {
-      totalAmount:      escrow.totalAmount,
-      releasedAmount:   escrow.releasedAmount,
-      vestedAmount:     escrow.vestedAmount,
-      requestedAmount:  requestedAmount ?? undefined,
-      token,
-      recipientAddress,
-      callerAddress,
-      endTime:          (stream as Record<string, unknown>).endsAt as string | undefined,
-      now,
+    recordPrivilegedStreamAuditEvent({
+      action: "stream.withdraw",
+      after: updated as any,
+      before: before as any,
+      metadata: {
+        resultingStatus: updated.status,
+        withdrawalState: updated.withdrawal?.state ?? null,
+      },
+      request,
+      streamId: id,
+      targetAccount: updated.recipient,
     });
 
     if (!outcome.ok) {

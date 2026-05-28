@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStore } from "@/app/lib/db";
+import { db } from "@/app/lib/db";
 import { tryAuthenticateRequest } from "@/app/lib/auth";
 import { eventBus } from "@/app/lib/event-bus";
 import { logger } from "@/app/lib/logger";
@@ -18,7 +18,6 @@ import { logger } from "@/app/lib/logger";
  * - 403 returned on unauthorized access or ID guessing.
  */
 export async function GET(request: NextRequest) {
-  const { streamRepository } = getStore();
   // 1. Authenticate Request
   const actor = tryAuthenticateRequest(request);
   if (!actor) {
@@ -33,7 +32,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "streamId parameter is required" } }, { status: 422 });
   }
 
-  const stream = streamRepository.streams.get(streamId);
+  const stream = db.streams.get(streamId);
   if (!stream) {
     return NextResponse.json({ error: { code: "NOT_FOUND", message: "Stream not found" } }, { status: 404 });
   }
@@ -42,7 +41,7 @@ export async function GET(request: NextRequest) {
   // In this mock, we check if the user's wallet address matches the stream's recipient 
   // or if the user's email (if we had it) matches.
   // For the purpose of this task, we'll fetch the user to check their email too.
-  const user = streamRepository.users.get(actor.walletAddress);
+  const user = db.users.get(actor.walletAddress);
   const isOwner = 
     stream.recipient === actor.walletAddress || 
     (user && stream.email === user.email) ||

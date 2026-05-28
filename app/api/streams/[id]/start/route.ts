@@ -31,46 +31,26 @@ export async function POST(
     return NextResponse.json(db.idempotency.get(token));
   }
 
-  return withLock(id, async () => {
-    if (token && db.idempotency.has(token)) {
-      return NextResponse.json(db.idempotency.get(token));
+  const actorAddress = getHeader(request, "Actor-Wallet-Address");
+  const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "start") : null;
+  if (policyResult) {
+    if (!policyResult.allowed) {
+      return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+    }
+    if (policyResult.requiresApproval) {
+      return errorResponse(
+        "APPROVAL_REQUIRED",
+        "This action requires multi-sig approval. Please initiate an approval request.",
+        409
+      );
     }
 
-    const stream = db.streams.get(id);
-    if (!stream) {
-      return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
-    }
-
-    const actorAddress = getHeader(request, "Actor-Wallet-Address");
-    const policyResult = actorAddress
-      ? checkStreamOrgPolicy(id, actorAddress, "start")
-      : null;
-    if (policyResult) {
-      if (!policyResult.allowed) {
-        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
-      }
-      if (policyResult.requiresApproval) {
-        return createErrorResponse(
-          "APPROVAL_REQUIRED",
-          "This action requires multi-sig approval. Please initiate an approval request.",
-          409
-        );
-      }
-    }
-
-    const updatedStream = {
-      ...stream,
-      nextAction: "pause" as const,
-      status: "active" as const,
-      updatedAt: new Date().toISOString(),
-    };
-    db.streams.set(id, updatedStream);
-
-    const payload = { data: updatedStream };
-    if (token) {
-      db.idempotency.set(token, payload);
-    }
-
-    return NextResponse.json(payload);
-  });
+  const updatedStream = {
+    ...stream,
+    nextAction: "pause" as const,
+    status: "active" as const,
+    updatedAt: new Date().toISOString(),
+  };
+  db.streams.set(id, updatedStream);
+  return NextResponse.json({ data: updatedStream });
 }

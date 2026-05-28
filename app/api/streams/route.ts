@@ -133,7 +133,7 @@ export async function POST(request: Request) {
       logger.warn("Stream creation validation failed", {
         fields: { rate: Boolean(rate), recipient: Boolean(recipient), schedule: Boolean(schedule) },
       });
-      return createErrorResponse("VALIDATION_ERROR", "Missing required fields: recipient, rate, schedule", 422);
+      return errorResponse("VALIDATION_ERROR", "Missing required fields: recipient, rate, schedule", 422);
     }
 
     // ── SEP-41 token validation ──────────────────────────────────────────────

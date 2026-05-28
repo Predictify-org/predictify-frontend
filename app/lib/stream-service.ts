@@ -55,6 +55,13 @@ export class StreamService {
       eventBus.emitSettleFinished(streamId, stream);
     }
 
+    // Emit event for real-time updates
+    const { eventBus } = require("./event-bus");
+    eventBus.emitStreamUpdated(streamId, stream);
+    if ((stream.status as string) === "settled" || stream.status === "ended") {
+      eventBus.emitSettleFinished(streamId, stream);
+    }
+
     return { ok: true, data: stream };
   }
 }

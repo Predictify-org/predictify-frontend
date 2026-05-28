@@ -77,21 +77,16 @@ export async function POST(
 
     db.streams.set(id, updatedStream);
 
-    recordPrivilegedStreamAuditEvent({
-      action: "stream.stop.override",
-      after: updatedStream as unknown as Record<string, unknown>,
-      before: before as unknown as Record<string, unknown>,
-      metadata: { resultingStatus: updatedStream.status },
-      request,
-      streamId: id,
-      targetAccount: updatedStream.recipient,
-    });
-
-    const payload = { data: updatedStream };
-    if (token) {
-      db.idempotency.set(token, payload);
-    }
-
-    return NextResponse.json(payload);
+  db.streams.set(id, updatedStream);
+  recordPrivilegedStreamAuditEvent({
+    action: "stream.stop.override",
+    after: updatedStream as any,
+    before: before as any,
+    metadata: {
+      resultingStatus: updatedStream.status,
+    },
+    request,
+    streamId: id,
+    targetAccount: updatedStream.recipient,
   });
 }

@@ -29,34 +29,32 @@ export async function POST(
   const { id } = await params;
   const idempotencyKey = req.headers.get("Idempotency-Key");
 
-  // All reads and writes happen inside the lock — no state is touched outside.
-  return withLock(id, async () => {
-    // ── Idempotency check (inside lock) ──────────────────────────────────────
-    // Must be re-evaluated after acquiring the lock. If we checked before the
-    // lock, two concurrent requests with the same key could both see "no record"
-    // and both proceed to mutate state.
-    if (idempotencyKey) {
-      const cached = db.idempotencyKeys[idempotencyKey];
-      if (cached) {
-        return NextResponse.json(cached.body, { status: cached.status });
-      }
+  if (token && db.idempotency.has(token)) {
+    return NextResponse.json(db.idempotency.get(token));
+  }
+
+  const stream = db.streams.get(id);
+  if (!stream) {
+    return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+  }
+
+  const actorAddress = getHeader(request, "Actor-Wallet-Address");
+  const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "pause") : null;
+  if (policyResult) {
+    if (!policyResult.allowed) {
+      return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+    }
+    if (policyResult.requiresApproval) {
+      return errorResponse(
+        "APPROVAL_REQUIRED",
+        "This action requires multi-sig approval. Please initiate an approval request.",
+        409
+      );
     }
 
-    // ── Stream existence ──────────────────────────────────────────────────────
-    const stream = db.streams[id];
-    if (!stream) {
-      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
-    }
-
-    // ── Active → paused transition guard ─────────────────────────────────────
-    // Only active streams may be paused. Any other status is a client error.
-    if (stream.status !== "active") {
-      const body = { error: `Cannot pause a stream in '${stream.status}' status` };
-      if (idempotencyKey) {
-        db.idempotencyKeys[idempotencyKey] = { status: 409, body };
-      }
-      return NextResponse.json(body, { status: 409 });
-    }
+  if (stream.status !== "active") {
+    return errorResponse("INVALID_STREAM_STATE", "Only active streams can be paused", 409);
+  }
 
     // ── Org-policy approval flow ──────────────────────────────────────────────
     // If the stream requires org approval before pausing, record the intent and

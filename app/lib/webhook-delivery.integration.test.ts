@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WebhookDeliveryWorker } from '@/app/lib/webhook-delivery-worker';
 import { webhookDeliveryStore } from '@/app/lib/webhook-delivery-store';

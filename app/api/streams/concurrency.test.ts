@@ -55,9 +55,8 @@ function activeStream(overrides = {}) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Setup
-// ---------------------------------------------------------------------------
+    const successCount = results.filter((r: any) => r.status === 200).length;
+    const conflictCount = results.filter((r: any) => r.status === 409).length;
 
 beforeEach(() => {
   resetDb({ s1: activeStream() });

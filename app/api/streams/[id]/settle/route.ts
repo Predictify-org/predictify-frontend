@@ -32,14 +32,26 @@ export async function POST(
 
     const stream = db.streams[id];
     if (!stream) {
-      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
+      return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+    }
+
+    const actorAddress = getHeader(request, "Actor-Wallet-Address");
+    const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "settle") : null;
+    if (policyResult) {
+      if (!policyResult.allowed) {
+        return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+      }
+      if (policyResult.requiresApproval) {
+        return errorResponse(
+          "APPROVAL_REQUIRED",
+          "This action requires multi-sig approval. Please initiate an approval request.",
+          409
+        );
+      }
     }
 
     if (stream.status !== "active" && stream.status !== "paused") {
-      return NextResponse.json(
-        { error: `Cannot settle a stream in '${stream.status}' status` },
-        { status: 409 },
-      );
+      return errorResponse("INVALID_STREAM_STATE", "Only active or paused streams can be settled", 409);
     }
 
     const updated = {
@@ -49,9 +61,28 @@ export async function POST(
     };
     db.streams[id] = updated;
 
-    const responseBody = { stream: updated };
-    if (idempotencyKey) {
-      db.idempotencyKeys[idempotencyKey] = { status: 200, body: responseBody };
+    try {
+      const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
+      recordPrivilegedStreamAuditEvent({
+        action: "stream.settle",
+        after: updatedStream as any,
+        before: before as any,
+        metadata: {
+          settlementTxHash: settlement.txHash,
+        },
+        request,
+        streamId: id,
+        targetAccount: updatedStream.recipient,
+      });
+
+      const payload = { data: { ...updatedStream, settlement } };
+      if (token) {
+        db.idempotency.set(token, payload);
+      }
+
+      return NextResponse.json(payload);
+    } catch {
+      return errorResponse("SETTLEMENT_FAILED", "Failed to settle stream on Stellar/Soroban", 502);
     }
 
     return NextResponse.json(responseBody);

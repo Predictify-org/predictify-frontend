@@ -50,11 +50,11 @@ describe('Correlation Middleware', () => {
         method: 'GET',
       });
 
-      const handler = vi.fn().mockResolvedValue(
+      const handler = vi.fn<any>().mockResolvedValue(
         NextResponse.json({ data: 'test' })
       );
 
-      await withCorrelationMiddleware(request, handler);
+      await withCorrelationMiddleware(request, handler as any);
 
       expect(handler).toHaveBeenCalled();
     });
@@ -64,11 +64,11 @@ describe('Correlation Middleware', () => {
         method: 'GET',
       });
 
-      const handler = vi.fn().mockResolvedValue(
+      const handler = vi.fn<any>().mockResolvedValue(
         NextResponse.json({ data: 'test' })
       );
 
-      const response = await withCorrelationMiddleware(request, handler);
+      const response = await withCorrelationMiddleware(request, handler as any);
 
       expect(response.headers.get('x-request-id')).toBeDefined();
       expect(response.headers.get('x-correlation-id')).toBeDefined();
@@ -79,7 +79,7 @@ describe('Correlation Middleware', () => {
         method: 'GET',
       });
 
-      const handler = vi.fn().mockResolvedValue(
+      const handler = vi.fn<any>().mockResolvedValue(
         new NextResponse(
           JSON.stringify({ data: 'test' }),
           {
@@ -91,7 +91,7 @@ describe('Correlation Middleware', () => {
         )
       );
 
-      const response = await withCorrelationMiddleware(request, handler);
+      const response = await withCorrelationMiddleware(request, handler as any);
 
       expect(response.headers.get('x-internal-auth')).toBeNull();
       expect(response.headers.get('x-service-token')).toBeNull();
@@ -105,11 +105,11 @@ describe('Correlation Middleware', () => {
         },
       });
 
-      const handler = vi.fn().mockResolvedValue(
+      const handler = vi.fn<any>().mockResolvedValue(
         NextResponse.json({ data: 'test' })
       );
 
-      const response = await withCorrelationMiddleware(request, handler);
+      const response = await withCorrelationMiddleware(request, handler as any);
 
       expect(response.headers.get('traceparent')).toBe(
         '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
@@ -304,7 +304,7 @@ describe('Correlation Middleware', () => {
         method: 'GET',
       });
 
-      const handler = vi.fn().mockResolvedValue(
+      const handler = vi.fn<any>().mockResolvedValue(
         new NextResponse(
           JSON.stringify({ data: 'test' }),
           {
@@ -317,7 +317,7 @@ describe('Correlation Middleware', () => {
         )
       );
 
-      const response = await withCorrelationMiddleware(request, handler);
+      const response = await withCorrelationMiddleware(request, handler as any);
 
       expect(response.headers.get('x-internal-auth')).toBeNull();
       expect(response.headers.get('x-service-token')).toBeNull();
@@ -329,11 +329,11 @@ describe('Correlation Middleware', () => {
         method: 'GET',
       });
 
-      const handler = vi.fn().mockResolvedValue(
+      const handler = vi.fn<any>().mockResolvedValue(
         NextResponse.json({ data: 'test' })
       );
 
-      const response = await withCorrelationMiddleware(request, handler);
+      const response = await withCorrelationMiddleware(request, handler as any);
 
       // These are safe to expose for tracing
       expect(response.headers.get('x-request-id')).toBeTruthy();
