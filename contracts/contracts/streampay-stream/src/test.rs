@@ -154,6 +154,36 @@ fn assert_budget_ceiling(
 fn draft_stream_accrues_nothing_until_started() {
     let data = setup();
 
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &true,
+    );
+
+    data.env.ledger().set_timestamp(1_050);
+    assert_eq!(data.client.withdrawable(&stream_id), 0);
+
+    let draft = data.client.get_stream(&stream_id);
+    assert_eq!(draft.status, StreamStatus::Draft);
+    assert_eq!(draft.start_time, 0);
+    assert_eq!(draft.end_time, 0);
+
+    data.env.ledger().set_timestamp(2_000);
+    let active = data.client.start_stream(&stream_id);
+    assert_eq!(active.status, StreamStatus::Active);
+    assert_eq!(active.start_time, 2_000);
+    assert_eq!(active.last_update, 2_000);
+    assert_eq!(active.end_time, 2_100);
+
+    assert_eq!(data.client.withdrawable(&stream_id), 0);
+
+    data.env.ledger().set_timestamp(2_050);
+    assert_eq!(data.client.withdrawable(&stream_id), 500);
+}
+
 #[test]
 fn initialize_succeeds_once() {
     let data = setup();
@@ -588,4 +618,169 @@ fn budget_full_withdraw_settle_stays_within_ceiling() {
 
     let stream = data.client.get_stream(&stream_id);
     assert_eq!(stream.status, StreamStatus::Settled);
+}
+
+// ── Settle tests ─────────────────────────────────────────────────────────────
+
+#[test]
+fn test_settle_after_end_time_succeeds() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    // Advance time exactly to end_time
+    data.env.ledger().set_timestamp(1_100);
+
+    // Call settle permissionlessly
+    data.client.settle(&stream_id);
+
+    // Recipient holds the full total_amount
+    let recipient_balance = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
+    assert_eq!(recipient_balance, 1_000);
+
+    // Stream status is Settled and released_amount == total_amount
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.status, StreamStatus::Settled);
+    assert_eq!(stream.released_amount, 1_000);
+}
+
+#[test]
+fn test_settle_before_end_time_fails() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    // Advance time, but before end_time (1_100)
+    data.env.ledger().set_timestamp(1_050);
+
+    // Try settling, should fail with InvalidState
+    assert_contract_error!(
+        data.client.try_settle(&stream_id),
+        Error::InvalidState
+    );
+}
+
+#[test]
+fn test_settle_idempotent() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_100);
+
+    // First settle call
+    data.client.settle(&stream_id);
+
+    let recipient_balance_1 = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
+    assert_eq!(recipient_balance_1, 1_000);
+
+    // Second settle call should be a no-op and not fail
+    data.client.settle(&stream_id);
+
+    let recipient_balance_2 = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
+    assert_eq!(recipient_balance_2, 1_000);
+}
+
+#[test]
+fn test_settle_after_partial_withdraw() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    // Advance time to 1_050 and withdraw 500
+    data.env.ledger().set_timestamp(1_050);
+    data.client.withdraw(&stream_id, &500);
+
+    let balance_after_withdraw = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
+    assert_eq!(balance_after_withdraw, 500);
+
+    // Advance past end_time
+    data.env.ledger().set_timestamp(1_150);
+
+    // Settle should only transfer the remaining 500
+    data.client.settle(&stream_id);
+
+    let balance_after_settle = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
+    assert_eq!(balance_after_settle, 1_000);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.status, StreamStatus::Settled);
+    assert_eq!(stream.released_amount, 1_000);
+}
+
+#[test]
+fn test_settle_paused_stream() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    // Advance time to 1_050 and pause (accrued: 500)
+    data.env.ledger().set_timestamp(1_050);
+    data.client.pause(&stream_id);
+
+    // Advance past end_time (1_100) to 1_150
+    data.env.ledger().set_timestamp(1_150);
+
+    data.client.settle(&stream_id);
+
+    let balance = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
+    assert_eq!(balance, 1_000);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.status, StreamStatus::Settled);
+    assert_eq!(stream.released_amount, 1_000);
+}
+
+#[test]
+fn test_settle_draft_stream_fails() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &true,
+    );
+
+    assert_contract_error!(
+        data.client.try_settle(&stream_id),
+        Error::InvalidState
+    );
 }

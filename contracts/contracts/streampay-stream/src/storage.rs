@@ -25,6 +25,8 @@ pub struct Stream {
     pub duration: u64,
     pub last_update: u64,
     pub status: StreamStatus,
+    pub pause_time: u64,
+    pub total_paused_duration: u64,
 }
 
 #[derive(Clone)]

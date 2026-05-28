@@ -342,6 +342,55 @@ impl Contract {
 
         Ok(stream)
     }
+
+    /// Finalizes a stream whose time window has fully elapsed, paying out
+    /// any remaining vested funds to the recipient and transitioning it to a
+    /// terminal `Settled` state.
+    ///
+    /// This function is permissionless and can be triggered by anyone after
+    /// `end_time` has been reached. Calling it on an already `Settled` stream
+    /// is a no-op (returns `Ok(())`).
+    ///
+    /// # Errors
+    /// - [`Error::ContractPaused`] if the contract is paused.
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::InvalidState`] if the stream is in `Draft` or cancelled state,
+    ///   or if the current ledger timestamp has not yet reached `end_time`.
+    pub fn settle(env: Env, stream_id: u64) -> Result<(), Error> {
+        require_not_paused(&env)?;
+        let mut stream = get_existing_stream(&env, stream_id)?;
+
+        if stream.status == StreamStatus::Settled {
+            return Ok(());
+        }
+
+        if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        if now < stream.end_time {
+            return Err(Error::InvalidState);
+        }
+
+        let payout_amount = stream.total_amount - stream.released_amount;
+        if payout_amount > 0 {
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            token::Client::new(&env, &stream.token).transfer(
+                &env.current_contract_address(),
+                &stream.recipient,
+                &payout_amount,
+            );
+            stream.released_amount = stream.total_amount;
+        }
+
+        stream.status = StreamStatus::Settled;
+        stream.last_update = now;
+
+        storage::set_stream(&env, stream_id, &stream);
+
+        Ok(())
+    }
 }
 
 fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
