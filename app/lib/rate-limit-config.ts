@@ -27,9 +27,16 @@ export function getLimitForRoute(method: string, path: string): LimitType {
     return ROUTE_LIMITS[exactKey];
   }
 
-  const wildcardKey = `${method}:${path.replace(/\/[^/]+$/, "/*")}`;
-  if (ROUTE_LIMITS[wildcardKey]) {
-    return ROUTE_LIMITS[wildcardKey];
+  // Handle wildcards in the middle: /api/streams/123/start -> /api/streams/*/start
+  const middleWildcardKey = `${method}:${path.replace(/\/streams\/[^/]+\//, "/streams/*/")}`;
+  if (ROUTE_LIMITS[middleWildcardKey]) {
+    return ROUTE_LIMITS[middleWildcardKey];
+  }
+
+  // Handle wildcards at the end: /api/streams/123 -> /api/streams/*
+  const endWildcardKey = `${method}:${path.replace(/\/[^/]+$/, "/*")}`;
+  if (ROUTE_LIMITS[endWildcardKey]) {
+    return ROUTE_LIMITS[endWildcardKey];
   }
 
   return method === "GET" ? "read" : "write";
