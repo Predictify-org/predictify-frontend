@@ -35,6 +35,8 @@ pub struct Stream {
     pub duration: u64,
     pub last_update: u64,
     pub status: StreamStatus,
+    pub pause_time: u64,
+    pub total_paused_duration: u64,
 }
 
 #[derive(Clone)]
@@ -143,6 +145,8 @@ impl Contract {
             duration,
             last_update,
             status,
+            pause_time: 0,
+            total_paused_duration: 0,
         };
 
         env.storage()
@@ -212,7 +216,9 @@ impl Contract {
             return Err(Error::AlreadySettled);
         }
 
-        if stream.status != StreamStatus::Active {
+        // Allow withdrawals from Active or Paused streams
+        // Paused streams have vested amounts settled in released_amount
+        if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
             return Err(Error::InvalidState);
         }
 
@@ -240,6 +246,73 @@ impl Contract {
 
         Ok(amount)
     }
+
+    /// Pauses an active stream, freezing accrual while preserving vested funds.
+    ///
+    /// Only the stream sender may call this. On pause, status is set to Paused
+    /// and pause_time is recorded. Vested amount remains withdrawable but does
+    /// not increase while paused.
+    pub fn pause(env: Env, stream_id: u64) -> Result<Stream, Error> {
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if stream.status != StreamStatus::Active {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        
+        stream.last_update = now;
+        stream.status = StreamStatus::Paused;
+        stream.pause_time = now;
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Stream(stream_id), &stream);
+
+        Ok(stream)
+    }
+
+    /// Resumes a paused stream, extending end_time to preserve unstreamed time.
+    ///
+    /// Only the stream sender may call this. On resume, the end_time is extended
+    /// by the paused duration so the remaining streamable amount is preserved.
+    /// Status is set back to Active.
+    pub fn resume(env: Env, stream_id: u64) -> Result<Stream, Error> {
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if stream.status != StreamStatus::Paused {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        let paused_duration = now
+            .checked_sub(stream.pause_time)
+            .ok_or(Error::InvalidTimeRange)?;
+
+        // Track total paused duration for accrual calculations
+        stream.total_paused_duration = stream
+            .total_paused_duration
+            .checked_add(paused_duration)
+            .ok_or(Error::InvalidTimeRange)?;
+
+        // Extend end_time by the paused duration to preserve unstreamed time
+        stream.end_time = stream
+            .end_time
+            .checked_add(paused_duration)
+            .ok_or(Error::InvalidTimeRange)?;
+        
+        stream.last_update = now;
+        stream.status = StreamStatus::Active;
+        stream.pause_time = 0;
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Stream(stream_id), &stream);
+
+        Ok(stream)
+    }
 }
 
 fn next_stream_id(env: &Env) -> u64 {
@@ -257,13 +330,22 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
 }
 
 fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
+    // Draft streams and streams that haven't started don't accrue
+    if stream.start_time == 0 {
         return 0;
     }
 
-    let now = env.ledger().timestamp();
+    // For paused streams, calculate accrued amount at pause time
+    let now = if stream.status == StreamStatus::Paused {
+        stream.pause_time
+    } else {
+        env.ledger().timestamp()
+    };
+
     let elapsed = min(now, stream.end_time) - stream.start_time;
-    let accrued = (stream.total_amount * elapsed as i128) / stream.duration as i128;
+    // Subtract total paused duration from elapsed time
+    let active_elapsed = elapsed.saturating_sub(stream.total_paused_duration);
+    let accrued = (stream.total_amount * active_elapsed as i128) / stream.duration as i128;
 
     accrued - stream.released_amount
 }
@@ -310,3 +392,6 @@ fn is_token_blocked(env: &Env, token: &Address) -> bool {
 
 #[cfg(test)]
 mod test;
+
+#[cfg(test)]
+mod prop_test;

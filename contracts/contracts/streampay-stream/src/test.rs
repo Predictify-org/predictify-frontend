@@ -232,3 +232,190 @@ fn blocked_token_returns_token_not_allowed() {
         Error::TokenNotAllowed
     );
 }
+
+#[test]
+fn pause_freezes_accrual_and_preserves_vested_funds() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    // Stream accrues 500 after 50 seconds
+    data.env.ledger().set_timestamp(1_050);
+    assert_eq!(data.client.withdrawable(&stream_id), 500);
+
+    // Pause the stream
+    let paused = data.client.pause(&stream_id);
+    assert_eq!(paused.status, StreamStatus::Paused);
+    assert_eq!(paused.pause_time, 1_050);
+    assert_eq!(paused.released_amount, 0);
+
+    // No accrual while paused - vested amount remains withdrawable
+    data.env.ledger().set_timestamp(1_100);
+    assert_eq!(data.client.withdrawable(&stream_id), 500);
+}
+
+#[test]
+fn resume_extends_end_time_to_preserve_unstreamed_amount() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    // Stream accrues 500 after 50 seconds
+    data.env.ledger().set_timestamp(1_050);
+    data.client.pause(&stream_id);
+
+    // Pause for 30 seconds
+    data.env.ledger().set_timestamp(1_080);
+
+    // Resume the stream
+    let resumed = data.client.resume(&stream_id);
+    assert_eq!(resumed.status, StreamStatus::Active);
+    assert_eq!(resumed.pause_time, 0);
+    // End time should be extended by 30 seconds (paused duration)
+    assert_eq!(resumed.end_time, 1_130); // Original 1_100 + 30
+
+    // Accrual resumes from where it left off
+    // 50 seconds active before pause, 30 seconds paused, 10 seconds active after resume
+    // Total active: 60 seconds, but we only count 50 before pause + 10 after = 60
+    // At timestamp 1_090: elapsed from start (1_000) = 90 seconds
+    // Subtract paused duration (30) = 60 seconds active
+    // Accrued: (1000 * 60) / 100 = 600
+    // Withdrawable: 600 - 0 (no withdrawals yet) = 600
+    data.env.ledger().set_timestamp(1_090);
+    assert_eq!(data.client.withdrawable(&stream_id), 600);
+}
+
+#[test]
+fn double_pause_is_rejected() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_050);
+    data.client.pause(&stream_id);
+
+    assert_contract_error!(
+        data.client.try_pause(&stream_id),
+        Error::InvalidState
+    );
+}
+
+#[test]
+fn resume_without_pause_is_rejected() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    assert_contract_error!(
+        data.client.try_resume(&stream_id),
+        Error::InvalidState
+    );
+}
+
+#[test]
+fn pause_non_active_stream_is_rejected() {
+    let data = setup();
+
+    // Create a draft stream
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &true,
+    );
+
+    assert_contract_error!(
+        data.client.try_pause(&stream_id),
+        Error::InvalidState
+    );
+}
+
+#[test]
+fn pause_then_withdraw() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    // Stream accrues 500 after 50 seconds
+    data.env.ledger().set_timestamp(1_050);
+    data.client.pause(&stream_id);
+
+    // Withdraw the vested amount while paused
+    assert_eq!(data.client.withdraw(&stream_id, &500), 500);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.released_amount, 500); // 500 withdrawn
+    assert_eq!(stream.status, StreamStatus::Paused);
+}
+
+#[test]
+fn pause_preserves_total_streamable_amount() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    // Stream accrues 500 after 50 seconds
+    data.env.ledger().set_timestamp(1_050);
+    data.client.pause(&stream_id);
+
+    // Pause for 30 seconds
+    data.env.ledger().set_timestamp(1_080);
+    data.client.resume(&stream_id);
+
+    // Stream to the new end time (1_130)
+    // At timestamp 1_130: elapsed from start (1_000) = 130 seconds
+    // Subtract paused duration (30) = 100 seconds active
+    // Accrued: (1000 * 100) / 100 = 1000
+    // Withdrawable: 1000 - 0 = 1000
+    data.env.ledger().set_timestamp(1_130);
+    assert_eq!(data.client.withdrawable(&stream_id), 1000);
+
+    // Total should still be 1_000
+    data.client.withdraw(&stream_id, &1000);
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.status, StreamStatus::Settled);
+}
