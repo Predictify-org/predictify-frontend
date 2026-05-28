@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/app/lib/db";
+import { getStore } from "@/app/lib/db";
 import { requireInternalServiceAuth } from "@/app/lib/internal-service-auth";
 
 function createErrorResponse(code: string, message: string, status: number) {
@@ -16,6 +16,7 @@ function createErrorResponse(code: string, message: string, status: number) {
 }
 
 export async function POST(request: Request) {
+  const { streamRepository } = getStore();
   const identity = await requireInternalServiceAuth(request, {
     allowedServices: ["ops-automation", "reconciliation-worker"],
     concealFailure: true,
@@ -35,13 +36,13 @@ export async function POST(request: Request) {
     return createErrorResponse("INVALID_REQUEST", "Request body must be valid JSON.", 400);
   }
 
-  if (body.streamId && !db.streams.has(body.streamId)) {
+  if (body.streamId && !streamRepository.streams.has(body.streamId)) {
     return createErrorResponse("STREAM_NOT_FOUND", `Stream '${body.streamId}' not found.`, 404);
   }
 
   const streams = body.streamId
-    ? [db.streams.get(body.streamId)!]
-    : Array.from(db.streams.values());
+    ? [streamRepository.streams.get(body.streamId)!]
+    : Array.from(streamRepository.streams.values());
 
   const summary = streams.reduce(
     (accumulator, stream) => {

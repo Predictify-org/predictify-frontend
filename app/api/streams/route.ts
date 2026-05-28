@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, decodeCursor, encodeCursor, idempotencyToken } from "@/app/lib/db";
+import { decodeCursor, encodeCursor, getStore, idempotencyToken } from "@/app/lib/db";
 import { getCorrelationContext, logger } from "@/app/lib/logger";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
@@ -27,6 +27,7 @@ function getHeader(request: Request, name: string): string | null {
 }
 
 export async function GET(request: Request) {
+  const { streamRepository } = getStore();
   const url = getRequestUrl(request, "/api/streams");
   const limitType = getLimitForRoute("GET", url.pathname);
   const identity = getClientIdentity(request);
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
   const status = searchParams.get("status");
   const limit = Math.min(Number.parseInt(searchParams.get("limit") ?? "20", 10), 100);
 
-  let streams = Array.from(db.streams.values()).sort((left, right) => {
+  let streams = Array.from(streamRepository.streams.values()).sort((left, right) => {
     const timeCompare = left.createdAt.localeCompare(right.createdAt);
     return timeCompare !== 0 ? timeCompare : left.id.localeCompare(right.id);
   });
@@ -72,7 +73,10 @@ export async function GET(request: Request) {
       ? encodeCursor(paginatedStreams[paginatedStreams.length - 1].id)
       : null;
 
-  logger.info("Streams listed successfully", { count: paginatedStreams.length, total: db.streams.size });
+  logger.info("Streams listed successfully", {
+    count: paginatedStreams.length,
+    total: streamRepository.streams.size,
+  });
 
   return NextResponse.json({
     data: paginatedStreams,
@@ -82,6 +86,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const { idempotencyStore, streamRepository } = getStore();
   const url = getRequestUrl(request, "/api/streams");
   const limitType = getLimitForRoute("POST", url.pathname);
   const identity = getClientIdentity(request);
@@ -96,8 +101,8 @@ export async function POST(request: Request) {
   const idempotencyKey = getHeader(request, "Idempotency-Key");
   const token = idempotencyKey ? idempotencyToken("streams.create", idempotencyKey) : null;
 
-  if (token && db.idempotency.has(token)) {
-    return NextResponse.json(db.idempotency.get(token), { status: 201 });
+  if (token && idempotencyStore.has(token)) {
+    return NextResponse.json(idempotencyStore.get(token), { status: 201 });
   }
 
   try {
@@ -128,11 +133,11 @@ export async function POST(request: Request) {
       updatedAt: now,
     };
 
-    db.streams.set(id, newStream);
+    streamRepository.streams.set(id, newStream);
     const payload = { data: newStream, links: { self: `/api/v1/streams/${id}` } };
 
     if (token) {
-      db.idempotency.set(token, payload);
+      idempotencyStore.set(token, payload);
     }
 
     return NextResponse.json(payload, { status: 201 });

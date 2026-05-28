@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
-import { db, idempotencyToken, withLock } from "@/app/lib/db";
+import { getStore, idempotencyToken, withLock } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { getStellarSettlementClient } from "@/app/lib/stellar";
@@ -24,20 +24,21 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { idempotencyStore, streamRepository } = getStore();
   const { id } = await params;
   const idempotencyKey = getHeader(request, "Idempotency-Key");
   const token = idempotencyKey ? idempotencyToken(`streams.settle.${id}`, idempotencyKey) : null;
 
-  if (token && db.idempotency.has(token)) {
-    return NextResponse.json(db.idempotency.get(token));
+  if (token && idempotencyStore.has(token)) {
+    return NextResponse.json(idempotencyStore.get(token));
   }
 
   return withLock(id, async () => {
-    if (token && db.idempotency.has(token)) {
-      return NextResponse.json(db.idempotency.get(token));
+    if (token && idempotencyStore.has(token)) {
+      return NextResponse.json(idempotencyStore.get(token));
     }
 
-    const stream = db.streams.get(id);
+    const stream = streamRepository.streams.get(id);
     if (!stream) {
       return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
@@ -78,7 +79,7 @@ export async function POST(
         state: "pending" as const,
       },
     };
-    db.streams.set(id, updatedStream);
+    streamRepository.streams.set(id, updatedStream);
 
     try {
       const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
@@ -96,7 +97,7 @@ export async function POST(
 
       const payload = { data: { ...updatedStream, settlement } };
       if (token) {
-        db.idempotency.set(token, payload);
+        idempotencyStore.set(token, payload);
       }
 
       return NextResponse.json(payload);

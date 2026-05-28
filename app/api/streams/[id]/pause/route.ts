@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, idempotencyToken } from "@/app/lib/db";
+import { getStore, idempotencyToken } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 
@@ -22,15 +22,16 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { idempotencyStore, streamRepository } = getStore();
   const { id } = await params;
   const idempotencyKey = getHeader(request, "Idempotency-Key");
   const token = idempotencyKey ? idempotencyToken(`streams.pause.${id}`, idempotencyKey) : null;
 
-  if (token && db.idempotency.has(token)) {
-    return NextResponse.json(db.idempotency.get(token));
+  if (token && idempotencyStore.has(token)) {
+    return NextResponse.json(idempotencyStore.get(token));
   }
 
-  const stream = db.streams.get(id);
+  const stream = streamRepository.streams.get(id);
   if (!stream) {
     return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
@@ -60,11 +61,11 @@ export async function POST(
     status: "paused" as const,
     updatedAt: new Date().toISOString(),
   };
-  db.streams.set(id, updatedStream);
+  streamRepository.streams.set(id, updatedStream);
 
   const payload = { data: updatedStream };
   if (token) {
-    db.idempotency.set(token, payload);
+    idempotencyStore.set(token, payload);
   }
 
   return NextResponse.json(payload);
