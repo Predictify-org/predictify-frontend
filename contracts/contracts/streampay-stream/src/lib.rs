@@ -1,10 +1,12 @@
 #![no_std]
 
 mod error;
+mod release;
 
 use core::cmp::min;
 
 pub use error::Error;
+use release::{vested_amount, withdrawable};
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
 
 #[contract]
@@ -293,25 +295,25 @@ impl Contract {
         Ok(withdrawable_amount(&env, &stream))
     }
 
-    /// Withdraws `amount` of accrued tokens to the stream's `recipient`.
+    /// Returns the stream balance (vested amount) at a given ledger timestamp.
     ///
-    /// **Token transfer**: `amount` is transferred from the contract address to
-    /// `recipient`. If this brings `released_amount` to `total_amount` the
-    /// stream transitions to `Settled`.
+    /// This is a view function that computes how much of the stream has vested
+    /// based on linear accrual from start_time to end_time. It uses overflow-safe
+    /// checked arithmetic to ensure correctness even with large amounts.
     ///
-    /// # Errors
-    /// - [`Error::ContractPaused`] if the global pause flag is set.
-    /// - [`Error::InvalidAmount`] if `amount <= 0`.
-    /// - [`Error::NotFound`] if `stream_id` does not exist.
-    /// - [`Error::AlreadySettled`] if the stream is already `Settled`.
-    /// - [`Error::InvalidState`] if the stream is not `Active`.
-    /// - [`Error::OverWithdraw`] if `amount` exceeds the currently accrued
-    ///   withdrawable balance.
+    /// # Arguments
     ///
-    /// Returns `amount` on success.
+    /// * `stream_id` - The ID of the stream to query
     ///
-    /// # Auth
-    /// Requires authorisation from the stream's `recipient`.
+    /// # Returns
+    ///
+    /// The vested amount as an i128, always in the range `[0, total_amount]`.
+    pub fn stream_balance(env: Env, stream_id: u64) -> Result<i128, Error> {
+        let stream = get_existing_stream(&env, stream_id)?;
+        Ok(stream_balance_amount(&env, &stream))
+    }
+
+    /// Withdraws accrued escrow to the recipient.
     pub fn withdraw(env: Env, stream_id: u64, amount: i128) -> Result<i128, Error> {
         require_not_paused(&env)?;
         if amount <= 0 {
@@ -462,19 +464,17 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
         return 0;
     }
 
-    // For paused streams, calculate accrued amount at pause time
-    let now = if stream.status == StreamStatus::Paused {
-        stream.pause_time
-    } else {
-        env.ledger().timestamp()
-    };
+    let now = env.ledger().timestamp();
+    release::withdrawable(stream, now)
+}
 
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    // Subtract total paused duration from elapsed time
-    let active_elapsed = elapsed.saturating_sub(stream.total_paused_duration);
-    let accrued = (stream.total_amount * active_elapsed as i128) / stream.duration as i128;
+fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
+    if stream.status != StreamStatus::Active || stream.start_time == 0 {
+        return 0;
+    }
 
-    accrued - stream.released_amount
+    let now = env.ledger().timestamp();
+    release::vested_amount(stream, now)
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
