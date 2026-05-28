@@ -115,56 +115,43 @@ export class WebhookDeliveryStore {
   /**
    * Move delivery to DLQ on final failure
    */
-  moveToDLQ(
-    deliveryId: string,
-    reason: string
-  ): DLQEntry | undefined {
+  moveToDLQ(deliveryId: string, reason: string): DLQEntry | undefined {
     const record = this.deliveries.get(deliveryId);
     if (!record || record.attempts.length === 0) {
-      logger.warn('Cannot move delivery to DLQ: record not found or no attempts', {
-        delivery_id: deliveryId,
-      });
+      logger.warn('Cannot move delivery to DLQ: record not found or no attempts', { delivery_id: deliveryId });
       return undefined;
     }
 
     const lastAttempt = record.attempts[record.attempts.length - 1];
 
-    // Find the original event by looking at delivery metadata
-    // In production, this would be stored in the record
     const dlqEntry: DLQEntry = {
       id: `dlq-${crypto.randomUUID()}`,
       deliveryId,
-      endpointId: record.endpointId,
+      endpointId:  record.endpointId,
       endpointUrl: record.endpointUrl,
-      eventId: record.eventId,
-      eventType: 'unknown', // Would come from the event
+      eventId:     record.eventId,
+      eventType:   'unknown',
       payload: {
-        id: record.eventId,
-        eventType: 'unknown',
-        streamId: '',
-        data: {},
-        timestamp: new Date().toISOString(),
+        id: record.eventId, eventType: 'unknown',
+        streamId: '', data: {}, timestamp: new Date().toISOString(),
       },
       reason,
+      // Full attempt history so operators can see every retry before DLQ.
+      allAttempts: [...record.attempts],
       lastAttempt,
       createdAt: new Date().toISOString(),
     };
 
     this.dlq.set(dlqEntry.id, dlqEntry);
-
-    // Update delivery record
-    record.status = 'dlq';
+    record.status      = 'dlq';
     record.finalizedAt = new Date().toISOString();
-    record.updatedAt = record.finalizedAt;
+    record.updatedAt   = record.finalizedAt;
     this.deliveries.set(deliveryId, record);
 
     const context = getCorrelationContext();
     logger.error('Webhook delivery moved to DLQ', {
-      delivery_id: deliveryId,
-      dlq_id: dlqEntry.id,
-      reason,
-      total_attempts: record.attempts.length,
-      endpoint_url: record.endpointUrl,
+      delivery_id: deliveryId, dlq_id: dlqEntry.id, reason,
+      total_attempts: record.attempts.length, endpoint_url: record.endpointUrl,
       correlation_id: context?.correlation_id,
     });
 
