@@ -7,8 +7,7 @@ import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 import { evaluateWithdrawalState } from "@/app/lib/withdraw-finality";
-import { checkNotPaused } from "@/app/lib/admin-guard";
-import { checkNotPaused } from "@/app/lib/admin-guard";
+import { getTokenClientForStream } from "@/app/lib/sep41-token-client";
 
 function createErrorResponse(code: string, message: string, status: number) {
   const context = getCorrelationContext();
@@ -101,10 +100,16 @@ export async function POST(
     const { alert, stream: updated } = await evaluateWithdrawalState(stream, new Date(), fetch);
     streamRepository.streams.set(id, updated);
 
+    // Obtain the token client bound to THIS stream's token address.
+    // Every payout/refund must use the stream's own token — never a hardcoded asset.
+    const tokenClient = getTokenClientForStream(updated);
+
     const payload = {
       alert,
       data: updated,
       withdrawal: updated.withdrawal,
+      // Surface the token so callers know which asset was withdrawn.
+      token: tokenClient.tokenAddress,
     };
 
     recordPrivilegedStreamAuditEvent({
@@ -114,6 +119,8 @@ export async function POST(
       metadata: {
         resultingStatus: updated.status,
         withdrawalState: updated.withdrawal?.state ?? null,
+        // Record which SEP-41 token was withdrawn for audit traceability.
+        token: tokenClient.tokenAddress,
       },
       request,
       streamId: id,

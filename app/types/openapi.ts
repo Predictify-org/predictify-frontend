@@ -28,6 +28,20 @@ export interface Stream {
   updatedAt: string;
   settlementTxHash?: string;
   withdrawal?: WithdrawalStatus;
+  /**
+   * SEP-41 token address for this stream's escrow.
+   *
+   * - "native" or "XLM" → Stellar native lumens (XLM).
+   * - "CODE:ISSUER"      → Any SEP-41 / Stellar Classic asset, e.g.
+   *                        "USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335XOP3IA2M3QC2ED2AAA7Z5TJH"
+   *
+   * Amounts are always expressed as i128 raw units (no per-decimal logic in
+   * the contract layer). Callers are responsible for applying the correct
+   * decimal exponent when displaying values to end-users.
+   *
+   * Defaults to "XLM" when omitted at creation time.
+   */
+  token: string;
 }
 
 export interface User {
