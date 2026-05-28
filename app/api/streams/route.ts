@@ -4,6 +4,8 @@ import { getCorrelationContext, logger } from "@/app/lib/logger";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
+import { checkNotPaused } from "@/app/lib/admin-guard";
+import { checkNotPaused } from "@/app/lib/admin-guard";
 
 function createErrorResponse(code: string, message: string, status: number) {
   const context = getCorrelationContext();
@@ -104,6 +106,14 @@ export async function POST(request: Request) {
   if (token && idempotencyStore.has(token)) {
     return NextResponse.json(idempotencyStore.get(token), { status: 201 });
   }
+
+  // Global pause circuit breaker — create_stream is blocked during incidents.
+  const pauseError = checkNotPaused("create_stream");
+  if (pauseError) return pauseError;
+
+  // Global pause circuit breaker — create_stream is blocked when paused.
+  const pauseError = checkNotPaused("create_stream");
+  if (pauseError) return pauseError;
 
   try {
     const body = await request.json();
