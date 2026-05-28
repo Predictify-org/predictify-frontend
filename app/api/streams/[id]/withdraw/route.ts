@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
 import { getStore, idempotencyToken, withLock } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
-import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
+import { enforceStreamRbac } from "@/app/lib/org-policy";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
@@ -43,7 +43,6 @@ export async function POST(
   }
   recordRequest(url.pathname);
 
-  const actorAddress = getHeader(request, "Actor-Wallet-Address");
   const idempotencyKey = getHeader(request, "Idempotency-Key");
   const token = idempotencyKey ? idempotencyToken(`streams.withdraw.${id}`, idempotencyKey) : null;
 
@@ -71,26 +70,15 @@ export async function POST(
       return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
 
-    const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "withdraw") : null;
-    if (policyResult) {
-      if (!policyResult.allowed) {
-        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
-      }
-      if (policyResult.requiresApproval) {
-        return createErrorResponse(
-          "APPROVAL_REQUIRED",
-          "This action requires multi-sig approval. Please initiate an approval request.",
-          409
-        );
-      }
-    }
+    // Mandatory RBAC — missing actor → 403; role insufficient → 403.
+    // Actor is sourced from verified JWT first, then Actor-Wallet-Address header.
+    const rbacError = enforceStreamRbac(request, id, "withdraw");
+    if (rbacError) return rbacError;
 
     if (stream.status !== "ended") {
       if (stream.status === "withdrawn") {
         const payload = { data: stream, withdrawal: stream.withdrawal };
-        if (token) {
-          idempotencyStore.set(token, payload);
-        }
+        if (token) db.idempotency.set(token, payload);
         return NextResponse.json(payload);
       }
       return createErrorResponse("INVALID_STREAM_STATE", "Only ended streams can be withdrawn from", 409);
@@ -127,10 +115,7 @@ export async function POST(
       targetAccount: updated.recipient,
     });
 
-    if (token) {
-      idempotencyStore.set(token, payload);
-    }
-
+    if (token) db.idempotency.set(token, payload);
     return NextResponse.json(payload);
   });
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
-import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
+import { enforceStreamRbac } from "@/app/lib/org-policy";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
@@ -15,10 +15,6 @@ function createErrorResponse(code: string, message: string, status: number) {
 
 function errorResponse(code: string, message: string, status: number) {
   return createErrorResponse(code, message, status);
-}
-
-function getHeader(request: Request, name: string): string | null {
-  return request.headers?.get?.(name) ?? null;
 }
 
 function getRequestUrl(request: Request, fallbackPath: string): URL {

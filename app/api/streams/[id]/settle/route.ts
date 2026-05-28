@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
 import { getStore, idempotencyToken, withLock } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
-import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
+import { enforceStreamRbac } from "@/app/lib/org-policy";
 import { getStellarSettlementClient } from "@/app/lib/stellar";
 import { getTokenClientForStream } from "@/app/lib/sep41-token-client";
 
@@ -46,23 +46,13 @@ export async function POST(
 
     const stream = streamRepository.streams.get(id);
     if (!stream) {
-      return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+      return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
 
-    const actorAddress = getHeader(request, "Actor-Wallet-Address");
-    const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "settle") : null;
-    if (policyResult) {
-      if (!policyResult.allowed) {
-        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
-      }
-      if (policyResult.requiresApproval) {
-        return createErrorResponse(
-          "APPROVAL_REQUIRED",
-          "This action requires multi-sig approval. Please initiate an approval request.",
-          409
-        );
-      }
-    }
+    // Mandatory RBAC — missing actor → 403; role insufficient → 403.
+    // Actor is sourced from verified JWT first, then Actor-Wallet-Address header.
+    const rbacError = enforceStreamRbac(request, id, "settle");
+    if (rbacError) return rbacError;
 
     if (stream.status !== "active" && stream.status !== "paused") {
       return createErrorResponse("INVALID_STREAM_STATE", "Only active or paused streams can be settled", 409);
@@ -111,10 +101,7 @@ export async function POST(
       });
 
       const payload = { data: { ...updatedStream, settlement } };
-      if (token) {
-        idempotencyStore.set(token, payload);
-      }
-
+      if (token) db.idempotency.set(token, payload);
       return NextResponse.json(payload);
     } catch {
       return createErrorResponse("SETTLEMENT_FAILED", "Failed to settle stream on Stellar/Soroban", 502);

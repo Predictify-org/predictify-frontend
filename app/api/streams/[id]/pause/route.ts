@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStore, idempotencyToken } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
-import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
+import { enforceStreamRbac } from "@/app/lib/org-policy";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -12,6 +12,11 @@ function createErrorResponse(code: string, message: string, status: number) {
 
 function errorResponse(code: string, message: string, status: number) {
   return createErrorResponse(code, message, status);
+}
+
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
 }
 
 function getHeader(request: Request, name: string): string | null {
@@ -36,20 +41,10 @@ export async function POST(
     return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
 
-  const actorAddress = getHeader(request, "Actor-Wallet-Address");
-  const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "pause") : null;
-  if (policyResult) {
-    if (!policyResult.allowed) {
-      return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
-    }
-    if (policyResult.requiresApproval) {
-      return createErrorResponse(
-        "APPROVAL_REQUIRED",
-        "This action requires multi-sig approval. Please initiate an approval request.",
-        409
-      );
-    }
-  }
+  // Mandatory RBAC — missing actor → 403; role insufficient → 403.
+  // Actor is sourced from verified JWT first, then Actor-Wallet-Address header.
+  const rbacError = enforceStreamRbac(request, id, "pause");
+  if (rbacError) return rbacError;
 
   if (stream.status !== "active") {
     return createErrorResponse("INVALID_STREAM_STATE", "Only active streams can be paused", 409);
