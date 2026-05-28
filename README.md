@@ -74,6 +74,65 @@ streampay-frontend/
 └── README.md
 ```
 
+## API
+
+The app exposes Next.js route handlers under `app/api/`. All routes share a single error envelope (see below).
+
+### Authentication
+
+Wallet-based auth uses a challenge/verify flow:
+
+1. `GET /api/auth/wallet?address=G…` — receive a one-time challenge nonce
+2. Sign the challenge with your Stellar private key
+3. `POST /api/auth/wallet` — submit `{ address, challenge, signature }` to receive a bearer token
+4. Pass the token as `Authorization: Bearer <token>` on all authenticated requests
+
+### Routes
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/auth/wallet` | — | Issue wallet challenge |
+| `POST` | `/api/auth/wallet` | — | Verify signature, get token |
+| `GET` | `/api/v2/streams` | Bearer | List streams (v2 shape) |
+| `POST` | `/api/v2/streams` | Bearer | Create a stream |
+| `POST` | `/api/webhooks/dlq` | — | Receive DLQ webhook events |
+| `GET` | `/api/webhooks/deliveries` | — | List delivery attempts |
+| `POST` | `/api/debug/kms-sign` | — | Sign payload via KMS (non-prod only) |
+
+### Error envelope
+
+Every error response — regardless of status code — uses this shape:
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "The requested stream does not exist.",
+    "request_id": "req_01HZ9ABCDEF"
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | `string` | Machine-readable error code (e.g. `BAD_REQUEST`, `UNAUTHORIZED`) |
+| `message` | `string` | Human-readable detail safe to display |
+| `request_id` | `string` | Forwarded from `x-request-id` header, or auto-generated fallback |
+
+The helper lives in `app/lib/errors/index.ts`. Use `errorResponse(code, message, status)` in every route — never return a bare `{ error: "string" }` or `{ success, error }` shape.
+
+### v2 stream shape
+
+`/api/v2/streams` returns streams in the v2 contract. Key differences from v1:
+
+| v1 field | v2 field | Notes |
+|----------|----------|-------|
+| `actions` | `allowed_actions` | Renamed |
+| `createdAt` | `created_at` | snake_case |
+| _(absent)_ | `settlement` | `null` until settled |
+
+See `app/lib/api-version.ts` for the `toV2Stream()` conversion and `openapi.json` for the full OpenAPI 3.1 spec.
+
 ## License
 
 MIT
