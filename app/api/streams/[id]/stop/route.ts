@@ -1,76 +1,53 @@
-import { NextResponse } from "next/server";
-import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
-import { getStore } from "@/app/lib/db";
-import { getCorrelationContext } from "@/app/lib/logger";
-import { enforceStreamRbac } from "@/app/lib/org-policy";
-import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
-import { getLimitForRoute } from "@/app/lib/rate-limit-config";
-import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
+/**
+ * POST /api/streams/[id]/stop
+ *
+ * Transitions an active or paused stream to "ended" immediately (no balance
+ * settlement — use /settle for that). Idempotent via Idempotency-Key header.
+ * Concurrency: serialised under withLock(id).
+ */
 
-function createErrorResponse(code: string, message: string, status: number) {
-  const context = getCorrelationContext();
-  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
-}
-
-function getRequestUrl(request: Request, fallbackPath: string): URL {
-  try {
-    return request.url ? new URL(request.url) : new URL(`http://localhost${fallbackPath}`);
-  } catch {
-    return new URL(`http://localhost${fallbackPath}`);
-  }
-}
+import { NextRequest, NextResponse } from "next/server";
+import { db, withLock } from "@/app/lib/db";
 
 export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { streamRepository } = getStore();
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
   const { id } = await params;
-  const url = getRequestUrl(request, `/api/streams/${id}/stop`);
-  const limitType = getLimitForRoute("POST", url.pathname);
-  const identity = getClientIdentity(request);
-  const result = await checkRateLimit(identity, limitType);
+  const idempotencyKey = req.headers.get("Idempotency-Key");
 
-  if (!result.allowed) {
-    recordThrottle(url.pathname, limitType, identity.type, identity.displayValue);
-    return rateLimitResponse(result.retryAfter!);
-  }
-  recordRequest(url.pathname);
+  return withLock(id, async () => {
+    if (idempotencyKey) {
+      const cached = db.idempotencyKeys[idempotencyKey];
+      if (cached) {
+        return NextResponse.json(cached.body, { status: cached.status });
+      }
+    }
 
-  const stream = streamRepository.streams.get(id);
-  if (!stream) {
-    return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
-  }
+    const stream = db.streams[id];
+    if (!stream) {
+      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
+    }
 
-  // Mandatory RBAC — missing actor → 403; role insufficient → 403.
-  // Actor is sourced from verified JWT first, then Actor-Wallet-Address header.
-  const rbacError = enforceStreamRbac(request, id, "stop");
-  if (rbacError) return rbacError;
+    if (stream.status !== "active" && stream.status !== "paused") {
+      return NextResponse.json(
+        { error: `Cannot stop a stream in '${stream.status}' status` },
+        { status: 409 },
+      );
+    }
 
-  if (stream.status !== "active" && stream.status !== "draft") {
-    return createErrorResponse("INVALID_STREAM_STATE", "Only active or draft streams can be stopped", 409);
-  }
+    const updated = {
+      ...stream,
+      status: "ended" as const,
+      updatedAt: new Date().toISOString(),
+    };
+    db.streams[id] = updated;
 
-  const before = structuredClone(stream);
-  const updatedStream = {
-    ...stream,
-    nextAction: "withdraw" as const,
-    status: "ended" as const,
-    updatedAt: new Date().toISOString(),
-  };
+    const responseBody = { stream: updated };
+    if (idempotencyKey) {
+      db.idempotencyKeys[idempotencyKey] = { status: 200, body: responseBody };
+    }
 
-  streamRepository.streams.set(id, updatedStream);
-  recordPrivilegedStreamAuditEvent({
-    action: "stream.stop.override",
-    after: updatedStream as unknown as Record<string, unknown>,
-    before: before as unknown as Record<string, unknown>,
-    metadata: {
-      resultingStatus: updatedStream.status,
-    },
-    request,
-    streamId: id,
-    targetAccount: updatedStream.recipient,
+    return NextResponse.json(responseBody);
   });
-
-  return NextResponse.json({ data: updatedStream });
 }

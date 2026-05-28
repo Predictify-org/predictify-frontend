@@ -1,73 +1,53 @@
-import { NextResponse } from "next/server";
-import { getStore } from "@/app/lib/db";
-import { getCorrelationContext } from "@/app/lib/logger";
-import { enforceStreamRbac } from "@/app/lib/org-policy";
-import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
-import { getLimitForRoute } from "@/app/lib/rate-limit-config";
-import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
+/**
+ * POST /api/streams/[id]/start
+ *
+ * Transitions a draft or paused stream to "active".
+ * Idempotent via Idempotency-Key header.
+ * Concurrency: serialised under withLock(id).
+ */
 
-type Context = { params: Promise<{ id: string }> };
-
-function createErrorResponse(code: string, message: string, status: number) {
-  const context = getCorrelationContext();
-  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
-}
-
-function errorResponse(code: string, message: string, status: number) {
-  return createErrorResponse(code, message, status);
-}
-
-function getRequestUrl(request: Request, fallbackPath: string): URL {
-  try {
-    return request.url ? new URL(request.url) : new URL(`http://localhost${fallbackPath}`);
-  } catch {
-    return new URL(`http://localhost${fallbackPath}`);
-  }
-}
+import { NextRequest, NextResponse } from "next/server";
+import { db, withLock } from "@/app/lib/db";
 
 export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { streamRepository } = getStore();
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
   const { id } = await params;
-  const url = getRequestUrl(request, `/api/streams/${id}/start`);
-  const limitType = getLimitForRoute("POST", url.pathname);
-  const identity = getClientIdentity(request);
-  const result = await checkRateLimit(identity, limitType);
+  const idempotencyKey = req.headers.get("Idempotency-Key");
 
-  if (!result.allowed) {
-    recordThrottle(url.pathname, limitType, identity.type, identity.displayValue);
-    return rateLimitResponse(result.retryAfter!);
-  }
-  recordRequest(url.pathname);
-
-  const stream = streamRepository.streams.get(id);
-  if (!stream) {
-    return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
-  }
-
-  const actorAddress = getHeader(request, "Actor-Wallet-Address");
-  const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "start") : null;
-  if (policyResult) {
-    if (!policyResult.allowed) {
-      return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+  return withLock(id, async () => {
+    if (idempotencyKey) {
+      const cached = db.idempotencyKeys[idempotencyKey];
+      if (cached) {
+        return NextResponse.json(cached.body, { status: cached.status });
+      }
     }
-    if (policyResult.requiresApproval) {
-      return createErrorResponse(
-        "APPROVAL_REQUIRED",
-        "This action requires multi-sig approval. Please initiate an approval request.",
-        409
+
+    const stream = db.streams[id];
+    if (!stream) {
+      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
+    }
+
+    if (stream.status !== "draft" && stream.status !== "paused") {
+      return NextResponse.json(
+        { error: `Cannot start a stream in '${stream.status}' status` },
+        { status: 409 },
       );
     }
-  }
 
-  const updatedStream = {
-    ...stream,
-    nextAction: "pause" as const,
-    status: "active" as const,
-    updatedAt: new Date().toISOString(),
-  };
-  streamRepository.streams.set(id, updatedStream);
-  return NextResponse.json({ data: updatedStream });
+    const updated = {
+      ...stream,
+      status: "active" as const,
+      updatedAt: new Date().toISOString(),
+    };
+    db.streams[id] = updated;
+
+    const responseBody = { stream: updated };
+    if (idempotencyKey) {
+      db.idempotencyKeys[idempotencyKey] = { status: 200, body: responseBody };
+    }
+
+    return NextResponse.json(responseBody);
+  });
 }

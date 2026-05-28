@@ -1,242 +1,101 @@
-import type { ActivityEvent, ExportJob, Stream, User } from "@/app/types/openapi";
-import { createInMemoryPersistenceStore } from "@/app/lib/repositories/in-memory";
-import {
-  createPostgresPersistenceStore,
-  POSTGRES_ROLLOUT_NOTES,
-  POSTGRES_SCHEMA_SKETCH,
-} from "@/app/lib/repositories/postgres";
+/**
+ * In-memory stream database with per-stream mutex locking.
+ *
+ * withLock(id, fn) serialises all read-modify-write operations on a single
+ * stream so that concurrent requests cannot interleave and corrupt state.
+ * Every mutating route handler (pause, start, stop, settle, withdraw) MUST
+ * acquire the lock before reading or writing db.streams[id].
+ */
 
-export type { ExportJob };
-export type ExportJobStatus = ExportJob["status"];
+export type StreamStatus = "draft" | "active" | "paused" | "ended";
 
-export interface ExportAuditRecord {
+export interface Stream {
   id: string;
-  exportId: string;
-  type: "export.requested" | "export.downloaded" | "export.expired";
-  timestamp: string;
-  details?: Record<string, unknown>;
+  status: StreamStatus;
+  recipientId: string;
+  /** Accumulated balance available for withdrawal (in smallest unit). */
+  balance: number;
+  /** ISO-8601 timestamp of last status transition. */
+  updatedAt: string;
+  /** Org-level approval required before pausing (optional policy flag). */
+  requiresApprovalToPause?: boolean;
+  /** Set when an org-policy approval is pending. */
+  pendingApproval?: boolean;
 }
 
-const initialUsers: User[] = [
-  {
-    wallet_address: "GD7H...3J4K",
-    email: "ada@creativestudio.io",
-    display_name: "Ada Creative",
-    avatar_url: null,
-    created_at: "2026-01-01T00:00:00Z",
-  },
-];
-
-const initialStreams: Stream[] = [
-  {
-    id: "stream-ada",
-    recipient: "Ada Creative Studio",
-    rate: "120 XLM / month",
-    schedule: "Pays every 30 days",
-    status: "active",
-    nextAction: "pause",
-    createdAt: "2026-04-01T09:00:00Z",
-    updatedAt: "2026-04-28T10:30:00Z",
-    email: "ada@creativestudio.io",
-    label: "Design Retainer Q2",
-    partnerId: "PARTNER-123",
-    token: "XLM",
-    senderAddress: "GD7H...3J4K",
-    totalAmount: "3600000000",
-    releasedAmount: "1200000000",
-    vestedAmount: "1800000000",
-  },
-  {
-    id: "stream-kemi",
-    recipient: "Kemi Onboarding Support",
-    rate: "32 XLM / week",
-    schedule: "Draft stream ready to launch",
-    status: "draft",
-    nextAction: "start",
-    createdAt: "2026-04-10T14:00:00Z",
-    updatedAt: "2026-04-28T11:00:00Z",
-    email: "kemi@onboarding.io",
-    memo: "April Support batch",
-    token: "XLM",
-    senderAddress: "GD7H...3J4K",
-    totalAmount: "1280000000",
-    releasedAmount: "0",
-    vestedAmount: "0",
-  },
-  {
-    id: "stream-yusuf",
-    recipient: "Yusuf QA Partnership",
-    rate: "18 XLM / day",
-    schedule: "Ended yesterday with funds available",
-    status: "ended",
-    nextAction: "withdraw",
-    createdAt: "2026-04-15T08:00:00Z",
-    updatedAt: "2026-04-27T20:00:00Z",
-    token: "XLM",
-    senderAddress: "GD7H...3J4K",
-    totalAmount: "648000000",
-    releasedAmount: "648000000",
-    vestedAmount: "648000000",
-  },
-];
-
-const initialActivity: ActivityEvent[] = [
-  {
-    id: "a7383234-4224-49dc-b868-0cdf37649fda",
-    type: "wallet.connected",
-    timestamp: "2026-04-28T09:00:00Z",
-    description: "Wallet connected and authenticated.",
-  },
-  {
-    id: "2b9d1d0c-bef4-46bc-a783-3073b28353fc",
-    type: "stream.created",
-    streamId: "stream-ada",
-    timestamp: "2026-04-01T09:00:00Z",
-    description: "Stream 'Design Retainer' created and set to draft.",
-  },
-  {
-    id: "d1578871-4be9-4c6a-bef5-12b2b5836478",
-    type: "stream.started",
-    streamId: "stream-ada",
-    timestamp: "2026-04-01T09:05:00Z",
-    description: "Stream 'Design Retainer' activated.",
-  },
-  {
-    id: "288f315d-5520-46e9-8acf-96994c87b786",
-    type: "stream.created",
-    streamId: "stream-kemi",
-    timestamp: "2026-04-10T14:00:00Z",
-    description: "Stream 'Kemi Onboarding Support' created as draft.",
-  },
-  {
-    id: "3bea183d-c3b5-4e96-9fbe-804f3aee49e9",
-    type: "stream.created",
-    streamId: "stream-yusuf",
-    timestamp: "2026-04-15T08:00:00Z",
-    description: "Stream 'Yusuf QA Partnership' created.",
-  },
-  {
-    id: "5ffa85da-27a4-4f7c-bde0-e5c067a28015",
-    type: "stream.stopped",
-    streamId: "stream-yusuf",
-    timestamp: "2026-04-27T20:00:00Z",
-    description: "Stream 'Yusuf QA Partnership' stopped and settled automatically.",
-  },
-];
-
-function createUsersMap(): Map<string, User> {
-  return new Map(initialUsers.map((user) => [user.wallet_address, { ...user }]));
+export interface IdempotencyRecord {
+  status: number;
+  body: unknown;
 }
 
-export interface AppendOnlyStore<T> extends Iterable<T> {
-  readonly length: number;
-  clear(): void;
-  push(value: T): number;
-  some(predicate: (value: T, index: number, array: T[]) => boolean): boolean;
-  toArray(): T[];
-}
-
-export interface StreamRepository {
-  readonly activity: KeyValueStore<string, ActivityEvent>;
-  readonly streams: KeyValueStore<string, Stream>;
-  readonly users: KeyValueStore<string, User>;
-  reset(): void;
-  withLock<T>(id: string, callback: () => Promise<T>): Promise<T>;
-}
-
-export interface IdempotencyStore extends KeyValueStore<string, unknown> {
-  reset(): void;
-}
-
-export interface ExportRepository {
-  readonly audit: AppendOnlyStore<ExportAuditRecord>;
-  readonly jobs: KeyValueStore<string, ExportJob>;
-  readonly processing: KeyValueStore<string, Promise<void>>;
-  reset(): void;
-}
-
-export interface PersistenceStore {
-  readonly exportRepository: ExportRepository;
-  readonly idempotencyStore: IdempotencyStore;
-  readonly kind: "memory" | "postgres";
-  readonly streamRepository: StreamRepository;
-}
-
-let activeStore: PersistenceStore = createInMemoryPersistenceStore();
-
-export function getStore(): PersistenceStore {
-  return activeStore;
-}
-
-export function setStore(store: PersistenceStore): void {
-  activeStore = store;
-}
-
-export function createDefaultStore(): PersistenceStore {
-  return createInMemoryPersistenceStore();
-}
+// ---------------------------------------------------------------------------
+// Shared in-memory store (module-level singleton, reset between tests via
+// resetDb()).
+// ---------------------------------------------------------------------------
 
 export const db = {
-  get activity() {
-    return getStore().streamRepository.activity;
-  },
-  get exportAudit() {
-    return getStore().exportRepository.audit;
-  },
-  get exportJobs() {
-    return getStore().exportRepository.jobs;
-  },
-  get exportProcessing() {
-    return getStore().exportRepository.processing;
-  },
-  get idempotency() {
-    return getStore().idempotencyStore;
-  },
-  get streams() {
-    return getStore().streamRepository.streams;
-  },
-  get users() {
-    return getStore().streamRepository.users;
-  },
+  streams: {} as Record<string, Stream>,
+  idempotencyKeys: {} as Record<string, IdempotencyRecord>,
 };
 
-export async function withLock<T>(id: string, callback: () => Promise<T>): Promise<T> {
-  return getStore().streamRepository.withLock(id, callback);
+/** Replace the store contents — used by tests to set up fixtures. */
+export function resetDb(
+  streams: Record<string, Stream> = {},
+  idempotencyKeys: Record<string, IdempotencyRecord> = {},
+): void {
+  db.streams = { ...streams };
+  db.idempotencyKeys = { ...idempotencyKeys };
 }
 
-export function idempotencyToken(scope: string, idempotencyKey: string): string {
-  return `${scope}:${idempotencyKey}`;
-}
-
-/** Resets all default-store state to seed data. Use in beforeEach in tests. */
-export function resetDb(): void {
-  if (getStore().kind === "memory") {
-    getStore().streamRepository.reset();
-    getStore().idempotencyStore.reset();
-    getStore().exportRepository.reset();
-    return;
-  }
-
-  activeStore = createDefaultStore();
-}
-
-export function encodeCursor(id: string): string {
-  return Buffer.from(id).toString("base64");
-}
+// ---------------------------------------------------------------------------
+// Per-stream mutex
+// ---------------------------------------------------------------------------
 
 /**
- * Decode a cursor (base64-encoded stream ID).
- * Throws if cursor is malformed or not valid base64.
+ * Map of stream-id → tail of the promise chain for that stream.
+ * Each call to withLock appends to the chain, ensuring serial execution.
  */
-export function decodeCursor(cursor: string): string {
-  if (!cursor || typeof cursor !== "string") {
-    throw new Error("Invalid cursor: must be non-empty string");
-  }
+const lockChains = new Map<string, Promise<unknown>>();
+
+/**
+ * Acquire an exclusive per-stream lock, run `fn`, then release.
+ *
+ * Guarantees that at most one critical section runs at a time for a given
+ * stream id, regardless of how many concurrent requests arrive.
+ *
+ * @example
+ * return withLock(id, async () => {
+ *   const stream = db.streams[id];
+ *   // ... read-modify-write ...
+ *   db.streams[id] = updated;
+ *   return NextResponse.json(updated);
+ * });
+ */
+export async function withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  // Grab the current tail (or a resolved promise if no lock exists yet).
+  const prev = lockChains.get(id) ?? Promise.resolve();
+
+  // Build the next link: wait for the previous holder, then run fn.
+  // We must never let a rejection in fn break the chain for future callers,
+  // so we capture the result/error and re-throw after the chain is updated.
+  let resolve!: () => void;
+  const gate = new Promise<void>((r) => {
+    resolve = r;
+  });
+
+  const next = prev.then(() => gate);
+  lockChains.set(id, next);
+
+  // Run the critical section now that we "hold" the lock.
   try {
-    return Buffer.from(cursor, "base64").toString("utf8");
-  } catch {
-    throw new Error("Invalid cursor: malformed base64");
+    const result = await fn();
+    return result;
+  } finally {
+    // Release: let the next waiter through and clean up if we're the last.
+    resolve();
+    // Prune the map once the chain is fully drained to avoid memory leaks.
+    if (lockChains.get(id) === next) {
+      lockChains.delete(id);
+    }
   }
 }
-
-export { createInMemoryPersistenceStore, createPostgresPersistenceStore, POSTGRES_SCHEMA_SKETCH, POSTGRES_ROLLOUT_NOTES };
