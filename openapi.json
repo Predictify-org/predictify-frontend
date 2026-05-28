@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StreamPay API",
-    "description": "API for StreamPay payment streaming on Stellar. Manage streams, settlements, activity, and wallet identity.\n\n## Authentication\nWallet authentication via POST /api/auth/wallet — sign a challenge message with your Stellar private key to receive a short-lived JWT (15min expiry). Pass the JWT as Bearer token in Authorization header.\n\n## Money Movement\nSettle and withdraw operations are atomic at the application layer. The underlying Stellar transaction uses a mocked hash in development; production uses real Horizon/Soroban settlement with idempotent retry via the Idempotency-Key header. Duplicate payment risk is mitigated by checking stream status before submission.\n\n## Idempotency\nPOST requests that create or modify streams support the `Idempotency-Key` header. If a request with the same key was already processed, the original response is returned without re-processing.\n\n## Webhook Security\nWebhook payloads are signed with HMAC-SHA256 using a shared secret. Verify the `X-StreamPay-Signature` header against the raw request body.\n\n## Stream Lifecycle\ndraft → active → paused → ended → withdrawn\n- draft: new stream, not started\n- active: streaming payment in progress\n- paused: temporarily stopped, can resume\n- ended: stopped with balance settled\n- withdrawn: funds collected by recipient",
+    "description": "API for StreamPay payment streaming on Stellar. Manage streams, settlements, activity, and wallet identity.\n\n## Authentication\nWallet authentication via POST /api/auth/wallet — sign a challenge message with your Stellar private key to receive a short-lived JWT (15min expiry). Pass the JWT as Bearer token in Authorization header.\n\n## Money Movement\nSettle and withdraw operations are atomic at the application layer. The underlying Stellar transaction uses a mocked hash in development; production uses real Horizon/Soroban settlement with idempotent retry via the Idempotency-Key header. Duplicate payment risk is mitigated by checking stream status before submission.\n\n## Idempotency\nPOST requests that create or modify streams support the `Idempotency-Key` header. If a request with the same key was already processed, the original response is returned without re-processing.\n\n## Webhook Security\nWebhook payloads are signed with HMAC-SHA256 using a shared secret. Verify the `X-StreamPay-Signature` header against the raw request body.\n\n## Stream Lifecycle\ndraft → active → paused → ended → withdrawn\n- draft: new stream, not started\n- active: streaming payment in progress\n- paused: temporarily stopped, can resume\n- ended: stopped with balance settled\n- withdrawn: funds collected by recipient\n- cancelled: terminated early; recipient received vested amount, sender refunded remainder",
     "version": "1.0.0",
     "contact": {
       "name": "StreamPay Support"
@@ -643,6 +643,59 @@
         }
       }
     },
+    "/streams/{id}/cancel": {
+      "post": {
+        "operationId": "cancelStream",
+        "summary": "Cancel a stream with refund split",
+        "description": "Terminates an active or paused stream early and splits the escrowed funds between recipient and sender.\n\n**Refund split (escrow-conservation invariant):**\n- `recipient_payout = vested_amount - released_amount` (earned but not yet paid)\n- `sender_refund = total_amount - vested_amount` (unvested remainder)\n- `recipient_payout + sender_refund === total_amount - released_amount` (no dust)\n\n**Authorization:** Stream sender (`Actor-Wallet-Address` matching `stream.senderAddress`) OR org member with canceller role.\n\n**Terminal-state guard:** Cancelling an already Cancelled/Ended/Withdrawn stream returns 409 ALREADY_TERMINAL to prevent double-refund.\n\nSupports `Idempotency-Key` header for safe retries.",
+        "tags": ["Stream Actions"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "example": "stream-ada" },
+          { "name": "Idempotency-Key", "in": "header", "schema": { "type": "string" } },
+          { "name": "Actor-Wallet-Address", "in": "header", "required": true, "schema": { "type": "string" }, "description": "Stellar address of the canceller (must be stream sender or org canceller role)" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stream cancelled — escrow fully drained",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CancelStreamResponse" },
+                "example": {
+                  "data": {
+                    "id": "stream-ada",
+                    "status": "cancelled",
+                    "token": "XLM",
+                    "cancellation": {
+                      "recipientPayout": "600000000",
+                      "senderRefund": "1800000000",
+                      "totalAmount": "3600000000",
+                      "alreadyReleased": "1200000000",
+                      "token": "XLM",
+                      "recipientTxHash": "mock-cancel-payout-abc12345",
+                      "senderTxHash": "mock-cancel-refund-def67890",
+                      "cancelledAt": "2026-05-27T12:00:00Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "Stream is already in a terminal state (ALREADY_TERMINAL) or requires approval",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } }
+          },
+          "422": {
+            "description": "Stream is not cancellable (e.g. draft) or escrow invariant violated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } }
+          },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        },
+        "security": [{ "bearerAuth": [] }]
+      }
+    },
     "/streams/{id}/approvals": {
       "get": {
         "operationId": "listStreamApprovals",
@@ -708,12 +761,12 @@
     "schemas": {
       "StreamStatus": {
         "type": "string",
-        "enum": ["draft", "active", "paused", "ended", "withdrawn"],
+        "enum": ["draft", "active", "paused", "ended", "withdrawn", "cancelled"],
         "description": "Current status in the stream lifecycle"
       },
       "StreamAction": {
         "type": "string",
-        "enum": ["start", "pause", "stop", "settle", "withdraw"],
+        "enum": ["start", "pause", "stop", "settle", "withdraw", "cancel"],
         "description": "The primary next action available for the stream"
       },
       "Stream": {
@@ -729,12 +782,44 @@
           "updatedAt": { "type": "string", "format": "date-time" },
           "token": {
             "type": "string",
-            "description": "SEP-41 token address for this stream's escrow. Use 'XLM' for native lumens or 'CODE:ISSUER' for any Stellar Classic asset (e.g. 'USDC:GA5Z...'). Amounts are always i128 raw units — no per-decimal logic in the contract layer. Defaults to 'XLM' when omitted.",
+            "description": "SEP-41 token address for this stream's escrow. 'XLM' = native lumens; 'CODE:ISSUER' = Stellar Classic asset. Amounts are i128 raw units.",
             "example": "XLM",
             "default": "XLM"
-          }
+          },
+          "senderAddress": {
+            "type": "string",
+            "description": "Stellar address of the stream sender. Used to authorize cancel_stream.",
+            "example": "GD7H...3J4K"
+          },
+          "cancellation": { "$ref": "#/components/schemas/CancellationSplit" }
         },
         "required": ["id", "recipient", "rate", "schedule", "status", "createdAt", "updatedAt", "token"]
+      },
+      "CancellationSplit": {
+        "type": "object",
+        "description": "Refund split produced by cancel_stream. Escrow-conservation invariant: recipientPayout + senderRefund === totalAmount - alreadyReleased. All amounts are i128 raw units (no per-decimal logic).",
+        "properties": {
+          "recipientPayout":  { "type": "string", "description": "Raw units paid to recipient (vested − already released)", "example": "600000000" },
+          "senderRefund":     { "type": "string", "description": "Raw units refunded to sender (total − vested)", "example": "1800000000" },
+          "totalAmount":      { "type": "string", "description": "Total escrowed at cancellation time (raw units)", "example": "3600000000" },
+          "alreadyReleased":  { "type": "string", "description": "Amount released before cancellation (raw units)", "example": "1200000000" },
+          "token":            { "type": "string", "description": "SEP-41 token used for both legs", "example": "XLM" },
+          "recipientTxHash":  { "type": "string", "description": "Tx hash for recipient payout leg" },
+          "senderTxHash":     { "type": "string", "description": "Tx hash for sender refund leg (absent when refund is zero)" },
+          "cancelledAt":      { "type": "string", "format": "date-time" }
+        },
+        "required": ["recipientPayout", "senderRefund", "totalAmount", "alreadyReleased", "token", "recipientTxHash", "cancelledAt"]
+      },
+      "CancelStreamResponse": {
+        "type": "object",
+        "properties": {
+          "data":         { "$ref": "#/components/schemas/Stream" },
+          "cancellation": { "$ref": "#/components/schemas/CancellationSplit" },
+          "links": {
+            "type": "object",
+            "properties": { "self": { "type": "string" } }
+          }
+        }
       },
       "CreateStreamRequest": {
         "type": "object",
@@ -744,9 +829,14 @@
           "schedule": { "type": "string", "description": "Human-readable payment schedule", "example": "Pays every 30 days" },
           "token": {
             "type": "string",
-            "description": "SEP-41 token address for this stream's escrow. Accepts 'XLM', 'native', or 'CODE:ISSUER' (e.g. 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335XOP3IA2M3QC2ED2AAA7Z5TJH'). When an admin allowlist is configured, only listed tokens are accepted. Defaults to 'XLM'.",
+            "description": "SEP-41 token address. Accepts 'XLM' or 'CODE:ISSUER'. Defaults to 'XLM'. Rejected if not in admin allowlist when enabled.",
             "example": "XLM",
             "default": "XLM"
+          },
+          "senderAddress": {
+            "type": "string",
+            "description": "Stellar address of the stream sender. Required to authorize future cancel_stream calls.",
+            "example": "GD7H...3J4K"
           }
         },
         "required": ["recipient", "rate", "schedule"]
