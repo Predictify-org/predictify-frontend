@@ -1,85 +1,16 @@
 #![no_std]
 
 mod error;
-mod release;
+mod storage;
 
 use core::cmp::min;
 
 pub use error::Error;
-use release::{vested_amount, withdrawable};
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
+use soroban_sdk::{contract, contractimpl, token, Address, Env};
+pub use storage::{Stream, StreamStatus};
 
 #[contract]
 pub struct Contract;
-
-/// Lifecycle state of a payment stream.
-///
-/// Transitions allowed by the current public API:
-/// ```text
-/// Draft ──start_stream──► Active ──withdraw (full)──► Settled
-/// ```
-/// `Paused`, `Ended`, and `Cancelled` are reserved for future entry points.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[contracttype]
-pub enum StreamStatus {
-    /// Created and funded but not yet activated; accrual has not started.
-    Draft,
-    /// Tokens are flowing linearly to the recipient.
-    Active,
-    /// Reserved — stream-level pause not yet implemented.
-    Paused,
-    /// All `total_amount` tokens have been released to the recipient.
-    Settled,
-    /// Reserved — natural expiry entry point not yet implemented.
-    Ended,
-    /// Reserved — sender-initiated cancellation not yet implemented.
-    Cancelled,
-}
-
-/// On-chain record for a single payment stream.
-///
-/// All token amounts are in the token's base unit (stroops for XLM-based
-/// assets). All timestamps are Unix seconds as reported by the ledger.
-#[derive(Clone, Debug)]
-#[contracttype]
-pub struct Stream {
-    /// Unique monotonic identifier assigned at creation. Starts at 1.
-    pub id: u64,
-    /// Address that created the stream and escrowed `total_amount`.
-    pub sender: Address,
-    /// Address that receives streamed tokens via `withdraw`.
-    pub recipient: Address,
-    /// Stellar asset contract address being streamed.
-    pub token: Address,
-    /// Total tokens (base units) locked in escrow at creation. Always > 0.
-    pub total_amount: i128,
-    /// Tokens already transferred to `recipient`. Monotonically non-decreasing.
-    /// Invariant: `released_amount <= total_amount`.
-    pub released_amount: i128,
-    /// Ledger timestamp when accrual begins. Zero for `Draft` streams.
-    pub start_time: u64,
-    /// Ledger timestamp when accrual ends (`start_time + duration`).
-    /// Zero for `Draft` streams.
-    pub end_time: u64,
-    /// Stream length in seconds. Set at creation; never changes.
-    pub duration: u64,
-    /// Ledger timestamp of the last state-mutating operation on this stream.
-    pub last_update: u64,
-    /// Current lifecycle status.
-    pub status: StreamStatus,
-    pub pause_time: u64,
-    pub total_paused_duration: u64,
-}
-
-#[derive(Clone)]
-#[contracttype]
-enum DataKey {
-    Admin,
-    Paused,
-    NextStreamId,
-    Stream(u64),
-    TokenAllowed(Address),
-}
 
 #[contractimpl]
 impl Contract {
@@ -94,13 +25,13 @@ impl Contract {
     /// # Auth
     /// Requires authorisation from `admin`.
     pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
-        if env.storage().persistent().has(&DataKey::Admin) {
+        if storage::has_admin(&env) {
             return Err(Error::InvalidState);
         }
 
         admin.require_auth();
-        env.storage().persistent().set(&DataKey::Admin, &admin);
-        env.storage().persistent().set(&DataKey::Paused, &false);
+        storage::set_admin(&env, &admin);
+        storage::set_paused(&env, false);
         Ok(())
     }
 
@@ -118,7 +49,7 @@ impl Contract {
     /// Requires authorisation from `admin`.
     pub fn set_paused(env: Env, admin: Address, paused: bool) -> Result<(), Error> {
         require_admin(&env, &admin)?;
-        env.storage().persistent().set(&DataKey::Paused, &paused);
+        storage::set_paused(&env, paused);
         Ok(())
     }
 
@@ -141,9 +72,7 @@ impl Contract {
         allowed: bool,
     ) -> Result<(), Error> {
         require_admin(&env, &admin)?;
-        env.storage()
-            .persistent()
-            .set(&DataKey::TokenAllowed(token), &allowed);
+        storage::set_token_allowed(&env, &token, allowed);
         Ok(())
     }
 
@@ -184,7 +113,7 @@ impl Contract {
             return Err(Error::InvalidAmount);
         }
 
-        if is_token_blocked(&env, &token) {
+        if storage::is_token_blocked(&env, &token) {
             return Err(Error::TokenNotAllowed);
         }
 
@@ -192,7 +121,7 @@ impl Contract {
             return Err(Error::InvalidTimeRange);
         }
 
-        let id = next_stream_id(&env);
+        let id = storage::next_stream_id(&env);
         let now = env.ledger().timestamp();
         let (start_time, end_time, last_update, status) = if draft {
             (0, 0, 0, StreamStatus::Draft)
@@ -204,13 +133,9 @@ impl Contract {
                 StreamStatus::Active,
             )
         };
+        let contract_address = env.current_contract_address();
 
-        #[allow(clippy::needless_borrows_for_generic_args)]
-        token::Client::new(&env, &token).transfer(
-            &sender,
-            &env.current_contract_address(),
-            &total_amount,
-        );
+        token::Client::new(&env, &token).transfer(&sender, &contract_address, &total_amount);
 
         let stream = Stream {
             id,
@@ -228,12 +153,7 @@ impl Contract {
             total_paused_duration: 0,
         };
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(id), &stream);
-        env.storage()
-            .persistent()
-            .set(&DataKey::NextStreamId, &(id + 1));
+        storage::set_stream(&env, id, &stream);
 
         Ok(id)
     }
@@ -269,9 +189,7 @@ impl Contract {
             .checked_add(stream.duration)
             .ok_or(Error::InvalidTimeRange)?;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(stream_id), &stream);
+        storage::set_stream(&env, stream_id, &stream);
 
         Ok(stream)
     }
@@ -292,7 +210,7 @@ impl Contract {
     /// - [`Error::NotFound`] if `stream_id` does not exist.
     pub fn withdrawable(env: Env, stream_id: u64) -> Result<i128, Error> {
         let stream = get_existing_stream(&env, stream_id)?;
-        Ok(withdrawable_amount(&env, &stream))
+        Ok(withdrawable_amount(env.ledger().timestamp(), &stream))
     }
 
     /// Returns the stream balance (vested amount) at a given ledger timestamp.
@@ -333,13 +251,14 @@ impl Contract {
             return Err(Error::InvalidState);
         }
 
-        let available = withdrawable_amount(&env, &stream);
+        let now = env.ledger().timestamp();
+        let available = withdrawable_amount(now, &stream);
         if amount > available {
             return Err(Error::OverWithdraw);
         }
 
         stream.released_amount += amount;
-        stream.last_update = env.ledger().timestamp();
+        stream.last_update = now;
 
         if stream.released_amount == stream.total_amount {
             stream.status = StreamStatus::Settled;
@@ -352,9 +271,7 @@ impl Contract {
             &amount,
         );
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(stream_id), &stream);
+        storage::set_stream(&env, stream_id, &stream);
 
         Ok(amount)
     }
@@ -427,64 +344,25 @@ impl Contract {
     }
 }
 
-fn next_stream_id(env: &Env) -> u64 {
-    env.storage()
-        .persistent()
-        .get(&DataKey::NextStreamId)
-        .unwrap_or(1)
-}
-
 fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
-    env.storage()
-        .persistent()
-        .get(&DataKey::Stream(stream_id))
-        .ok_or(Error::NotFound)
+    storage::get_stream(env, stream_id).ok_or(Error::NotFound)
 }
 
-/// Computes the token amount accrued and not yet withdrawn for `stream`.
-///
-/// Formula (integer arithmetic, truncates toward zero — always floors):
-/// ```text
-/// elapsed = min(now, end_time) − start_time
-/// accrued = (total_amount × elapsed) / duration
-/// result  = accrued − released_amount
-/// ```
-///
-/// The `min` cap ensures accrual never exceeds `total_amount` after
-/// `end_time`. Because integer division truncates, dust (the remainder of
-/// `total_amount % duration`) is withheld until `elapsed == duration`, at
-/// which point `accrued == total_amount` exactly — no tokens are permanently
-/// lost. Rounding always favours the sender (recipient receives slightly less
-/// mid-stream, never more).
-///
-/// Returns `0` for any non-`Active` stream or when `start_time == 0`.
-fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
-    // Draft streams and streams that haven't started don't accrue
-    if stream.start_time == 0 {
-        return 0;
-    }
-
-    let now = env.ledger().timestamp();
-    release::withdrawable(stream, now)
-}
-
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
+fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
     if stream.status != StreamStatus::Active || stream.start_time == 0 {
         return 0;
     }
 
-    let now = env.ledger().timestamp();
-    release::vested_amount(stream, now)
+    let elapsed = min(now, stream.end_time) - stream.start_time;
+    let accrued = (stream.total_amount * elapsed as i128) / stream.duration as i128;
+
+    accrued - stream.released_amount
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
     caller.require_auth();
 
-    let admin: Address = env
-        .storage()
-        .persistent()
-        .get(&DataKey::Admin)
-        .ok_or(Error::NotFound)?;
+    let admin: Address = storage::get_admin(env).ok_or(Error::NotFound)?;
 
     if admin != *caller {
         return Err(Error::Unauthorized);
@@ -494,28 +372,11 @@ fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
 }
 
 fn require_not_paused(env: &Env) -> Result<(), Error> {
-    let paused = env
-        .storage()
-        .persistent()
-        .get(&DataKey::Paused)
-        .unwrap_or_default();
-
-    if paused {
+    if storage::is_paused(env) {
         return Err(Error::ContractPaused);
     }
 
     Ok(())
-}
-
-fn is_token_blocked(env: &Env, token: &Address) -> bool {
-    match env
-        .storage()
-        .persistent()
-        .get::<DataKey, bool>(&DataKey::TokenAllowed(token.clone()))
-    {
-        Some(allowed) => !allowed,
-        None => false,
-    }
 }
 
 #[cfg(test)]
