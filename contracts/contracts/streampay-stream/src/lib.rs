@@ -109,14 +109,30 @@ impl Contract {
     ///
     /// # Auth
     /// Requires authorisation from `sender`.
+    /// Creates a funded active stream and escrows `total_amount` from `sender`.
+    ///
+    /// **Token transfer**: `total_amount` is transferred from `sender` to the
+    /// contract address immediately.
+    ///
+    /// Returns the new stream's numeric ID.
+    ///
+    /// # Errors
+    /// - [`Error::ContractPaused`] if the global pause flag is set.
+    /// - [`Error::InvalidAmount`] if `total_amount <= 0`.
+    /// - [`Error::InvalidState`] if `sender == recipient`.
+    /// - [`Error::TokenNotAllowed`] if the token has been blocked by the admin.
+    /// - [`Error::InvalidTimeRange`] if `end_time <= start_time` or `start_time < now`.
+    ///
+    /// # Auth
+    /// Requires authorisation from `sender`.
     pub fn create_stream(
         env: Env,
         sender: Address,
         recipient: Address,
         token: Address,
         total_amount: i128,
-        duration: u64,
-        draft: bool,
+        start_time: u64,
+        end_time: u64,
     ) -> Result<u64, Error> {
         require_not_paused(&env)?;
         sender.require_auth();
@@ -125,26 +141,25 @@ impl Contract {
             return Err(Error::InvalidAmount);
         }
 
+        if sender == recipient {
+            return Err(Error::InvalidState);
+        }
+
         if storage::is_token_blocked(&env, &token) {
             return Err(Error::TokenNotAllowed);
         }
 
-        if duration == 0 {
+        if end_time <= start_time {
             return Err(Error::InvalidTimeRange);
         }
 
-        let id = storage::next_stream_id(&env);
         let now = env.ledger().timestamp();
-        let (start_time, end_time, last_update, status) = if draft {
-            (0, 0, 0, StreamStatus::Draft)
-        } else {
-            (
-                now,
-                now.checked_add(duration).ok_or(Error::InvalidTimeRange)?,
-                now,
-                StreamStatus::Active,
-            )
-        };
+        if start_time < now {
+            return Err(Error::InvalidTimeRange);
+        }
+
+        let duration = end_time - start_time;
+        let id = storage::next_stream_id(&env);
         let contract_address = env.current_contract_address();
 
         token::Client::new(&env, &token).transfer(&sender, &contract_address, &total_amount);
@@ -159,8 +174,8 @@ impl Contract {
             start_time,
             end_time,
             duration,
-            last_update,
-            status,
+            last_update: start_time,
+            status: StreamStatus::Active,
             pause_time: 0,
             total_paused_duration: 0,
         };
@@ -168,42 +183,6 @@ impl Contract {
         storage::set_stream(&env, id, &stream);
 
         Ok(id)
-    }
-
-    /// Activates a `Draft` stream, anchoring its time bounds to the current
-    /// ledger timestamp.
-    ///
-    /// Sets `status = Active`, `start_time = now`, `last_update = now`, and
-    /// `end_time = now + duration`. No token transfer occurs.
-    ///
-    /// # Errors
-    /// - [`Error::ContractPaused`] if the global pause flag is set.
-    /// - [`Error::NotFound`] if `stream_id` does not exist.
-    /// - [`Error::InvalidState`] if the stream is not in `Draft` status.
-    /// - [`Error::InvalidTimeRange`] if `now + duration` overflows `u64`.
-    ///
-    /// # Auth
-    /// Requires authorisation from the stream's `sender`.
-    pub fn start_stream(env: Env, stream_id: u64) -> Result<Stream, Error> {
-        require_not_paused(&env)?;
-        let mut stream = get_existing_stream(&env, stream_id)?;
-        stream.sender.require_auth();
-
-        if stream.status != StreamStatus::Draft {
-            return Err(Error::InvalidState);
-        }
-
-        let now = env.ledger().timestamp();
-        stream.status = StreamStatus::Active;
-        stream.start_time = now;
-        stream.last_update = now;
-        stream.end_time = now
-            .checked_add(stream.duration)
-            .ok_or(Error::InvalidTimeRange)?;
-
-        storage::set_stream(&env, stream_id, &stream);
-
-        Ok(stream)
     }
 
     /// Returns the stored stream record for `stream_id`.

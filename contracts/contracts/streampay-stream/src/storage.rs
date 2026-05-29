@@ -34,7 +34,7 @@ pub struct Stream {
 enum DataKey {
     Admin,
     Paused,
-    NextStreamId,
+    StreamCount,
     Stream(u64),
     TokenAllowed(Address),
 }
@@ -81,8 +81,8 @@ pub fn is_token_blocked(env: &Env, token: &Address) -> bool {
 
 pub fn next_stream_id(env: &Env) -> u64 {
     let storage = env.storage().instance();
-    let id = storage.get(&DataKey::NextStreamId).unwrap_or(1u64);
-    storage.set(&DataKey::NextStreamId, &(id + 1));
+    let id = storage.get(&DataKey::StreamCount).unwrap_or(1u64);
+    storage.set(&DataKey::StreamCount, &(id + 1));
     id
 }
 

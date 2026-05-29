@@ -150,9 +150,7 @@ fn assert_budget_ceiling(
     );
 }
 
-#[test]
-fn draft_stream_accrues_nothing_until_started() {
-    let data = setup();
+
 
     let stream_id = data.client.create_stream(
         &data.sender,
@@ -208,28 +206,12 @@ fn set_paused_true_blocks_create_stream() {
 
     assert_contract_error!(
         data.client
-            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &10, &true,),
+            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &1_000, &1_010),
         Error::ContractPaused
     );
 }
 
-#[test]
-fn set_paused_true_blocks_start_stream() {
-    let data = setup_initialized();
 
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &true,
-    );
-
-    data.client.set_paused(&data.admin, &true);
-
-    assert_contract_error!(data.client.try_start_stream(&id), Error::ContractPaused);
-}
 
 #[test]
 fn set_paused_true_blocks_withdraw() {
@@ -240,8 +222,8 @@ fn set_paused_true_blocks_withdraw() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -258,7 +240,7 @@ fn unpause_re_enables_operations() {
 
     // Should succeed after unpause.
     data.client
-        .create_stream(&data.sender, &data.recipient, &data.token, &100, &10, &true);
+        .create_stream(&data.sender, &data.recipient, &data.token, &100, &1_000, &1_010);
 }
 
 #[test]
@@ -292,7 +274,7 @@ fn blocked_token_returns_token_not_allowed() {
 
     assert_contract_error!(
         data.client
-            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &10, &true,),
+            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &1_000, &1_010),
         Error::TokenNotAllowed
     );
 }
@@ -442,8 +424,8 @@ fn vested_amount_at_start_time_is_zero() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     let stream = data.client.get_stream(&stream_id);
@@ -460,8 +442,8 @@ fn vested_amount_at_midpoint_is_half_total() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -477,8 +459,8 @@ fn vested_amount_at_end_time_is_total() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     data.env.ledger().set_timestamp(1_100);
@@ -494,8 +476,8 @@ fn vested_amount_past_end_time_is_clamped_to_total() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     data.env.ledger().set_timestamp(2_000);
@@ -511,8 +493,8 @@ fn vested_amount_before_start_time_is_zero() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     data.env.ledger().set_timestamp(500);
@@ -528,8 +510,8 @@ fn vested_amount_is_monotonic_non_decreasing() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     let mut prev = data.client.stream_balance(&stream_id);
@@ -550,8 +532,8 @@ fn withdrawable_is_vested_minus_released() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -572,8 +554,8 @@ fn withdrawable_never_negative() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -620,16 +602,17 @@ fn table_driven_vested_amount_across_timeline() {
             expected: case_tuple.4,
         };
         let data = setup();
-
-        data.env.ledger().set_timestamp(1_000 + case.start_offset as u64);
+        let start_time = 1_000 + case.start_offset as u64;
+        let end_time = start_time + case.duration;
+        data.env.ledger().set_timestamp(start_time);
 
         let stream_id = data.client.create_stream(
             &data.sender,
             &data.recipient,
             &data.token,
             &case.total,
-            &case.duration,
-            &false,
+            &start_time,
+            &end_time,
         );
 
         let target_time = (1_000 + case.start_offset + case.test_offset) as u64;
@@ -657,8 +640,8 @@ fn large_amount_near_i128_max_does_not_overflow() {
         &data.recipient,
         &data.token,
         &large_amount,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -669,22 +652,7 @@ fn large_amount_near_i128_max_does_not_overflow() {
     assert!(vested >= 0 && vested <= large_amount);
 }
 
-#[test]
-fn draft_stream_balance_is_zero() {
-    let data = setup();
 
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &true,
-    );
-
-    data.env.ledger().set_timestamp(2_000);
-    assert_eq!(data.client.stream_balance(&stream_id), 0);
-}
 
 #[test]
 fn stream_balance_matches_withdrawable_plus_released() {
@@ -695,8 +663,8 @@ fn stream_balance_matches_withdrawable_plus_released() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -718,8 +686,8 @@ fn budget_create_stream_stays_within_ceiling() {
             &data.recipient,
             &data.token,
             &1_000,
-            &100,
-            &false,
+            &1_000,
+            &1_100,
         )
     });
 
@@ -737,8 +705,8 @@ fn budget_withdraw_stays_within_ceiling() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
     data.env.ledger().set_timestamp(1_050);
 
@@ -759,8 +727,8 @@ fn budget_full_withdraw_settle_stays_within_ceiling() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
     data.env.ledger().set_timestamp(1_100);
 
@@ -774,167 +742,139 @@ fn budget_full_withdraw_settle_stays_within_ceiling() {
     assert_eq!(stream.status, StreamStatus::Settled);
 }
 
-// ── Settle tests ─────────────────────────────────────────────────────────────
+// ── new create_stream tests ──────────────────────────────────────────────────
 
 #[test]
-fn test_settle_after_end_time_succeeds() {
+fn test_create_stream_escrows_tokens_from_sender() {
     let data = setup();
+    let token_client = soroban_sdk::token::Client::new(&data.env, &data.token);
 
-    let stream_id = data.client.create_stream(
+    let sender_balance_before = token_client.balance(&data.sender);
+    let contract_balance_before = token_client.balance(&data.env.current_contract_address());
+
+    assert_eq!(sender_balance_before, 1_000_000);
+    assert_eq!(contract_balance_before, 0);
+
+    data.client.create_stream(
         &data.sender,
         &data.recipient,
         &data.token,
+        &10_000,
         &1_000,
-        &100,
-        &false,
+        &1_100,
     );
 
-    // Advance time exactly to end_time
-    data.env.ledger().set_timestamp(1_100);
+    let sender_balance_after = token_client.balance(&data.sender);
+    let contract_balance_after = token_client.balance(&data.env.current_contract_address());
 
-    // Call settle permissionlessly
-    data.client.settle(&stream_id);
-
-    // Recipient holds the full total_amount
-    let recipient_balance = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
-    assert_eq!(recipient_balance, 1_000);
-
-    // Stream status is Settled and released_amount == total_amount
-    let stream = data.client.get_stream(&stream_id);
-    assert_eq!(stream.status, StreamStatus::Settled);
-    assert_eq!(stream.released_amount, 1_000);
+    assert_eq!(sender_balance_after, 990_000);
+    assert_eq!(contract_balance_after, 10_000);
 }
 
 #[test]
-fn test_settle_before_end_time_fails() {
+fn test_create_stream_require_auth_enforced() {
     let data = setup();
-
-    let stream_id = data.client.create_stream(
+    
+    data.client.create_stream(
         &data.sender,
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
-    // Advance time, but before end_time (1_100)
-    data.env.ledger().set_timestamp(1_050);
+    let auths = data.env.auths();
+    assert_eq!(auths.len(), 1);
+    let (authorized_address, _) = &auths[0];
+    assert_eq!(authorized_address, &data.sender);
+}
 
-    // Try settling, should fail with InvalidState
+#[test]
+fn test_create_stream_self_stream_fails() {
+    let data = setup();
+
     assert_contract_error!(
-        data.client.try_settle(&stream_id),
+        data.client.try_create_stream(
+            &data.sender,
+            &data.sender,
+            &data.token,
+            &1_000,
+            &1_000,
+            &1_100,
+        ),
         Error::InvalidState
     );
 }
 
 #[test]
-fn test_settle_idempotent() {
+fn test_create_stream_invalid_times_fails() {
     let data = setup();
 
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &false,
-    );
-
-    data.env.ledger().set_timestamp(1_100);
-
-    // First settle call
-    data.client.settle(&stream_id);
-
-    let recipient_balance_1 = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
-    assert_eq!(recipient_balance_1, 1_000);
-
-    // Second settle call should be a no-op and not fail
-    data.client.settle(&stream_id);
-
-    let recipient_balance_2 = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
-    assert_eq!(recipient_balance_2, 1_000);
-}
-
-#[test]
-fn test_settle_after_partial_withdraw() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &false,
-    );
-
-    // Advance time to 1_050 and withdraw 500
-    data.env.ledger().set_timestamp(1_050);
-    data.client.withdraw(&stream_id, &500);
-
-    let balance_after_withdraw = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
-    assert_eq!(balance_after_withdraw, 500);
-
-    // Advance past end_time
-    data.env.ledger().set_timestamp(1_150);
-
-    // Settle should only transfer the remaining 500
-    data.client.settle(&stream_id);
-
-    let balance_after_settle = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
-    assert_eq!(balance_after_settle, 1_000);
-
-    let stream = data.client.get_stream(&stream_id);
-    assert_eq!(stream.status, StreamStatus::Settled);
-    assert_eq!(stream.released_amount, 1_000);
-}
-
-#[test]
-fn test_settle_paused_stream() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &false,
-    );
-
-    // Advance time to 1_050 and pause (accrued: 500)
-    data.env.ledger().set_timestamp(1_050);
-    data.client.pause(&stream_id);
-
-    // Advance past end_time (1_100) to 1_150
-    data.env.ledger().set_timestamp(1_150);
-
-    data.client.settle(&stream_id);
-
-    let balance = soroban_sdk::token::Client::new(&data.env, &data.token).balance(&data.recipient);
-    assert_eq!(balance, 1_000);
-
-    let stream = data.client.get_stream(&stream_id);
-    assert_eq!(stream.status, StreamStatus::Settled);
-    assert_eq!(stream.released_amount, 1_000);
-}
-
-#[test]
-fn test_settle_draft_stream_fails() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &true,
+    // 1. end_time <= start_time
+    assert_contract_error!(
+        data.client.try_create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.token,
+            &1_000,
+            &1_100,
+            &1_050,
+        ),
+        Error::InvalidTimeRange
     );
 
     assert_contract_error!(
-        data.client.try_settle(&stream_id),
-        Error::InvalidState
+        data.client.try_create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.token,
+            &1_000,
+            &1_000,
+            &1_000,
+        ),
+        Error::InvalidTimeRange
+    );
+
+    // 2. start_time < now
+    assert_contract_error!(
+        data.client.try_create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.token,
+            &1_000,
+            &999,
+            &1_100,
+        ),
+        Error::InvalidTimeRange
+    );
+}
+
+#[test]
+fn test_create_stream_invalid_amount_fails() {
+    let data = setup();
+
+    assert_contract_error!(
+        data.client.try_create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.token,
+            &0,
+            &1_000,
+            &1_100,
+        ),
+        Error::InvalidAmount
+    );
+
+    assert_contract_error!(
+        data.client.try_create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.token,
+            &-100,
+            &1_000,
+            &1_100,
+        ),
+        Error::InvalidAmount
     );
 }
