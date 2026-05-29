@@ -235,8 +235,8 @@ export function resolveEscrowState(stream: Stream, now: Date): {
   releasedAmount: bigint;
   vestedAmount:   bigint;
 } {
-  const total    = BigInt((stream as Record<string, unknown>).totalAmount    as string ?? "0");
-  const released = BigInt((stream as Record<string, unknown>).releasedAmount as string ?? "0");
+  const total    = BigInt((stream as any).totalAmount    as string ?? "0");
+  const released = BigInt((stream as any).releasedAmount as string ?? "0");
 
   // Mock vesting: linear from 0 to total over the stream's lifetime.
   // In production: call the Soroban contract's release_schedule module.

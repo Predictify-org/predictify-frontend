@@ -23,7 +23,7 @@ function stopReq(streamId: string, idempotencyKey?: string, extra: Record<string
 
 beforeEach(() => { resetDb(); resetRateLimitStore(); resetAuditLogStore(); });
 
-describe("POST /api/streams/[id]/start — idempotency", () => {
+describe("POST /api/streams/[id]/start ï¿½ idempotency", () => {
   const STREAM = "stream-kemi";
 
   it("no key: returns 200 and sets stream to active", async () => {
@@ -79,7 +79,7 @@ describe("POST /api/streams/[id]/start — idempotency", () => {
   });
 });
 
-describe("POST /api/streams/[id]/stop — idempotency", () => {
+describe("POST /api/streams/[id]/stop ï¿½ idempotency", () => {
   const STREAM = "stream-ada";
 
   it("no key: returns 200 and sets stream to ended", async () => {
@@ -120,7 +120,7 @@ describe("POST /api/streams/[id]/stop — idempotency", () => {
     for (let i = 0; i < 3; i++) {
       await stopPOST(stopReq(STREAM, key), ctx(STREAM));
     }
-    const entries = auditLogStore.list({ streamId: STREAM }).filter(e => e.action === "stream.stop.override");
+    const entries = auditLogStore.list({ targetId: STREAM }).filter(e => e.action === "stream.stop.override");
     expect(entries).toHaveLength(1);
   });
 
@@ -146,7 +146,7 @@ describe("POST /api/streams/[id]/stop — idempotency", () => {
     expect(results.every(r => r.status === 200)).toBe(true);
     const bodies = await Promise.all(results.map(r => r.json()));
     expect(new Set(bodies.map(b => b.data.updatedAt)).size).toBe(1);
-    const entries = auditLogStore.list({ streamId: STREAM }).filter(e => e.action === "stream.stop.override");
+    const entries = auditLogStore.list({ targetId: STREAM }).filter(e => e.action === "stream.stop.override");
     expect(entries).toHaveLength(1);
     expect(db.streams.get(STREAM)?.status).toBe("ended");
   });
@@ -159,7 +159,7 @@ describe("POST /api/streams/[id]/stop — idempotency", () => {
     );
     expect(results.filter(r => r.status === 200)).toHaveLength(1);
     expect(results.filter(r => r.status === 409)).toHaveLength(9);
-    const entries = auditLogStore.list({ streamId: STREAM }).filter(e => e.action === "stream.stop.override");
+    const entries = auditLogStore.list({ targetId: STREAM }).filter(e => e.action === "stream.stop.override");
     expect(entries).toHaveLength(1);
   });
 

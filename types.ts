@@ -43,6 +43,17 @@ export interface OnChainStream {
   velocity: bigint;
   last_update_timestamp: number;
   status: ContractStreamStatus;
+  token: string;
+}
+
+export interface OnChainCancellationResult {
+  stream_id: string;
+  recipient_payout: bigint;
+  sender_refund: bigint;
+  token: string;
+  recipient_tx_hash: string;
+  sender_tx_hash?: string;
+  cancelled_at: number;
 }
 
 export interface InvariantResult {

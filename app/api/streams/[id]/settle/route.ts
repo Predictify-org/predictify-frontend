@@ -1,36 +1,38 @@
-/**
- * POST /api/streams/[id]/settle
- *
- * Transitions an active or paused stream to "ended" and records the final
- * balance. Idempotent: repeated requests with the same Idempotency-Key
- * return the cached response without re-applying the transition.
- *
- * Concurrency: the entire read-modify-write is wrapped in withLock(id) so
- * that concurrent settle/pause/start/stop requests on the same stream are
- * serialised.
- */
+import { NextResponse } from "next/server";
+import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
+import { db, idempotencyToken, withLock } from "@/app/lib/db";
+import { getCorrelationContext } from "@/app/lib/logger";
+import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
+import { getStellarSettlementClient } from "@/app/lib/stellar";
 
-import { NextRequest, NextResponse } from "next/server";
-import { db, withLock } from "@/app/lib/db";
+type Context = { params: Promise<{ id: string }> };
+
+function errorResponse(code: string, message: string, status: number) {
+  return NextResponse.json({ error: { code, message } }, { status });
+}
+
+function getHeader(request: Request, name: string): string | null {
+  return request.headers?.get?.(name) ?? null;
+}
 
 export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-): Promise<NextResponse> {
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const { id } = await params;
-  const idempotencyKey = req.headers.get("Idempotency-Key");
+  const idempotencyKey = getHeader(request, "Idempotency-Key");
+  const token = idempotencyKey ? idempotencyToken(`streams.settle.${id}`, idempotencyKey) : null;
+
+  if (token && db.idempotency.has(token)) {
+    return NextResponse.json(db.idempotency.get(token));
+  }
 
   return withLock(id, async () => {
-    // Re-check idempotency inside the lock so two concurrent requests with
-    // the same key cannot both pass the check and double-apply.
-    if (idempotencyKey) {
-      const cached = db.idempotencyKeys[idempotencyKey];
-      if (cached) {
-        return NextResponse.json(cached.body, { status: cached.status });
-      }
+    if (token && db.idempotency.has(token)) {
+      return NextResponse.json(db.idempotency.get(token));
     }
 
-    const stream = db.streams[id];
+    const stream = db.streams.get(id);
     if (!stream) {
       return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
@@ -54,12 +56,24 @@ export async function POST(
       return errorResponse("INVALID_STREAM_STATE", "Only active or paused streams can be settled", 409);
     }
 
-    const updated = {
+    const before = structuredClone(stream);
+    const txHash = `fake-tx-${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const updatedStream = {
       ...stream,
+      nextAction: "withdraw" as const,
+      settlementTxHash: txHash,
       status: "ended" as const,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
+      withdrawal: {
+        attempts: 0,
+        lastCheckedAt: now,
+        requestedAt: now,
+        settlementTxHash: txHash,
+        state: "pending" as const,
+      },
     };
-    db.streams[id] = updated;
+    db.streams.set(id, updatedStream);
 
     try {
       const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
@@ -84,7 +98,5 @@ export async function POST(
     } catch {
       return errorResponse("SETTLEMENT_FAILED", "Failed to settle stream on Stellar/Soroban", 502);
     }
-
-    return NextResponse.json(responseBody);
   });
 }

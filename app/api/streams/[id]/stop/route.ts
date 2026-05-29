@@ -7,15 +7,32 @@ import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 
-import { NextRequest, NextResponse } from "next/server";
-import { db, withLock } from "@/app/lib/db";
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
+}
+
+function getHeader(request: Request, name: string): string | null {
+  return request.headers?.get?.(name) ?? null;
+}
+
+function getRequestUrl(request: Request, fallbackPath: string): URL {
+  try {
+    return request.url ? new URL(request.url) : new URL(`http://localhost${fallbackPath}`);
+  } catch {
+    return new URL(`http://localhost${fallbackPath}`);
+  }
+}
 
 export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-): Promise<NextResponse> {
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const { id } = await params;
-  const idempotencyKey = req.headers.get("Idempotency-Key");
+  const url = getRequestUrl(request, `/api/streams/${id}/stop`);
+  const limitType = getLimitForRoute("POST", url.pathname);
+  const identity = getClientIdentity(request);
+  const result = await checkRateLimit(identity, limitType);
 
   if (!result.allowed) {
     recordThrottle(url.pathname, limitType, identity.type, identity.displayValue);
@@ -77,16 +94,21 @@ export async function POST(
 
     db.streams.set(id, updatedStream);
 
-  db.streams.set(id, updatedStream);
-  recordPrivilegedStreamAuditEvent({
-    action: "stream.stop.override",
-    after: updatedStream as any,
-    before: before as any,
-    metadata: {
-      resultingStatus: updatedStream.status,
-    },
-    request,
-    streamId: id,
-    targetAccount: updatedStream.recipient,
+    recordPrivilegedStreamAuditEvent({
+      action: "stream.stop.override",
+      after: updatedStream as unknown as Record<string, unknown>,
+      before: before as unknown as Record<string, unknown>,
+      metadata: { resultingStatus: updatedStream.status },
+      request,
+      streamId: id,
+      targetAccount: updatedStream.recipient,
+    });
+
+    const payload = { data: updatedStream };
+    if (token) {
+      db.idempotency.set(token, payload);
+    }
+
+    return NextResponse.json(payload);
   });
 }

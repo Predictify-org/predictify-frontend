@@ -22,21 +22,21 @@ function cloneStream(stream: Stream): Stream {
 }
 
 beforeAll(() => {
-  db.streams.forEach((value, key) => {
+  db.streams.forEach((value: Stream, key: string) => {
     ORIGINAL.set(key, cloneStream(value));
   });
 });
 
 beforeEach(() => {
   db.streams.clear();
-  ORIGINAL.forEach((value, key) => {
+  ORIGINAL.forEach((value: Stream, key: string) => {
     db.streams.set(key, cloneStream(value));
   });
 });
 
 afterAll(() => {
   db.streams.clear();
-  ORIGINAL.forEach((value, key) => {
+  ORIGINAL.forEach((value: Stream, key: string) => {
     db.streams.set(key, cloneStream(value));
   });
 });
@@ -50,7 +50,7 @@ function setFetchResponse(payload: unknown) {
 
 describe("POST /api/streams/[id]/withdraw", () => {
   it("returns pending first, then succeeded when tx appears", async () => {
-    await settle({} as Request, {
+    await settle({} as any, {
       params: Promise.resolve({ id: "stream-ada" }),
     });
 
@@ -59,7 +59,7 @@ describe("POST /api/streams/[id]/withdraw", () => {
       _links: { next: { href: "https://horizon-testnet.stellar.org?cursor=a1" } },
     });
     const pendingResponse = await withdraw(
-      {} as Request,
+      {} as any,
       { params: Promise.resolve({ id: "stream-ada" }) },
     );
     const pendingBody = await pendingResponse.json();
@@ -74,7 +74,7 @@ describe("POST /api/streams/[id]/withdraw", () => {
       _links: { next: { href: "https://horizon-testnet.stellar.org?cursor=a2" } },
     });
     const successResponse = await withdraw(
-      {} as Request,
+      {} as any,
       { params: Promise.resolve({ id: "stream-ada" }) },
     );
     const successBody = await successResponse.json();

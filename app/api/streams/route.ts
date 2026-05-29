@@ -106,14 +106,6 @@ export async function POST(request: Request) {
     return NextResponse.json(idempotencyStore.get(token), { status: 201 });
   }
 
-  // Global pause circuit breaker — create_stream is blocked during incidents.
-  const pauseError = checkNotPaused("create_stream");
-  if (pauseError) return pauseError;
-
-  // Global pause circuit breaker — create_stream is blocked when paused.
-  const pauseError = checkNotPaused("create_stream");
-  if (pauseError) return pauseError;
-
   try {
     const body = await request.json();
     const { rate, recipient, schedule, token: rawToken } = body as {

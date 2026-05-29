@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStore } from "@/app/lib/db";
+import { db, getStore } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";

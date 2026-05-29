@@ -310,20 +310,6 @@ function signaturesMatch(providedSignature: string, expectedSignature: string): 
   return crypto.timingSafeEqual(provided, expected);
 }
 
-/**
- * HTTP status code classification
- */
-export function isRetryableStatus(statusCode?: number): boolean {
-  if (!statusCode) return true; // Network errors are retryable
-
-  // Retry on 5xx and specific 4xx errors
-  if (statusCode >= 500) return true;
-  if (statusCode === 408) return true; // Request Timeout
-  if (statusCode === 429) return true; // Too Many Requests
-
-  // Do not retry on other 4xx errors (client errors)
-  if (statusCode >= 400 && statusCode < 500) return false;
-
 export class WebhookDeliveryClient {
   private retryConfig: RetryConfig;
   private circuitBreakers: Map<string, { failures: number; openedAt?: number }> = new Map();
@@ -375,11 +361,15 @@ export class WebhookDeliveryClient {
     withWebhookContext(deliveryId);
 
     if (this.isCircuitOpen(endpoint.id, endpoint.circuitBreakerThreshold)) {
+      const error = 'Circuit breaker open: endpoint experiencing repeated failures';
       logger.warn('Webhook delivery blocked by circuit breaker', {
-        delivery_id: deliveryId, endpoint_id: endpoint.id,
+        delivery_id: deliveryId,
+        endpoint_id: endpoint.id,
+        endpoint_url: endpoint.url,
+        event_id: event.id,
         correlation_id: context?.correlation_id,
       });
-      return { success: false, error: 'Circuit breaker open', shouldRetry: false };
+      return { success: false, error, shouldRetry: false };
     }
 
     const payload   = JSON.stringify(event);
@@ -387,18 +377,23 @@ export class WebhookDeliveryClient {
     const maxAttempts = this.retryConfig.maxAttempts ?? this.retryConfig.maxRetries ?? 10;
 
     const headers: Record<string, string> = {
-      'Content-Type':             'application/json',
-      'User-Agent':               'StreamPay-Webhook-Client/1.0',
-      'X-StreamPay-Delivery-Id':  deliveryId,
-      'X-StreamPay-Event-Id':     event.id,
-      'X-StreamPay-Event-Type':   event.eventType,
-      'X-StreamPay-Timestamp':    timestamp,
-      'X-StreamPay-Attempt':      attemptNumber.toString(),
+      'Content-Type': 'application/json',
+      'User-Agent': 'StreamPay-Webhook-Client/1.0',
+      'X-StreamPay-Delivery-Id': deliveryId,
+      'X-StreamPay-Event-Id': event.id,
+      'X-StreamPay-Event-Type': event.eventType,
+      'X-StreamPay-Nonce': `${event.id}:${deliveryId}:${attemptNumber}`,
+      'X-StreamPay-Timestamp': timestamp,
+      'X-StreamPay-Attempt': attemptNumber.toString(),
     };
 
     if (endpoint.secret) {
-      headers['X-StreamPay-Signature'] =
-        generateWebhookSignature(payload, endpoint.secret, timestamp, deliveryId);
+      headers['X-StreamPay-Signature'] = generateWebhookSignature(
+        payload,
+        [endpoint.secret, ...(endpoint.previousSecrets ?? [])],
+        timestamp,
+        deliveryId
+      );
     }
 
     const controller = new AbortController();
@@ -406,13 +401,20 @@ export class WebhookDeliveryClient {
 
     try {
       logger.info('Webhook delivery attempt starting', {
-        delivery_id: deliveryId, endpoint_id: endpoint.id,
-        event_type: event.eventType, attempt: attemptNumber,
+        delivery_id: deliveryId,
+        endpoint_id: endpoint.id,
+        endpoint_url: endpoint.url,
+        event_id: event.id,
+        event_type: event.eventType,
+        attempt: attemptNumber,
         correlation_id: context?.correlation_id,
       });
 
       const response = await fetch(endpoint.url, {
-        method: 'POST', headers, body: payload, signal: controller.signal,
+        method: 'POST',
+        headers,
+        body: payload,
+        signal: controller.signal,
       });
       clearTimeout(timeoutId);
 
@@ -420,136 +422,106 @@ export class WebhookDeliveryClient {
       const success    = statusCode >= 200 && statusCode < 300;
 
       logger.info('Webhook delivery attempt completed', {
-        delivery_id: deliveryId, attempt: attemptNumber,
-        status_code: statusCode, success,
+        delivery_id: deliveryId,
+        endpoint_id: endpoint.id,
+        endpoint_url: endpoint.url,
+        event_id: event.id,
+        attempt: attemptNumber,
+        status_code: statusCode,
+        success,
         correlation_id: context?.correlation_id,
       });
 
-      // Prepare headers
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'User-Agent': 'StreamPay-Webhook-Client/1.0',
-        'X-StreamPay-Delivery-Id': deliveryId,
-        'X-StreamPay-Event-Id': event.id,
-        'X-StreamPay-Event-Type': event.eventType,
-        'X-StreamPay-Nonce': `${event.id}:${deliveryId}:${attemptNumber}`,
-        'X-StreamPay-Timestamp': timestamp,
-        'X-StreamPay-Attempt': attemptNumber.toString(),
-      };
-
-      // Sign with HMAC per attempt
-      if (endpoint.secret) {
-        const signature = generateWebhookSignature(
-          payload,
-          [endpoint.secret, ...(endpoint.previousSecrets ?? [])],
-          timestamp,
-          deliveryId
-        );
-        headers['X-StreamPay-Signature'] = signature;
+      if (success) {
+        this.recordSuccess(endpoint.id);
+        return { success: true, statusCode, shouldRetry: false };
       }
 
-      const retryable = isRetryableStatus(statusCode);
+      const shouldRetry = isRetryableStatus(statusCode);
       this.recordFailure(endpoint.id);
 
-      if (retryable && attemptNumber < maxAttempts) {
-        const delay      = calculateNextRetryDelay(attemptNumber, this.retryConfig);
-        const nextRetryAt = new Date(Date.now() + delay).toISOString();
-        return { success: false, statusCode, shouldRetry: true, nextRetryAt,
-          error: `HTTP ${statusCode}` };
+      if (shouldRetry && attemptNumber < maxAttempts) {
+        const nextDelay = calculateNextRetryDelay(attemptNumber, this.retryConfig);
+        const nextRetryAt = new Date(Date.now() + nextDelay).toISOString();
+        return {
+          success: false,
+          statusCode,
+          shouldRetry: true,
+          nextRetryAt,
+          error: `HTTP ${statusCode}`,
+        };
       }
 
-      return { success: false, statusCode, shouldRetry: false,
-        error: `HTTP ${statusCode}: ${response.statusText}` };
+      return {
+        success: false,
+        statusCode,
+        shouldRetry: false,
+        error: `HTTP ${statusCode}: ${response.statusText}`,
+      };
 
-    } catch (err) {
+    } catch (error) {
       clearTimeout(timeoutId);
-      const isTimeout = err instanceof Error && err.name === 'AbortError';
-      const errorMsg  = isTimeout ? 'Request timeout (30s)'
-        : err instanceof Error ? err.message : 'Unknown error';
 
-      if (isTimeout) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        const errorMsg = 'Request timeout (30s)';
         logger.warn('Webhook delivery timeout', {
-          delivery_id: deliveryId, attempt: attemptNumber,
+          delivery_id: deliveryId,
+          endpoint_id: endpoint.id,
+          endpoint_url: endpoint.url,
+          event_id: event.id,
+          attempt: attemptNumber,
           correlation_id: context?.correlation_id,
         });
 
-        if (success) {
-          this.recordSuccess(endpoint.id);
-          return { success: true, statusCode, shouldRetry: false };
-        }
-
-        const shouldRetry = isRetryableStatus(statusCode);
         this.recordFailure(endpoint.id);
 
-        if (shouldRetry && attemptNumber < this.retryConfig.maxRetries) {
+        if (attemptNumber < maxAttempts) {
           const nextDelay = calculateNextRetryDelay(attemptNumber, this.retryConfig);
           const nextRetryAt = new Date(Date.now() + nextDelay).toISOString();
           return {
             success: false,
-            statusCode,
             shouldRetry: true,
             nextRetryAt,
-            error: `HTTP ${statusCode}`,
+            error: errorMsg,
           };
         }
 
         return {
           success: false,
-          statusCode,
           shouldRetry: false,
-          error: `HTTP ${statusCode}: ${response.statusText}`,
+          error: errorMsg,
         };
-      } catch (error) {
-        clearTimeout(timeoutId);
-
-        if (error instanceof Error && error.name === 'AbortError') {
-          const errorMsg = 'Request timeout (30s)';
-          logger.warn('Webhook delivery timeout', {
-            delivery_id: deliveryId,
-            endpoint_id: endpoint.id,
-            endpoint_url: endpoint.url,
-            event_id: event.id,
-            attempt: attemptNumber,
-            correlation_id: context?.correlation_id,
-          });
-
-          this.recordFailure(endpoint.id);
-
-          if (attemptNumber < this.retryConfig.maxRetries) {
-            const nextDelay = calculateNextRetryDelay(attemptNumber, this.retryConfig);
-            const nextRetryAt = new Date(Date.now() + nextDelay).toISOString();
-            return {
-              success: false,
-              shouldRetry: true,
-              nextRetryAt,
-              error: errorMsg,
-            };
-          }
-
-          return {
-            success: false,
-            shouldRetry: false,
-            error: errorMsg,
-          };
-        }
-
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        logger.error('Webhook delivery error', {
-          delivery_id: deliveryId, attempt: attemptNumber, error: errorMsg,
-          correlation_id: context?.correlation_id,
-        });
       }
+
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Webhook delivery error', {
+        delivery_id: deliveryId,
+        endpoint_id: endpoint.id,
+        endpoint_url: endpoint.url,
+        event_id: event.id,
+        attempt: attemptNumber,
+        error: errorMsg,
+        correlation_id: context?.correlation_id,
+      });
 
       this.recordFailure(endpoint.id);
 
-      const maxAttempts2 = this.retryConfig.maxAttempts ?? this.retryConfig.maxRetries ?? 10;
-      if (attemptNumber < maxAttempts2) {
-        const delay      = calculateNextRetryDelay(attemptNumber, this.retryConfig);
-        const nextRetryAt = new Date(Date.now() + delay).toISOString();
-        return { success: false, shouldRetry: true, nextRetryAt, error: errorMsg };
+      if (attemptNumber < maxAttempts) {
+        const nextDelay = calculateNextRetryDelay(attemptNumber, this.retryConfig);
+        const nextRetryAt = new Date(Date.now() + nextDelay).toISOString();
+        return {
+          success: false,
+          shouldRetry: true,
+          nextRetryAt,
+          error: errorMsg,
+        };
       }
 
-      return { success: false, shouldRetry: false, error: errorMsg };
+      return {
+        success: false,
+        shouldRetry: false,
+        error: errorMsg,
+      };
     }
   }
 

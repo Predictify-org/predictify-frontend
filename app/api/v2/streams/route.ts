@@ -97,6 +97,7 @@ export async function POST(request: Request) {
     nextAction: "start" as const,
     createdAt: now,
     updatedAt: now,
+    token: "XLM",
   };
 
   streamRepository.streams.set(id, newStream);

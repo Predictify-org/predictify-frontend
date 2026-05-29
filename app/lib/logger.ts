@@ -63,8 +63,11 @@ export function getCorrelationContext(): CorrelationContext | undefined {
 // Set correlation context for a async operation
 export function withCorrelationContext<T>(
   context: CorrelationContext,
-  callback: () => Promise<T>
-): Promise<T> {
+  callback?: () => Promise<T>
+): Promise<T> | void {
+  if (!callback) {
+    return correlationContext.enterWith(context);
+  }
   return correlationContext.run(context, callback);
 }
 

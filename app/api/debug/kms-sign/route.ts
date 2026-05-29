@@ -16,13 +16,13 @@ const MAX_PAYLOAD_BYTES = 16 * 1024; // 16KB
 export async function POST(request: Request) {
   // Hard-disable in production
   if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: { code: 'ROUTE_NOT_FOUND' } }, { status: 404 });
+    return NextResponse.json(createError('NOT_FOUND'), { status: 404 });
   }
 
   // Internal-service auth (concealFailure hides auth failures as 404)
   const authResult = await requireInternalServiceAuth(request, { concealFailure: true });
   if (authResult instanceof NextResponse) {
-    return authResult;
+    return NextResponse.json(createError('NOT_FOUND'), { status: 404 });
   }
 
   try {
@@ -97,4 +97,3 @@ export async function POST(request: Request) {
     return NextResponse.json(createError('INTERNAL_ERROR'), { status: 500 });
   }
 }
-

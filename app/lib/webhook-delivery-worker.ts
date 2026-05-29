@@ -1,18 +1,4 @@
-/**
- * Webhook delivery worker — exponential backoff with full jitter + DLQ.
- *
- * Retry schedule (full-jitter):
- *   cap   = min(maxDelayMs, initialDelayMs * backoffMultiplier ^ attempt)
- *   delay = random_between(0, cap)
- *
- * Status handling:
- *   2xx              → success
- *   4xx (non-408/429)→ non-retryable → immediate DLQ
- *   408, 429, 5xx    → retryable → backoff retry
- *   network timeout  → retryable → backoff retry
- *   maxAttempts hit  → DLQ with full attempt history
- */
-
+import crypto from 'crypto';
 import { logger, getCorrelationContext, withWebhookContext } from './logger';
 import {
   WebhookDeliveryClient,
@@ -44,6 +30,10 @@ export class WebhookDeliveryWorker {
     this.client = new WebhookDeliveryClient(this.retryConfig);
   }
 
+  get maxRetries(): number {
+    return this.retryConfig.maxAttempts ?? this.retryConfig.maxRetries ?? 10;
+  }
+
   /**
    * Process a webhook delivery with full exponential-backoff retry loop.
    *
@@ -60,7 +50,7 @@ export class WebhookDeliveryWorker {
   ): Promise<{ success: boolean; deliveryId: string; attempts: number; dlqed?: boolean }> {
     const ctx = getCorrelationContext();
     withWebhookContext(deliveryId);
-    const maxAttempts = this.retryConfig.maxAttempts ?? this.retryConfig.maxRetries ?? 10;
+    const maxAttempts = this.maxRetries;
 
     logger.info('Starting webhook delivery', {
       delivery_id: deliveryId, endpoint_id: endpoint.id,
@@ -227,45 +217,6 @@ export class WebhookDeliveryWorker {
         new_delivery_id: newDeliveryId,
         error:           err instanceof Error ? err.message : String(err),
         correlation_id:  context?.correlation_id,
-      });
-    });
-
-    return { ok: true, alreadyReplayed: false, newDeliveryId };
-  }
-
-  /**
-   * Retry failed delivery from retry queue
-   * This would typically be called by a background job scheduler
-   */
-  async replayFromDLQ(dlqId: string): Promise<{
-    ok: boolean; alreadyReplayed: boolean;
-    newDeliveryId?: string; existingDeliveryId?: string; error?: string;
-  }> {
-    const ctx = getCorrelationContext();
-    const entry = webhookDeliveryStore.getDLQEntry(dlqId);
-    if (!entry) return { ok: false, alreadyReplayed: false, error: `DLQ entry '${dlqId}' not found.` };
-
-    if (entry.replayedDeliveryId) {
-      logger.info('DLQ replay skipped — already replayed', {
-        dlq_id: dlqId, existing_delivery_id: entry.replayedDeliveryId,
-        correlation_id: ctx?.correlation_id,
-      });
-      return { ok: true, alreadyReplayed: true, existingDeliveryId: entry.replayedDeliveryId };
-    }
-
-    const newDeliveryId = `dlq-replay-${crypto.randomUUID()}`;
-    webhookDeliveryStore.markReplayed(dlqId, newDeliveryId);
-
-    const endpoint: WebhookEndpoint = {
-      id: entry.endpointId, url: entry.endpointUrl,
-      maxRetries: this.retryConfig.maxAttempts ?? 10,
-    };
-
-    this.processDelivery(endpoint, entry.payload, newDeliveryId).catch((err) => {
-      logger.error('DLQ replay delivery failed', {
-        dlq_id: dlqId, new_delivery_id: newDeliveryId,
-        error: err instanceof Error ? err.message : String(err),
-        correlation_id: ctx?.correlation_id,
       });
     });
 
