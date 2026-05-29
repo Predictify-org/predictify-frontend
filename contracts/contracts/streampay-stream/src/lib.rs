@@ -350,79 +350,53 @@ impl Contract {
         Ok(stream)
     }
 
-    /// Cancels an active or paused stream.
+    /// Finalizes a stream whose time window has fully elapsed, paying out
+    /// any remaining vested funds to the recipient and transitioning it to a
+    /// terminal `Settled` state.
     ///
-    /// Vested funds are released to the recipient, and unvested funds are
-    /// refunded to the sender. Only the stream sender may call this.
-    pub fn cancel_stream(env: Env, stream_id: u64) -> Result<Stream, Error> {
+    /// This function is permissionless and can be triggered by anyone after
+    /// `end_time` has been reached. Calling it on an already `Settled` stream
+    /// is a no-op (returns `Ok(())`).
+    ///
+    /// # Errors
+    /// - [`Error::ContractPaused`] if the contract is paused.
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::InvalidState`] if the stream is in `Draft` or cancelled state,
+    ///   or if the current ledger timestamp has not yet reached `end_time`.
+    pub fn settle(env: Env, stream_id: u64) -> Result<(), Error> {
         require_not_paused(&env)?;
         let mut stream = get_existing_stream(&env, stream_id)?;
-        stream.sender.require_auth();
+
+        if stream.status == StreamStatus::Settled {
+            return Ok(());
+        }
 
         if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
             return Err(Error::InvalidState);
         }
 
         let now = env.ledger().timestamp();
-        let vested = release::vested_amount(&stream, now);
-        let withdrawable = vested.saturating_sub(stream.released_amount);
-        let refund = stream.total_amount.saturating_sub(vested);
-
-        if withdrawable > 0 {
-            token::Client::new(&env, &stream.token).transfer(
-                &env.current_contract_address(),
-                &stream.recipient,
-                &withdrawable,
-            );
-        }
-
-        if refund > 0 {
-            token::Client::new(&env, &stream.token).transfer(
-                &env.current_contract_address(),
-                &stream.sender,
-                &refund,
-            );
-        }
-
-        stream.status = StreamStatus::Cancelled;
-        stream.released_amount = vested;
-        stream.last_update = now;
-        stream.end_time = now;
-
-        storage::set_stream(&env, stream_id, &stream);
-        Ok(stream)
-    }
-
-    /// Settles an active or paused stream, releasing all remaining funds to recipient.
-    ///
-    /// Only the stream recipient may call this (mirrors full withdrawal).
-    pub fn settle(env: Env, stream_id: u64) -> Result<Stream, Error> {
-        require_not_paused(&env)?;
-        let mut stream = get_existing_stream(&env, stream_id)?;
-        stream.recipient.require_auth();
-
-        if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
+        if now < stream.end_time {
             return Err(Error::InvalidState);
         }
 
-        let now = env.ledger().timestamp();
-        let remaining = stream.total_amount.saturating_sub(stream.released_amount);
-
-        if remaining > 0 {
+        let payout_amount = stream.total_amount - stream.released_amount;
+        if payout_amount > 0 {
+            #[allow(clippy::needless_borrows_for_generic_args)]
             token::Client::new(&env, &stream.token).transfer(
                 &env.current_contract_address(),
                 &stream.recipient,
-                &remaining,
+                &payout_amount,
             );
+            stream.released_amount = stream.total_amount;
         }
 
         stream.status = StreamStatus::Settled;
-        stream.released_amount = stream.total_amount;
         stream.last_update = now;
-        stream.end_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
-        Ok(stream)
+
+        Ok(())
     }
 }
 
