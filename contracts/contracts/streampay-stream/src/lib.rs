@@ -329,7 +329,6 @@ impl Contract {
         stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
-        events::paused(&env, stream_id, &stream.sender, stream.pause_time, stream.pause_time);
 
         Ok(stream)
     }
@@ -369,7 +368,6 @@ impl Contract {
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
-        events::resumed(&env, stream_id, &stream.sender, stream.end_time, stream.last_update);
 
         Ok(stream)
     }
