@@ -138,6 +138,15 @@ function createUsersMap(): Map<string, User> {
   return new Map(initialUsers.map((user) => [user.wallet_address, { ...user }]));
 }
 
+function createStreamsMap(): Map<string, Stream> {
+  return new Map(initialStreams.map((stream) => [stream.id, { ...stream }]));
+}
+
+function createActivityMap(): Map<string, ActivityEvent> {
+  return new Map(initialActivity.map((event) => [event.id, { ...event }]));
+}
+
+
 // ---------------------------------------------------------------------------
 // Shared in-memory store (module-level singleton, reset between tests via
 // resetDb()).
