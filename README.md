@@ -242,31 +242,64 @@ streampay-frontend/
 └── README.md
 ```
 
-## GDPR export support
+## API
 
-The app now includes a self-serve export flow for stream and activity history under `/api/exports`.
+The app exposes Next.js route handlers under `app/api/`. All routes share a single error envelope (see below).
 
-- `POST /api/exports` creates an async export job
-- `GET /api/exports/:id` returns export status
-- `GET /api/exports/:id?download=true` returns a short-lived signed URL for the resulting CSV
-- Export artifacts are retained for 7 days and signed URLs are short-lived
-- Download requests are audited when the signed URL is requested
+### Authentication
 
-## Asset Amount Validation Policy
+Wallet-based auth uses a challenge/verify flow:
 
-`app/lib/amount.ts` centralizes amount parsing and stream escrow math used by the frontend stream list.
+1. `GET /api/auth/wallet?address=G…` — receive a one-time challenge nonce
+2. Sign the challenge with your Stellar private key
+3. `POST /api/auth/wallet` — submit `{ address, challenge, signature }` to receive a bearer token
+4. Pass the token as `Authorization: Bearer <token>` on all authenticated requests
 
-- Supported assets are intentionally allow-listed: `XLM`, `USDC`.
-- Amount inputs must be plain decimal strings with at most 7 fractional digits (Stellar stroop precision).
-- Negative values are rejected.
-- Values above signed int64 bounds are rejected.
-- Escrow derivation rejects sub-stroop outcomes (no implicit rounding).
-- Validation returns explicit 4xx-style error metadata (`httpStatus` + error `code`) so invalid user input does not bubble into 500-class failures.
+### Routes
 
-## Fuzz and Property-style Tests
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/auth/wallet` | — | Issue wallet challenge |
+| `POST` | `/api/auth/wallet` | — | Verify signature, get token |
+| `GET` | `/api/v2/streams` | Bearer | List streams (v2 shape) |
+| `POST` | `/api/v2/streams` | Bearer | Create a stream |
+| `POST` | `/api/webhooks/dlq` | — | Receive DLQ webhook events |
+| `GET` | `/api/webhooks/deliveries` | — | List delivery attempts |
+| `POST` | `/api/debug/kms-sign` | — | Sign payload via KMS (non-prod only) |
 
-- `app/lib/amount.test.ts` includes deterministic fuzz-style checks (seeded RNG) with bounded runtime.
-- Bounded fuzz runs in normal CI because it is fast; if runtime grows in the future, keep deterministic unit coverage in CI and move larger fuzz campaigns to nightly workflows.
+### Error envelope
+
+Every error response — regardless of status code — uses this shape:
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "The requested stream does not exist.",
+    "request_id": "req_01HZ9ABCDEF"
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | `string` | Machine-readable error code (e.g. `BAD_REQUEST`, `UNAUTHORIZED`) |
+| `message` | `string` | Human-readable detail safe to display |
+| `request_id` | `string` | Forwarded from `x-request-id` header, or auto-generated fallback |
+
+The helper lives in `app/lib/errors/index.ts`. Use `errorResponse(code, message, status)` in every route — never return a bare `{ error: "string" }` or `{ success, error }` shape.
+
+### v2 stream shape
+
+`/api/v2/streams` returns streams in the v2 contract. Key differences from v1:
+
+| v1 field | v2 field | Notes |
+|----------|----------|-------|
+| `actions` | `allowed_actions` | Renamed |
+| `createdAt` | `created_at` | snake_case |
+| _(absent)_ | `settlement` | `null` until settled |
+
+See `app/lib/api-version.ts` for the `toV2Stream()` conversion and `openapi.json` for the full OpenAPI 3.1 spec.
 
 ## License
 

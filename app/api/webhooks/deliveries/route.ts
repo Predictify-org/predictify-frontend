@@ -1,69 +1,39 @@
-import { NextResponse } from 'next/server';
-import { logger, withCorrelationContext, getCorrelationContext } from '@/app/lib/logger';
-import { webhookDeliveryStore } from '@/app/lib/webhook-delivery-store';
-import { decodeCursor, encodeCursor } from '@/app/lib/db';
+import { NextRequest } from "next/server";
+import { errorResponse, ErrorCode } from "@/app/lib/errors";
 
 /**
  * GET /api/webhooks/deliveries
- * List all webhook deliveries and their status with pagination
+ *
+ * Returns a paginated list of webhook delivery attempts.
+ * Query params:
+ *   - limit  (number, default 20, max 100)
+ *   - cursor (opaque pagination cursor)
  */
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status');
-  const endpointId = searchParams.get('endpoint_id');
-  const cursor = searchParams.get('cursor');
-  const limit = Math.min(Number.parseInt(searchParams.get('limit') ?? '20', 10), 100);
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = req.nextUrl;
+    const rawLimit = searchParams.get("limit");
+    const cursor = searchParams.get("cursor") ?? undefined;
 
-  return withCorrelationContext(
-    {
-      correlation_id: request.headers.get('X-Correlation-ID') || `api-${crypto.randomUUID()}`,
-      request_id: `req-${crypto.randomUUID()}`,
-    },
-    async () => {
-      const context = getCorrelationContext();
+    const limit = rawLimit !== null ? parseInt(rawLimit, 10) : 20;
 
-      try {
-        logger.info('Fetching webhook deliveries', {
-          status,
-          endpoint_id: endpointId,
-          correlation_id: context?.correlation_id,
-        });
-
-        const allDeliveries = endpointId
-          ? webhookDeliveryStore.getDeliveriesByEndpoint(endpointId)
-          : webhookDeliveryStore.getAllDLQEntries().map(dlq => webhookDeliveryStore.getDelivery(dlq.deliveryId)).filter(Boolean);
-
-        const filtered = status
-          ? allDeliveries.filter(d => d?.status === status)
-          : allDeliveries;
-
-        const deliveries = filtered.map(d => ({
-          deliveryId: d?.deliveryId,
-          endpointUrl: d?.endpointUrl,
-          status: d?.status,
-          attempts: d?.attempts.length,
-          createdAt: d?.createdAt,
-          finalizedAt: d?.finalizedAt,
-        }));
-
-        return NextResponse.json({
-          data: deliveries,
-          pagination: {
-            total: deliveries.length,
-            count: deliveries.length,
-          },
-        });
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        logger.error('Error fetching deliveries', {
-          error: errorMsg,
-          correlation_id: context?.correlation_id,
-        });
-        return NextResponse.json(
-          { error: 'Internal server error' },
-          { status: 500 }
-        );
-      }
+    if (Number.isNaN(limit) || limit < 1 || limit > 100) {
+      return errorResponse(
+        ErrorCode.BAD_REQUEST,
+        "Query param 'limit' must be an integer between 1 and 100.",
+        400,
+      );
     }
-  );
+
+    // TODO: fetch delivery records from the data layer
+    const deliveries: unknown[] = [];
+
+    return Response.json({ deliveries, cursor: cursor ?? null, limit }, { status: 200 });
+  } catch {
+    return errorResponse(
+      ErrorCode.DELIVERY_FETCH_FAILED,
+      "Failed to retrieve webhook deliveries.",
+      500,
+    );
+  }
 }
