@@ -191,6 +191,8 @@ mod tests {
             duration: end_time - start_time,
             last_update: start_time,
             status: StreamStatus::Active,
+            pause_time: 0,
+            total_paused_duration: 0,
         }
     }
 

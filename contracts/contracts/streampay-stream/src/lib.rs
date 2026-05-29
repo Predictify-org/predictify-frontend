@@ -1,6 +1,7 @@
 #![no_std]
 
 mod error;
+mod events;
 mod storage;
 
 use core::cmp::min;
@@ -154,6 +155,7 @@ impl Contract {
         };
 
         storage::set_stream(&env, id, &stream);
+        events::created(&env, id, &stream.sender, &stream.recipient, &stream.token, stream.total_amount, now);
 
         Ok(id)
     }
@@ -190,6 +192,7 @@ impl Contract {
             .ok_or(Error::InvalidTimeRange)?;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::started(&env, stream_id, stream.start_time, stream.end_time, stream.start_time);
 
         Ok(stream)
     }
@@ -272,6 +275,11 @@ impl Contract {
         );
 
         storage::set_stream(&env, stream_id, &stream);
+        let ts = stream.last_update;
+        events::withdrawn(&env, stream_id, &stream.recipient, amount, ts);
+        if stream.status == StreamStatus::Settled {
+            events::settled(&env, stream_id, &stream.recipient, stream.total_amount, ts);
+        }
 
         Ok(amount)
     }
@@ -295,9 +303,8 @@ impl Contract {
         stream.status = StreamStatus::Paused;
         stream.pause_time = now;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(stream_id), &stream);
+        storage::set_stream(&env, stream_id, &stream);
+        events::paused(&env, stream_id, &stream.sender, stream.pause_time, stream.pause_time);
 
         Ok(stream)
     }
@@ -336,9 +343,8 @@ impl Contract {
         stream.status = StreamStatus::Active;
         stream.pause_time = 0;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(stream_id), &stream);
+        storage::set_stream(&env, stream_id, &stream);
+        events::resumed(&env, stream_id, &stream.sender, stream.end_time, stream.last_update);
 
         Ok(stream)
     }
@@ -352,11 +358,26 @@ fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
     if stream.status != StreamStatus::Active || stream.start_time == 0 {
         return 0;
     }
+    if now < stream.start_time {
+        return 0;
+    }
 
     let elapsed = min(now, stream.end_time) - stream.start_time;
     let accrued = (stream.total_amount * elapsed as i128) / stream.duration as i128;
 
     accrued - stream.released_amount
+}
+
+fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
+    if stream.start_time == 0 {
+        return 0;
+    }
+    let now = env.ledger().timestamp();
+    if now < stream.start_time {
+        return 0;
+    }
+    let elapsed = min(now, stream.end_time) - stream.start_time;
+    (stream.total_amount * elapsed as i128) / stream.duration as i128
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
