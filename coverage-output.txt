@@ -1,0 +1,74 @@
+
+> streampay-frontend@0.1.0 test:e2e:coverage
+> node scripts/run-from-realpath.mjs jest --runInBand --testPathPattern=stream-lifecycle.e2e --coverage --collectCoverageFrom='app/api/streams/**/*.ts' --forceExit
+
+  [2m[33mconsole.warn[39m[22m
+[33m    {"event":"rate_limit_throttled","route":"/api/streams/no-such-overflow/withdraw","limitType":"write","timestamp":"2026-05-27T23:13:00.049Z","identityType":"ip","identityDisplay":"unknown"}[39m
+[2m[22m
+[2m    [0m [90m 33 |[39m   }[22m
+[2m     [90m 34 |[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 35 |[39m   console[33m.[39mwarn([22m
+[2m     [90m    |[39m           [31m[1m^[22m[2m[39m[22m
+[2m     [90m 36 |[39m     [33mJSON[39m[33m.[39mstringify({[22m
+[2m     [90m 37 |[39m       event[33m:[39m [32m"rate_limit_throttled"[39m[33m,[39m[22m
+[2m     [90m 38 |[39m       route[33m,[39m[0m[22m
+[2m[22m
+[2m      [2mat warn ([22m[2mapp/lib/rate-limit-metrics.ts[2m:35:11)[22m[2m[22m
+[2m      [2mat POST ([22m[2mapp/api/streams/[id]/withdraw/route.ts[2m:39:19)[22m[2m[22m
+[2m      [2mat Server.<anonymous> ([22m[2m[0m[36mapp/api/streams/stream-lifecycle.e2e.test.ts[39m[0m[2m:119:27)[22m[2m[22m
+
+[0m[7m[1m[32m PASS [39m[22m[27m[0m [2mapp/api/streams/[22m[1mstream-lifecycle.e2e.test.ts[22m
+  stream lifecycle E2E (HTTP black-box)
+    [32m✓[39m [2mcreates, starts, pauses, and settles a stream with idempotent retries (55 ms)[22m
+    [32m✓[39m [2mreturns 404 when settle is called for a stream that does not exist (3 ms)[22m
+    settle → withdraw happy path
+      [32m✓[39m [2mfull lifecycle: draft → active → ended → withdrawn (13 ms)[22m
+      [32m✓[39m [2mwithdraw returns pending when tx not yet on-chain (7 ms)[22m
+    idempotent replays
+      [32m✓[39m [2msettle replay returns cached response without calling settleStream again (7 ms)[22m
+      [32m✓[39m [2mwithdraw replay returns cached response without re-querying Horizon (8 ms)[22m
+      [32m✓[39m [2mwithdraw on already-withdrawn stream returns 200 without re-processing (7 ms)[22m
+    rate-limit and approval branches
+      [32m✓[39m [2mreturns 429 when write rate limit is exhausted (28 ms)[22m
+      [32m✓[39m [2mnon-org-member actor on org-owned stream → 403 NOT_ORG_MEMBER (3 ms)[22m
+      [32m✓[39m [2mviewer role on org-owned stream → 403 ROLE_INSUFFICIENT (2 ms)[22m
+      [32m✓[39m [2msettle on org-owned stream with requireApprovals=2 → 409 APPROVAL_REQUIRED (1 ms)[22m
+    invalid-state error branches
+      [32m✓[39m [2mpause on draft stream → 409 INVALID_STREAM_STATE (2 ms)[22m
+      [32m✓[39m [2msettle on draft stream → 409 INVALID_STREAM_STATE (3 ms)[22m
+      [32m✓[39m [2mwithdraw on active stream → 409 INVALID_STREAM_STATE (11 ms)[22m
+      [32m✓[39m [2msettle on non-existent stream → 404 STREAM_NOT_FOUND (2 ms)[22m
+      [32m✓[39m [2mwithdraw on non-existent stream → 404 STREAM_NOT_FOUND (1 ms)[22m
+      [32m✓[39m [2msettle failure from Stellar client → 502 SETTLEMENT_FAILED (4 ms)[22m
+
+---------------------------------------------|---------|----------|---------|---------|---------------------------------
+File                                         | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s               
+---------------------------------------------|---------|----------|---------|---------|---------------------------------
+[31;1mAll files                                   [0m | [31;1m  41.39[0m | [31;1m   43.24[0m | [31;1m  37.25[0m | [31;1m  41.68[0m | [31;1m                               [0m 
+[31;1m streams                                    [0m | [31;1m  43.83[0m | [31;1m   44.44[0m | [31;1m  33.33[0m | [31;1m  45.07[0m | [31;1m                               [0m 
+[31;1m  route.ts                                  [0m | [31;1m  43.83[0m | [31;1m   44.44[0m | [31;1m  33.33[0m | [31;1m  45.07[0m | [31;1m9-14,21,29-77,91-92,112-115,140[0m 
+[31;1m streams/[id]                               [0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m                               [0m 
+[31;1m  route.ts                                  [0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m1-81                           [0m 
+[31;1m streams/[id]/approvals                     [0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m                               [0m 
+[31;1m  route.ts                                  [0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m8-94                           [0m 
+[31;1m streams/[id]/approvals/[approvalId]/approve[0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m                               [0m 
+[31;1m  route.ts                                  [0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m5-57                           [0m 
+[32;1m streams/[id]/pause                         [0m | [32;1m   87.5[0m | [32;1m   86.66[0m | [33;1m     75[0m | [32;1m   87.5[0m | [31;1m                               [0m 
+[32;1m  route.ts                                  [0m | [32;1m   87.5[0m | [32;1m   86.66[0m | [33;1m     75[0m | [32;1m   87.5[0m | [31;1m14,35,44-45                    [0m 
+[32;1m streams/[id]/settle                        [0m | [32;1m  95.45[0m | [32;1m      90[0m | [32;1m    100[0m | [32;1m  95.45[0m | [31;1m                               [0m 
+[32;1m  route.ts                                  [0m | [32;1m  95.45[0m | [32;1m      90[0m | [32;1m    100[0m | [32;1m  95.45[0m | [31;1m37,49                          [0m 
+[33;1m streams/[id]/start                         [0m | [33;1m  70.27[0m | [31;1m   36.36[0m | [33;1m     60[0m | [33;1m  70.27[0m | [31;1m                               [0m 
+[33;1m  route.ts                                  [0m | [33;1m  70.27[0m | [31;1m   36.36[0m | [33;1m     60[0m | [33;1m  70.27[0m | [31;1m12-17,28,43-44,50,56-60        [0m 
+[31;1m streams/[id]/stop                          [0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m                               [0m 
+[31;1m  route.ts                                  [0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m1-88                           [0m 
+[32;1m streams/[id]/withdraw                      [0m | [32;1m  87.71[0m | [33;1m      68[0m | [32;1m    100[0m | [32;1m  87.71[0m | [31;1m                               [0m 
+[32;1m  route.ts                                  [0m | [32;1m  87.71[0m | [33;1m      68[0m | [32;1m    100[0m | [32;1m  87.71[0m | [31;1m24,54,64-68,80                 [0m 
+[31;1m streams/events                             [0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m                               [0m 
+[31;1m  route.ts                                  [0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m1-115                          [0m 
+---------------------------------------------|---------|----------|---------|---------|---------------------------------
+[1mTest Suites: [22m[1m[32m1 passed[39m[22m, 1 total
+[1mTests:       [22m[1m[32m17 passed[39m[22m, 17 total
+[1mSnapshots:   [22m0 total
+[1mTime:[22m        1.126 s
+[2mRan all test suites[22m[2m matching [22m/stream-lifecycle.e2e/i[2m.[22m
+[1mForce exiting Jest: [22mHave you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -3,6 +3,8 @@
  * Handles XLM and Stellar custom assets (Trustlines).
  */
 
+import { getConfig } from './config';
+
 export interface StellarAsset {
   code: string;
   issuer?: string;
@@ -34,16 +36,21 @@ export function parseAssetString(assetStr: string): StellarAsset {
 
 /**
  * Fetches account balances from Horizon and checks for a specific trustline.
+ * Horizon URL is now sourced from centralized config to prevent hardcoded URLs.
  */
 export async function verifyTrustline(
   publicKey: string,
   asset: StellarAsset,
-  horizonUrl: string = 'https://horizon.stellar.org'
+  horizonUrl?: string
 ): Promise<{ exists: boolean; error?: string }> {
   if (asset.isNative) return { exists: true };
 
+  // Use provided horizonUrl or fall back to config
+  const config = getConfig();
+  const effectiveHorizonUrl = horizonUrl || config.network.horizonUrl;
+
   try {
-    const response = await fetch(`${horizonUrl}/accounts/${publicKey}`);
+    const response = await fetch(`${effectiveHorizonUrl}/accounts/${publicKey}`);
     
     if (response.status === 404) {
       return { exists: false, error: 'Recipient account does not exist on-chain.' };

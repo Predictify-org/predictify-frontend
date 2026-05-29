@@ -1,25 +1,56 @@
 import { NextResponse } from "next/server";
-import { db } from "@/app/lib/db";
+import { db, idempotencyToken, withLock } from "@/app/lib/db";
+import { getCorrelationContext } from "@/app/lib/logger";
+import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
+import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
+import { getLimitForRoute } from "@/app/lib/rate-limit-config";
+import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 
-function createErrorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message, request_id: "mock-request-id" } }, { status });
-}
+import { NextRequest, NextResponse } from "next/server";
+import { db, withLock } from "@/app/lib/db";
 
 export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
   const { id } = await params;
-  const stream = db.streams.get(id);
-  if (!stream) {
-    return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+  const idempotencyKey = req.headers.get("Idempotency-Key");
+
+  if (!result.allowed) {
+    recordThrottle(url.pathname, limitType, identity.type, identity.displayValue);
+    return rateLimitResponse(result.retryAfter!);
   }
-  if (stream.status !== "draft") {
-    return createErrorResponse("INVALID_STREAM_STATE", "Only draft streams can be started", 409);
+  recordRequest(url.pathname);
+
+  const idempotencyKey = getHeader(request, "Idempotency-Key");
+  const token = idempotencyKey
+    ? idempotencyToken(`streams.start.${id}`, idempotencyKey)
+    : null;
+
+  if (token && db.idempotency.has(token)) {
+    return NextResponse.json(db.idempotency.get(token));
   }
-  stream.status = "active";
-  stream.nextAction = "pause";
-  stream.updatedAt = new Date().toISOString();
-  db.streams.set(id, stream);
-  return NextResponse.json({ data: stream });
+
+  const actorAddress = getHeader(request, "Actor-Wallet-Address");
+  const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "start") : null;
+  if (policyResult) {
+    if (!policyResult.allowed) {
+      return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+    }
+    if (policyResult.requiresApproval) {
+      return errorResponse(
+        "APPROVAL_REQUIRED",
+        "This action requires multi-sig approval. Please initiate an approval request.",
+        409
+      );
+    }
+
+  const updatedStream = {
+    ...stream,
+    nextAction: "pause" as const,
+    status: "active" as const,
+    updatedAt: new Date().toISOString(),
+  };
+  db.streams.set(id, updatedStream);
+  return NextResponse.json({ data: updatedStream });
 }

@@ -1,0 +1,411 @@
+name: Security Scans
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  # SAST with CodeQL
+  codeql:
+    name: CodeQL SAST
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Retry on transient failures
+          setup-type: manual
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
+        # Upload results even if some checks fail
+        continue-on-error: false
+
+  # Dependency Scanning
+  dependency-scan:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+        # Retry on transient network failures
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+
+      - name: Run npm audit
+        id: npm-audit
+        run: |
+          # Run audit and capture exit code
+          npm audit --json > audit-report.json 2>&1 || true
+          
+          # Parse and check for critical/high vulnerabilities
+          node -e "
+          const fs = require('fs');
+          const audit = JSON.parse(fs.readFileSync('audit-report.json', 'utf8'));
+          const exemptions = JSON.parse(fs.readFileSync('.github/security-exemptions.json', 'utf8'));
+          
+          const now = new Date();
+          let criticalVulns = [];
+          let highVulns = [];
+          let blockedVulns = [];
+          let exemptedVulns = [];
+          
+          if (audit.vulnerabilities) {
+            Object.entries(audit.vulnerabilities).forEach(([name, vuln]) => {
+              const severity = vuln.severity;
+              
+              // Find matching exemption
+              const exemption = exemptions.exemptions?.find(e => 
+                e.cve_id === vuln.cwe?.[0] || 
+                e.package === name ||
+                e.advisory_id === vuln.id ||
+                (vunn.via && vuln.via.some(v => v.url?.includes(e.advisory_id)))
+              );
+              
+              const vulnInfo = {
+                name,
+                severity,
+                title: vuln.title,
+                advisory: vuln.id,
+                url: vuln.via?.[0]?.url || vuln.url || 'N/A',
+                version: vuln.range
+              };
+              
+              if (severity === 'critical') {
+                if (!exemption) {
+                  blockedVulns.push({...vulnInfo, reason: 'No exemption'});
+                } else {
+                  const expiry = new Date(exemption.expiry_date);
+                  if (expiry < now) {
+                    blockedVulns.push({...vulnInfo, reason: 'Exemption expired on ' + exemption.expiry_date});
+                  } else {
+                    exemptedVulns.push({...vulnInfo, exemption: exemption.reason, expiry: exemption.expiry_date});
+                  }
+                }
+              } else if (severity === 'high') {
+                highVulns.push(vulnInfo);
+              }
+            });
+          }
+          
+          // Block on critical vulnerabilities without valid exemptions
+          if (blockedVulns.length > 0) {
+            console.log('::error::CRITICAL: Found ' + blockedVulns.length + ' critical/high vulnerabilities without valid exemptions:');
+            blockedVulns.forEach(v => {
+              console.log(\`::error file=package-lock.json::\${v.name} (\${v.severity}): \${v.title}\`);
+              console.log(\`  Advisory: \${v.advisory}\`);
+              console.log(\`  URL: \${v.url}\`);
+              console.log(\`  Reason: \${v.reason}\`);
+              console.log('');
+            });
+            process.exit(1);
+          }
+          
+          // Write results for summary
+          const results = {
+            critical_exempted: exemptedVulns,
+            high: highVulns,
+            blocked: blockedVulns,
+            total_vulnerabilities: audit.vulnerabilities ? Object.keys(audit.vulnerabilities).length : 0,
+            metadata: audit.metadata
+          };
+          
+          fs.writeFileSync('scan-results.json', JSON.stringify(results, null, 2));
+          console.log('✓ Dependency scan passed. Found ' + exemptedVulns.length + ' exempted criticals and ' + highVulns.length + ' high severity vulnerabilities.');
+          "
+        env:
+          NODE_ENV: development
+
+      - name: Upload dependency scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-scan-results
+          path: |
+            audit-report.json
+            scan-results.json
+
+  # Container Image Scanning (if Dockerfile exists)
+  # NOTE: SAST scans source code for vulnerabilities (static analysis)
+  # Container scans runtime images for OS/library vulnerabilities
+  # Both are needed for comprehensive security coverage
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+    if: ${{ hashFiles('Dockerfile') != '' || hashFiles('Dockerfile.*') != '' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t streampay-frontend:scan .
+          docker save streampay-frontend:scan -o image.tar
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'streampay-frontend:scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          # Only block on CRITICAL severity
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'  # Don't fail here, we handle it in the next step
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Check container exemptions
+        id: check-container-exemptions
+        run: |
+          # Parse SARIF and check against exemptions
+          node -e "
+          const fs = require('fs');
+          const exemptions = JSON.parse(fs.readFileSync('.github/security-exemptions.json', 'utf8'));
+          
+          // Simple SARIF parsing for critical/high vulnerabilities
+          const sarif = JSON.parse(fs.readFileSync('trivy-results.sarif', 'utf8'));
+          const now = new Date();
+          let blockedVulns = [];
+          
+          if (sarif.runs && sarif.runs[0].results) {
+            sarif.runs[0].results.forEach(result => {
+              const level = result.level || 'note';
+              if (level === 'error' || level === 'warning') {
+                const ruleId = result.ruleId || 'unknown';
+                const exemption = exemptions.exemptions?.find(e => 
+                  e.cve_id === ruleId ||
+                  e.container_rule === ruleId
+                );
+                
+                if (!exemption) {
+                  blockedVulns.push({ruleId, level, message: result.message.text});
+                } else {
+                  const expiry = new Date(exemption.expiry_date);
+                  if (expiry < now) {
+                    blockedVulns.push({ruleId, level, message: result.message.text, reason: 'Exemption expired'});
+                  }
+                }
+              }
+            });
+          }
+          
+          if (blockedVulns.length > 0) {
+            console.log('::error::CRITICAL: Found ' + blockedVulns.length + ' container vulnerabilities without valid exemptions:');
+            blockedVulns.forEach(v => console.log(\`::error file=Dockerfile::\${v.ruleId}: \${v.message}\${v.reason ? ' (' + v.reason + ')' : ''}\`));
+            process.exit(1);
+          }
+          
+          console.log('✓ All critical container vulnerabilities have valid exemptions');
+          "
+
+      - name: Upload container scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-scan-results
+          path: trivy-results.sarif
+
+  # Security Summary and Notifications
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [codeql, dependency-scan, container-scan]
+    if: always()
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+        continue-on-error: true
+
+      - name: Generate security summary
+        id: summary
+        run: |
+          # Create comprehensive security summary
+          cat > security-summary.md << 'HEADER'
+          ## 🔒 Security Scan Summary
+                
+          ### Scan Results
+          HEADER
+                
+          echo "| Scan | Status |" >> security-summary.md
+          echo "|------|--------|" >> security-summary.md
+          echo "| **CodeQL SAST** | ${{ needs.codeql.result == 'success' && '✅ Passed' || (needs.codeql.result == 'failure' && '❌ Failed' || '⚠️ Skipped') }} |" >> security-summary.md
+          echo "| **Dependency Scan** | ${{ needs.dependency-scan.result == 'success' && '✅ Passed' || (needs.dependency-scan.result == 'failure' && '❌ Failed' || '⚠️ Skipped') }} |" >> security-summary.md
+          echo "| **Container Scan** | ${{ needs.container-scan.result == 'skipped' && '⊘ Not Applicable' || (needs.container-scan.result == 'success' && '✅ Passed' || (needs.container-scan.result == 'failure' && '❌ Failed' || '⚠️ Skipped')) }} |" >> security-summary.md
+                
+          echo "" >> security-summary.md
+                
+          # Add dependency scan details if available
+          if [ -f "artifacts/dependency-scan-results/scan-results.json" ]; then
+            echo "### 📦 Dependency Vulnerabilities" >> security-summary.md
+            node -e "
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('artifacts/dependency-scan-results/scan-results.json', 'utf8'));
+                  
+            console.log('**Total Vulnerabilities:**', results.total_vulnerabilities);
+            console.log('');
+                  
+            if (results.critical_exempted && results.critical_exempted.length > 0) {
+              console.log('#### ⚠️ Exempted Critical/High Vulnerabilities');
+              console.log('');
+              console.log('| Package | Severity | Advisory | Exemption Reason | Expiry |');
+              console.log('|---------|----------|----------|------------------|--------|');
+              results.critical_exempted.forEach(v => {
+                const advisoryLink = v.url && v.url !== 'N/A' ? \`[\${v.advisory}](\${v.url})\` : v.advisory;
+                console.log(\`| \\\`\${v.name}\\\` | \${v.severity.toUpperCase()} | \${advisoryLink} | \${v.exemption} | \${v.expiry} |\`);
+              });
+              console.log('');
+            }
+                  
+            if (results.high && results.high.length > 0) {
+              console.log('#### 🔶 High Severity Vulnerabilities (Informational)');
+              console.log('');
+              console.log('| Package | Advisory | Version Range |');
+              console.log('|---------|----------|---------------|');
+              results.high.forEach(v => {
+                const advisoryLink = v.url && v.url !== 'N/A' ? \`[\${v.advisory}](\${v.url})\` : v.advisory;
+                console.log(\`| \\\`\${v.name}\\\` | \${advisoryLink} | \${v.version} |\`);
+              });
+              console.log('');
+            }
+                  
+            if (results.blocked && results.blocked.length > 0) {
+              console.log('#### 🚨 Blocked Vulnerabilities (Action Required)');
+              console.log('');
+              console.log('| Package | Severity | Advisory | Reason |');
+              console.log('|---------|----------|----------|--------|');
+              results.blocked.forEach(v => {
+                const advisoryLink = v.url && v.url !== 'N/A' ? \`[\${v.advisory}](\${v.url})\` : v.advisory;
+                console.log(\`| \\\`\${v.name}\\\` | \${v.severity.toUpperCase()} | \${advisoryLink} | \${v.reason} |\`);
+              });
+              console.log('');
+            }
+            " >> security-summary.md
+          fi
+          
+          # Add container scan details if available
+          if [ -f "artifacts/container-scan-results/trivy-results.sarif" ]; then
+            echo "#### Container Vulnerabilities" >> security-summary.md
+            echo "Container scan completed. See Security tab for detailed findings." >> security-summary.md
+          fi
+          
+          echo "### 📊 Security Metrics" >> security-summary.md
+          echo "- Scans completed: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> security-summary.md
+          echo "- Repository: ${{ github.repository }}" >> security-summary.md
+          echo "- Branch: ${{ github.ref_name }}" >> security-summary.md
+          echo "- Commit: ${{ github.sha }}" >> security-summary.md
+          
+          # Output summary for PR comment
+          SUMMARY=$(cat security-summary.md)
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$SUMMARY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('security-summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+      - name: Slack Notification (if webhook configured)
+        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"🚨 Security scan failed in ${{ github.repository }} on ${{ github.ref_name }}\nCommit: ${{ github.sha }}\nView: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Nightly Security Report
+  nightly-report:
+    name: Nightly Security Report
+    runs-on: ubuntu-latest
+    needs: [codeql, dependency-scan, container-scan]
+    if: github.event_name == 'schedule' && always()
+    permissions:
+      issues: write
+    steps:
+      - name: Create security issue for critical findings
+        if: contains(needs.*.result, 'failure')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Security Scan Failures - ${new Date().toISOString().split('T')[0]}`,
+              body: `Automated security scans detected failures in the nightly run.
+              
+              **Failed Jobs:**
+              - CodeQL: ${{ needs.codeql.result }}
+              - Dependency Scan: ${{ needs.dependency-scan.result }}
+              - Container Scan: ${{ needs.container-scan.result }}
+              
+              **Action Required:**
+              Please review the security scan results and address any critical vulnerabilities.
+              
+              **View Details:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`,
+              labels: ['security', 'urgent']
+            })

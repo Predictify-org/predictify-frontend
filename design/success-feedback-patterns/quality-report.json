@@ -1,0 +1,112 @@
+{
+  "generatedAt": "2026-04-28T13:02:12.701899+00:00",
+  "pdf": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\success-feedback-patterns\\success-feedback-patterns.pdf",
+  "previews": [
+    "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\success-feedback-patterns\\success-toast-patterns.png",
+    "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\success-feedback-patterns\\success-full-page-patterns.png",
+    "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\success-feedback-patterns\\success-edge-and-a11y.png"
+  ],
+  "pdfBytes": 328179,
+  "pngBytes": [
+    87116,
+    71522,
+    87490
+  ],
+  "previewsInspection": [
+    {
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 652,
+      "nonBlank": true
+    },
+    {
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 597,
+      "nonBlank": true
+    },
+    {
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 636,
+      "nonBlank": true
+    }
+  ],
+  "contrast": [
+    {
+      "name": "body on page",
+      "foreground": "#101827",
+      "background": "#F6F8FB",
+      "ratio": 16.7,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "muted on page",
+      "foreground": "#475569",
+      "background": "#F6F8FB",
+      "ratio": 7.12,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "app text on dark",
+      "foreground": "#E4E4E7",
+      "background": "#0A0A0F",
+      "ratio": 15.57,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "app muted on dark",
+      "foreground": "#A1A1AA",
+      "background": "#0A0A0F",
+      "ratio": 7.71,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "toast body",
+      "foreground": "#475569",
+      "background": "#FFFFFF",
+      "ratio": 7.58,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "success text",
+      "foreground": "#D3F9DF",
+      "background": "#0F2D1E",
+      "ratio": 13.0,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "warning text",
+      "foreground": "#FDE68A",
+      "background": "#2A210F",
+      "ratio": 12.75,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "success button text",
+      "foreground": "#03150A",
+      "background": "#22C55E",
+      "ratio": 8.26,
+      "threshold": 4.5,
+      "pass": true
+    }
+  ],
+  "checks": {
+    "pageCount": 3,
+    "previewsNonBlank": true,
+    "previewDimensionsExpected": true,
+    "contrastPairsPass": true
+  },
+  "notes": [
+    "Quick contrast check only; not a full WCAG audit.",
+    "Interactive focus and live-region behavior require Figma/prototype review.",
+    "Design crit with product and engineering remains pending outside this local export."
+  ]
+}

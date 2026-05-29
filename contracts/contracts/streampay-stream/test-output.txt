@@ -1,0 +1,126 @@
+   Compiling streampay-stream v0.0.0 (/home/awointa/Documents/drips/StreamPay-Frontend/contracts/contracts/streampay-stream)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running unittests src/lib.rs (target/debug/deps/streampay_stream-837b1091f7527a9d)
+
+running 59 tests
+Writing test snapshot file for test "test::create_active_stream_duration_overflow_returns_invalid_time_range" to "test_snapshots/test/create_active_stream_duration_overflow_returns_invalid_time_range.1.json".
+Writing test snapshot file for test "test::blocked_token_returns_token_not_allowed" to "test_snapshots/test/blocked_token_returns_token_not_allowed.1.json".
+Writing test snapshot file for test "test::accrual_at_elapsed_equals_duration_is_exact_total" to "test_snapshots/test/accrual_at_elapsed_equals_duration_is_exact_total.1.json".
+Writing test snapshot file for test "test::create_active_stream_sets_correct_fields" to "test_snapshots/test/create_active_stream_sets_correct_fields.1.json".
+Writing test snapshot file for test "test::create_draft_stream_sets_correct_fields" to "test_snapshots/test/create_draft_stream_sets_correct_fields.1.json".
+Writing test snapshot file for test "test::create_stream_escrows_tokens_from_sender" to "test_snapshots/test/create_stream_escrows_tokens_from_sender.1.json".
+Writing test snapshot file for test "test::accrual_rounds_down_not_up" to "test_snapshots/test/accrual_rounds_down_not_up.1.json".
+test test::create_active_stream_duration_overflow_returns_invalid_time_range ... ok
+test test::create_draft_stream_sets_correct_fields ... ok
+test test::accrual_at_elapsed_equals_duration_is_exact_total ... ok
+test test::blocked_token_returns_token_not_allowed ... ok
+test test::create_stream_escrows_tokens_from_sender ... ok
+test test::create_active_stream_sets_correct_fields ... ok
+test test::accrual_rounds_down_not_up ... ok
+Writing test snapshot file for test "test::create_stream_zero_amount_returns_invalid_amount" to "test_snapshots/test/create_stream_zero_amount_returns_invalid_amount.1.json".
+Writing test snapshot file for test "test::create_stream_paused_returns_contract_paused" to "test_snapshots/test/create_stream_paused_returns_contract_paused.1.json".
+Writing test snapshot file for test "test::create_stream_zero_duration_returns_invalid_time_range" to "test_snapshots/test/create_stream_zero_duration_returns_invalid_time_range.1.json".
+Writing test snapshot file for test "test::create_stream_negative_amount_returns_invalid_amount" to "test_snapshots/test/create_stream_negative_amount_returns_invalid_amount.1.json".
+Writing test snapshot file for test "test::create_stream_ids_are_monotonically_increasing" to "test_snapshots/test/create_stream_ids_are_monotonically_increasing.1.json".
+test test::create_stream_zero_amount_returns_invalid_amount ... ok
+test test::create_stream_zero_duration_returns_invalid_time_range ... ok
+Writing test snapshot file for test "test::escrow_equals_unreleased_amount_after_partial_withdraw" to "test_snapshots/test/escrow_equals_unreleased_amount_after_partial_withdraw.1.json".
+Writing test snapshot file for test "test::escrow_conserved_across_multiple_concurrent_streams" to "test_snapshots/test/escrow_conserved_across_multiple_concurrent_streams.1.json".
+test test::create_stream_paused_returns_contract_paused ... ok
+test test::create_stream_negative_amount_returns_invalid_amount ... ok
+Writing test snapshot file for test "test::get_stream_missing_returns_not_found" to "test_snapshots/test/get_stream_missing_returns_not_found.1.json".
+test test::create_stream_ids_are_monotonically_increasing ... ok
+test test::get_stream_missing_returns_not_found ... ok
+test test::escrow_equals_unreleased_amount_after_partial_withdraw ... ok
+Writing test snapshot file for test "test::escrow_holds_full_amount_after_creation" to "test_snapshots/test/escrow_holds_full_amount_after_creation.1.json".
+test test::escrow_conserved_across_multiple_concurrent_streams ... ok
+Writing test snapshot file for test "test::get_stream_returns_correct_record" to "test_snapshots/test/get_stream_returns_correct_record.1.json".
+Writing test snapshot file for test "test::full_lifecycle_draft_start_partial_withdraw_settle" to "test_snapshots/test/full_lifecycle_draft_start_partial_withdraw_settle.1.json".
+Writing test snapshot file for test "test::escrow_is_zero_after_full_settlement" to "test_snapshots/test/escrow_is_zero_after_full_settlement.1.json".
+Writing test snapshot file for test "test::initialize_succeeds_once" to "test_snapshots/test/initialize_succeeds_once.1.json".
+Writing test snapshot file for test "test::initialize_twice_returns_invalid_state" to "test_snapshots/test/initialize_twice_returns_invalid_state.1.json".
+Writing test snapshot file for test "test::indivisible_amount_dust_released_at_end_time" to "test_snapshots/test/indivisible_amount_dust_released_at_end_time.1.json".
+test test::escrow_holds_full_amount_after_creation ... ok
+test test::initialize_succeeds_once ... ok
+test test::get_stream_returns_correct_record ... ok
+test test::initialize_twice_returns_invalid_state ... ok
+test test::escrow_is_zero_after_full_settlement ... ok
+test test::full_lifecycle_draft_start_partial_withdraw_settle ... ok
+test test::indivisible_amount_dust_released_at_end_time ... ok
+Writing test snapshot file for test "test::accrual_is_monotonically_non_decreasing" to "test_snapshots/test/accrual_is_monotonically_non_decreasing.1.json".
+Writing test snapshot file for test "test::large_amount_stream_accrues_correctly" to "test_snapshots/test/large_amount_stream_accrues_correctly.1.json".
+Writing test snapshot file for test "test::set_paused_true_blocks_create_stream" to "test_snapshots/test/set_paused_true_blocks_create_stream.1.json".
+Writing test snapshot file for test "test::re_allowing_token_unblocks_create" to "test_snapshots/test/re_allowing_token_unblocks_create.1.json".
+Writing test snapshot file for test "test::set_paused_wrong_admin_returns_unauthorized" to "test_snapshots/test/set_paused_wrong_admin_returns_unauthorized.1.json".
+Writing test snapshot file for test "test::set_paused_true_blocks_start_stream" to "test_snapshots/test/set_paused_true_blocks_start_stream.1.json".
+Writing test snapshot file for test "test::set_paused_true_blocks_withdraw" to "test_snapshots/test/set_paused_true_blocks_withdraw.1.json".
+test test::accrual_is_monotonically_non_decreasing ... ok
+test test::large_amount_stream_accrues_correctly ... ok
+test test::set_paused_true_blocks_create_stream ... ok
+test test::set_paused_wrong_admin_returns_unauthorized ... ok
+Writing test snapshot file for test "test::set_token_allowed_wrong_admin_returns_unauthorized" to "test_snapshots/test/set_token_allowed_wrong_admin_returns_unauthorized.1.json".
+test test::set_paused_true_blocks_withdraw ... ok
+test test::set_paused_true_blocks_start_stream ... ok
+Writing test snapshot file for test "test::start_stream_on_active_returns_invalid_state" to "test_snapshots/test/start_stream_on_active_returns_invalid_state.1.json".
+Writing test snapshot file for test "test::single_token_stream_accrues_at_exact_end" to "test_snapshots/test/single_token_stream_accrues_at_exact_end.1.json".
+Writing test snapshot file for test "test::start_stream_on_missing_returns_not_found" to "test_snapshots/test/start_stream_on_missing_returns_not_found.1.json".
+test test::re_allowing_token_unblocks_create ... ok
+test test::set_token_allowed_wrong_admin_returns_unauthorized ... ok
+Writing test snapshot file for test "test::start_stream_paused_returns_contract_paused" to "test_snapshots/test/start_stream_paused_returns_contract_paused.1.json".
+test test::start_stream_on_missing_returns_not_found ... ok
+test test::single_token_stream_accrues_at_exact_end ... ok
+test test::start_stream_on_active_returns_invalid_state ... ok
+Writing test snapshot file for test "test::start_stream_transitions_draft_to_active" to "test_snapshots/test/start_stream_transitions_draft_to_active.1.json".
+Writing test snapshot file for test "test::unpause_re_enables_operations" to "test_snapshots/test/unpause_re_enables_operations.1.json".
+Writing test snapshot file for test "test::withdraw_exactly_available_succeeds" to "test_snapshots/test/withdraw_exactly_available_succeeds.1.json".
+test test::start_stream_paused_returns_contract_paused ... ok
+Writing test snapshot file for test "test::multiple_partial_withdrawals_never_exceed_total" to "test_snapshots/test/multiple_partial_withdrawals_never_exceed_total.1.json".
+Writing test snapshot file for test "test::withdraw_full_amount_settles_stream" to "test_snapshots/test/withdraw_full_amount_settles_stream.1.json".
+test test::start_stream_transitions_draft_to_active ... ok
+Writing test snapshot file for test "test::withdraw_on_cancelled_stream_returns_invalid_state" to "test_snapshots/test/withdraw_on_cancelled_stream_returns_invalid_state.1.json".
+Writing test snapshot file for test "test::withdraw_missing_stream_returns_not_found" to "test_snapshots/test/withdraw_missing_stream_returns_not_found.1.json".
+test test::withdraw_exactly_available_succeeds ... ok
+Writing test snapshot file for test "test::withdraw_negative_amount_returns_invalid_amount" to "test_snapshots/test/withdraw_negative_amount_returns_invalid_amount.1.json".
+test test::unpause_re_enables_operations ... ok
+test test::withdraw_missing_stream_returns_not_found ... ok
+Writing test snapshot file for test "test::withdraw_on_draft_stream_returns_invalid_state" to "test_snapshots/test/withdraw_on_draft_stream_returns_invalid_state.1.json".
+test test::multiple_partial_withdrawals_never_exceed_total ... ok
+test test::withdraw_on_cancelled_stream_returns_invalid_state ... ok
+test test::withdraw_full_amount_settles_stream ... ok
+test test::withdraw_negative_amount_returns_invalid_amount ... ok
+Writing test snapshot file for test "test::withdraw_over_accrued_returns_over_withdraw" to "test_snapshots/test/withdraw_over_accrued_returns_over_withdraw.1.json".
+Writing test snapshot file for test "test::withdraw_on_settled_stream_returns_already_settled" to "test_snapshots/test/withdraw_on_settled_stream_returns_already_settled.1.json".
+Writing test snapshot file for test "test::withdraw_paused_returns_contract_paused" to "test_snapshots/test/withdraw_paused_returns_contract_paused.1.json".
+Writing test snapshot file for test "test::withdraw_when_nothing_accrued_returns_over_withdraw" to "test_snapshots/test/withdraw_when_nothing_accrued_returns_over_withdraw.1.json".
+Writing test snapshot file for test "test::withdraw_returns_amount_withdrawn" to "test_snapshots/test/withdraw_returns_amount_withdrawn.1.json".
+test test::withdraw_when_nothing_accrued_returns_over_withdraw ... ok
+test test::withdraw_over_accrued_returns_over_withdraw ... ok
+test test::withdraw_on_draft_stream_returns_invalid_state ... ok
+test test::withdraw_on_settled_stream_returns_already_settled ... ok
+test test::withdraw_paused_returns_contract_paused ... ok
+Writing test snapshot file for test "test::withdraw_transfers_tokens_to_recipient" to "test_snapshots/test/withdraw_transfers_tokens_to_recipient.1.json".
+Writing test snapshot file for test "test::withdraw_updates_released_amount_and_last_update" to "test_snapshots/test/withdraw_updates_released_amount_and_last_update.1.json".
+test test::withdraw_returns_amount_withdrawn ... ok
+Writing test snapshot file for test "test::withdraw_zero_amount_returns_invalid_amount" to "test_snapshots/test/withdraw_zero_amount_returns_invalid_amount.1.json".
+Writing test snapshot file for test "test::withdrawable_at_end_is_full_amount" to "test_snapshots/test/withdrawable_at_end_is_full_amount.1.json".
+Writing test snapshot file for test "test::withdrawable_at_midpoint_is_half" to "test_snapshots/test/withdrawable_at_midpoint_is_half.1.json".
+Writing test snapshot file for test "test::withdrawable_at_start_is_zero" to "test_snapshots/test/withdrawable_at_start_is_zero.1.json".
+Writing test snapshot file for test "test::withdrawable_draft_stream_is_zero" to "test_snapshots/test/withdrawable_draft_stream_is_zero.1.json".
+Writing test snapshot file for test "test::withdrawable_decreases_after_partial_withdraw" to "test_snapshots/test/withdrawable_decreases_after_partial_withdraw.1.json".
+test test::withdraw_transfers_tokens_to_recipient ... ok
+test test::withdraw_updates_released_amount_and_last_update ... ok
+test test::withdrawable_at_end_is_full_amount ... ok
+test test::withdraw_zero_amount_returns_invalid_amount ... ok
+test test::withdrawable_at_midpoint_is_half ... ok
+test test::withdrawable_draft_stream_is_zero ... ok
+Writing test snapshot file for test "test::withdrawable_missing_stream_returns_not_found" to "test_snapshots/test/withdrawable_missing_stream_returns_not_found.1.json".
+test test::withdrawable_at_start_is_zero ... ok
+Writing test snapshot file for test "test::withdrawable_past_end_is_capped_at_total" to "test_snapshots/test/withdrawable_past_end_is_capped_at_total.1.json".
+test test::withdrawable_decreases_after_partial_withdraw ... ok
+test test::withdrawable_missing_stream_returns_not_found ... ok
+Writing test snapshot file for test "test::withdrawable_is_zero_immediately_after_full_withdrawal" to "test_snapshots/test/withdrawable_is_zero_immediately_after_full_withdrawal.1.json".
+test test::withdrawable_past_end_is_capped_at_total ... ok
+test test::withdrawable_is_zero_immediately_after_full_withdrawal ... ok
+
+test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+

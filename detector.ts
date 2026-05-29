@@ -1,11 +1,13 @@
 import { AnomalyAlert, AnomalyThresholds, MetricSnapshot } from "./types";
+import { getConfig } from "./app/lib/config";
 
 /**
  * Default thresholds tunable via environment variables.
+ * Now sourced from centralized config for validation.
  */
 const DEFAULT_THRESHOLDS: AnomalyThresholds = {
-  creationBurstLimit: Number(process.env.ANOMALY_CREATION_THRESHOLD) || 50,
-  settleRateLimit: Number(process.env.ANOMALY_SETTLE_THRESHOLD) || 20,
+  creationBurstLimit: getConfig().anomalyThresholds.creationBurstLimit,
+  settleRateLimit: getConfig().anomalyThresholds.settleRateLimit,
 };
 
 /**
@@ -47,6 +49,34 @@ export const AnomalyDetector = {
         observedValue: snapshot.settleAttempts,
         threshold: config.settleRateLimit,
         severity: "medium",
+        detectedAt: new Date().toISOString(),
+      });
+    }
+
+    // Rule 3: High submission failure rate
+    const total = snapshot.stellarSubmissionsTotal ?? 0;
+    const failed = snapshot.stellarSubmissionsFailed ?? 0;
+    const failureRate = total > 0 ? failed / total : 0;
+    if (failureRate > (config.submissionFailureThreshold ?? 0.05)) {
+      alerts.push({
+        tenantId: snapshot.tenantId,
+        ruleName: "HIGH_SUBMISSION_FAILURE_RATE" as any,
+        observedValue: failureRate,
+        threshold: config.submissionFailureThreshold ?? 0.05,
+        severity: "high",
+        detectedAt: new Date().toISOString(),
+      });
+    }
+
+    // Rule 4: DLQ Growth
+    const dlq = snapshot.dlqDepth ?? 0;
+    if (dlq > (config.maxDlqDepth ?? 10)) {
+      alerts.push({
+        tenantId: snapshot.tenantId,
+        ruleName: "DLQ_DEPTH_EXCEEDED" as any,
+        observedValue: dlq,
+        threshold: config.maxDlqDepth ?? 10,
+        severity: "high",
         detectedAt: new Date().toISOString(),
       });
     }
