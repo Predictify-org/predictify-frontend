@@ -1,7 +1,7 @@
 #![no_std]
 
 mod error;
-mod release;
+mod events;
 mod storage;
 
 pub use error::Error;
@@ -181,8 +181,46 @@ impl Contract {
         };
 
         storage::set_stream(&env, id, &stream);
+        events::created(&env, id, &stream.sender, &stream.recipient, &stream.token, stream.total_amount, now);
 
         Ok(id)
+    }
+
+    /// Activates a `Draft` stream, anchoring its time bounds to the current
+    /// ledger timestamp.
+    ///
+    /// Sets `status = Active`, `start_time = now`, `last_update = now`, and
+    /// `end_time = now + duration`. No token transfer occurs.
+    ///
+    /// # Errors
+    /// - [`Error::ContractPaused`] if the global pause flag is set.
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::InvalidState`] if the stream is not in `Draft` status.
+    /// - [`Error::InvalidTimeRange`] if `now + duration` overflows `u64`.
+    ///
+    /// # Auth
+    /// Requires authorisation from the stream's `sender`.
+    pub fn start_stream(env: Env, stream_id: u64) -> Result<Stream, Error> {
+        require_not_paused(&env)?;
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if stream.status != StreamStatus::Draft {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        stream.status = StreamStatus::Active;
+        stream.start_time = now;
+        stream.last_update = now;
+        stream.end_time = now
+            .checked_add(stream.duration)
+            .ok_or(Error::InvalidTimeRange)?;
+
+        storage::set_stream(&env, stream_id, &stream);
+        events::started(&env, stream_id, stream.start_time, stream.end_time, stream.start_time);
+
+        Ok(stream)
     }
 
     /// Returns the stored stream record for `stream_id`.
@@ -262,6 +300,11 @@ impl Contract {
         );
 
         storage::set_stream(&env, stream_id, &stream);
+        let ts = stream.last_update;
+        events::withdrawn(&env, stream_id, &stream.recipient, amount, ts);
+        if stream.status == StreamStatus::Settled {
+            events::settled(&env, stream_id, &stream.recipient, stream.total_amount, ts);
+        }
 
         Ok(amount)
     }
@@ -286,6 +329,7 @@ impl Contract {
         stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::paused(&env, stream_id, &stream.sender, stream.pause_time, stream.pause_time);
 
         Ok(stream)
     }
@@ -325,6 +369,7 @@ impl Contract {
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::resumed(&env, stream_id, &stream.sender, stream.end_time, stream.last_update);
 
         Ok(stream)
     }
@@ -384,11 +429,27 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
 }
 
 fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
-    release::withdrawable(stream, now)
-}
+    if stream.status != StreamStatus::Active || stream.start_time == 0 {
+        return 0;
+    }
+    if now < stream.start_time {
+        return 0;
+    }
 
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
     release::vested_amount(stream, env.ledger().timestamp())
+}
+
+fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
+    if stream.start_time == 0 {
+        return 0;
+    }
+    let now = env.ledger().timestamp();
+    if now < stream.start_time {
+        return 0;
+    }
+    let elapsed = min(now, stream.end_time) - stream.start_time;
+    (stream.total_amount * elapsed as i128) / stream.duration as i128
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {

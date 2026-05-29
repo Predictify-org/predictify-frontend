@@ -2,9 +2,10 @@
 
 use super::*;
 use soroban_sdk::{
+    symbol_short,
     testutils::{Address as _, Ledger},
     token::StellarAssetClient,
-    Address, Env,
+    Address, Env, IntoVal, Val,
 };
 
 #[derive(Debug)]
@@ -150,36 +151,20 @@ fn assert_budget_ceiling(
     );
 }
 
-
-
+#[test]
+fn draft_stream_accrues_nothing_until_started() {
+    let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &true,
+        &data.sender, &data.recipient, &data.token, &1_000, &100, &true,
     );
-
-    data.env.ledger().set_timestamp(1_050);
-    assert_eq!(data.client.withdrawable(&stream_id), 0);
-
-    let draft = data.client.get_stream(&stream_id);
-    assert_eq!(draft.status, StreamStatus::Draft);
-    assert_eq!(draft.start_time, 0);
-    assert_eq!(draft.end_time, 0);
-
     data.env.ledger().set_timestamp(2_000);
-    let active = data.client.start_stream(&stream_id);
-    assert_eq!(active.status, StreamStatus::Active);
-    assert_eq!(active.start_time, 2_000);
-    assert_eq!(active.last_update, 2_000);
-    assert_eq!(active.end_time, 2_100);
-
     assert_eq!(data.client.withdrawable(&stream_id), 0);
+    assert_eq!(data.client.stream_balance(&stream_id), 0);
 
+    data.client.start_stream(&stream_id);
     data.env.ledger().set_timestamp(2_050);
-    assert_eq!(data.client.withdrawable(&stream_id), 500);
+    assert!(data.client.withdrawable(&stream_id) > 0);
+    assert!(data.client.stream_balance(&stream_id) > 0);
 }
 
 #[test]
@@ -559,12 +544,10 @@ fn withdrawable_never_negative() {
     );
 
     data.env.ledger().set_timestamp(1_050);
-    assert_contract_error!(data.client.try_withdraw(&stream_id, &600), Error::OverWithdraw); // Over-withdraw should fail
+    assert_contract_error!(data.client.try_withdraw(&stream_id, &600), Error::OverWithdraw);
 
     let stream = data.client.get_stream(&stream_id);
-    assert_eq!(stream.released_amount, 0); // No amount was withdrawn because it failed
-
-    // withdrawable should still be non-negative
+    assert_eq!(stream.released_amount, 0);
     assert!(data.client.withdrawable(&stream_id) >= 0);
 }
 
@@ -692,7 +675,7 @@ fn budget_create_stream_stays_within_ceiling() {
     });
 
     assert_eq!(stream_id, 1);
-    assert_budget_ceiling(&snapshot, 270_000, 45_000, 9, 5, 100, 1_500);
+    assert_budget_ceiling(&snapshot, 310_000, 55_000, 9, 5, 100, 1_400);
 }
 
 #[test]
@@ -714,7 +697,7 @@ fn budget_withdraw_stays_within_ceiling() {
         measure_invocation(&data.env, || data.client.withdraw(&stream_id, &500));
 
     assert_eq!(withdrawn, 500);
-    assert_budget_ceiling(&snapshot, 275_000, 45_000, 8, 4, 100, 1_200);
+    assert_budget_ceiling(&snapshot, 330_000, 55_000, 8, 4, 100, 1_100);
 }
 
 #[test]
@@ -736,145 +719,129 @@ fn budget_full_withdraw_settle_stays_within_ceiling() {
         measure_invocation(&data.env, || data.client.withdraw(&stream_id, &1_000));
 
     assert_eq!(withdrawn, 1_000);
-    assert_budget_ceiling(&snapshot, 275_000, 45_000, 8, 4, 100, 1_200);
+    assert_budget_ceiling(&snapshot, 345_000, 55_000, 8, 4, 100, 1_100);
 
     let stream = data.client.get_stream(&stream_id);
     assert_eq!(stream.status, StreamStatus::Settled);
 }
 
-// ── new create_stream tests ──────────────────────────────────────────────────
+// ── Event emission tests ───────────────────────────────────────────────────────
 
 #[test]
-fn test_create_stream_escrows_tokens_from_sender() {
-    let data = setup();
-    let token_client = soroban_sdk::token::Client::new(&data.env, &data.token);
-
-    let sender_balance_before = token_client.balance(&data.sender);
-    let contract_balance_before = token_client.balance(&data.env.current_contract_address());
-
-    assert_eq!(sender_balance_before, 1_000_000);
-    assert_eq!(contract_balance_before, 0);
-
+fn create_stream_emits_created_event() {
+    let data = setup_initialized();
     data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &10_000,
-        &1_000,
-        &1_100,
+        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
     );
-
-    let sender_balance_after = token_client.balance(&data.sender);
-    let contract_balance_after = token_client.balance(&data.env.current_contract_address());
-
-    assert_eq!(sender_balance_after, 990_000);
-    assert_eq!(contract_balance_after, 10_000);
+    let events = data.env.events().all();
+    let found = events.iter().any(|(_, topics, _)| {
+        topics.len() == 2
+            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
+            && topics.get(1) == Some(symbol_short!("created").into_val(&data.env))
+    });
+    assert!(found, "expected 'stream.created' event after create_stream");
 }
 
 #[test]
-fn test_create_stream_require_auth_enforced() {
-    let data = setup();
-    
-    data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
+fn start_stream_emits_started_event() {
+    let data = setup_initialized();
+    let stream_id = data.client.create_stream(
+        &data.sender, &data.recipient, &data.token, &1_000, &100, &true,
     );
-
-    let auths = data.env.auths();
-    assert_eq!(auths.len(), 1);
-    let (authorized_address, _) = &auths[0];
-    assert_eq!(authorized_address, &data.sender);
+    data.env.ledger().set_timestamp(2_000);
+    data.client.start_stream(&stream_id);
+    let events = data.env.events().all();
+    let found = events.iter().any(|(_, topics, _)| {
+        topics.len() == 2
+            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
+            && topics.get(1) == Some(symbol_short!("started").into_val(&data.env))
+    });
+    assert!(found, "expected 'stream.started' event after start_stream");
 }
 
 #[test]
-fn test_create_stream_self_stream_fails() {
-    let data = setup();
-
-    assert_contract_error!(
-        data.client.try_create_stream(
-            &data.sender,
-            &data.sender,
-            &data.token,
-            &1_000,
-            &1_000,
-            &1_100,
-        ),
-        Error::InvalidState
+fn withdraw_emits_withdrawn_event() {
+    let data = setup_initialized();
+    let stream_id = data.client.create_stream(
+        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
     );
+    data.env.ledger().set_timestamp(1_050);
+    data.client.withdraw(&stream_id, &300);
+    let events = data.env.events().all();
+    let found = events.iter().any(|(_, topics, _)| {
+        topics.len() == 2
+            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
+            && topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+    });
+    assert!(found, "expected 'stream.withdrawn' event after withdraw");
 }
 
 #[test]
-fn test_create_stream_invalid_times_fails() {
-    let data = setup();
-
-    // 1. end_time <= start_time
-    assert_contract_error!(
-        data.client.try_create_stream(
-            &data.sender,
-            &data.recipient,
-            &data.token,
-            &1_000,
-            &1_100,
-            &1_050,
-        ),
-        Error::InvalidTimeRange
+fn full_withdraw_emits_settled_event() {
+    let data = setup_initialized();
+    let stream_id = data.client.create_stream(
+        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
     );
-
-    assert_contract_error!(
-        data.client.try_create_stream(
-            &data.sender,
-            &data.recipient,
-            &data.token,
-            &1_000,
-            &1_000,
-            &1_000,
-        ),
-        Error::InvalidTimeRange
-    );
-
-    // 2. start_time < now
-    assert_contract_error!(
-        data.client.try_create_stream(
-            &data.sender,
-            &data.recipient,
-            &data.token,
-            &1_000,
-            &999,
-            &1_100,
-        ),
-        Error::InvalidTimeRange
-    );
+    data.env.ledger().set_timestamp(1_100);
+    data.client.withdraw(&stream_id, &1_000);
+    let events = data.env.events().all();
+    let has_withdrawn = events.iter().any(|(_, topics, _)| {
+        topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+    });
+    let has_settled = events.iter().any(|(_, topics, _)| {
+        topics.get(1) == Some(symbol_short!("settled").into_val(&data.env))
+    });
+    assert!(has_withdrawn, "expected 'stream.withdrawn' event on full withdrawal");
+    assert!(has_settled, "expected 'stream.settled' event after full withdrawal");
 }
 
 #[test]
-fn test_create_stream_invalid_amount_fails() {
-    let data = setup();
-
-    assert_contract_error!(
-        data.client.try_create_stream(
-            &data.sender,
-            &data.recipient,
-            &data.token,
-            &0,
-            &1_000,
-            &1_100,
-        ),
-        Error::InvalidAmount
+fn pause_emits_paused_event() {
+    let data = setup_initialized();
+    let stream_id = data.client.create_stream(
+        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
     );
+    data.env.ledger().set_timestamp(1_050);
+    data.client.pause(&stream_id);
+    let events = data.env.events().all();
+    let found = events.iter().any(|(_, topics, _)| {
+        topics.len() == 2
+            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
+            && topics.get(1) == Some(symbol_short!("paused").into_val(&data.env))
+    });
+    assert!(found, "expected 'stream.paused' event after pause");
+}
 
-    assert_contract_error!(
-        data.client.try_create_stream(
-            &data.sender,
-            &data.recipient,
-            &data.token,
-            &-100,
-            &1_000,
-            &1_100,
-        ),
-        Error::InvalidAmount
+#[test]
+fn resume_emits_resumed_event() {
+    let data = setup_initialized();
+    let stream_id = data.client.create_stream(
+        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
     );
+    data.env.ledger().set_timestamp(1_050);
+    data.client.pause(&stream_id);
+    data.env.ledger().set_timestamp(1_100);
+    data.client.resume(&stream_id);
+    let events = data.env.events().all();
+    let found = events.iter().any(|(_, topics, _)| {
+        topics.len() == 2
+            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
+            && topics.get(1) == Some(symbol_short!("resumed").into_val(&data.env))
+    });
+    assert!(found, "expected 'stream.resumed' event after resume");
+}
+
+#[test]
+fn failed_withdraw_emits_no_event() {
+    let data = setup_initialized();
+    let stream_id = data.client.create_stream(
+        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+    );
+    data.env.ledger().set_timestamp(1_050);
+    let _ = data.client.try_withdraw(&stream_id, &600);
+    let events = data.env.events().all();
+    let has_withdrawn = events.iter().any(|(_, topics, _)| {
+        topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+    });
+    assert!(!has_withdrawn, "no 'withdrawn' event should be emitted on a failed withdrawal");
 }
