@@ -295,9 +295,7 @@ impl Contract {
         stream.status = StreamStatus::Paused;
         stream.pause_time = now;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(stream_id), &stream);
+        storage::set_stream(&env, stream_id, &stream);
 
         Ok(stream)
     }
@@ -336,9 +334,7 @@ impl Contract {
         stream.status = StreamStatus::Active;
         stream.pause_time = 0;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(stream_id), &stream);
+        storage::set_stream(&env, stream_id, &stream);
 
         Ok(stream)
     }

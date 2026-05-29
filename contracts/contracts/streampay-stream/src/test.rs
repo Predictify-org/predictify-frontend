@@ -232,6 +232,77 @@ fn unpause_re_enables_operations() {
 }
 
 #[test]
+fn stream_persistent_ttl_extends_on_money_path_access() {
+    let data = setup_initialized();
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    let before_ttl = data
+        .env
+        .storage()
+        .persistent()
+        .get_ttl(&DataKey::Stream(stream_id));
+
+    data.env.ledger().set_timestamp(1_050);
+    let _ = data.client.withdrawable(&stream_id);
+
+    let after_ttl = data
+        .env
+        .storage()
+        .persistent()
+        .get_ttl(&DataKey::Stream(stream_id));
+
+    assert!(after_ttl > before_ttl);
+}
+
+#[test]
+fn instance_ttl_extends_for_admin_and_counter_keys() {
+    let data = setup_initialized();
+    let _ = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &true,
+    );
+
+    let before_admin_ttl = data.env.storage().instance().get_ttl(&DataKey::Admin);
+    let before_next_id_ttl = data
+        .env
+        .storage()
+        .instance()
+        .get_ttl(&DataKey::NextStreamId);
+
+    data.env.ledger().set_timestamp(1_050);
+    data.client.set_paused(&data.admin, &false);
+    let _ = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &500,
+        &10,
+        &true,
+    );
+
+    let after_admin_ttl = data.env.storage().instance().get_ttl(&DataKey::Admin);
+    let after_next_id_ttl = data
+        .env
+        .storage()
+        .instance()
+        .get_ttl(&DataKey::NextStreamId);
+
+    assert!(after_admin_ttl > before_admin_ttl);
+    assert!(after_next_id_ttl > before_next_id_ttl);
+}
+
+#[test]
 fn set_paused_wrong_admin_returns_unauthorized() {
     let data = setup_initialized();
     let wrong = Address::generate(&data.env);
