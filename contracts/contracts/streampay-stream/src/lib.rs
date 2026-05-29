@@ -1,9 +1,8 @@
 #![no_std]
 
 mod error;
+mod release;
 mod storage;
-
-use core::cmp::min;
 
 pub use error::Error;
 use soroban_sdk::{contract, contractimpl, token, Address, Env};
@@ -50,6 +49,19 @@ impl Contract {
     pub fn set_paused(env: Env, admin: Address, paused: bool) -> Result<(), Error> {
         require_admin(&env, &admin)?;
         storage::set_paused(&env, paused);
+        Ok(())
+    }
+
+    /// Transfers the admin role to a new address.
+    ///
+    /// # Errors
+    /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
+    ///
+    /// # Auth
+    /// Requires authorisation from current `admin`.
+    pub fn set_admin(env: Env, admin: Address, new_admin: Address) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        storage::set_admin(&env, &new_admin);
         Ok(())
     }
 
@@ -246,7 +258,6 @@ impl Contract {
         }
 
         // Allow withdrawals from Active or Paused streams
-        // Paused streams have vested amounts settled in released_amount
         if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
             return Err(Error::InvalidState);
         }
@@ -295,9 +306,7 @@ impl Contract {
         stream.status = StreamStatus::Paused;
         stream.pause_time = now;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(stream_id), &stream);
+        storage::set_stream(&env, stream_id, &stream);
 
         Ok(stream)
     }
@@ -336,10 +345,83 @@ impl Contract {
         stream.status = StreamStatus::Active;
         stream.pause_time = 0;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Stream(stream_id), &stream);
+        storage::set_stream(&env, stream_id, &stream);
 
+        Ok(stream)
+    }
+
+    /// Cancels an active or paused stream.
+    ///
+    /// Vested funds are released to the recipient, and unvested funds are
+    /// refunded to the sender. Only the stream sender may call this.
+    pub fn cancel_stream(env: Env, stream_id: u64) -> Result<Stream, Error> {
+        require_not_paused(&env)?;
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        let vested = release::vested_amount(&stream, now);
+        let withdrawable = vested.saturating_sub(stream.released_amount);
+        let refund = stream.total_amount.saturating_sub(vested);
+
+        if withdrawable > 0 {
+            token::Client::new(&env, &stream.token).transfer(
+                &env.current_contract_address(),
+                &stream.recipient,
+                &withdrawable,
+            );
+        }
+
+        if refund > 0 {
+            token::Client::new(&env, &stream.token).transfer(
+                &env.current_contract_address(),
+                &stream.sender,
+                &refund,
+            );
+        }
+
+        stream.status = StreamStatus::Cancelled;
+        stream.released_amount = vested;
+        stream.last_update = now;
+        stream.end_time = now;
+
+        storage::set_stream(&env, stream_id, &stream);
+        Ok(stream)
+    }
+
+    /// Settles an active or paused stream, releasing all remaining funds to recipient.
+    ///
+    /// Only the stream recipient may call this (mirrors full withdrawal).
+    pub fn settle(env: Env, stream_id: u64) -> Result<Stream, Error> {
+        require_not_paused(&env)?;
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.recipient.require_auth();
+
+        if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        let remaining = stream.total_amount.saturating_sub(stream.released_amount);
+
+        if remaining > 0 {
+            token::Client::new(&env, &stream.token).transfer(
+                &env.current_contract_address(),
+                &stream.recipient,
+                &remaining,
+            );
+        }
+
+        stream.status = StreamStatus::Settled;
+        stream.released_amount = stream.total_amount;
+        stream.last_update = now;
+        stream.end_time = now;
+
+        storage::set_stream(&env, stream_id, &stream);
         Ok(stream)
     }
 }
@@ -349,14 +431,11 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
 }
 
 fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
-    }
+    release::withdrawable(stream, now)
+}
 
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    let accrued = (stream.total_amount * elapsed as i128) / stream.duration as i128;
-
-    accrued - stream.released_amount
+fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
+    release::vested_amount(stream, env.ledger().timestamp())
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
