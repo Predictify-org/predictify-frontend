@@ -37,7 +37,7 @@ export async function POST(
       return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
 
-    const actorAddress = getHeader(request, "Actor-Wallet-Address");
+    const actorAddress = getHeader(req, "Actor-Wallet-Address");
     const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "settle") : null;
     if (policyResult) {
       if (!policyResult.allowed) {
@@ -77,25 +77,28 @@ export async function POST(
 
     try {
       const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
+      
+      db.streams.set(id, updated);
+
       recordPrivilegedStreamAuditEvent({
         action: "stream.settle",
-        after: updatedStream as any,
+        after: updated as any,
         before: before as any,
         metadata: {
           settlementTxHash: settlement.txHash,
         },
-        request,
+        request: req,
         streamId: id,
-        targetAccount: updatedStream.recipient,
+        targetAccount: updated.recipientAddress || updated.recipient,
       });
 
-      const payload = { data: { ...updatedStream, settlement } };
+      const payload = { data: { ...updated, settlement } };
       if (token) {
         db.idempotency.set(token, payload);
       }
 
       return NextResponse.json(payload);
-    } catch {
+    } catch (err) {
       return errorResponse("SETTLEMENT_FAILED", "Failed to settle stream on Stellar/Soroban", 502);
     }
   });

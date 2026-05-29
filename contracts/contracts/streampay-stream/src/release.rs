@@ -4,160 +4,46 @@
 //! overflow-safe checked arithmetic. The contract uses `overflow-checks = true`,
 //! but these functions explicitly use checked operations to guarantee safety
 //! and make the invariants clear.
-//!
-//! ## Math
-//!
-//! For a stream with:
-//! - `total_amount`: total tokens to be streamed
-//! - `duration`: length of the stream in seconds
-//! - `start_time`: ledger timestamp when streaming begins
-//! - `end_time`: ledger timestamp when streaming ends
-//!
-//! The vested amount at time `now` is:
-//!
-//! ```text
-//! vested = total_amount * elapsed / duration
-//! ```
-//!
-//! where `elapsed = clamp(now, start_time, end_time) - start_time`.
-//!
-//! This is clamped to `[0, total_amount]` so that:
-//! - Before `start_time`: returns 0
-//! - At/after `end_time`: returns `total_amount`
-//! - In between: linear interpolation
-//!
-//! ## Overflow safety
-//!
-//! The multiplication `total_amount * elapsed` could overflow i128 if both
-//! are large. We use `checked_mul` and `checked_div` to detect overflow and
-//! panic rather than silently wrapping. In production, this would be handled
-//! by returning an error, but for the pure math functions we panic to make
-//! the invariant violation obvious during testing.
 
-use super::Stream;
+use super::{Stream, StreamStatus};
 use core::cmp::{max, min};
 
 /// Computes the total amount that has vested at a given ledger timestamp.
-///
-/// This is a pure function that performs linear interpolation based on elapsed
-/// time, clamped to the stream's time bounds and total amount.
-///
-/// # Arguments
-///
-/// * `stream` - The stream to compute vested amount for
-/// * `now` - The current ledger timestamp (seconds since Unix epoch)
-///
-/// # Returns
-///
-/// The vested amount as an i128, always in the range `[0, total_amount]`.
-///
-/// # Formula
-///
-/// ```text
-/// elapsed = clamp(now, start_time, end_time) - start_time
-/// vested = total_amount * elapsed / duration
-/// ```
-///
-/// # Clamping behavior
-///
-/// - If `now < start_time`: returns 0 (stream hasn't started)
-/// - If `now >= end_time`: returns `total_amount` (stream fully vested)
-/// - Otherwise: returns linear interpolation based on elapsed time
-///
-/// # Overflow safety
-///
-/// Uses `checked_mul` and `checked_div` to detect overflow. Panics if overflow
-/// would occur, which should never happen with valid stream parameters.
-///
-/// # Examples
-///
-/// ```
-/// let stream = Stream {
-///     total_amount: 1000,
-///     start_time: 1000,
-///     end_time: 2000,
-///     duration: 1000,
-///     released_amount: 0,
-///     // ... other fields
-/// };
-///
-/// assert_eq!(vested_amount(&stream, 1000), 0);   // at start
-/// assert_eq!(vested_amount(&stream, 1500), 500); // halfway
-/// assert_eq!(vested_amount(&stream, 2000), 1000); // at end
-/// assert_eq!(vested_amount(&stream, 3000), 1000); // past end
-/// ```
+/// 
+/// Account for paused duration: time "stops" while the stream is paused.
 pub fn vested_amount(stream: &Stream, now: u64) -> i128 {
+    if stream.status == StreamStatus::Draft {
+        return 0;
+    }
+
     // Clamp now to [start_time, end_time]
-    let clamped_now = max(stream.start_time, min(now, stream.end_time));
+    let mut effective_now = max(stream.start_time, min(now, stream.end_time));
     
-    // Compute elapsed time since start
-    let elapsed = clamped_now.saturating_sub(stream.start_time);
+    // If currently paused, accrual stopped at pause_time
+    if stream.status == StreamStatus::Paused {
+        effective_now = min(effective_now, stream.pause_time);
+    }
+    
+    // Compute elapsed time since start, excluding paused time
+    let elapsed = effective_now
+        .saturating_sub(stream.start_time)
+        .saturating_sub(stream.total_paused_duration);
     
     // Handle edge case: zero duration (should never happen with valid streams)
     if stream.duration == 0 {
         return stream.total_amount;
     }
     
-    // Compute vested amount using checked arithmetic
     // vested = total_amount * elapsed / duration
-    let total = stream.total_amount;
-    let elapsed_i128 = elapsed as i128;
-    let duration_i128 = stream.duration as i128;
-    
-    // Multiply before divide to preserve precision
-    let product = total.checked_mul(elapsed_i128)
-        .expect("vested_amount: overflow in total_amount * elapsed");
-    
-    let vested = product.checked_div(duration_i128)
-        .expect("vested_amount: overflow in division");
-    
-    // Clamp to [0, total_amount] as a safety measure
-    // (the math should already guarantee this, but we enforce it defensively)
-    max(0, min(vested, total))
+    // Use checked_mul/div to prevent overflow
+    (stream.total_amount)
+        .checked_mul(elapsed as i128)
+        .expect("vested_amount multiply overflow")
+        .checked_div(stream.duration as i128)
+        .expect("vested_amount divide overflow")
 }
 
-/// Computes the amount available for withdrawal at a given ledger timestamp.
-///
-/// This is the vested amount minus the amount already released. Never returns
-/// a negative value.
-///
-/// # Arguments
-///
-/// * `stream` - The stream to compute withdrawable amount for
-/// * `now` - The current ledger timestamp (seconds since Unix epoch)
-///
-/// # Returns
-///
-/// The withdrawable amount as an i128, always >= 0.
-///
-/// # Formula
-///
-/// ```text
-/// withdrawable = vested_amount(stream, now) - released_amount
-/// ```
-///
-/// # Invariants
-///
-/// - Always returns >= 0 (clamped if necessary)
-/// - Monotonically non-decreasing as `now` increases (assuming no withdrawals)
-/// - At most `total_amount - released_amount`
-///
-/// # Examples
-///
-/// ```
-/// let stream = Stream {
-///     total_amount: 1000,
-///     released_amount: 200,
-///     start_time: 1000,
-///     end_time: 2000,
-///     duration: 1000,
-///     // ... other fields
-/// };
-///
-/// assert_eq!(withdrawable(&stream, 1000), 0);    // nothing vested yet
-/// assert_eq!(withdrawable(&stream, 1500), 300); // 500 vested - 200 released
-/// assert_eq!(withdrawable(&stream, 2000), 800); // 1000 vested - 200 released
-/// ```
+/// Computes the amount available for withdrawal (vested - already released).
 pub fn withdrawable(stream: &Stream, now: u64) -> i128 {
     let vested = vested_amount(stream, now);
     let available = vested.saturating_sub(stream.released_amount);
@@ -191,6 +77,8 @@ mod tests {
             duration: end_time - start_time,
             last_update: start_time,
             status: StreamStatus::Active,
+            pause_time: 0,
+            total_paused_duration: 0,
         }
     }
 
