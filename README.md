@@ -97,6 +97,15 @@ streampay-frontend/
 - `app/lib/amount.test.ts` includes deterministic fuzz-style checks (seeded RNG) with bounded runtime.
 - Bounded fuzz runs in normal CI because it is fast; if runtime grows in the future, keep deterministic unit coverage in CI and move larger fuzz campaigns to nightly workflows.
 
+## Organization Management API
+
+The following endpoints support multi-tenant organization management:
+
+- `POST /api/orgs/[orgId]/members`: Add a member to an organization (Owner-only).
+- `GET /api/orgs/[orgId]/members`: List organization members (Member-only).
+
+These endpoints require a valid JWT token obtained via `POST /api/auth/wallet` in the `Authorization: Bearer <token>` header.
+
 ## License
 
 MIT

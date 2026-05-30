@@ -1,4 +1,5 @@
 import { Stream, ActivityEvent } from "@/app/types/openapi";
+import { Org, Member } from "@/app/types/org";
 
 export const db = {
   streams: new Map<string, Stream>([
@@ -41,6 +42,14 @@ export const db = {
         updatedAt: "2026-04-27T20:00:00Z",
       },
     ],
+  ]),
+
+  orgs: new Map<string, Org>([
+    ["org-1", { id: "org-1", name: "StreamPay Org", ownerWallet: "GATODH2T75IVFB7MG6ZKKIFPWFNVJBXVPUMTYV5ANT2O2ZWL7GSDZWNRW" }]
+  ]),
+
+  members: new Map<string, Member>([
+    ["org-1:GATODH2T75IVFB7MG6ZKKIFPWFNVJBXVPUMTYV5ANT2O2ZWL7GSDZWNRW", { orgId: "org-1", walletAddress: "GATODH2T75IVFB7MG6ZKKIFPWFNVJBXVPUMTYV5ANT2O2ZWL7GSDZWNRW", role: "owner" }]
   ]),
 
   activity: new Map<string, ActivityEvent>([
