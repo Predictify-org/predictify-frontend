@@ -1,111 +1,168 @@
-/**
- * Tests for POST /api/debug/kms-sign
- *
- * Covers:
- *  - 200 success path with signature
- *  - 400 for missing/empty payload
- *  - 403 in production
- *  - 500 on unexpected error
- *  - canonical error envelope shape on all error paths
- */
-
+/** @jest-environment node */
 import { POST } from "./route";
+import { requireInternalServiceAuth } from "@/app/lib/internal-service-auth";
+import { NextResponse } from "next/server";
 
-jest.mock("next/server", () => ({
-  NextResponse: {
-    json: <T>(body: T, init?: { status?: number }) => ({
-      status: init?.status ?? 200,
-      body,
-      json: async () => body,
-    }),
-  },
+// Mock the dependencies
+const mockSigner = {
+  getProviderName: () => "local-mock",
+  sign: jest.fn().mockResolvedValue(Buffer.from("mock-signature")),
+  getPublicKey: jest.fn().mockResolvedValue("mock-public-key"),
+};
+
+jest.mock("../../../lib/kms/factory", () => ({
+  getSigner: () => mockSigner,
 }));
 
-jest.mock("next/headers", () => ({
-  headers: () => ({ get: () => null }),
+jest.mock("../../../lib/internal-service-auth", () => ({
+  requireInternalServiceAuth: jest.fn(),
 }));
 
-function makeRequest(body: unknown) {
-  return {
-    json: async () => {
-      if (body === "THROW") throw new Error("parse error");
-      return body;
-    },
-    headers: { get: () => null },
-  } as unknown as import("next/server").NextRequest;
-}
+describe("KMS Debug Sign Route", () => {
+  let originalNodeEnv: string | undefined;
 
-const originalEnv = process.env.NODE_ENV;
-
-afterEach(() => {
-  Object.defineProperty(process.env, "NODE_ENV", { value: originalEnv, writable: true });
-});
-
-describe("POST /api/debug/kms-sign", () => {
-  it("returns 200 with a signature for a valid payload", async () => {
-    const res = await POST(makeRequest({ payload: "aGVsbG8=" }));
-    expect(res.status).toBe(200);
-    const body = (res as unknown as { body: { signature: string } }).body;
-    expect(typeof body.signature).toBe("string");
-    expect(body.signature.length).toBeGreaterThan(0);
+  beforeAll(() => {
+    originalNodeEnv = process.env.NODE_ENV;
   });
 
-  it("returns 400 when payload is missing", async () => {
-    const res = await POST(makeRequest({}));
-    expect(res.status).toBe(400);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("KMS_SIGN_INVALID_INPUT");
+  afterAll(() => {
+    (process.env as any).NODE_ENV = originalNodeEnv;
   });
 
-  it("returns 400 when payload is an empty string", async () => {
-    const res = await POST(makeRequest({ payload: "   " }));
-    expect(res.status).toBe(400);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("KMS_SIGN_INVALID_INPUT");
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (process.env as any).NODE_ENV = "development";
   });
 
-  it("returns 400 when payload is not a string", async () => {
-    const res = await POST(makeRequest({ payload: 42 }));
-    expect(res.status).toBe(400);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("KMS_SIGN_INVALID_INPUT");
+  it("returns 404 NOT_FOUND error envelope in production", async () => {
+    (process.env as any).NODE_ENV = "production";
+    const request = new Request("http://localhost/api/debug/kms-sign", {
+      method: "POST",
+      body: JSON.stringify({ payload: "hello" }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(404);
+    
+    const body = await response.json();
+    expect(body.code).toBe("NOT_FOUND");
+    expect(body.status).toBe(404);
   });
 
-  it("returns 400 when body is null", async () => {
-    const res = await POST(makeRequest(null));
-    expect(res.status).toBe(400);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("KMS_SIGN_INVALID_INPUT");
+  it("returns 404 NOT_FOUND error envelope when internal auth fails", async () => {
+    // requireInternalServiceAuth returns a NextResponse (like a 404 / 401 response) if auth fails
+    const mockAuthFailureResponse = NextResponse.json({ error: "Auth failed" }, { status: 404 });
+    (requireInternalServiceAuth as jest.Mock).mockResolvedValue(mockAuthFailureResponse);
+
+    const request = new Request("http://localhost/api/debug/kms-sign", {
+      method: "POST",
+      body: JSON.stringify({ payload: "hello" }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(404);
+
+    const body = await response.json();
+    expect(body.code).toBe("NOT_FOUND");
+    expect(body.status).toBe(404);
   });
 
-  it("returns 403 in production", async () => {
-    Object.defineProperty(process.env, "NODE_ENV", { value: "production", writable: true });
-    const res = await POST(makeRequest({ payload: "aGVsbG8=" }));
-    expect(res.status).toBe(403);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("FORBIDDEN");
+  it("signs request successfully when auth is valid", async () => {
+    // requireInternalServiceAuth returns the identity details on success
+    (requireInternalServiceAuth as jest.Mock).mockResolvedValue({
+      serviceName: "debug-client",
+      keyId: "current",
+      timestamp: new Date().toISOString(),
+    });
+
+    const request = new Request("http://localhost/api/debug/kms-sign", {
+      method: "POST",
+      body: JSON.stringify({ payload: "hello world" }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.provider).toBe("local-mock");
+    expect(body.publicKey).toBe("mock-public-key");
+    expect(body.signature).toBe(Buffer.from("mock-signature").toString("hex"));
   });
 
-  it("returns 500 canonical error when json() throws", async () => {
-    const res = await POST(makeRequest("THROW"));
-    expect(res.status).toBe(500);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("KMS_SIGN_FAILED");
+  it("returns 422 INVALID_REQUEST error envelope when content-length header is too large", async () => {
+    (requireInternalServiceAuth as jest.Mock).mockResolvedValue({
+      serviceName: "debug-client",
+    });
+
+    const request = new Request("http://localhost/api/debug/kms-sign", {
+      method: "POST",
+      headers: {
+        "content-length": String(16 * 1024 + 2000),
+      },
+      body: JSON.stringify({ payload: "hello" }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(422);
+
+    const body = await response.json();
+    expect(body.code).toBe("INVALID_REQUEST");
+    expect(body.status).toBe(422);
   });
 
-  it("error envelope always has code, message, request_id", async () => {
-    const res = await POST(makeRequest({}));
-    const body = (res as unknown as { body: { error: Record<string, unknown> } }).body;
-    expect(body.error).toHaveProperty("code");
-    expect(body.error).toHaveProperty("message");
-    expect(body.error).toHaveProperty("request_id");
+  it("returns 422 INVALID_FIELD_VALUE error envelope when payload size exceeds 16KB", async () => {
+    (requireInternalServiceAuth as jest.Mock).mockResolvedValue({
+      serviceName: "debug-client",
+    });
+
+    // Create a payload larger than 16KB (16 * 1024 bytes)
+    const largePayload = "a".repeat(16 * 1024 + 1);
+    const request = new Request("http://localhost/api/debug/kms-sign", {
+      method: "POST",
+      body: JSON.stringify({ payload: largePayload }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(422);
+
+    const body = await response.json();
+    expect(body.code).toBe("INVALID_FIELD_VALUE");
+    expect(body.status).toBe(422);
   });
 
-  it("does not expose { success, error } shape (old divergent shape)", async () => {
-    const res = await POST(makeRequest({ payload: "aGVsbG8=" }));
-    const body = (res as unknown as { body: Record<string, unknown> }).body;
-    // Must NOT have top-level 'success' or top-level 'error' string
-    expect(body).not.toHaveProperty("success");
-    expect(typeof body.error).not.toBe("string");
+  it("returns 400 MISSING_REQUIRED_FIELD error envelope when payload is empty", async () => {
+    (requireInternalServiceAuth as jest.Mock).mockResolvedValue({
+      serviceName: "debug-client",
+    });
+
+    const request = new Request("http://localhost/api/debug/kms-sign", {
+      method: "POST",
+      body: JSON.stringify({ payload: "" }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+
+    const body = await response.json();
+    expect(body.code).toBe("MISSING_REQUIRED_FIELD");
+    expect(body.status).toBe(400);
+  });
+
+  it("returns 422 INVALID_REQUEST error envelope when payload is not a string", async () => {
+    (requireInternalServiceAuth as jest.Mock).mockResolvedValue({
+      serviceName: "debug-client",
+    });
+
+    const request = new Request("http://localhost/api/debug/kms-sign", {
+      method: "POST",
+      body: JSON.stringify({ payload: 12345 }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(422);
+
+    const body = await response.json();
+    expect(body.code).toBe("INVALID_REQUEST");
+    expect(body.status).toBe(422);
   });
 });

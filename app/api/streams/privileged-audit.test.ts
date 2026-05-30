@@ -24,17 +24,17 @@ describe("privileged stream audit hooks", () => {
   });
 
   it("records stop, settle, and withdraw actions in the append-only audit log", async () => {
-    const stopResponse = await stopStream(buildRequest("req-stop-1", "support-supervisor-4", "support"), {
+    const stopResponse = await stopStream(buildRequest("req-stop-1", "support-supervisor-4", "support") as any, {
       params: Promise.resolve({ id: "stream-kemi" }),
     });
     expect(stopResponse.status).toBe(200);
 
-    const settleResponse = await settleStream(buildRequest("req-settle-1", "ops-admin-17", "admin"), {
+    const settleResponse = await settleStream(buildRequest("req-settle-1", "ops-admin-17", "admin") as any, {
       params: Promise.resolve({ id: "stream-ada" }),
     });
     expect(settleResponse.status).toBe(200);
 
-    const withdrawResponse = await withdrawFromStream(buildRequest("req-withdraw-1", "finance-operator-8", "finance"), {
+    const withdrawResponse = await withdrawFromStream(buildRequest("req-withdraw-1", "finance-operator-8", "finance") as any, {
       params: Promise.resolve({ id: "stream-yusuf" }),
     });
     expect(withdrawResponse.status).toBe(200);

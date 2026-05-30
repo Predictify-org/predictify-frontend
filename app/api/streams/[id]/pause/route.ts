@@ -76,41 +76,34 @@ export async function POST(
     ? idempotencyToken(`streams.pause.${id}`, idempotencyKey)
     : null;
 
-  if (token && db.idempotency.has(token)) {
-    return NextResponse.json(db.idempotency.get(token));
-  }
-
+  // All reads and writes happen inside the lock — no state is touched outside.
   return withLock(id, async () => {
-    // Re-check idempotency inside the lock
-    if (token && db.idempotency.has(token)) {
-      return NextResponse.json(db.idempotency.get(token));
+    // ── Idempotency check (inside lock) ──────────────────────────────────────
+    // Must be re-evaluated after acquiring the lock. If we checked before the
+    // lock, two concurrent requests with the same key could both see "no record"
+    // and both proceed to mutate state.
+    if (idempotencyKey) {
+      const cached = db.idempotencyKeys[idempotencyKey];
+      if (cached) {
+        return NextResponse.json(cached.body, { status: cached.status });
+      }
     }
 
-    const stream = db.streams.get(id);
+    // ── Stream existence ──────────────────────────────────────────────────────
+    const stream = db.streams[id];
     if (!stream) {
-      return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
     }
 
-    const actorAddress = getHeader(req, "Actor-Wallet-Address");
-    const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "pause") : null;
-    if (policyResult) {
-      if (!policyResult.allowed) {
-        return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
-      }
-      if (policyResult.requiresApproval) {
-        return errorResponse(
-          "APPROVAL_REQUIRED",
-          "This action requires multi-sig approval. Please initiate an approval request.",
-          409
-        );
-      }
-    }
-
+    // ── Active → paused transition guard ─────────────────────────────────────
+    // Only active streams may be paused. Any other status is a client error.
     if (stream.status !== "active") {
-      return errorResponse("INVALID_STREAM_STATE", "Only active streams can be paused", 409);
+      const body = { error: `Cannot pause a stream in '${stream.status}' status` };
+      if (idempotencyKey) {
+        db.idempotencyKeys[idempotencyKey] = { status: 409, body };
+      }
+      return NextResponse.json(body, { status: 409 });
     }
-
-    const before = structuredClone(stream);
 
     // ── Org-policy approval flow ──────────────────────────────────────────────
     if (stream.requiresApprovalToPause && !stream.pendingApproval) {

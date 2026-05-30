@@ -44,6 +44,7 @@ describe("repository adapters", () => {
       nextAction: "start",
       createdAt: "2026-05-01T00:00:00Z",
       updatedAt: "2026-05-01T00:00:00Z",
+      token: "XLM",
     });
     store.idempotencyStore.set("streams.create:abc", { ok: true });
     store.exportRepository.jobs.set("job-1", {
@@ -75,13 +76,31 @@ describe("repository adapters", () => {
     const store = createInMemoryPersistenceStore();
     setStore(store);
 
-    expect(db.users).toBe(store.streamRepository.users);
-    expect(db.streams).toBe(store.streamRepository.streams);
-    expect(db.activity).toBe(store.streamRepository.activity);
-    expect(db.idempotency).toBe(store.idempotencyStore);
-    expect(db.exportJobs).toBe(store.exportRepository.jobs);
+    // Verify operations on db facade route to the active store
+    const testUser = { wallet_address: "TEST", email: "test@test.com", display_name: "Test", avatar_url: null, created_at: "" };
+    db.users.set("TEST", testUser);
+    expect(store.streamRepository.users.get("TEST")).toBe(testUser);
+
+    const testStream = { id: "TEST_STR", recipient: "Test", rate: "1", schedule: "1", status: "active", nextAction: "pause", createdAt: "", updatedAt: "", token: "XLM" } as any;
+    db.streams.set("TEST_STR", testStream);
+    expect(store.streamRepository.streams.get("TEST_STR")).toBe(testStream);
+
+    const testActivity = { id: "TEST_ACT", type: "wallet.connected", timestamp: "", description: "" };
+    db.activity.set("TEST_ACT", testActivity);
+    expect(store.streamRepository.activity.get("TEST_ACT")).toBe(testActivity);
+
+    db.idempotency.set("TEST_IDEM", "val");
+    expect(store.idempotencyStore.get("TEST_IDEM")).toBe("val");
+
+    const testJob = { id: "TEST_JOB", ownerId: "owner", status: "pending", requestedAt: "", expiresAt: "", fileName: "", rows: 0 } as any;
+    db.exportJobs.set("TEST_JOB", testJob);
+    expect(store.exportRepository.jobs.get("TEST_JOB")).toBe(testJob);
+
     expect(db.exportAudit).toBe(store.exportRepository.audit);
-    expect(db.exportProcessing).toBe(store.exportRepository.processing);
+
+    const testPromise = Promise.resolve();
+    db.exportProcessing.set("TEST_PROC", testPromise);
+    expect(store.exportRepository.processing.get("TEST_PROC")).toBe(testPromise);
   });
 
   it("serializes concurrent work for the same lock key", async () => {

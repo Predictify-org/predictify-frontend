@@ -44,19 +44,21 @@ function makeParams(id = "s1"): { params: Promise<{ id: string }> } {
   return { params: Promise.resolve({ id }) };
 }
 
-function activeStream(overrides = {}) {
+function activeStream(overrides = {}): any {
   return {
     id: "s1",
+    recipient: "r1",
+    rate: "10 XLM/day",
+    schedule: "daily",
     status: "active" as const,
     recipientId: "r1",
     balance: 100,
+    createdAt: "2024-01-01T00:00:00.000Z",
     updatedAt: "2024-01-01T00:00:00.000Z",
+    token: "XLM",
     ...overrides,
   };
 }
-
-    const successCount = results.filter((r: any) => r.status === 200).length;
-    const conflictCount = results.filter((r: any) => r.status === 409).length;
 
 beforeEach(() => {
   resetDb({ s1: activeStream() });

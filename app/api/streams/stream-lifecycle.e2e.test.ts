@@ -83,7 +83,7 @@ async function routeRequest(request: Request): Promise<Response> {
     const context: RouteContext = { params: Promise.resolve({ id }) };
 
     if (action === "start") return startStream(request, context);
-    if (action === "pause") return pauseStream(request, context);
+    if (action === "pause") return pauseStream(request as any, context);
     if (action === "settle") return settleStream(request, context);
     return withdrawStream(request, context);
   }

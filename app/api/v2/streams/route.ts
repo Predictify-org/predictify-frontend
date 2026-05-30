@@ -77,4 +77,29 @@ export async function POST(req: NextRequest) {
       500,
     );
   }
+
+  const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
+  const now = new Date().toISOString();
+  const newStream = {
+    id,
+    recipient: String(recipient),
+    rate: String(rate),
+    schedule: String(schedule),
+    status: "draft" as const,
+    nextAction: "start" as const,
+    createdAt: now,
+    updatedAt: now,
+    token: "XLM",
+  };
+
+  streamRepository.streams.set(id, newStream);
+
+  const payload = {
+    data: toV2Stream(newStream),
+    links: { self: `/api/v2/streams/${id}` },
+  };
+
+  if (token) idempotencyStore.set(token, payload);
+
+  return NextResponse.json(payload, { status: 201 });
 }

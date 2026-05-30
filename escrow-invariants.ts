@@ -43,6 +43,24 @@ export const EscrowInvariants = {
   },
 
   /**
+   * Balance & Release Invariant:
+   * Verify that amounts are non-negative and that the released amount
+   * does not exceed the total escrowed amount.
+   */
+  validateBalances(stream: OnChainStream): InvariantResult {
+    if (stream.total_amount < 0n) {
+      return { isValid: false, error: "Total amount cannot be negative." };
+    }
+    if (stream.released_amount < 0n) {
+      return { isValid: false, error: "Released amount cannot be negative." };
+    }
+    if (stream.released_amount > stream.total_amount) {
+      return { isValid: false, error: "Released amount cannot exceed total amount." };
+    }
+    return { isValid: true };
+  },
+
+  /**
    * Security Note: No optimistic credit is permitted. 
    * Always fetch fresh on-chain state via RPC before validating these invariants.
    */

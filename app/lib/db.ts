@@ -1,232 +1,226 @@
-/**
- * In-memory stream database with per-stream mutex locking.
- *
- * withLock(id, fn) serialises all read-modify-write operations on a single
- * stream so that concurrent requests cannot interleave and corrupt state.
- * Every mutating route handler (pause, start, stop, settle, withdraw) MUST
- * acquire the lock before reading or writing db.streams[id].
- */
+import type { ActivityEvent, ExportJob, Stream, User } from "@/app/types/openapi";
+import { createInMemoryPersistenceStore } from "@/app/lib/repositories/in-memory";
+import {
+  createPostgresPersistenceStore,
+  POSTGRES_ROLLOUT_NOTES,
+  POSTGRES_SCHEMA_SKETCH,
+} from "@/app/lib/repositories/postgres";
 
-export type StreamStatus = "draft" | "active" | "paused" | "ended";
+export type { ExportJob };
+export type ExportJobStatus = ExportJob["status"];
 
-export interface Stream {
+export interface ExportAuditRecord {
   id: string;
-  status: StreamStatus;
-  recipientId: string;
-  /** Accumulated balance available for withdrawal (in smallest unit). */
-  balance: number;
-  /** ISO-8601 timestamp of last status transition. */
-  updatedAt: string;
-  /** Org-level approval required before pausing (optional policy flag). */
-  requiresApprovalToPause?: boolean;
-  /** Set when an org-policy approval is pending. */
-  pendingApproval?: boolean;
+  exportId: string;
+  type: "export.requested" | "export.downloaded" | "export.expired";
+  timestamp: string;
+  details?: Record<string, unknown>;
 }
 
-const initialUsers: User[] = [
-  {
-    wallet_address: "GD7H...3J4K",
-    email: "ada@creativestudio.io",
-    display_name: "Ada Creative",
-    avatar_url: null,
-    created_at: "2026-01-01T00:00:00Z",
-  },
-];
-
-const initialStreams: Stream[] = [
-  {
-    id: "stream-ada",
-    recipient: "Ada Creative Studio",
-    rate: "120 XLM / month",
-    schedule: "Pays every 30 days",
-    status: "active",
-    nextAction: "pause",
-    createdAt: "2026-04-01T09:00:00Z",
-    updatedAt: "2026-04-28T10:30:00Z",
-    email: "ada@creativestudio.io",
-    label: "Design Retainer Q2",
-    partnerId: "PARTNER-123",
-    // On-chain escrow fields (i128 raw units)
-    token: "XLM",
-    senderAddress: "GD7H...3J4K",
-    recipientAddress: "GCRE...ADA1",
-    totalAmount: "3600000000",
-    releasedAmount: "1200000000",
-    vestedAmount: "1800000000",
-  },
-  {
-    id: "stream-kemi",
-    recipient: "Kemi Onboarding Support",
-    rate: "32 XLM / week",
-    schedule: "Draft stream ready to launch",
-    status: "draft",
-    nextAction: "start",
-    createdAt: "2026-04-10T14:00:00Z",
-    updatedAt: "2026-04-28T11:00:00Z",
-    email: "kemi@onboarding.io",
-    memo: "April Support batch",
-    token: "XLM",
-    senderAddress: "GD7H...3J4K",
-    recipientAddress: "GCRE...KEMI",
-    totalAmount: "1280000000",
-    releasedAmount: "0",
-    vestedAmount: "0",
-  },
-  {
-    id: "stream-yusuf",
-    recipient: "Yusuf QA Partnership",
-    rate: "18 XLM / day",
-    schedule: "Ended yesterday with funds available",
-    status: "ended",
-    nextAction: "withdraw",
-    createdAt: "2026-04-15T08:00:00Z",
-    updatedAt: "2026-04-27T20:00:00Z",
-    token: "XLM",
-    senderAddress: "GD7H...3J4K",
-    recipientAddress: "GCRE...YUSUF",
-    totalAmount: "648000000",
-    releasedAmount: "0",
-    vestedAmount: "648000000",
-  },
-];
-
-const initialActivity: ActivityEvent[] = [
-  {
-    id: "a7383234-4224-49dc-b868-0cdf37649fda",
-    type: "wallet.connected",
-    timestamp: "2026-04-28T09:00:00Z",
-    description: "Wallet connected and authenticated.",
-  },
-  {
-    id: "2b9d1d0c-bef4-46bc-a783-3073b28353fc",
-    type: "stream.created",
-    streamId: "stream-ada",
-    timestamp: "2026-04-01T09:00:00Z",
-    description: "Stream 'Design Retainer' created and set to draft.",
-  },
-  {
-    id: "d1578871-4be9-4c6a-bef5-12b2b5836478",
-    type: "stream.started",
-    streamId: "stream-ada",
-    timestamp: "2026-04-01T09:05:00Z",
-    description: "Stream 'Design Retainer' activated.",
-  },
-  {
-    id: "288f315d-5520-46e9-8acf-96994c87b786",
-    type: "stream.created",
-    streamId: "stream-kemi",
-    timestamp: "2026-04-10T14:00:00Z",
-    description: "Stream 'Kemi Onboarding Support' created as draft.",
-  },
-  {
-    id: "3bea183d-c3b5-4e96-9fbe-804f3aee49e9",
-    type: "stream.created",
-    streamId: "stream-yusuf",
-    timestamp: "2026-04-15T08:00:00Z",
-    description: "Stream 'Yusuf QA Partnership' created.",
-  },
-  {
-    id: "5ffa85da-27a4-4f7c-bde0-e5c067a28015",
-    type: "stream.stopped",
-    streamId: "stream-yusuf",
-    timestamp: "2026-04-27T20:00:00Z",
-    description: "Stream 'Yusuf QA Partnership' stopped and settled automatically.",
-  },
-];
-
-function createUsersMap(): Map<string, User> {
-  return new Map(initialUsers.map((user) => [user.wallet_address, { ...user }]));
+export interface KeyValueStore<K, V> {
+  readonly size: number;
+  clear(): void;
+  delete(key: K): boolean;
+  entries(): IterableIterator<[K, V]>;
+  forEach(callbackfn: (value: V, key: K) => void): void;
+  get(key: K): V | undefined;
+  has(key: K): boolean;
+  set(key: K, value: V): void;
+  values(): IterableIterator<V>;
 }
 
-function createStreamsMap(): Map<string, Stream> {
-  return new Map(initialStreams.map((stream) => [stream.id, { ...stream }]));
+export interface AppendOnlyStore<T> extends Iterable<T> {
+  readonly length: number;
+  clear(): void;
+  push(value: T): number;
+  some(predicate: (value: T, index: number, array: T[]) => boolean): boolean;
+  toArray(): T[];
 }
 
-function createActivityMap(): Map<string, ActivityEvent> {
-  return new Map(initialActivity.map((event) => [event.id, { ...event }]));
+export interface StreamRepository {
+  readonly activity: KeyValueStore<string, ActivityEvent>;
+  readonly streams: KeyValueStore<string, Stream>;
+  readonly users: KeyValueStore<string, User>;
+  reset(): void;
+  withLock<T>(id: string, callback: () => Promise<T>): Promise<T>;
 }
 
+export interface IdempotencyStore extends KeyValueStore<string, unknown> {
+  reset(): void;
+}
 
-// ---------------------------------------------------------------------------
-// Shared in-memory store (module-level singleton, reset between tests via
-// resetDb()).
-// ---------------------------------------------------------------------------
+export interface ExportRepository {
+  readonly audit: AppendOnlyStore<ExportAuditRecord>;
+  readonly jobs: KeyValueStore<string, ExportJob>;
+  readonly processing: KeyValueStore<string, Promise<void>>;
+  reset(): void;
+}
 
-const streamsMap = createStreamsMap();
-(streamsMap as any).findOne = function(tenant: string, id: string) {
-  const row = streamsMap.get(id);
-  if (!row) return null;
-  return (row as any).tenant === tenant ? row : null;
-};
+export interface PersistenceStore {
+  readonly exportRepository: ExportRepository;
+  readonly idempotencyStore: IdempotencyStore;
+  readonly kind: "memory" | "postgres";
+  readonly streamRepository: StreamRepository;
+}
+
+let activeStore: PersistenceStore = createInMemoryPersistenceStore();
+
+export function getStore(): PersistenceStore {
+  return activeStore;
+}
+
+export function setStore(store: PersistenceStore): void {
+  activeStore = store;
+}
+
+export function createDefaultStore(): PersistenceStore {
+  return createInMemoryPersistenceStore();
+}
+
+function createStoreProxy<T>(storeGetter: () => KeyValueStore<string, T>, extraProps?: Record<string, any>) {
+  return new Proxy({} as any, {
+    get(target, prop, receiver) {
+      const store = storeGetter();
+      if (extraProps && prop in extraProps) {
+        return extraProps[prop as string];
+      }
+      if (prop in store || typeof (store as any)[prop] === 'function') {
+        const value = (store as any)[prop];
+        if (typeof value === 'function') {
+          return value.bind(store);
+        }
+        return value;
+      }
+      if (typeof prop === 'string') {
+        return store.get(prop);
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+    set(target, prop, value, receiver) {
+      const store = storeGetter();
+      if (typeof prop === 'string') {
+        store.set(prop, value);
+        return true;
+      }
+      return Reflect.set(target, prop, value, receiver);
+    },
+    deleteProperty(target, prop) {
+      const store = storeGetter();
+      if (typeof prop === 'string') {
+        return store.delete(prop);
+      }
+      return false;
+    },
+    has(target, prop) {
+      const store = storeGetter();
+      if (typeof prop === 'string') {
+        return store.has(prop);
+      }
+      return false;
+    },
+    ownKeys() {
+      const store = storeGetter();
+      const keys: string[] = [];
+      store.forEach((_, key) => {
+        keys.push(key);
+      });
+      return keys;
+    },
+    getOwnPropertyDescriptor(target, prop) {
+      const store = storeGetter();
+      if (typeof prop === 'string' && store.has(prop)) {
+        return {
+          value: store.get(prop),
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        };
+      }
+      return undefined;
+    }
+  });
+}
 
 export const db = {
-  users: createUsersMap(),
-  streams: streamsMap as unknown as Map<string, Stream> & { findOne(tenant: string, id: string): Stream | null },
-  activity: createActivityMap(),
-  idempotency: new Map<string, unknown>(),
-  exportJobs: new Map<string, ExportJob>(),
-  exportAudit: new Array<ExportAuditRecord>(),
-  exportProcessing: new Map<string, Promise<void>>(),
-};
+  get activity() {
+    return createStoreProxy(() => getStore().streamRepository.activity);
+  },
+  get exportAudit() {
+    return getStore().exportRepository.audit;
+  },
+  get exportJobs() {
+    return createStoreProxy(() => getStore().exportRepository.jobs);
+  },
+  get exportProcessing() {
+    return createStoreProxy(() => getStore().exportRepository.processing);
+  },
+  get idempotency() {
+    return createStoreProxy(() => getStore().idempotencyStore);
+  },
+  get idempotencyKeys() {
+    return createStoreProxy(() => getStore().idempotencyStore);
+  },
+  get streams() {
+    return createStoreProxy(() => getStore().streamRepository.streams, {
+      findOne: (tenant: string, id: string) => {
+        const store = getStore().streamRepository.streams;
+        const row = store.get(id);
+        if (!row) return null;
+        return (row as any).tenant === tenant ? row : null;
+      }
+    });
+  },
+  get users() {
+    return createStoreProxy(() => getStore().streamRepository.users);
+  },
+} as any;
 
-/** Replace the store contents — used by tests to set up fixtures. */
-export function resetDb(
-  streams: Record<string, Stream> = {},
-  idempotencyKeys: Record<string, IdempotencyRecord> = {},
-): void {
-  db.streams = { ...streams };
-  db.idempotencyKeys = { ...idempotencyKeys };
+export async function withLock<T>(id: string, callback: () => Promise<T>): Promise<T> {
+  return getStore().streamRepository.withLock(id, callback);
 }
 
-// ---------------------------------------------------------------------------
-// Per-stream mutex
-// ---------------------------------------------------------------------------
+export function idempotencyToken(scope: string, idempotencyKey: string): string {
+  return `${scope}:${idempotencyKey}`;
+}
 
-/**
- * Map of stream-id → tail of the promise chain for that stream.
- * Each call to withLock appends to the chain, ensuring serial execution.
- */
-const lockChains = new Map<string, Promise<unknown>>();
+export function resetDb(
+  streams?: Record<string, Stream>,
+  idempotencyKeys?: Record<string, any>,
+): void {
+  const store = getStore();
+  if (store.kind === "memory") {
+    store.streamRepository.reset();
+    store.idempotencyStore.reset();
+    store.exportRepository.reset();
+  } else {
+    activeStore = createDefaultStore();
+  }
 
-/**
- * Acquire an exclusive per-stream lock, run `fn`, then release.
- *
- * Guarantees that at most one critical section runs at a time for a given
- * stream id, regardless of how many concurrent requests arrive.
- *
- * @example
- * return withLock(id, async () => {
- *   const stream = db.streams[id];
- *   // ... read-modify-write ...
- *   db.streams[id] = updated;
- *   return NextResponse.json(updated);
- * });
- */
-export async function withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
-  // Grab the current tail (or a resolved promise if no lock exists yet).
-  const prev = lockChains.get(id) ?? Promise.resolve();
-
-  // Build the next link: wait for the previous holder, then run fn.
-  // We must never let a rejection in fn break the chain for future callers,
-  // so we capture the result/error and re-throw after the chain is updated.
-  let resolve!: () => void;
-  const gate = new Promise<void>((r) => {
-    resolve = r;
-  });
-
-  const next = prev.then(() => gate);
-  lockChains.set(id, next);
-
-  // Run the critical section now that we "hold" the lock.
-  try {
-    const result = await fn();
-    return result;
-  } finally {
-    // Release: let the next waiter through and clean up if we're the last.
-    resolve();
-    // Prune the map once the chain is fully drained to avoid memory leaks.
-    if (lockChains.get(id) === next) {
-      lockChains.delete(id);
+  if (streams) {
+    for (const [id, stream] of Object.entries(streams)) {
+      getStore().streamRepository.streams.set(id, stream);
+    }
+  }
+  if (idempotencyKeys) {
+    for (const [key, value] of Object.entries(idempotencyKeys)) {
+      getStore().idempotencyStore.set(key, value);
     }
   }
 }
+
+export function encodeCursor(id: string): string {
+  return Buffer.from(id).toString("base64");
+}
+
+export function decodeCursor(cursor: string): string {
+  if (!cursor || typeof cursor !== "string") {
+    throw new Error("Invalid cursor: must be non-empty string");
+  }
+  try {
+    return Buffer.from(cursor, "base64").toString("utf8");
+  } catch {
+    throw new Error("Invalid cursor: malformed base64");
+  }
+}
+
+export { createInMemoryPersistenceStore, createPostgresPersistenceStore, POSTGRES_SCHEMA_SKETCH, POSTGRES_ROLLOUT_NOTES };

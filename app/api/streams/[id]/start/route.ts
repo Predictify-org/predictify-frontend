@@ -7,41 +7,37 @@ import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 import { transition } from "@/app/lib/state-machine";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+type Context = { params: Promise<{ id: string }> };
+
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
+}
 
 function errorResponse(code: string, message: string, status: number) {
-  const ctx = getCorrelationContext();
-  return NextResponse.json(
-    { error: { code, message, request_id: ctx?.request_id } },
-    { status },
-  );
+  return createErrorResponse(code, message, status);
 }
 
-function getHeader(req: Request, name: string): string | null {
-  return req.headers?.get?.(name) ?? null;
+function getHeader(request: Request, name: string): string | null {
+  return request.headers?.get?.(name) ?? null;
 }
 
-function getRequestUrl(req: Request, fallback: string): URL {
+function getRequestUrl(request: Request, fallbackPath: string): URL {
   try {
-    return req.url ? new URL(req.url) : new URL(`http://localhost${fallback}`);
+    return request.url ? new URL(request.url) : new URL(`http://localhost${fallbackPath}`);
   } catch {
-    return new URL(`http://localhost${fallback}`);
+    return new URL(`http://localhost${fallbackPath}`);
   }
 }
 
-// ── Route handler ─────────────────────────────────────────────────────────────
-
 export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-): Promise<NextResponse> {
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const { id } = await params;
-  const url = getRequestUrl(req, `/api/streams/${id}/start`);
-  const idempotencyKey = getHeader(req, "Idempotency-Key");
-
-  // ── Rate limiting ──────────────────────────────────────────────────────────
+  const url = getRequestUrl(request, `/api/streams/${id}/start`);
   const limitType = getLimitForRoute("POST", url.pathname);
-  const identity = getClientIdentity(req);
+  const identity = getClientIdentity(request);
   const result = await checkRateLimit(identity, limitType);
 
   if (!result.allowed) {
@@ -60,7 +56,6 @@ export async function POST(
   }
 
   return withLock(id, async () => {
-    // Re-check idempotency inside the lock
     if (token && db.idempotency.has(token)) {
       return NextResponse.json(db.idempotency.get(token));
     }
@@ -70,15 +65,16 @@ export async function POST(
       return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
 
-    // ── Org policy check ──────────────────────────────────────────────────────
-    const actorAddress = getHeader(req, "Actor-Wallet-Address");
-    const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "start") : null;
+    const actorAddress = getHeader(request, "Actor-Wallet-Address");
+    const policyResult = actorAddress
+      ? checkStreamOrgPolicy(id, actorAddress, "start")
+      : null;
     if (policyResult) {
       if (!policyResult.allowed) {
-        return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
       }
       if (policyResult.requiresApproval) {
-        return errorResponse(
+        return createErrorResponse(
           "APPROVAL_REQUIRED",
           "This action requires multi-sig approval. Please initiate an approval request.",
           409
@@ -86,28 +82,19 @@ export async function POST(
       }
     }
 
-    // ── State machine transition ──────────────────────────────────────────────
-    const transitionResult = transition(stream.status, "start");
-    if (!transitionResult.ok) {
-      return errorResponse("ILLEGAL_TRANSITION", transitionResult.error, 409);
-    }
-
-    const nextStatus = transitionResult.nextStatus;
-
-    // Apply transition
     const updatedStream = {
       ...stream,
-      status: nextStatus,
-      nextAction: nextStatus === "active" ? ("pause" as const) : stream.nextAction,
+      nextAction: "pause" as const,
+      status: "active" as const,
       updatedAt: new Date().toISOString(),
     };
     db.streams.set(id, updatedStream);
 
-    const responseBody = { data: updatedStream };
+    const payload = { data: updatedStream };
     if (token) {
-      db.idempotency.set(token, responseBody);
+      db.idempotency.set(token, payload);
     }
 
-    return NextResponse.json(responseBody);
+    return NextResponse.json(payload);
   });
 }

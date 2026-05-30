@@ -10,9 +10,16 @@ import { errorResponse, ErrorCode } from "@/app/lib/errors";
  * Body: { "payload": "<base64-encoded string>" }
  * Response: { "signature": "<base64-encoded signature>" }
  */
-export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === "production") {
-    return errorResponse(ErrorCode.FORBIDDEN, "This endpoint is not available in production.", 403);
+export async function POST(request: Request) {
+  // Hard-disable in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(createError('NOT_FOUND'), { status: 404 });
+  }
+
+  // Internal-service auth (concealFailure hides auth failures as 404)
+  const authResult = await requireInternalServiceAuth(request, { concealFailure: true });
+  if (authResult instanceof NextResponse) {
+    return NextResponse.json(createError('NOT_FOUND'), { status: 404 });
   }
 
   try {

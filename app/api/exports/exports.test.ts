@@ -6,7 +6,7 @@ import { GET as getExport } from "./[id]/route";
 const JWT_SECRET = "streampay-dev-secret-do-not-use-in-prod";
 
 function makeToken(walletAddress: string, role = "user"): string {
-  return jwt.sign({ sub: walletAddress, role }, JWT_SECRET, { expiresIn: "1h" });
+  return jwt.sign({ sub: walletAddress, role, iss: "streampay", aud: "streampay-api" }, JWT_SECRET, { expiresIn: "1h" });
 }
 
 function authRequest(url: string, token?: string): Request {
@@ -214,7 +214,7 @@ describe("Exports API — authentication and scoping", () => {
         { params: Promise.resolve({ id: data.id }) }
       );
       expect(downloadRes.status).toBe(200);
-      expect(db.exportAudit.some((r) => r.type === "export.downloaded" && r.exportId === data.id)).toBe(true);
+      expect(db.exportAudit.some((r: any) => r.type === "export.downloaded" && r.exportId === data.id)).toBe(true);
     });
 
     it("cross-tenant actor cannot use a valid signed URL for another tenant's job", async () => {
@@ -255,7 +255,6 @@ describe("Exports API — authentication and scoping", () => {
         nextAction: "pause",
         createdAt: "2026-04-01T00:00:00Z",
         updatedAt: "2026-04-01T00:00:00Z",
-        // @ts-expect-error ownerId not on Stream type but used for scoping
         ownerId: "GOWNER1",
       });
       db.streams.set("s-other", {
@@ -267,7 +266,6 @@ describe("Exports API — authentication and scoping", () => {
         nextAction: "pause",
         createdAt: "2026-04-01T00:00:00Z",
         updatedAt: "2026-04-01T00:00:00Z",
-        // @ts-expect-error ownerId not on Stream type but used for scoping
         ownerId: "GOTHER2",
       });
 

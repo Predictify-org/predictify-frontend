@@ -1,79 +1,33 @@
-/**
- * POST /api/streams/[id]/settle
- *
- * Transitions an active or paused stream to "ended" and records the final
- * balance. Idempotent: repeated requests with the same Idempotency-Key
- * return the cached response without re-applying the transition.
- *
- * Concurrency: the entire read-modify-write is wrapped in withLock(id) so
- * that concurrent settle/pause/start/stop requests on the same stream are
- * serialised.
- */
-
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
 import { db, idempotencyToken, withLock } from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
-import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
-import { getLimitForRoute } from "@/app/lib/rate-limit-config";
-import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 import { getStellarSettlementClient } from "@/app/lib/stellar";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+type Context = { params: Promise<{ id: string }> };
 
 function errorResponse(code: string, message: string, status: number) {
-  const ctx = getCorrelationContext();
-  return NextResponse.json(
-    { error: { code, message, request_id: ctx?.request_id } },
-    { status },
-  );
+  return NextResponse.json({ error: { code, message } }, { status });
 }
 
-function getHeader(req: Request, name: string): string | null {
-  return req.headers?.get?.(name) ?? null;
+function getHeader(request: Request, name: string): string | null {
+  return request.headers?.get?.(name) ?? null;
 }
-
-function getRequestUrl(req: Request, fallback: string): URL {
-  try {
-    return req.url ? new URL(req.url) : new URL(`http://localhost${fallback}`);
-  } catch {
-    return new URL(`http://localhost${fallback}`);
-  }
-}
-
-// ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-): Promise<NextResponse> {
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const { id } = await params;
-  const url = getRequestUrl(req, `/api/streams/${id}/settle`);
-  const idempotencyKey = getHeader(req, "Idempotency-Key");
-
-  // ── Rate limiting ──────────────────────────────────────────────────────────
-  const limitType = getLimitForRoute("POST", url.pathname);
-  const identity = getClientIdentity(req);
-  const result = await checkRateLimit(identity, limitType);
-
-  if (!result.allowed) {
-    recordThrottle(url.pathname, limitType, identity.type, identity.displayValue);
-    return rateLimitResponse(result.retryAfter!);
-  }
-  recordRequest(url.pathname);
-
-  // ── Idempotency ────────────────────────────────────────────────────────────
-  const token = idempotencyKey
-    ? idempotencyToken(`streams.settle.${id}`, idempotencyKey)
-    : null;
+  const idempotencyKey = getHeader(request, "Idempotency-Key");
+  const token = idempotencyKey ? idempotencyToken(`streams.settle.${id}`, idempotencyKey) : null;
 
   if (token && db.idempotency.has(token)) {
     return NextResponse.json(db.idempotency.get(token));
   }
 
   return withLock(id, async () => {
-    // Re-check idempotency inside the lock
     if (token && db.idempotency.has(token)) {
       return NextResponse.json(db.idempotency.get(token));
     }
@@ -103,11 +57,23 @@ export async function POST(
     }
 
     const before = structuredClone(stream);
-    const updated = {
+    const txHash = `fake-tx-${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const updatedStream = {
       ...stream,
+      nextAction: "withdraw" as const,
+      settlementTxHash: txHash,
       status: "ended" as const,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
+      withdrawal: {
+        attempts: 0,
+        lastCheckedAt: now,
+        requestedAt: now,
+        settlementTxHash: txHash,
+        state: "pending" as const,
+      },
     };
+    db.streams.set(id, updatedStream);
 
     try {
       const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
