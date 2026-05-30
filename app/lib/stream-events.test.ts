@@ -43,40 +43,40 @@ describe("InMemoryStreamStore.applyEvent", () => {
     }
   });
 
-  it("resumes a paused stream", async () => {
+  it("starts a paused stream", async () => {
     const store = new InMemoryStreamStore([createStream({ status: "paused" })]);
-
+ 
     const result = await store.applyEvent("stream-1", {
       actorTenantId: "tenant-a",
       idempotencyKey: "key-3",
-      type: "resume",
+      type: "start",
     });
-
+ 
     expect(result.ok).toBe(true);
     expect(store.getStream("stream-1")?.status).toBe("active");
   });
-
-  it("returns 409 for illegal resume transition", async () => {
+ 
+  it("returns 409 for illegal start transition", async () => {
     const store = new InMemoryStreamStore([createStream({ status: "active" })]);
-
+ 
     await store.applyEvent("stream-1", {
       actorTenantId: "tenant-a",
       idempotencyKey: "key-4",
-      type: "resume",
+      type: "start",
     });
-
+ 
     const stopResult = await store.applyEvent("stream-1", {
       actorTenantId: "tenant-a",
       type: "stop",
     });
     expect(stopResult.ok).toBe(true);
-
+ 
     const result = await store.applyEvent("stream-1", {
       actorTenantId: "tenant-a",
       idempotencyKey: "key-5",
-      type: "resume",
+      type: "start",
     });
-
+ 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.httpStatus).toBe(409);
@@ -149,15 +149,15 @@ describe("InMemoryStreamStore.applyEvent", () => {
     });
     expect(pause.ok).toBe(true);
 
-    const resume = await store.applyEvent("stream-1", {
+    const start = await store.applyEvent("stream-1", {
       actorTenantId: "tenant-a",
       idempotencyKey: "shared-key",
-      type: "resume",
+      type: "start",
     });
-    expect(resume.ok).toBe(false);
-    if (!resume.ok) {
-      expect(resume.error.httpStatus).toBe(409);
-      expect(resume.error.code).toBe("ILLEGAL_TRANSITION");
+    expect(start.ok).toBe(false);
+    if (!start.ok) {
+      expect(start.error.httpStatus).toBe(409);
+      expect(start.error.code).toBe("ILLEGAL_TRANSITION");
     }
     expect(store.getStream("stream-1")?.status).toBe("paused");
   });
@@ -258,11 +258,11 @@ describe("InMemoryStreamStore.applyEvent", () => {
   it("executes concurrent resume + stop with exactly one illegal transition", async () => {
     const store = new InMemoryStreamStore([createStream({ status: "paused" })]);
 
-    const resumePromise = store.applyEvent("stream-1", {
+    const startPromise = store.applyEvent("stream-1", {
       actorTenantId: "tenant-a",
-      idempotencyKey: "resume-atomic",
+      idempotencyKey: "start-atomic",
       processingDelayMs: 20,
-      type: "resume",
+      type: "start",
     });
 
     const stopPromise = store.applyEvent("stream-1", {
@@ -270,23 +270,23 @@ describe("InMemoryStreamStore.applyEvent", () => {
       type: "stop",
     });
 
-    const [resumeResult, stopResult] = await Promise.all([resumePromise, stopPromise]);
+    const [startResult, stopResult] = await Promise.all([startPromise, stopPromise]);
 
-    const outcomes = [resumeResult, stopResult].map((item) => (item.ok ? "ok" : item.error.code));
+    const outcomes = [startResult, stopResult].map((item) => (item.ok ? "ok" : item.error.code));
     expect(outcomes).toContain("ok");
 
     const final = store.getStream("stream-1");
     expect(final?.status).toBe("ended");
 
-    const illegalResume = await store.applyEvent("stream-1", {
+    const illegalStart = await store.applyEvent("stream-1", {
       actorTenantId: "tenant-a",
-      idempotencyKey: "resume-illegal",
-      type: "resume",
+      idempotencyKey: "start-illegal",
+      type: "start",
     });
-    expect(illegalResume.ok).toBe(false);
-    if (!illegalResume.ok) {
-      expect(illegalResume.error.httpStatus).toBe(409);
-      expect(illegalResume.error.code).toBe("ILLEGAL_TRANSITION");
+    expect(illegalStart.ok).toBe(false);
+    if (!illegalStart.ok) {
+      expect(illegalStart.error.httpStatus).toBe(409);
+      expect(illegalStart.error.code).toBe("ILLEGAL_TRANSITION");
     }
   });
 
@@ -308,7 +308,7 @@ describe("InMemoryStreamStore.applyEvent", () => {
     await store.applyEvent("stream-1", {
       actorTenantId: "tenant-a",
       idempotencyKey: "m3",
-      type: "resume",
+      type: "start",
     });
 
     await store.applyEvent("stream-1", {
@@ -325,7 +325,7 @@ describe("InMemoryStreamStore.applyEvent", () => {
     await store.applyEvent("stream-1", {
       actorTenantId: "tenant-a",
       idempotencyKey: "m5",
-      type: "resume",
+      type: "start",
     });
 
     expect(store.metrics.pauseAttempts).toBe(3);
@@ -393,14 +393,14 @@ describe("pauseRoute and resumeRoute", () => {
   it("pipes Idempotency-Key through to command handling", async () => {
     const store = new InMemoryStreamStore([createStream()]);
 
-    const first = await pauseRoute(store, {
+    const first = await resumeRoute(store, {
       actorTenantId: "tenant-a",
       headers: { "idempotency-key": "route-key" },
       streamId: "stream-1",
     });
     expect(first.ok).toBe(true);
 
-    const second = await pauseRoute(store, {
+    const second = await resumeRoute(store, {
       actorTenantId: "tenant-a",
       headers: { "idempotency-key": "route-key" },
       streamId: "stream-1",

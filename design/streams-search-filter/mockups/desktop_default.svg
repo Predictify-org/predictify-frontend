@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1366" height="768">
+  <rect width="100%" height="100%" fill="#fff"/>
+  <rect x="32" y="24" width="700" height="56" rx="8" fill="#f3f4f6" stroke="#e5e7eb"/>
+  <text x="48" y="62" font-family="Arial" font-size="14" fill="#6b7280">Search recipient (recipient label)</text>
+  <g transform="translate(760,24)">
+    <rect width="140" height="40" rx="6" fill="#fff" stroke="#d1d5db"/>
+    <text x="16" y="26" font-family="Arial" font-size="13" fill="#374151">Sort: Next payout</text>
+  </g>
+  <g transform="translate(32,96)">
+    <rect width="1200" height="48" rx="6" fill="#fff" stroke="#e5e7eb"/>
+    <text x="12" y="32" font-family="Arial" font-size="13" fill="#111827">Status: <tspan fill="#0ea5a4">Active</tspan> <tspan x="120" fill="#f97316">Paused</tspan> <tspan x="200">Ended</tspan></text>
+  </g>
+  <g transform="translate(32,160)">
+    <!-- list rows -->
+    <rect width="1200" height="64" rx="6" fill="#fff" stroke="#e5e7eb"/>
+    <text x="16" y="40" font-family="Arial" font-size="14" fill="#111827">Acme Corp — USD — Next payout: May 2</text>
+  </g>
+  <g transform="translate(32,236)">
+    <rect width="1200" height="64" rx="6" fill="#fff" stroke="#e5e7eb"/>
+    <text x="16" y="40" font-family="Arial" font-size="14" fill="#111827">Beta LLC — EUR — Next payout: May 5</text>
+  </g>
+</svg>
