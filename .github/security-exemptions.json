@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2026-04-28",
+    "description": "Security vulnerability exemptions with expiry dates and justifications",
+    "review_required": true
+  },
+  "exemptions": [
+    {
+      "id": "EXEMPT-001",
+      "cve_id": null,
+      "package": "example-package",
+      "version": "1.2.3",
+      "severity": "high",
+      "reason": "Dependency is transitive and upstream maintainer is working on fix. No direct usage in codebase.",
+      "expiry_date": "2026-06-30",
+      "created_by": "security-team",
+      "advisory_id": "GHSA-xxxx-xxxx-xxxx",
+      "mitigation": "Monitor upstream for fix, consider alternative if not resolved by expiry",
+      "container_rule": null
+    }
+  ],
+  "policy": {
+    "max_expiry_days": 90,
+    "requires_review": true,
+    "auto_renewal": false,
+    "notification_days_before_expiry": 14
+  }
+}

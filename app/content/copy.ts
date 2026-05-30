@@ -28,3 +28,18 @@ export const homeCopy = {
   primaryCta: "Connect Wallet",
   secondaryCta: "View Stream Actions",
 } as const;
+
+/**
+ * Hero CTA A/B variants (design-only, Figma handoff)
+ *
+ * Variant A is the recommended default for v1.
+ * See: design/hero-cta-variants/hero-cta-variant-spec.md
+ *
+ * DO NOT use these in production until a feature-flag issue is created
+ * and analytics instrumentation is in place.
+ */
+export const heroCtaVariants = {
+  a: { label: "Connect Stellar wallet", hypothesis: "Naming the network signals trust and specificity for Stellar-native users" },
+  b: { label: "Link wallet", hypothesis: "Shorter verb lowers perceived friction for users unfamiliar with Stellar terminology" },
+  c: { label: "Get started", hypothesis: "Broadest funnel entry attracts users unsure what wallet means yet" },
+} as const;

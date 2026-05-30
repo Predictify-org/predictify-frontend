@@ -1,0 +1,15 @@
+BEGIN:VCALENDAR
+PRODID:-//StreamPay//Usability Invites//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:usability-20260429-1400@streampay
+DTSTAMP:20260429T000000Z
+DTSTART:20260429T140000
+DTEND:20260429T141500
+SUMMARY:Usability test — Streams list (10–15m)
+DESCRIPTION:Short usability session for Streams list prototype. Task: "Find a paused stream for recipient 'Acme Corp' and narrow results to USD."\nAgenda: 1m intro, 5–8m task, 3–5m debrief.\nPlease confirm consent to record.\nFigma: <Figma file URL>
+LOCATION:Zoom / Google Meet
+END:VEVENT
+END:VCALENDAR

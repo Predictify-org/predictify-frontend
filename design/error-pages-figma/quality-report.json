@@ -1,0 +1,42 @@
+{
+  "generated_at": "2026-04-28T19:35:04.539896+00:00",
+  "outputs": [
+    "error-404-page.png",
+    "error-5xx-page.png",
+    "error-stellar-outage-page.png",
+    "error-mobile-variant.png",
+    "error-pages-figma.pdf"
+  ],
+  "contrast_checks": [
+    {
+      "pair": "white_on_panel",
+      "ratio": 18.72,
+      "passes_aa": true
+    },
+    {
+      "pair": "muted_on_white",
+      "ratio": 5.96,
+      "passes_aa": true
+    },
+    {
+      "pair": "green_ink_on_green",
+      "ratio": 6.54,
+      "passes_aa": true
+    },
+    {
+      "pair": "ink_on_teal_soft",
+      "ratio": 16.17,
+      "passes_aa": true
+    },
+    {
+      "pair": "white_on_panel_soft",
+      "ratio": 16.97,
+      "passes_aa": true
+    }
+  ],
+  "phase_2_gaps": [
+    "Interactive keyboard walkthrough still needs prototype-level validation.",
+    "Final support and status-page destinations are placeholders pending stakeholder confirmation.",
+    "Funds reassurance wording still needs product/legal review before implementation."
+  ]
+}

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render } from "@testing-library/react";
+const { fireEvent, screen, waitFor } = require("@testing-library/react") as any;
 import { useState } from "react";
 import { Modal } from "./Modal";
 
