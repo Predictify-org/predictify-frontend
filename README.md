@@ -301,6 +301,15 @@ The helper lives in `app/lib/errors/index.ts`. Use `errorResponse(code, message,
 
 See `app/lib/api-version.ts` for the `toV2Stream()` conversion and `openapi.json` for the full OpenAPI 3.1 spec.
 
+## Organization Management API
+
+The following endpoints support multi-tenant organization management:
+
+- `POST /api/orgs/[orgId]/members`: Add a member to an organization (Owner-only).
+- `GET /api/orgs/[orgId]/members`: List organization members (Member-only).
+
+These endpoints require a valid JWT token obtained via `POST /api/auth/wallet` in the `Authorization: Bearer <token>` header.
+
 ## License
 
 MIT
