@@ -63,6 +63,7 @@ export const db = {
 
   idempotency: new Map<string, unknown>(),
 };
+import { createHash } from "crypto";
 import type { ActivityEvent, ExportJob, Stream, User } from "@/app/types/openapi";
 import { createInMemoryPersistenceStore } from "@/app/lib/repositories/in-memory";
 import {
@@ -242,6 +243,99 @@ export const db = {
 
 export async function withLock<T>(id: string, callback: () => Promise<T>): Promise<T> {
   return getStore().streamRepository.withLock(id, callback);
+}
+
+// ── Idempotency types ──────────────────────────────────────────────────────────
+
+/** Internal envelope stored in the idempotency store for each token. */
+export interface IdempotencyEntry {
+  /** SHA-256 hex fingerprint of (method, path, sorted JSON body). */
+  readonly fingerprint: string;
+  /** Epoch ms when this entry expires and may be lazily evicted. */
+  readonly expiresAt: number;
+  /** HTTP status code to replay. */
+  readonly status: number;
+  /** JSON-serialisable response body to replay. */
+  readonly body: unknown;
+}
+
+export type IdempotencyCheckResult =
+  | { readonly ok: true; readonly status: number; readonly body: unknown }
+  | { readonly ok: false; readonly conflict: true };
+
+/** Default TTL: 24 hours in milliseconds. */
+export const IDEMPOTENCY_TTL_MS = 86_400_000;
+
+/**
+ * Deterministic fingerprint for a request tuple.
+ * Uses the same deterministic JSON serialisation as the rest of the stack.
+ */
+export function computeFingerprint(method: string, path: string, body: unknown): string {
+  const normalised = JSON.stringify(body ?? null);
+  const payload = `${method}:${path}:${normalised}`;
+  return createHash("sha256").update(payload).digest("hex");
+}
+
+/**
+ * Check whether a token has a cached entry.
+ *
+ * Returns one of:
+ * - `null`       → no cached entry (caller should process the request).
+ * - `{ok:true,…}`→ identical replay — return the cached body with its status.
+ * - `{ok:false,conflict:true}` → fingerprint mismatch → return 409.
+ *
+ * **Lazy eviction** – expired entries are deleted on read so callers do not
+ * need a background sweep.
+ */
+export function checkIdempotency(
+  store: KeyValueStore<string, unknown>,
+  token: string,
+  fingerprint: string,
+): IdempotencyCheckResult | null {
+  const raw = store.get(token);
+  if (raw === undefined) return null;
+
+  const entry = raw as Partial<IdempotencyEntry>;
+
+  // Guard against malformed entries (e.g. old-format raw payloads or
+  // corrupt data). Treat them as expired and evict.
+  if (typeof entry?.fingerprint !== "string" || typeof entry?.expiresAt !== "number") {
+    store.delete(token);
+    return null;
+  }
+
+  // Lazy eviction – token has expired.
+  if (entry.expiresAt < Date.now()) {
+    store.delete(token);
+    return null;
+  }
+
+  // Conflict – same key, different request.
+  if (entry.fingerprint !== fingerprint) {
+    return { ok: false, conflict: true };
+  }
+
+  return { ok: true, status: entry.status, body: entry.body };
+}
+
+/**
+ * Persist a successful response under `token` so that identical replays can be
+ * served from cache rather than re-executing the action.
+ */
+export function setIdempotency(
+  store: KeyValueStore<string, unknown>,
+  token: string,
+  fingerprint: string,
+  status: number,
+  body: unknown,
+): void {
+  const entry: IdempotencyEntry = {
+    fingerprint,
+    expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
+    status,
+    body,
+  };
+  store.set(token, entry);
 }
 
 export function idempotencyToken(scope: string, idempotencyKey: string): string {

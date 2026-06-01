@@ -26,7 +26,14 @@
  */
 
 import { NextResponse } from "next/server";
-import { db, idempotencyToken, withLock } from "@/app/lib/db";
+import {
+  checkIdempotency,
+  computeFingerprint,
+  db,
+  idempotencyToken,
+  setIdempotency,
+  withLock,
+} from "@/app/lib/db";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
@@ -105,14 +112,34 @@ export async function POST(
     ? idempotencyToken(`streams.cancel.${id}`, idempotencyKey)
     : null;
 
-  if (idemToken && db.idempotency.has(idemToken)) {
-    return NextResponse.json(db.idempotency.get(idemToken));
+  const fingerprint = computeFingerprint("POST", `/api/streams/${id}/cancel`, null);
+
+  if (idemToken) {
+    const cached = checkIdempotency(db.idempotency, idemToken, fingerprint);
+    if (cached) {
+      if (!cached.ok) {
+        return NextResponse.json(
+          { error: { code: "IDEMPOTENCY_CONFLICT", message: "Idempotency key has been used with a different request." } },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json(cached.body, { status: cached.status });
+    }
   }
 
   return withLock(id, async () => {
     // Double-check inside lock (race-condition guard).
-    if (idemToken && db.idempotency.has(idemToken)) {
-      return NextResponse.json(db.idempotency.get(idemToken));
+    if (idemToken) {
+      const cached = checkIdempotency(db.idempotency, idemToken, fingerprint);
+      if (cached) {
+        if (!cached.ok) {
+          return NextResponse.json(
+            { error: { code: "IDEMPOTENCY_CONFLICT", message: "Idempotency key has been used with a different request." } },
+            { status: 409 },
+          );
+        }
+        return NextResponse.json(cached.body, { status: cached.status });
+      }
     }
 
     // ── Fetch stream ─────────────────────────────────────────────────────────
@@ -239,7 +266,7 @@ export async function POST(
       links: { self: `/api/v1/streams/${id}` },
     };
 
-    if (idemToken) db.idempotency.set(idemToken, payload);
+    if (idemToken) setIdempotency(db.idempotency, idemToken, fingerprint, 200, payload);
 
     return NextResponse.json(payload);
   });

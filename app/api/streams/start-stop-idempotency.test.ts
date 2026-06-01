@@ -184,10 +184,10 @@ describe("Token scoping", () => {
     const KEY = "shared-key";
     await startPOST(startReq(STREAM, KEY), ctx(STREAM));
     await stopPOST(stopReq(STREAM, KEY), ctx(STREAM));
-    const startCached = db.idempotency.get(`streams.start.${STREAM}:${KEY}`) as any;
-    const stopCached  = db.idempotency.get(`streams.stop.${STREAM}:${KEY}`) as any;
-    expect(startCached.data.status).toBe("active");
-    expect(stopCached.data.status).toBe("ended");
+    const startEntry = db.idempotency.get(`streams.start.${STREAM}:${KEY}`) as any;
+    const stopEntry  = db.idempotency.get(`streams.stop.${STREAM}:${KEY}`) as any;
+    expect(startEntry.body.data.status).toBe("active");
+    expect(stopEntry.body.data.status).toBe("ended");
   });
 
   it("same key on different streams uses different cache slots", async () => {

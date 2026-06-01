@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
-import { decodeCursor, encodeCursor, getStore, idempotencyToken } from "@/app/lib/db";
+import {
+  checkIdempotency,
+  computeFingerprint,
+  decodeCursor,
+  encodeCursor,
+  getStore,
+  idempotencyToken,
+  setIdempotency,
+} from "@/app/lib/db";
 import { getCorrelationContext, logger } from "@/app/lib/logger";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
@@ -102,78 +110,77 @@ export async function POST(request: Request) {
   const idempotencyKey = getHeader(request, "Idempotency-Key");
   const token = idempotencyKey ? idempotencyToken("streams.create", idempotencyKey) : null;
 
-  if (token && idempotencyStore.has(token)) {
-    return NextResponse.json(idempotencyStore.get(token), { status: 201 });
-  }
-
+  let body: Record<string, unknown>;
   try {
-    const body = await request.json();
-    const { rate, recipient, schedule, token: rawToken } = body as {
-      rate?: string;
-      recipient?: string;
-      schedule?: string;
-      /**
-       * SEP-41 token address for this stream's escrow.
-       * Accepts "XLM", "native", or "CODE:ISSUER" (e.g. "USDC:GA5Z...").
-       * Defaults to "XLM" when omitted.
-       * Amounts are i128 raw units — no per-decimal logic in the contract.
-       */
-      token?: string;
-    };
-
-    if (!recipient || !rate || !schedule) {
-      logger.warn("Stream creation validation failed", {
-        fields: { rate: Boolean(rate), recipient: Boolean(recipient), schedule: Boolean(schedule) },
-      });
-      return errorResponse("VALIDATION_ERROR", "Missing required fields: recipient, rate, schedule", 422);
-    }
-
-    // ── SEP-41 token validation ──────────────────────────────────────────────
-    // Normalise the token (defaults to XLM) and check against the allowlist.
-    // The allowlist is admin-gated: when empty (disabled) every well-formed
-    // token is accepted; when non-empty only listed tokens are accepted.
-    const tokenStr = rawToken?.trim() || "XLM";
-    let normalisedToken: string;
-    try {
-      normalisedToken = normaliseToken(tokenStr);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return createErrorResponse("INVALID_TOKEN", `Invalid token format: ${msg}`, 422);
-    }
-
-    const allowlistResult = checkTokenAllowed(normalisedToken);
-    if (!allowlistResult.accepted) {
-      logger.warn("Stream creation rejected: token not in allowlist", { token: normalisedToken });
-      return createErrorResponse("TOKEN_NOT_ALLOWED", allowlistResult.reason, 422);
-    }
-    // ────────────────────────────────────────────────────────────────────────
-
-    const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
-    const now = new Date().toISOString();
-    const newStream = {
-      createdAt: now,
-      id,
-      nextAction: "start" as const,
-      rate,
-      recipient,
-      schedule,
-      status: "draft" as const,
-      updatedAt: now,
-      // Each stream carries its own SEP-41 token address.  Every subsequent
-      // money-movement operation (withdraw, settle, cancel) MUST use this
-      // field to construct its token client — never a hardcoded asset.
-      token: normalisedToken,
-    };
-
-    streamRepository.streams.set(id, newStream);
-    const payload = { data: newStream, links: { self: `/api/v1/streams/${id}` } };
-
-    if (token) {
-      idempotencyStore.set(token, payload);
-    }
-
-    return NextResponse.json(payload, { status: 201 });
+    body = await request.json();
   } catch {
     return errorResponse("INVALID_REQUEST", "Request body must be valid JSON", 400);
   }
+
+  const fingerprint = computeFingerprint("POST", "/api/streams", body);
+
+  if (token) {
+    const cached = checkIdempotency(idempotencyStore, token, fingerprint);
+    if (cached) {
+      if (!cached.ok) {
+        return NextResponse.json(
+          { error: { code: "IDEMPOTENCY_CONFLICT", message: "Idempotency key has been used with a different request." } },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json(cached.body, { status: cached.status });
+    }
+  }
+
+  const { rate, recipient, schedule, token: rawToken } = body as {
+    rate?: string;
+    recipient?: string;
+    schedule?: string;
+    token?: string;
+  };
+
+  if (!recipient || !rate || !schedule) {
+    logger.warn("Stream creation validation failed", {
+      fields: { rate: Boolean(rate), recipient: Boolean(recipient), schedule: Boolean(schedule) },
+    });
+    return errorResponse("VALIDATION_ERROR", "Missing required fields: recipient, rate, schedule", 422);
+  }
+
+  const tokenStr = rawToken?.trim() || "XLM";
+  let normalisedToken: string;
+  try {
+    normalisedToken = normaliseToken(tokenStr);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return createErrorResponse("INVALID_TOKEN", `Invalid token format: ${msg}`, 422);
+  }
+
+  const allowlistResult = checkTokenAllowed(normalisedToken);
+  if (!allowlistResult.accepted) {
+    logger.warn("Stream creation rejected: token not in allowlist", { token: normalisedToken });
+    return createErrorResponse("TOKEN_NOT_ALLOWED", allowlistResult.reason, 422);
+  }
+
+  const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
+  const now = new Date().toISOString();
+  const newStream = {
+    createdAt: now,
+    id,
+    nextAction: "start" as const,
+    rate,
+    recipient,
+    schedule,
+    status: "draft" as const,
+    updatedAt: now,
+    token: normalisedToken,
+  };
+
+  streamRepository.streams.set(id, newStream);
+  const payload = { data: newStream, links: { self: `/api/v1/streams/${id}` } };
+
+  if (token) {
+    setIdempotency(idempotencyStore, token, fingerprint, 201, payload);
+  }
+
+  return NextResponse.json(payload, { status: 201 });
 }
