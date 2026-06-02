@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 type DensityMode = "comfortable" | "compact"
 type TimeFormat = "local-12h" | "local-24h" | "utc"
@@ -144,6 +145,20 @@ export default function SettingsPage() {
 
   return (
     <form className="mx-auto flex w-full max-w-6xl flex-col gap-6" onSubmit={handleSave}>
+      {/* Accessible live region for save confirmations */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {saveState === "saved" ? "Settings saved" : ""}
+      </div>
+
+      {/* Lightweight tabbed grouping for keyboard navigation and ARIA grouping. */}
+      <Tabs defaultValue="preferences" className="w-full">
+        <TabsList className="mb-4 flex gap-2">
+          <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="privacy">Privacy</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="preferences">
       <section className="grid gap-4 lg:grid-cols-[1.5fr_0.85fr]">
         <Card className="border-border/70 bg-gradient-to-br from-background via-background to-muted/40">
           <CardHeader className="space-y-4">
@@ -454,6 +469,8 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+      </TabsContent>
+      </Tabs>
     </form>
   )
 }
