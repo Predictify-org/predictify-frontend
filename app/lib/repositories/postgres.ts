@@ -54,12 +54,15 @@ create index activity_events_type_happened_at_idx
 
 create table idempotency_keys (
   token text primary key,
+  fingerprint text not null,
+  response_status integer not null,
   response_json jsonb not null,
   created_at timestamptz not null default now(),
-  expires_at timestamptz null
+  expires_at timestamptz not null
 );
 
 create index idempotency_keys_expires_at_idx on idempotency_keys (expires_at);
+create index idempotency_keys_fingerprint_idx on idempotency_keys (fingerprint);
 
 create table export_jobs (
   id text primary key,
