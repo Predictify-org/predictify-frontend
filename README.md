@@ -40,6 +40,7 @@ The application will fail to boot without these required variables:
 
 - `STELLAR_NETWORK` - Network selection: `testnet` or `mainnet`
 - `JWT_SECRET` - JWT signing secret (minimum 32 characters)
+- `ALLOWED_ORIGINS` - Comma-separated list of allowed browser origins for API requests
 
 ### Setup
 
@@ -52,6 +53,7 @@ The application will fail to boot without these required variables:
    ```env
    STELLAR_NETWORK=testnet
    JWT_SECRET=dev-secret-key-at-least-32-chars
+   ALLOWED_ORIGINS=http://localhost:3000
    NODE_ENV=development
    ```
 
