@@ -5,6 +5,8 @@
   --accent: #22c55e;
   --accent-strong: #bbf7d0;
   --accent-hover: #16a34a;
+  /* Foreground used on top of --accent fills (e.g. primary button label). */
+  --accent-on: #03150a;
   
   --muted: #71717a;
   --muted-light: #a1a1aa;
@@ -385,10 +387,20 @@ a:hover {
   transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 
+.button,
+.button:hover {
+  text-decoration: none;
+}
+
 .button--primary {
   background: var(--accent);
-  color: #03150a;
+  color: var(--accent-on);
   font-weight: 700;
+}
+
+.button--primary:hover {
+  background: var(--accent-hover);
+  color: var(--accent-on);
 }
 
 .button--secondary {
@@ -396,6 +408,11 @@ a:hover {
   border-color: var(--border);
   color: var(--foreground);
   font-weight: 600;
+}
+
+.button--secondary:hover {
+  border-color: var(--accent);
+  color: var(--foreground);
 }
 
 .empty-state {
@@ -1608,164 +1625,111 @@ a:hover {
   }
 }
 /* ─────────────────────────────────────────────────────────────
-   Error recovery pages (404 / 5xx / Stellar-Horizon outage)
-   Ref: design/error-pages-figma/error-pages-spec.md
+   Home hero + lifecycle preview (app/page.tsx)
+   Token-driven; mirrors the streams page card/button styling.
    ───────────────────────────────────────────────────────────── */
-.error-page {
-  /* Per-variant accent, defaults to brand green. */
-  --error-accent: var(--accent);
-  background:
-    radial-gradient(80% 60% at 50% 0%, rgba(34, 197, 94, 0.06), transparent 70%),
-    var(--background);
-  color: var(--foreground);
+.home {
+  align-items: center;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-}
-.error-page--not-found { --error-accent: #7c8bff; }
-.error-page--server { --error-accent: var(--warning); }
-.error-page--outage { --error-accent: #2dd4bf; }
-
-/* Skip link: visible only on focus, distinct on the dark surface. */
-.error-page__skip {
-  background: var(--panel-elevated);
-  border: 1px solid var(--error-accent);
-  border-radius: var(--radius-md);
-  color: var(--foreground);
-  left: var(--space-4);
-  padding: var(--space-2) var(--space-4);
-  position: absolute;
-  top: var(--space-4);
-  transform: translateY(-150%);
-  transition: transform 160ms ease;
-  z-index: 10;
-}
-.error-page__skip:focus-visible,
-.error-page__skip:focus {
-  transform: translateY(0);
-}
-
-.error-page__brand {
-  padding: var(--space-6) var(--space-6) 0;
-}
-.error-page__brand-link {
-  color: var(--foreground);
-  font-weight: var(--font-bold);
-  letter-spacing: 0.02em;
-  text-decoration: none;
-}
-.error-page__brand-link:focus-visible {
-  outline: 2px solid var(--error-accent);
-  outline-offset: 4px;
-}
-
-.error-page__main {
-  align-items: center;
-  display: flex;
-  flex: 1;
+  gap: var(--space-6);
   justify-content: center;
-  padding: var(--space-12) var(--space-6);
+  min-height: 100vh;
+  padding: var(--space-8);
 }
 
-.error-page__panel {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), var(--panel));
-  border: 1px solid var(--border);
-  border-radius: 28px;
-  box-shadow: var(--shadow-soft);
-  display: grid;
-  gap: var(--space-4);
-  max-width: 560px;
-  padding: 32px;
+.home__intro {
+  max-width: 48rem;
   text-align: center;
-  width: 100%;
 }
 
-.error-page__icon {
-  align-items: center;
-  background: color-mix(in srgb, var(--error-accent) 14%, transparent);
-  border-radius: var(--radius-full);
-  color: var(--error-accent);
-  display: inline-flex;
-  height: 56px;
-  justify-self: center;
-  width: 56px;
-}
-.error-page__icon svg {
-  height: 28px;
-  width: 28px;
-}
-
-.error-page__eyebrow {
-  color: var(--error-accent);
+.home__eyebrow {
+  color: var(--accent);
   font-size: var(--text-sm);
-  font-weight: var(--font-bold);
+  font-weight: var(--font-semibold);
   letter-spacing: 0.08em;
+  margin-bottom: var(--space-3);
   text-transform: uppercase;
 }
 
-.error-page__title {
-  font-size: 48px;
-  font-weight: var(--font-bold);
+.home__title {
+  font-size: var(--text-4xl);
   line-height: 1.1;
-  margin: 0;
+  margin-bottom: var(--space-4);
 }
 
-.error-page__body {
+.home__lead {
   color: var(--muted-light);
-  font-size: 18px;
+  font-size: var(--text-lg);
   line-height: 1.6;
-  margin: 0 auto;
-  max-width: 46ch;
 }
 
-.error-page__actions {
+.home__cta-row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
   justify-content: center;
-  margin-top: var(--space-2);
-}
-.error-page__action {
-  min-height: 52px;
-  min-width: 44px;
-  text-decoration: none;
 }
 
-.error-page__note {
-  color: var(--muted);
-  font-size: var(--text-sm);
-  margin: 0 auto;
-  max-width: 46ch;
+.home__section {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 64rem;
+  width: 100%;
 }
 
-.error-page__reference {
-  color: var(--muted);
-  font-size: var(--text-xs);
+.home__grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
-.error-page__reference code {
+
+.home__card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+}
+
+.home__card-title {
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-2);
+}
+
+.home__section-title {
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-2);
+}
+
+.home__subtitle {
+  font-size: var(--text-base);
+  margin-bottom: var(--space-3);
+}
+
+.home__text {
   color: var(--muted-light);
-  word-break: break-all;
+  line-height: 1.5;
 }
 
-/* Mobile variant — responsive down to 320px (spec: 24px gutters). */
-@media (max-width: 600px) {
-  .error-page__main {
-    padding: var(--space-8) var(--space-6);
-  }
-  .error-page__panel {
-    border-radius: 24px;
-    padding: var(--space-6) var(--space-5);
-  }
-  .error-page__title {
-    font-size: 34px;
-  }
-  .error-page__body {
-    font-size: 16px;
-  }
-  .error-page__actions {
-    flex-direction: column;
-  }
-  .error-page__action {
-    width: 100%;
-  }
+.home__badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.home__card-head {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.home__card--stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.home__card-subtitle {
+  font-size: var(--text-base);
+  margin-bottom: var(--space-1);
 }
