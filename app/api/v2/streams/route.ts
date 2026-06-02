@@ -1,6 +1,7 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, ErrorCode } from "@/app/lib/errors";
 import { toV2Stream, type StreamV1 } from "@/app/lib/api-version";
+import { validateCreateStreamBody } from "@/app/lib/stream-validation";
 
 /**
  * GET /api/v2/streams
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     const v1Streams: StreamV1[] = [];
     const streams = v1Streams.map(toV2Stream);
 
-    return Response.json({ streams }, { status: 200 });
+    return NextResponse.json({ streams }, { status: 200 });
   } catch {
     return errorResponse(
       ErrorCode.INTERNAL_SERVER_ERROR,
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
  * Creates a new payment stream.
  * Requires: Authorization: Bearer <token>
  *
- * Body: { "recipient": "G…", "rate": "120 XLM/month", "currency": "XLM" }
+ * Body: { "recipient": "G…", "rate": "120", "schedule": "month", "token": "XLM" }
  * Response: StreamV2 (201)
  */
 export async function POST(req: NextRequest) {
@@ -51,25 +52,47 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
 
-    if (!body || typeof body.recipient !== "string" || typeof body.rate !== "string") {
+    if (!body || typeof body !== "object") {
       return errorResponse(
         ErrorCode.BAD_REQUEST,
-        "Request body must include 'recipient' and 'rate'.",
+        "Request body must be valid JSON.",
         400,
       );
     }
 
+    // Shared schema validation
+    const validationErrors = validateCreateStreamBody(body as Record<string, unknown>);
+    if (validationErrors.length > 0) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "One or more fields are invalid.",
+            details: validationErrors,
+            request_id: "unknown",
+          },
+        },
+        { status: 422 },
+      );
+    }
+
+    const { recipient, rate, schedule } = body as {
+      recipient: string;
+      rate: string;
+      schedule: string;
+    };
+
     // TODO: persist stream via data layer
     const created: StreamV1 = {
       id: `stream_${Date.now().toString(36)}`,
-      recipient: body.recipient,
-      rate: body.rate,
+      recipient,
+      rate,
       status: "draft",
       actions: ["start"],
       createdAt: new Date().toISOString(),
     };
 
-    return Response.json(toV2Stream(created), { status: 201 });
+    return NextResponse.json(toV2Stream(created), { status: 201 });
   } catch {
     return errorResponse(
       ErrorCode.STREAM_CREATE_FAILED,
@@ -77,29 +100,4 @@ export async function POST(req: NextRequest) {
       500,
     );
   }
-
-  const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
-  const now = new Date().toISOString();
-  const newStream = {
-    id,
-    recipient: String(recipient),
-    rate: String(rate),
-    schedule: String(schedule),
-    status: "draft" as const,
-    nextAction: "start" as const,
-    createdAt: now,
-    updatedAt: now,
-    token: "XLM",
-  };
-
-  streamRepository.streams.set(id, newStream);
-
-  const payload = {
-    data: toV2Stream(newStream),
-    links: { self: `/api/v2/streams/${id}` },
-  };
-
-  if (token) idempotencyStore.set(token, payload);
-
-  return NextResponse.json(payload, { status: 201 });
 }

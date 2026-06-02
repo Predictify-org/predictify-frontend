@@ -68,10 +68,13 @@ describe("GET /api/v2/streams", () => {
   });
 });
 
+const VALID_STELLAR_KEY =
+  "GDSBCG3OKHCMMWS5EBH2X7XOYTJRWXN2YYQPCNS5OFBU4IDO4X7OFSQA";
+
 describe("POST /api/v2/streams", () => {
   it("returns 201 with a v2 stream on valid input", async () => {
     const res = await POST(
-      makeRequest({ body: { recipient: "GABC123", rate: "120 XLM/month" } }),
+      makeRequest({ body: { recipient: VALID_STELLAR_KEY, rate: "120", schedule: "month" } }),
     );
     expect(res.status).toBe(201);
     const body = (res as unknown as { body: Record<string, unknown> }).body;
@@ -88,23 +91,32 @@ describe("POST /api/v2/streams", () => {
 
   it("returns 401 when Authorization header is missing", async () => {
     const res = await POST(
-      makeRequest({ auth: null, body: { recipient: "GABC123", rate: "120 XLM/month" } }),
+      makeRequest({ auth: null, body: { recipient: VALID_STELLAR_KEY, rate: "120", schedule: "month" } }),
     );
     expect(res.status).toBe(401);
   });
 
-  it("returns 400 when recipient is missing", async () => {
-    const res = await POST(makeRequest({ body: { rate: "120 XLM/month" } }));
-    expect(res.status).toBe(400);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("BAD_REQUEST");
+  it("returns 422 when recipient is invalid (not a Stellar key)", async () => {
+    const res = await POST(makeRequest({ body: { recipient: "GABC123", rate: "120", schedule: "month" } }));
+    expect(res.status).toBe(422);
+    const body = (res as unknown as { body: { error: { code: string; details: Array<{ field: string }> } } }).body;
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+    expect(body.error.details).toBeDefined();
+    expect(body.error.details[0].field).toBe("recipient");
   });
 
-  it("returns 400 when rate is missing", async () => {
-    const res = await POST(makeRequest({ body: { recipient: "GABC123" } }));
-    expect(res.status).toBe(400);
+  it("returns 422 when rate is missing", async () => {
+    const res = await POST(makeRequest({ body: { recipient: VALID_STELLAR_KEY, schedule: "month" } }));
+    expect(res.status).toBe(422);
     const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("BAD_REQUEST");
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("returns 422 when schedule is missing", async () => {
+    const res = await POST(makeRequest({ body: { recipient: VALID_STELLAR_KEY, rate: "120" } }));
+    expect(res.status).toBe(422);
+    const body = (res as unknown as { body: { error: { code: string } } }).body;
+    expect(body.error.code).toBe("VALIDATION_ERROR");
   });
 
   it("returns 400 when body is null", async () => {
@@ -112,16 +124,16 @@ describe("POST /api/v2/streams", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns 500 canonical error when json() throws", async () => {
+  it("returns 400 when json() throws (caught by internal .catch)", async () => {
     const res = await POST(makeRequest({ body: "THROW" }));
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
     const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("STREAM_CREATE_FAILED");
+    expect(body.error.code).toBe("BAD_REQUEST");
   });
 
   it("created stream has status 'draft'", async () => {
     const res = await POST(
-      makeRequest({ body: { recipient: "GABC123", rate: "120 XLM/month" } }),
+      makeRequest({ body: { recipient: VALID_STELLAR_KEY, rate: "120", schedule: "month" } }),
     );
     const body = (res as unknown as { body: { status: string } }).body;
     expect(body.status).toBe("draft");
