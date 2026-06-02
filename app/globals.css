@@ -1428,3 +1428,59 @@ a:hover {
   color: var(--muted);
 }
 
+/* ==========================================================================
+   STREAMPAY — COMPREHENSIVE ACTION LOADING & BUSY MICRO-INTERACTIONS (#219)
+   ========================================================================== */
+
+/* Utility layout layer to explicitly hide screen reader announcer nodes visually */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Button Loading & Processing States */
+.button:disabled {
+  cursor: not-allowed;
+  background-color: var(--stream-disabled-bg) !important;
+  color: var(--stream-disabled-text) !important;
+  border-color: var(--stream-disabled-border) !important;
+  opacity: 0.75;
+}
+
+.button--busy {
+  gap: var(--space-2);
+  align-items: center;
+  pointer-events: none; /* Block rapid mouse click actions while processing */
+}
+
+/* High-Performance Inline Hardware Accelerated Loading Spinner Component */
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(228, 228, 231, 0.25); /* Faint track boundary ring */
+  border-top-color: var(--foreground);       /* High contrast spinner indicator */
+  border-radius: var(--radius-full);
+  will-change: transform;
+  animation: stream-spin 0.65s linear infinite;
+}
+
+@keyframes stream-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Rigid accessibility support profiles for animations and motion settings */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.6s infinite linear; /* Decelerate significantly to safe bounds */
+  }
+}

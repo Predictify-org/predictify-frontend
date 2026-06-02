@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { StatusBadge, type StreamStatus } from "./StatusBadge";
 import { StreamProgress } from "./StreamProgress";
 import { ErrorToast } from "./ErrorToast";
@@ -34,6 +34,11 @@ export function StreamRow({ stream }: StreamRowProps) {
   const [error, setError] = useState<StreamPayError | null>(null);
   const [isIncidentMode] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  // Local notification state for polite screen reader announcements (#219)
+  const [srAnnouncement, setSrAnnouncement] = useState("");
+
+  // Ref hook to preserve active keyboard focus target parameters across button re-renders
+  const actionButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleDismissError = () => {
     setError(null);
@@ -53,6 +58,7 @@ export function StreamRow({ stream }: StreamRowProps) {
 
     setIsProcessing(true);
     setError(null);
+    setSrAnnouncement(""); // Reset prior announcements
 
     try {
       const actionRoute = stream.nextAction.toLowerCase();
@@ -67,19 +73,26 @@ export function StreamRow({ stream }: StreamRowProps) {
         }),
       });
 
-      alert(`${stream.nextAction} successful for ${stream.recipient}!`);
+      // Clear layout alerts and assign semantic live region announcement string values
+      const successMessage = `${stream.nextAction} operation completed successfully for ${stream.recipient}.`;
+      setSrAnnouncement(successMessage);
+
+      // Preserve active interactive element focus ring natively within the DOM tree
+      setTimeout(() => {
+        actionButtonRef.current?.focus();
+      }, 0);
+
     } catch (err: unknown) {
-      // Normalize error to StreamPayError format
       const normalizedError = isStreamPayError(err) 
         ? err 
         : formatErrorForDisplay(err as StreamPayError);
       
-      // Log to console in development
       if (process.env.NODE_ENV === 'development') {
         console.error('Stream action failed:', err);
       }
       
       setError(isStreamPayError(err) ? err : null);
+      setSrAnnouncement(`Stream action failed: ${normalizedError.message || "Unknown error occurred"}.`);
     } finally {
       setIsProcessing(false);
     }
@@ -87,6 +100,11 @@ export function StreamRow({ stream }: StreamRowProps) {
 
   return (
     <article className="stream-row" aria-labelledby={`${stream.id}-recipient`}>
+      {/* Dynamic polite status messenger announcement node layer for assistive tech */}
+      <div className="sr-only" aria-live="polite" role="status">
+        {srAnnouncement}
+      </div>
+
       <div className="stream-row__primary">
         <div>
           <h2 className="stream-row__recipient" id={`${stream.id}-recipient`}>
@@ -97,7 +115,7 @@ export function StreamRow({ stream }: StreamRowProps) {
         <StatusBadge status={stream.status} />
       </div>
 
-      <dl className="stream-row__meta">
+      <div className="stream-row__meta">
         <div>
           <dt>Rate</dt>
           <dd className={stream.status === "active" ? "stream-row__accrued--animated" : ""}>
@@ -108,7 +126,7 @@ export function StreamRow({ stream }: StreamRowProps) {
           <dt>Status</dt>
           <dd>{stream.status}</dd>
         </div>
-      </dl>
+      </div>
 
       {/* Burn-down progress bar — only rendered for non-draft streams */}
       {stream.status !== "draft" && (
@@ -124,13 +142,24 @@ export function StreamRow({ stream }: StreamRowProps) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", alignItems: "flex-end" }}>
         <button
-          className="button button--secondary stream-row__action"
+          ref={actionButtonRef}
+          className={`button button--secondary stream-row__action ${isProcessing ? "button--busy" : ""}`}
           type="button"
           onClick={handleAction}
           disabled={isProcessing || isIncidentMode}
+          aria-busy={isProcessing}
+          aria-live="assertive"
         >
-          {isProcessing ? "Processing..." : stream.nextAction}
+          {isProcessing ? (
+            <>
+              <span className="spinner" aria-hidden="true" />
+              <span>Processing...</span>
+            </>
+          ) : (
+            <span>{stream.nextAction}</span>
+          )}
         </button>
+        {errorMsg && <p className="detail-incident-warning" role="alert">{errorMsg}</p>}
       </div>
       
       {error && (
