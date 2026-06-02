@@ -878,7 +878,6 @@ a:hover {
 }
 
 /* Visibility helpers */
-.no-print { }
 .print-only { display: none; }
 
 /* ─── Print Media ─────────────────────────────────────────────────────────── */
@@ -1441,6 +1440,116 @@ a:hover {
 .timeline-item--future .timeline-item-desc {
   color: var(--muted);
 }
+
+/* ─── Activity Feed Specifics ─── */
+.activity-feed-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  max-width: 48rem;
+  width: 100%;
+}
+
+.activity-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.activity-group-title {
+  color: var(--muted-light);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  letter-spacing: 0.1em;
+  padding-left: calc(var(--space-6) + var(--space-4)); /* Align with content, skipping dot */
+  text-transform: uppercase;
+}
+
+.activity-timeline {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.activity-item {
+  display: flex;
+  gap: var(--space-4);
+  position: relative;
+}
+
+.activity-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: var(--space-6);
+  flex-shrink: 0;
+}
+
+.activity-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: var(--border);
+  margin-top: 6px;
+  z-index: 2;
+}
+
+.activity-line {
+  width: 1px;
+  background: var(--border);
+  flex-grow: 1;
+  z-index: 1;
+}
+
+.activity-item:last-child .activity-line {
+  display: none;
+}
+
+.activity-content {
+  flex-grow: 1;
+  padding-bottom: var(--space-8);
+}
+
+.activity-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.activity-card:hover {
+  border-color: var(--accent);
+  transform: translateX(4px);
+}
+
+.activity-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.activity-title {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+}
+
+.activity-time {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+/* Status variants for dots */
+.activity-dot--success { background: var(--success); box-shadow: 0 0 12px var(--success); }
+.activity-dot--info { background: var(--info); box-shadow: 0 0 12px var(--info); }
+.activity-dot--warning { background: var(--warning); box-shadow: 0 0 12px var(--warning); }
+.activity-dot--accent { background: var(--accent); box-shadow: 0 0 12px var(--accent); }
 
 /* ==========================================================================
    STREAMPAY — COMPREHENSIVE ACTION LOADING & BUSY MICRO-INTERACTIONS (#219)
