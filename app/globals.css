@@ -5,6 +5,8 @@
   --accent: #22c55e;
   --accent-strong: #bbf7d0;
   --accent-hover: #16a34a;
+  /* Foreground used on top of --accent fills (e.g. primary button label). */
+  --accent-on: #03150a;
   
   --muted: #71717a;
   --muted-light: #a1a1aa;
@@ -385,10 +387,20 @@ a:hover {
   transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 
+.button,
+.button:hover {
+  text-decoration: none;
+}
+
 .button--primary {
   background: var(--accent);
-  color: #03150a;
+  color: var(--accent-on);
   font-weight: 700;
+}
+
+.button--primary:hover {
+  background: var(--accent-hover);
+  color: var(--accent-on);
 }
 
 .button--secondary {
@@ -396,6 +408,11 @@ a:hover {
   border-color: var(--border);
   color: var(--foreground);
   font-weight: 600;
+}
+
+.button--secondary:hover {
+  border-color: var(--accent);
+  color: var(--foreground);
 }
 
 .empty-state {
@@ -1483,4 +1500,113 @@ a:hover {
   .spinner {
     animation-duration: 1.6s infinite linear; /* Decelerate significantly to safe bounds */
   }
+}
+/* ─────────────────────────────────────────────────────────────
+   Home hero + lifecycle preview (app/page.tsx)
+   Token-driven; mirrors the streams page card/button styling.
+   ───────────────────────────────────────────────────────────── */
+.home {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-8);
+}
+
+.home__intro {
+  max-width: 48rem;
+  text-align: center;
+}
+
+.home__eyebrow {
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-3);
+  text-transform: uppercase;
+}
+
+.home__title {
+  font-size: var(--text-4xl);
+  line-height: 1.1;
+  margin-bottom: var(--space-4);
+}
+
+.home__lead {
+  color: var(--muted-light);
+  font-size: var(--text-lg);
+  line-height: 1.6;
+}
+
+.home__cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+}
+
+.home__section {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 64rem;
+  width: 100%;
+}
+
+.home__grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.home__card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+}
+
+.home__card-title {
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-2);
+}
+
+.home__section-title {
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-2);
+}
+
+.home__subtitle {
+  font-size: var(--text-base);
+  margin-bottom: var(--space-3);
+}
+
+.home__text {
+  color: var(--muted-light);
+  line-height: 1.5;
+}
+
+.home__badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.home__card-head {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.home__card--stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.home__card-subtitle {
+  font-size: var(--text-base);
+  margin-bottom: var(--space-1);
 }
