@@ -1,10 +1,220 @@
 import Link from "next/link"
-import { Activity, Calendar, CheckCircle, DollarSign, HelpCircle, TrendingUp, Users } from "lucide-react"
+import { Activity, Calendar, CheckCircle, DollarSign, HelpCircle, TrendingUp, Users, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { StatCard } from "@/components/cards/stat-card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
+import { useEffect, useState } from "react"
+
+interface Stat {
+  label: string
+  value: string
+}
 
 export default function DashboardPage() {
+  const [status, setStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
+  const [stats, setStats] = useState<Stat[] | null>(null)
+
+  // Simulate async fetch
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // For demo purposes, set success with static data
+      const fetched = [
+        { label: "Active Events", value: "24" },
+        { label: "Total Predictions", value: "12,543" },
+        { label: "Platform Fees", value: "$4,325.49" },
+        { label: "Active Users", value: "573" },
+      ]
+      if (fetched.length === 0) {
+        setStatus('empty')
+      } else {
+        setStats(fetched)
+        setStatus('success')
+      }
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const retry = () => {
+    setStatus('loading')
+    setStats(null)
+    // Re‑trigger the effect by resetting the timer
+    // (In a real app, you would refetch the data here)
+    setTimeout(() => {
+      // Simulate success after retry
+      const fetched = [
+        { label: "Active Events", value: "24" },
+        { label: "Total Predictions", value: "12,543" },
+        { label: "Platform Fees", value: "$4,325.49" },
+        { label: "Active Users", value: "573" },
+      ]
+      setStats(fetched)
+      setStatus('success')
+    }, 1500)
+  }
+
+  const renderStatCard = (stat: Stat, idx: number) => {
+    return <StatCard key={idx} stat={stat} index={idx} />
+  }
+
+  const renderCards = () => {
+    switch (status) {
+      case 'loading':
+        return (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-xl" />
+            ))}
+          </div>
+        )
+      case 'empty':
+        return (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-medium mb-2">No KPI data available.</p>
+            <p className="text-sm text-muted-foreground mb-4">Create events to generate statistics.</p>
+            <Button asChild>
+              <Link href="/events/new">Create New Event</Link>
+            </Button>
+          </div>
+        )
+      case 'error':
+        return (
+          <Alert variant="destructive">
+            <AlertTitle>Failed to load data</AlertTitle>
+            <AlertDescription>
+              An error occurred while fetching KPI information.
+            </AlertDescription>
+            <Button variant="outline" onClick={retry} className="mt-2">
+              Retry
+            </Button>
+          </Alert>
+        )
+      case 'success':
+        return (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {stats?.map((stat, idx) => renderStatCard(stat, idx))}
+          </div>
+        )
+    }
+  }
+
+  const renderAnalyticsPanel = () => {
+    switch (status) {
+      case 'loading':
+        return <Skeleton className="h-64 w-full rounded-xl" />
+      case 'empty':
+        return (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-medium mb-2">No analytics data.</p>
+            <p className="text-sm text-muted-foreground mb-4">Add events to view analytics.</p>
+            <Button asChild>
+              <Link href="/events/new">Create New Event</Link>
+            </Button>
+          </div>
+        )
+      case 'error':
+        return (
+          <Alert variant="destructive">
+            <AlertTitle>Analytics load error</AlertTitle>
+            <AlertDescription>Unable to fetch analytics data.</AlertDescription>
+            <Button variant="outline" onClick={retry} className="mt-2">Retry</Button>
+          </Alert>
+        )
+      case 'success':
+        return (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {/* Placeholder charts remain unchanged */}
+            <Card className="col-span-2">
+              <CardHeader>
+                <CardTitle>User Growth</CardTitle>
+                <CardDescription>New user registrations over time</CardDescription>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <div className="h-[300px] w-full bg-muted/25 rounded-md flex items-center justify-center text-muted-foreground">
+                  User Growth Chart Placeholder
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>User Demographics</CardTitle>
+                <CardDescription>Breakdown of user base</CardDescription>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <div className="h-[300px] w-full bg-muted/25 rounded-md flex items-center justify-center text-muted-foreground">
+                  Demographics Chart Placeholder
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+    }
+  }
+
+  const renderReportsPanel = () => {
+    switch (status) {
+      case 'loading':
+        return <Skeleton className="h-64 w-full rounded-xl" />
+      case 'empty':
+        return (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-medium mb-2">No reports available.</p>
+            <p className="text-sm text-muted-foreground mb-4">Generate reports from events.</p>
+            <Button asChild>
+              <Link href="/events/new">Create New Event</Link>
+            </Button>
+          </div>
+        )
+      case 'error':
+        return (
+          <Alert variant="destructive">
+            <AlertTitle>Reports load error</AlertTitle>
+            <AlertDescription>Unable to fetch report listings.</AlertDescription>
+            <Button variant="outline" onClick={retry} className="mt-2">Retry</Button>
+          </Alert>
+        )
+      case 'success':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Available Reports</CardTitle>
+              <CardDescription>Download or view generated reports</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-4">
+                  <div>
+                    <h3 className="font-medium">Monthly Financial Summary</h3>
+                    <p className="text-sm text-muted-foreground">April 2023</p>
+                  </div>
+                  <Button variant="outline">Download</Button>
+                </div>
+                <div className="flex items-center justify-between border-b pb-4">
+                  <div>
+                    <h3 className="font-medium">User Activity Report</h3>
+                    <p className="text-sm text-muted-foreground">Last 30 days</p>
+                  </div>
+                  <Button variant="outline">Download</Button>
+                </div>
+                <div className="flex items-center justify-between border-b pb-4">
+                  <div>
+                    <h3 className="font-medium">Event Performance Analysis</h3>
+                    <p className="text-sm text-muted-foreground">Q1 2023</p>
+                  </div>
+                  <Button variant="outline">Download</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -23,49 +233,7 @@ export default function DashboardPage() {
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Events</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">24</div>
-                <p className="text-xs text-muted-foreground">+2 from last week</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Predictions</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">12,543</div>
-                <p className="text-xs text-muted-foreground">+573 from yesterday</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Platform Fees</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">$4,325.49</div>
-                <p className="text-xs text-muted-foreground">+12.5% from last month</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">573</div>
-                <p className="text-xs text-muted-foreground">+201 since last week</p>
-              </CardContent>
-            </Card>
-          </div>
-
+          {renderCards()}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
               <CardHeader>
@@ -121,63 +289,10 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
         <TabsContent value="analytics" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="col-span-2">
-              <CardHeader>
-                <CardTitle>User Growth</CardTitle>
-                <CardDescription>New user registrations over time</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[300px] w-full bg-muted/25 rounded-md flex items-center justify-center text-muted-foreground">
-                  User Growth Chart Placeholder
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>User Demographics</CardTitle>
-                <CardDescription>Breakdown of user base</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[300px] w-full bg-muted/25 rounded-md flex items-center justify-center text-muted-foreground">
-                  Demographics Chart Placeholder
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {renderAnalyticsPanel()}
         </TabsContent>
         <TabsContent value="reports" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Available Reports</CardTitle>
-              <CardDescription>Download or view generated reports</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b pb-4">
-                  <div>
-                    <h3 className="font-medium">Monthly Financial Summary</h3>
-                    <p className="text-sm text-muted-foreground">April 2023</p>
-                  </div>
-                  <Button variant="outline">Download</Button>
-                </div>
-                <div className="flex items-center justify-between border-b pb-4">
-                  <div>
-                    <h3 className="font-medium">User Activity Report</h3>
-                    <p className="text-sm text-muted-foreground">Last 30 days</p>
-                  </div>
-                  <Button variant="outline">Download</Button>
-                </div>
-                <div className="flex items-center justify-between border-b pb-4">
-                  <div>
-                    <h3 className="font-medium">Event Performance Analysis</h3>
-                    <p className="text-sm text-muted-foreground">Q1 2023</p>
-                  </div>
-                  <Button variant="outline">Download</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {renderReportsPanel()}
         </TabsContent>
       </Tabs>
     </div>
