@@ -78,4 +78,51 @@ describe('TallyBar', () => {
       expect(screen.getByText('822 tokens')).toBeInTheDocument();
     });
   });
+
+  describe('accessibility', () => {
+    it('exposes the bar with role="img" and an aria-label describing both sides', () => {
+      const tally: [TallySide, TallySide] = [makeSide('Yes', 500, 60), makeSide('No', 333, 40)];
+      render(<TallyBar tally={tally} />);
+      const bar = screen.getByRole('img');
+      const label = bar.getAttribute('aria-label') ?? '';
+      expect(label).toMatch(/Yes/);
+      expect(label).toMatch(/60\.0/);
+      expect(label).toMatch(/No/);
+      expect(label).toMatch(/40\.0/);
+    });
+
+    it('includes token amounts in the aria-label when showAmounts is true', () => {
+      const tally: [TallySide, TallySide] = [
+        makeSide('Yes', 1234, 60),
+        makeSide('No', 822, 40),
+      ];
+      render(<TallyBar tally={tally} showAmounts />);
+      const bar = screen.getByRole('img');
+      const label = bar.getAttribute('aria-label') ?? '';
+      expect(label).toMatch(/1,234 tokens/);
+      expect(label).toMatch(/822 tokens/);
+    });
+
+    it('uses colorblind-safe chart-* token classes, not bare red/green colors', () => {
+      const tally: [TallySide, TallySide] = [makeSide('Yes', 500, 60), makeSide('No', 333, 40)];
+      const { container } = render(<TallyBar tally={tally} />);
+      const segments = container.querySelectorAll('[style]');
+      // Both segments should use chart-* tokens; neither should rely on bare red/green.
+      expect((segments[0] as HTMLElement).className).toMatch(/bg-chart-1/);
+      expect((segments[1] as HTMLElement).className).toMatch(/bg-chart-2/);
+      expect((segments[0] as HTMLElement).className).not.toMatch(/bg-(red|green|rose|emerald)-/);
+      expect((segments[1] as HTMLElement).className).not.toMatch(/bg-(red|green|rose|emerald)-/);
+    });
+  });
+
+  describe('tie tallies', () => {
+    it('renders 50/50 widths when both sides have equal nonzero amounts', () => {
+      const tally: [TallySide, TallySide] = [makeSide('Yes', 500, 50), makeSide('No', 500, 50)];
+      const { container } = render(<TallyBar tally={tally} />);
+      const segments = container.querySelectorAll('[style]');
+      expect((segments[0] as HTMLElement).style.width).toBe('50%');
+      expect((segments[1] as HTMLElement).style.width).toBe('50%');
+      expect(screen.getAllByText('50.0%')).toHaveLength(2);
+    });
+  });
 });
