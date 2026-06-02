@@ -1,9 +1,34 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { StatusBadge, type StreamStatus } from "./components/StatusBadge";
+import { StreamPrimer } from "./components/StreamPrimer";
 import { homeCopy, streamActionCopy } from "./content/copy";
+
+const ONBOARDING_KEY = "streampay_onboarding_dismissed";
 
 export default function Home() {
   const actions = Object.values(streamActionCopy);
   const streamStatuses: StreamStatus[] = ["draft", "active", "paused", "ended"];
+
+  const [onboardingVisible, setOnboardingVisible] = useState(false);
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem(ONBOARDING_KEY);
+    if (!dismissed) {
+      setOnboardingVisible(true);
+    }
+  }, []);
+
+  const handleDismissOnboarding = () => {
+    setOnboardingVisible(false);
+    localStorage.setItem(ONBOARDING_KEY, "true");
+  };
+
+  const handleShowOnboarding = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setOnboardingVisible(true);
+  };
 
   return (
     <main
@@ -17,6 +42,8 @@ export default function Home() {
         gap: "1.5rem",
       }}
     >
+      {onboardingVisible && <StreamPrimer onClose={handleDismissOnboarding} />}
+
       <div style={{ maxWidth: "48rem", textAlign: "center" }}>
         <p
           style={{
@@ -51,18 +78,20 @@ export default function Home() {
         >
           {homeCopy.primaryCta}
         </a>
-        <a
-          href="#stream-actions"
+        <button
+          onClick={handleShowOnboarding}
           style={{
+            background: "transparent",
             border: "1px solid var(--border)",
             borderRadius: "999px",
             color: "var(--foreground)",
             fontWeight: 600,
             padding: "0.875rem 1.25rem",
+            cursor: "pointer",
           }}
         >
           {homeCopy.secondaryCta}
-        </a>
+        </button>
       </div>
 
       <section
