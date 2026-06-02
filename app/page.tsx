@@ -1,8 +1,49 @@
-import React from "react";
+"use client";
+
+import { useState, useEffect } from "react";
+import { StatusBadge, type StreamStatus } from "./components/StatusBadge";
+import { StreamPrimer } from "./components/StreamPrimer";
+import { homeCopy, streamActionCopy } from "./content/copy";
+
+const ONBOARDING_KEY = "streampay_onboarding_dismissed";
 
 export default function Home() {
+  const actions = Object.values(streamActionCopy);
+  const streamStatuses: StreamStatus[] = ["draft", "active", "paused", "ended"];
+
+  const [onboardingVisible, setOnboardingVisible] = useState(false);
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem(ONBOARDING_KEY);
+    if (!dismissed) {
+      setOnboardingVisible(true);
+    }
+  }, []);
+
+  const handleDismissOnboarding = () => {
+    setOnboardingVisible(false);
+    localStorage.setItem(ONBOARDING_KEY, "true");
+  };
+
+  const handleShowOnboarding = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setOnboardingVisible(true);
+  };
+
   return (
-    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", gap: "1.5rem" }}>
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem",
+        gap: "1.5rem",
+      }}
+    >
+      {onboardingVisible && <StreamPrimer onClose={handleDismissOnboarding} />}
+
       <div style={{ maxWidth: "48rem", textAlign: "center" }}>
         <p style={{ fontSize: "0.875rem", fontWeight: 600, letter-spacing: "0.08em", marginBottom: "0.75rem", textTransform: "uppercase" }}>
           Payment streaming on Stellar
@@ -19,9 +60,20 @@ export default function Home() {
         <a href="#connect-wallet" style={{ borderRadius: "999px", color: "rgb(3, 21, 10)", fontWeight: 700, padding: "0.875rem 1.25rem" }}>
           Connect Wallet
         </a>
-        <a href="#stream-actions" style={{ borderRadius: "999px", fontWeight: 600, padding: "0.875rem 1.25rem" }}>
-          View Stream Actions
-        </a>
+        <button
+          onClick={handleShowOnboarding}
+          style={{
+            background: "transparent",
+            border: "1px solid var(--border)",
+            borderRadius: "999px",
+            color: "var(--foreground)",
+            fontWeight: 600,
+            padding: "0.875rem 1.25rem",
+            cursor: "pointer",
+          }}
+        >
+          {homeCopy.secondaryCta}
+        </button>
       </div>
 
       {/* Accessible Form Section requested by the test suite */}
