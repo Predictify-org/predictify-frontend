@@ -1,4 +1,6 @@
+import { Check, X } from 'lucide-react';
 import { TallySide } from '@/types/disputes';
+import { cn } from '@/lib/utils';
 
 interface TallyBarProps {
   tally: [TallySide, TallySide];
@@ -15,6 +17,12 @@ export function TallyBar({ tally, showAmounts = false }: TallyBarProps) {
   const [left, right] = tally;
   const [leftPct, rightPct] = normalise(left.percentage, right.percentage);
 
+  // Accessible summary of the whole bar.
+  const ariaSummary = showAmounts
+    ? `${left.label}: ${leftPct.toFixed(1)} percent, ${left.amount.toLocaleString()} tokens. ` +
+      `${right.label}: ${rightPct.toFixed(1)} percent, ${right.amount.toLocaleString()} tokens.`
+    : `${left.label}: ${leftPct.toFixed(1)} percent. ${right.label}: ${rightPct.toFixed(1)} percent.`;
+
   return (
     <div className="w-full space-y-1">
       <div className="flex justify-between text-xs font-medium">
@@ -29,17 +37,31 @@ export function TallyBar({ tally, showAmounts = false }: TallyBarProps) {
         </div>
       )}
 
-      <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+      <div
+        className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
+        role="img"
+        aria-label={ariaSummary}
+      >
         <div
-          className="bg-blue-500 transition-all duration-300"
+          className={cn(
+            'bg-chart-1 transition-all duration-300 flex items-center justify-center',
+            'text-[10px] font-medium text-white'
+          )}
           style={{ width: `${leftPct}%` }}
           aria-label={`${left.label}: ${leftPct.toFixed(1)}%`}
-        />
+        >
+          <Check className="h-2.5 w-2.5" aria-hidden="true" />
+        </div>
         <div
-          className="bg-rose-500 transition-all duration-300"
+          className={cn(
+            'bg-chart-2 transition-all duration-300 flex items-center justify-center',
+            'text-[10px] font-medium text-white'
+          )}
           style={{ width: `${rightPct}%` }}
           aria-label={`${right.label}: ${rightPct.toFixed(1)}%`}
-        />
+        >
+          <X className="h-2.5 w-2.5" aria-hidden="true" />
+        </div>
       </div>
 
       <div className="flex justify-between text-xs text-muted-foreground">
