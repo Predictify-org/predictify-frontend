@@ -13,8 +13,9 @@ import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 import { checkTokenAllowed, normaliseToken } from "@/app/lib/token-allowlist";
+import { validateCreateStreamBody } from "@/app/lib/stream-validation";
 
-function errorResponse(code: string, message: string, status: number) {
+export function errorResponse(code: string, message: string, status: number) {
   return createErrorResponse(code, message, status);
 }
 
@@ -132,19 +133,31 @@ export async function POST(request: Request) {
     }
   }
 
+  // ── Schema validation (shared) ────────────────────────────────────────
+  const validationErrors = validateCreateStreamBody(body);
+  if (validationErrors.length > 0) {
+    logger.warn("Stream creation validation failed", {
+      errors: validationErrors,
+    });
+    return NextResponse.json(
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "One or more fields are invalid.",
+          details: validationErrors,
+          request_id: getCorrelationContext()?.request_id,
+        },
+      },
+      { status: 422 },
+    );
+  }
+
   const { rate, recipient, schedule, token: rawToken } = body as {
     rate?: string;
     recipient?: string;
     schedule?: string;
     token?: string;
   };
-
-  if (!recipient || !rate || !schedule) {
-    logger.warn("Stream creation validation failed", {
-      fields: { rate: Boolean(rate), recipient: Boolean(recipient), schedule: Boolean(schedule) },
-    });
-    return errorResponse("VALIDATION_ERROR", "Missing required fields: recipient, rate, schedule", 422);
-  }
 
   const tokenStr = rawToken?.trim() || "XLM";
   let normalisedToken: string;
