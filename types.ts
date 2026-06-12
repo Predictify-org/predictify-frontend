@@ -1,12 +1,28 @@
+/**
+ * A point-in-time snapshot of per-tenant operational metrics.
+ *
+ * Emitted by the anomaly detector and the metrics scraper. All counters
+ * are monotonic within a tenant; gauges (`dlqDepth`, latencies) reflect
+ * the value at `timestamp`.
+ */
 export interface MetricSnapshot {
+  /** Tenant (organisation) the snapshot is scoped to. */
   tenantId: string;
+  /** Streams created in the observation window. */
   streamCreations: number;
+  /** Settle attempts (successful or otherwise) in the observation window. */
   settleAttempts: number;
+  /** Unix epoch milliseconds at which the snapshot was taken. */
   timestamp: number;
+  /** Total Stellar transaction submissions in the window. */
   stellarSubmissionsTotal?: number;
+  /** Submissions that returned a failure result. */
   stellarSubmissionsFailed?: number;
+  /** Current dead-letter queue depth for failed background jobs. */
   dlqDepth?: number;
+  /** Age in seconds of the oldest pending job in the queue. */
   oldestPendingJobSeconds?: number;
+  /** Rolling p95 latency for settlement transactions. */
   p95SettlementLatencySeconds?: number;
 }
 
