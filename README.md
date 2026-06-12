@@ -74,6 +74,24 @@ The application will fail to boot without these required variables:
 
 See [docs/network-security.md](docs/network-security.md) for the complete security guide.
 
+## Stream lifecycle (at a glance)
+
+A stream moves through these on-chain states:
+
+`Draft` → `Active` → (`Paused` ↔ `Active`)* → `Settled`
+
+- **Draft**: created and escrowed, not yet streaming. `start_time` and
+  `end_time` are not pinned until activation.
+- **Active**: vesting linearly between `start_time` and `end_time`.
+  Recipient may withdraw vested funds at any time.
+- **Paused**: accrual is frozen; vested funds remain withdrawable.
+- **Settled**: terminal. All funds released; no further state changes.
+- **Cancelled**: terminal alternative to Settled when the sender ends
+  the stream early. Remaining unvested funds refund to the sender.
+
+See [docs/STATE_MACHINE.md](docs/STATE_MACHINE.md) for the formal
+transition table and invariants.
+
 ## Schedule semantics
 
 - Calendar-month schedules use UTC day boundaries for proration.
