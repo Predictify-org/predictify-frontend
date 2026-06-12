@@ -9,3 +9,23 @@ coverage/
 *.log
 .DS_Store
 contracts/target/
+
+# Editor / IDE state
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.history/
+
+# OS junk
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Local tooling caches
+.eslintcache
+.turbo/
+.cache/
+*.tsbuildinfo
+
