@@ -1,3 +1,19 @@
+//! # Contract storage layout
+//!
+//! All persistent state for the StreamPay contract is keyed by
+//! [`DataKey`]. There are two storage tiers in use:
+//!
+//! - **Instance storage** holds singletons: `Admin`, `Paused`, the
+//!   stream counter, and the per-token allowlist. These keys live for
+//!   the lifetime of the contract instance and are extended together.
+//! - **Persistent storage** holds per-stream rows keyed by stream id.
+//!   These rows are TTL-extended every time the stream is read or
+//!   written so an active stream cannot expire mid-flight.
+//!
+//! The TTL constants below are tuned for long-running payment streams
+//! plus a generous recovery buffer; keep them in sync with the
+//! operational runbook.
+
 use soroban_sdk::{contracttype, Address, Env};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
