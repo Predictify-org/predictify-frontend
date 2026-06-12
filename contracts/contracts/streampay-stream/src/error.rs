@@ -1,3 +1,17 @@
+//! # Contract error codes
+//!
+//! Every error returned by the StreamPay contract is one of the
+//! discriminants in [`Error`]. The backend maps these codes one-to-one
+//! into the public Problem+JSON error envelope, so:
+//!
+//! - **Discriminants are part of the public contract API.** Do not
+//!   reuse a discriminant after it has shipped; add new variants at
+//!   the end of the enum instead.
+//! - **Variant names are not part of the API.** Renaming a variant is
+//!   safe as long as the numeric discriminant stays stable.
+//! - **Backend mapping** lives in `app/lib/errors/`. Adding a new
+//!   variant here requires a matching entry there.
+
 use soroban_sdk::contracterror;
 
 /// Stable StreamPay contract error codes for backend Problem+JSON mapping.
