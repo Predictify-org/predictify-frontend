@@ -172,7 +172,9 @@ async function fetchWithTimeout(
   const timeoutPromise = new Promise<never>((_, reject) => {
     const id = setTimeout(() => {
       controller.abort();
-      reject(new Error('Request timeout'));
+      // User-facing fallback wording: prefer plain English over the
+      // raw "Request timeout" when this message surfaces in toasts.
+      reject(new Error(`Request timed out after ${timeoutMs}ms`));
     }, timeoutMs);
     (controller as any).timeoutId = id;
   });
