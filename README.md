@@ -312,6 +312,26 @@ The following endpoints support multi-tenant organization management:
 
 These endpoints require a valid JWT token obtained via `POST /api/auth/wallet` in the `Authorization: Bearer <token>` header.
 
+## Troubleshooting
+
+A few of the most common local-dev issues:
+
+- **App fails to start with "STELLAR_NETWORK environment variable is required"**
+  — copy `.env.example` to `.env.local` and set `STELLAR_NETWORK=testnet`.
+- **JWT errors during local auth** — ensure `JWT_SECRET` is at least
+  32 characters. Generate one with `openssl rand -base64 32`.
+- **CORS errors in the browser** — your origin must appear in
+  `ALLOWED_ORIGINS` (comma-separated). The default is
+  `http://localhost:3000`.
+- **`npm test` cannot find Jest** — run `npm install` first; the test
+  runner is a dev dependency.
+- **Stale Next.js build artifacts** — delete `.next/` and rebuild.
+- **Port 3000 already in use** — set `PORT=3001 npm run dev` or kill
+  the process holding the port.
+
+For deeper issues see [docs/network-security.md](docs/network-security.md)
+and the runbooks under [docs/runbooks/](docs/runbooks).
+
 ## License
 
 MIT
