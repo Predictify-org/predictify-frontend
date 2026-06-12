@@ -21,6 +21,10 @@
 
 use soroban_sdk::{symbol_short, Address, Env};
 
+/// Emits the `stream::created` event after `create_stream` has escrowed
+/// `total_amount` from `sender`. Indexers observe this as the canonical
+/// creation marker — the on-chain stream row already exists when this
+/// event fires.
 pub fn created(
     env: &Env,
     stream_id: u64,
@@ -43,6 +47,9 @@ pub fn created(
     );
 }
 
+/// Emits the `stream::started` event when a `Draft` stream transitions
+/// to `Active`. Carries the freshly pinned `start_time` / `end_time`
+/// so indexers can recompute schedules without re-reading storage.
 pub fn started(env: &Env, stream_id: u64, start_time: u64, end_time: u64, timestamp: u64) {
     env.events().publish(
         (symbol_short!("stream"), symbol_short!("started")),
@@ -50,6 +57,10 @@ pub fn started(env: &Env, stream_id: u64, start_time: u64, end_time: u64, timest
     );
 }
 
+/// Emits the `stream::withdrawn` event after a successful withdrawal.
+/// The reported `amount` is the just-released delta, not the cumulative
+/// `released_amount`. When the withdrawal drains the stream, a
+/// `settled` event is published in addition.
 pub fn withdrawn(env: &Env, stream_id: u64, recipient: &Address, amount: i128, timestamp: u64) {
     env.events().publish(
         (symbol_short!("stream"), symbol_short!("withdrawn")),
