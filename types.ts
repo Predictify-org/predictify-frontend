@@ -26,19 +26,41 @@ export interface MetricSnapshot {
   p95SettlementLatencySeconds?: number;
 }
 
+/**
+ * Tunable thresholds that drive the anomaly detector.
+ *
+ * Defaults come from the global `streampayConfig`; tenants may override
+ * individual fields via the admin API.
+ */
 export interface AnomalyThresholds {
+  /** Maximum stream creations per minute before a burst alert fires. */
   creationBurstLimit: number;
+  /** Maximum settle attempts per minute before a spike alert fires. */
   settleRateLimit: number;
+  /** Submission failure ratio above which the high-failure alert fires. */
   submissionFailureThreshold?: number;
+  /** Maximum DLQ depth before the depth-exceeded alert fires. */
   maxDlqDepth?: number;
 }
 
+/**
+ * A single anomaly alert produced by the detector.
+ *
+ * `observedValue` and `threshold` are dimensionless and must be
+ * interpreted in the context of the originating rule.
+ */
 export interface AnomalyAlert {
+  /** Tenant the alert applies to. */
   tenantId: string;
+  /** Which rule produced this alert. */
   ruleName: "STREAM_CREATION_BURST" | "SETTLE_RATE_SPIKE" | "HIGH_SUBMISSION_FAILURE_RATE" | "DLQ_DEPTH_EXCEEDED";
+  /** Value observed for the rule's metric. */
   observedValue: number;
+  /** Threshold the observed value exceeded. */
   threshold: number;
+  /** Severity used for on-call routing. */
   severity: 'low' | 'medium' | 'high';
+  /** ISO-8601 timestamp the alert was generated. */
   detectedAt: string;
 }
 
