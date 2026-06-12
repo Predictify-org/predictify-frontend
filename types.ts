@@ -64,6 +64,13 @@ export interface AnomalyAlert {
   detectedAt: string;
 }
 
+/**
+ * Mirror of the on-chain `StreamStatus` enum (see `contracts/.../storage.rs`).
+ *
+ * Kept as a string enum so log lines and DB rows are human-readable. The
+ * values must match the contract exactly — do not rename without a
+ * coordinated migration.
+ */
 export enum ContractStreamStatus {
   DRAFT = "DRAFT",
   ACTIVE = "ACTIVE",
@@ -73,24 +80,52 @@ export enum ContractStreamStatus {
   CANCELLED = "CANCELLED",
 }
 
+/**
+ * View model returned by the on-chain client when reading a stream.
+ *
+ * All amount fields are stroop-denominated `bigint`s. Convert to a
+ * display string with `lib/format-bigint.ts` before showing in the UI.
+ */
 export interface OnChainStream {
+  /** Numeric stream id formatted as a base-10 string. */
   id: string;
+  /** Recipient Stellar address (G...). */
   recipient_address: string;
+  /** Total escrowed amount, in token base units. */
   total_amount: bigint;
+  /** Amount already released to the recipient. */
   released_amount: bigint;
+  /** Release rate (base units per second). */
   velocity: bigint;
+  /** Unix epoch seconds of the last on-chain update. */
   last_update_timestamp: number;
+  /** Current status from the contract's state machine. */
   status: ContractStreamStatus;
+  /** Token contract address (C...). */
   token: string;
 }
 
+/**
+ * Result of cancelling a stream on chain.
+ *
+ * Both legs (recipient payout, sender refund) emit separate transfers;
+ * the sender refund hash is optional because zero-balance refunds are
+ * elided.
+ */
 export interface OnChainCancellationResult {
+  /** Stream id that was cancelled. */
   stream_id: string;
+  /** Vested amount paid out to the recipient. */
   recipient_payout: bigint;
+  /** Unvested remainder refunded to the sender. */
   sender_refund: bigint;
+  /** Token contract address (C...). */
   token: string;
+  /** Hash of the recipient payout transaction. */
   recipient_tx_hash: string;
+  /** Hash of the sender refund transaction, if any. */
   sender_tx_hash?: string;
+  /** Unix epoch seconds of cancellation. */
   cancelled_at: number;
 }
 
