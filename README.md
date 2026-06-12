@@ -330,6 +330,24 @@ The following endpoints support multi-tenant organization management:
 
 These endpoints require a valid JWT token obtained via `POST /api/auth/wallet` in the `Authorization: Bearer <token>` header.
 
+## Documentation index
+
+Quick links to the long-form docs under [docs/](docs/):
+
+- [Architecture overview](docs/architecture.md)
+- [API client usage](docs/api-client-usage.md)
+- [Stream state glossary](docs/stream-state-glossary.md)
+- [Error codes reference](docs/error-codes.md)
+- [Testing guide](docs/testing-guide.md)
+- [Glossary](docs/glossary.md)
+- [State machine](docs/STATE_MACHINE.md)
+- [Network security](docs/network-security.md)
+- [Privacy](docs/PRIVACY.md)
+- [Reconciliation runbook](docs/reconciliation-runbook.md)
+
+See also [CONTRIBUTING.md](CONTRIBUTING.md) and
+[SECURITY.md](SECURITY.md) in the repository root.
+
 ## Troubleshooting
 
 A few of the most common local-dev issues:
