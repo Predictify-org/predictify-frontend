@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 /* NEW: Added lucide icons for row actions */
-import { Edit, MoreHorizontal, Trash2, Users, Calendar } from "lucide-react"
+import { Edit, MoreHorizontal, Trash2, Users, Calendar, Trophy, Building2, CircleDollarSign, LineChart, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -44,6 +44,17 @@ const formatDate = (date: Date) => {
   const day = date.getDate()
   const year = date.getFullYear()
   return `${month} ${day}, ${year}`
+}
+
+// Icon per category so status is not conveyed by color alone
+const getCategoryIcon = (category: Event["category"]) => {
+  switch (category) {
+    case "Football": return <Trophy className="h-3 w-3 shrink-0" aria-hidden="true" />
+    case "Politics": return <Building2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+    case "Crypto": return <CircleDollarSign className="h-3 w-3 shrink-0" aria-hidden="true" />
+    case "Stocks": return <LineChart className="h-3 w-3 shrink-0" aria-hidden="true" />
+    default: return <TrendingUp className="h-3 w-3 shrink-0" aria-hidden="true" />
+  }
 }
 
 // Category badge colors matching the design
@@ -87,6 +98,8 @@ function TimeRemainingProgress({ event }: { event: Event }) {
   const currentDays = event.timeRemainingMs / (24 * 60 * 60 * 1000)
   const progressValue = Math.max(0, Math.min(100, (currentDays / maxDays) * 100))
 
+  const urgencyLabel = { green: "Low urgency", orange: "Medium urgency", red: "High urgency" }[color]
+
   const progressColorClass = {
     green: "bg-[#16DB30]",
     orange: "bg-[#FFBB00]",
@@ -99,10 +112,22 @@ function TimeRemainingProgress({ event }: { event: Event }) {
     red: "text-[#FF5858]",
   }[color]
 
+  const progressValueRounded = Math.round(progressValue)
+
   return (
     <div className="space-y-2 min-w-[120px]">
-      <div className={cn("text-sm font-medium", textColorClass)}>{timeString}</div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
+      <div className={cn("text-sm font-medium", textColorClass)}>
+        {timeString}
+        <span className="sr-only"> — {urgencyLabel}</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-valuenow={progressValueRounded}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Time remaining: ${timeString} (${urgencyLabel})`}
+        className="w-full bg-gray-200 rounded-full h-2"
+      >
         <div
           className={cn("h-2 rounded-full transition-all duration-300", progressColorClass)}
           style={{ width: `${progressValue}%` }}
@@ -220,7 +245,8 @@ export function EventsTable({ className }: EventsTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[100px] sm:min-w-0">
-                    <Badge className={cn(getCategoryBadgeVariant(event.category), "text-xs sm:text-sm px-2 py-1")}>
+                    <Badge className={cn(getCategoryBadgeVariant(event.category), "inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1")}>
+                      {getCategoryIcon(event.category)}
                       {event.category}
                     </Badge>
                   </TableCell>

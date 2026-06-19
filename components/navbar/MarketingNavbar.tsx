@@ -128,10 +128,11 @@ export default function Navbar({ transparent }: NavbarProps) {
               variant="ghost"
               size="icon"
               className="relative text-white hover:bg-white/10"
+              aria-label={notificationCount > 0 ? `Notifications, ${notificationCount} unread` : "Notifications"}
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-5 h-5" aria-hidden="true" />
               {notificationCount > 0 && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center">
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center" aria-hidden="true">
                   <span className="text-xs text-white font-bold">{notificationCount}</span>
                 </div>
               )}
@@ -143,9 +144,10 @@ export default function Navbar({ transparent }: NavbarProps) {
               size="icon"
               onClick={toggleTheme}
               className="text-white hover:bg-white/10"
+              aria-label={`Switch to ${typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? 'light' : 'dark'} mode`}
             >
-              <Sun className="w-5 h-5 dark:hidden" />
-              <Moon className="w-5 h-5 hidden dark:block" />
+              <Sun className="w-5 h-5 dark:hidden" aria-hidden="true" />
+              <Moon className="w-5 h-5 hidden dark:block" aria-hidden="true" />
             </Button>
 
             {/* User Avatar */}
@@ -168,18 +170,22 @@ export default function Navbar({ transparent }: NavbarProps) {
                 variant="ghost"
                 size="icon"
                 className="relative text-white"
+                aria-label={notificationCount > 0 ? `Notifications, ${notificationCount} unread` : "Notifications"}
               >
-                <Bell className="w-5 h-5" />
+                <Bell className="w-5 h-5" aria-hidden="true" />
                 {notificationCount > 0 && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full"></div>
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full" aria-hidden="true"></div>
                 )}
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setDrawerOpen(true)}
+                aria-label="Open menu"
+                aria-expanded={drawerOpen}
+                aria-haspopup="dialog"
               >
-                <Menu className="w-5 h-5 text-white" />
+                <Menu className="w-5 h-5 text-white" aria-hidden="true" />
               </Button>
             </div>
           </div>
