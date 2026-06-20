@@ -4,6 +4,18 @@ Complete documentation for the virtualized and infinite scroll list implementati
 
 ## 📚 Documentation Index
 
+### Project Overview
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Top-level architecture overview
+  - App Router route groups ((marketing), (dashboard), (auth))
+  - State layer (Zustand events store, wallet context)
+  - Wallet integration (Stellar Wallets Kit)
+  - Component organization and a route/state diagram
+- **[API.md](./API.md)** - API integration guide
+  - Environment configuration (`lib/env.ts`, `lib/config.ts`)
+  - Events and transactions data shapes
+  - Where real API calls should be introduced
+  - Mocked-vs-real status
+
 ### Quick Start
 - **[QUICKSTART.md](./QUICKSTART.md)** - Get up and running in 5 minutes
   - Installation (3 steps)
