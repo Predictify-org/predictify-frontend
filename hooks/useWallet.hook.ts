@@ -65,6 +65,7 @@ import {
 } from "@creit.tech/stellar-wallets-kit";
 import { useState } from "react";
 import { getKit } from "../constants/wallet-kits.constant";
+import { getClientConfig } from "@/lib/config";
 
 export const useWallet = () => {
   const walletState = useWalletContext();
@@ -132,9 +133,15 @@ export const useWallet = () => {
       }
 
       const kit = getKit();
+      const clientConfig = getClientConfig();
+      const networkPassphrase =
+        clientConfig.stellar.network === 'mainnet'
+          ? WalletNetwork.MAINNET
+          : WalletNetwork.TESTNET;
+
       const { signedTxXdr } = await kit.signTransaction(xdr, {
         address: walletState.address,
-        networkPassphrase: WalletNetwork.TESTNET,
+        networkPassphrase,
       });
 
       return { success: true, signedTxXdr };
