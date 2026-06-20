@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useId } from "react";
 import { Input } from "@/components/ui/input";
-import { 
-  Search as SearchIcon, 
-  Loader2, 
-  TrendingUp, 
-  Trophy, 
-  Building2, 
+import {
+  Search as SearchIcon,
+  Loader2,
+  TrendingUp,
+  Trophy,
+  Building2,
   CircleDollarSign,
-  LineChart 
+  LineChart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEventsStore } from "@/lib/events-store";
@@ -34,15 +34,17 @@ export function SearchInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const listboxId = useId();
+  const getOptionId = (index: number) => `${listboxId}-option-${index}`;
+
   const events = useEventsStore((state) => state.events);
 
-  // Filter events based on value
   const filteredEvents = useMemo(() => {
     if (!value.trim()) return [];
-    return events.filter(e => 
-      e.title.toLowerCase().includes(value.toLowerCase()) || 
+    return events.filter(e =>
+      e.title.toLowerCase().includes(value.toLowerCase()) ||
       e.category.toLowerCase().includes(value.toLowerCase())
-    ).slice(0, 5); // Max 5 suggestions
+    ).slice(0, 5);
   }, [events, value]);
 
   // Handle Cmd+K
@@ -69,23 +71,21 @@ export function SearchInput({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Handle typing with simulated loading
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setValue(val);
     setSelectedIndex(-1);
-    
+
     if (val.trim()) {
       setIsOpen(true);
       setIsLoading(true);
-      // Simulate network request for wow factor
       setTimeout(() => setIsLoading(false), 300);
     } else {
       setIsOpen(false);
     }
   };
 
-  const handleSelect = (title: string, marketId: string) => {
+  const handleSelect = (title: string, _marketId: string) => {
     setIsOpen(false);
     setValue(title);
     onSubmit?.(title);
@@ -122,11 +122,11 @@ export function SearchInput({
 
   const getCategoryIcon = (category: string) => {
     switch(category.toLowerCase()) {
-      case 'football': return <Trophy className="h-4 w-4" />;
-      case 'politics': return <Building2 className="h-4 w-4" />;
-      case 'crypto': return <CircleDollarSign className="h-4 w-4" />;
-      case 'stocks': return <LineChart className="h-4 w-4" />;
-      default: return <TrendingUp className="h-4 w-4" />;
+      case 'football': return <Trophy className="h-4 w-4" aria-hidden="true" />;
+      case 'politics': return <Building2 className="h-4 w-4" aria-hidden="true" />;
+      case 'crypto': return <CircleDollarSign className="h-4 w-4" aria-hidden="true" />;
+      case 'stocks': return <LineChart className="h-4 w-4" aria-hidden="true" />;
+      default: return <TrendingUp className="h-4 w-4" aria-hidden="true" />;
     }
   };
 
@@ -140,26 +140,37 @@ export function SearchInput({
     !isSidebar ? className : undefined
   );
 
+  const activeDescendant = selectedIndex >= 0 ? getOptionId(selectedIndex) : undefined;
+
   return (
     <div className={wrapperClasses}>
       {isSidebar && (
-        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#FFFFFF]" />
+        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#FFFFFF]" aria-hidden="true" />
       )}
       <div className="relative w-full max-w-[400px]">
         <Input
           ref={inputRef}
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-autocomplete="list"
+          aria-controls={listboxId}
+          aria-activedescendant={activeDescendant}
+          aria-label={placeholder}
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={() => value.trim() && setIsOpen(true)}
-          aria-label={placeholder}
           placeholder={placeholder}
           className={inputClasses}
         />
         {!isSidebar && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none text-[#9366B7] dark:text-[#C5C5C5]">
-            <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-[#540D8D33] dark:border-[#71B48D] bg-muted/50 px-1.5 font-mono text-[10px] font-medium opacity-100">
-              <span className="text-xs">⌘</span>K
+            <kbd
+              className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-[#540D8D33] dark:border-[#71B48D] bg-muted/50 px-1.5 font-mono text-[10px] font-medium opacity-100"
+              aria-label="Command K shortcut"
+            >
+              <span className="text-xs" aria-hidden="true">⌘</span><span aria-hidden="true">K</span>
             </kbd>
           </div>
         )}
@@ -167,32 +178,38 @@ export function SearchInput({
 
       {/* Auto-suggest Dropdown */}
       {isOpen && (
-        <div 
+        <div
           ref={dropdownRef}
+          id={listboxId}
+          role="listbox"
+          aria-label="Search suggestions"
           className="absolute top-full left-0 right-0 mt-2 w-full max-w-[400px] rounded-xl border border-white/10 bg-gradient-to-b from-[#48097B] to-[#111827] p-2 shadow-2xl backdrop-blur-xl z-[100] animate-in fade-in zoom-in-95 duration-200"
         >
           {isLoading ? (
-            <div className="flex items-center justify-center p-6 text-white/70">
-              <Loader2 className="h-5 w-5 animate-spin text-purple-400" />
+            <div role="status" aria-live="polite" className="flex items-center justify-center p-6 text-white/70">
+              <Loader2 className="h-5 w-5 animate-spin text-purple-400" aria-hidden="true" />
               <span className="ml-3 text-sm font-medium">Searching markets...</span>
             </div>
           ) : filteredEvents.length > 0 ? (
             <div className="flex flex-col gap-1">
-              <div className="px-2 pb-1 pt-1 opacity-60 text-[10px] uppercase font-bold tracking-wider text-white">
+              <div id={`${listboxId}-label`} className="px-2 pb-1 pt-1 opacity-60 text-[10px] uppercase font-bold tracking-wider text-white" aria-hidden="true">
                 Suggestions
               </div>
               {filteredEvents.map((event, index) => {
                 const isActive = index === selectedIndex;
                 const regex = new RegExp(`(${value})`, "gi");
                 const titleParts = event.title.split(regex);
-                
+
                 return (
                   <button
                     key={event.id}
+                    id={getOptionId(index)}
+                    role="option"
+                    aria-selected={isActive}
                     onClick={() => handleSelect(event.title, event.id)}
                     onMouseEnter={() => setSelectedIndex(index)}
                     className={cn(
-                      "flex items-center justify-between rounded-lg p-3 text-left transition-colors cursor-pointer",
+                      "flex items-center justify-between rounded-lg p-3 text-left transition-colors cursor-pointer w-full",
                       isActive ? "bg-white/15" : "hover:bg-white/5"
                     )}
                   >
@@ -202,7 +219,7 @@ export function SearchInput({
                       </div>
                       <div className="flex flex-col overflow-hidden">
                         <span className="text-sm font-medium text-white truncate">
-                          {titleParts.map((part, i) => 
+                          {titleParts.map((part, i) =>
                             regex.test(part) ? (
                               <span key={i} className="text-[#E3D365] font-bold">{part}</span>
                             ) : (
@@ -221,9 +238,9 @@ export function SearchInput({
               })}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in-95">
+            <div role="status" aria-live="polite" className="flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in-95">
               <div className="rounded-full bg-white/5 p-4 mb-3 border border-white/10">
-                <SearchIcon className="h-6 w-6 text-white/40" />
+                <SearchIcon className="h-6 w-6 text-white/40" aria-hidden="true" />
               </div>
               <p className="text-sm font-medium text-white">No markets found</p>
               <p className="text-xs text-white/50 mt-1 max-w-[200px]">
@@ -236,5 +253,3 @@ export function SearchInput({
     </div>
   );
 }
-
-

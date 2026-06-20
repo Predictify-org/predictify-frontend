@@ -62,18 +62,20 @@ export function Navbar() {
           </div>
           <div className="flex items-center gap-4">
             <div className="relative group hidden lg:block">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg" aria-hidden="true">search</span>
               <input
+                id="navbar-search"
                 className="bg-[#192540] border-none rounded-xl pl-10 pr-4 py-2 text-sm w-64 focus:ring-1 focus:ring-cyan-400 transition-all bg-opacity-40 text-white placeholder-slate-400"
                 placeholder="Search markets..."
-                type="text"
+                type="search"
+                aria-label="Search markets"
               />
             </div>
             
             <NetworkSwitcher network={network} onChange={setNetwork} />
             
             {isLoading ? (
-              <button disabled className="bg-[#69daff]/50 text-[#004a5d] px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-[#69daff]/10">
+              <button disabled aria-busy="true" aria-label="Connecting wallet, please wait" className="bg-[#69daff]/50 text-[#004a5d] px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-[#69daff]/10">
                 Loading...
               </button>
             ) : connected ? (
@@ -90,9 +92,9 @@ export function Navbar() {
             <button
               onClick={toggleTheme}
               className="text-slate-400 hover:text-white transition-colors flex items-center justify-center p-2 rounded-lg hover:bg-slate-800"
-              title="Toggle theme"
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              <span className="material-symbols-outlined">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+              <span className="material-symbols-outlined" aria-hidden="true">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
             </button>
           </div>
         </div>
@@ -105,8 +107,8 @@ export function Navbar() {
         </Link>
         <div className="flex items-center gap-2">
           {isLoading ? (
-            <button disabled className="bg-[#69daff]/50 text-[#004a5d] px-4 py-2 rounded-md text-xs font-bold">
-              ...
+            <button disabled aria-busy="true" aria-label="Connecting wallet, please wait" className="bg-[#69daff]/50 text-[#004a5d] px-4 py-2 rounded-md text-xs font-bold">
+              <span aria-hidden="true">...</span>
             </button>
           ) : connected ? (
              <Avatar className="h-8 w-8 border border-slate-600">
@@ -114,8 +116,9 @@ export function Navbar() {
                <AvatarFallback>{user?.name?.[0] || "U"}</AvatarFallback>
              </Avatar>
           ) : (
-            <button 
+            <button
               onClick={() => setIsWalletModalOpen(true)}
+              aria-label="Connect wallet"
               className="bg-gradient-to-br from-[#69daff] to-[#00cffc] text-[#004a5d] px-4 py-2 rounded-md font-bold text-xs"
             >
               Connect
@@ -125,13 +128,14 @@ export function Navbar() {
       </header>
 
       {/* Mobile Bottom Navbar */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[72px] px-4 bg-slate-950/90 backdrop-blur-lg shadow-2xl border-t border-slate-800/15">
+      <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[72px] px-4 bg-slate-950/90 backdrop-blur-lg shadow-2xl border-t border-slate-800/15">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href || (pathname === '/' && item.href === '/markets');
           return (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={
                 isActive
                   ? "flex flex-col items-center justify-center bg-cyan-500/20 text-cyan-300 rounded-xl px-3 min-h-[44px] min-w-[44px] py-1 transition-all"
@@ -139,6 +143,7 @@ export function Navbar() {
               }
             >
               <span
+                aria-hidden="true"
                 className="material-symbols-outlined text-[20px]"
                 style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
               >
