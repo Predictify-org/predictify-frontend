@@ -113,10 +113,12 @@ export default function Navbar({ transparent }: NavbarProps) {
           {/* Mobile hamburger */}
           <button
             aria-label="Open menu"
+            aria-expanded={drawerOpen}
+            aria-haspopup="dialog"
             className="md:hidden inline-flex items-center justify-center rounded-md p-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => setDrawerOpen(true)}
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
       </div>
