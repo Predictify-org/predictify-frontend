@@ -16,6 +16,16 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Where real API calls should be introduced
   - Mocked-vs-real status
 
+### Core Features
+- **[WALLET.md](./WALLET.md)** - Wallet Integration Guide
+  - Supported wallets (Freighter, LOBSTR, XBull, Albedo, Rabet)
+  - SSR-safe wallet kit initialization
+  - useWallet hook API reference
+  - Transaction signing
+  - Persistence and automatic reconnection
+  - Network configuration
+  - Known limitations and troubleshooting
+
 ### Quick Start
 - **[QUICKSTART.md](./QUICKSTART.md)** - Get up and running in 5 minutes
   - Installation (3 steps)
