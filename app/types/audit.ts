@@ -1,22 +1,14 @@
-export type AuditActorRole =
-  | "user"
-  | "support"
-  | "admin"
-  | "finance"
-  | "security"
-  | "compliance"
-  | "system";
+import type {
+  AuditActorRoleDTO,
+  AuditActorDTO,
+  AuditTargetDTO,
+  AuditEntryDTO,
+} from "@/app/lib/dtos/audit.dto";
 
-export interface AuditActor {
-  id: string;
-  role: AuditActorRole;
-}
-
-export interface AuditTarget {
-  type: "stream" | "account";
-  id: string;
-  account?: string;
-}
+export type AuditActorRole = AuditActorRoleDTO;
+export type AuditActor = AuditActorDTO;
+export type AuditTarget = AuditTargetDTO;
+export type AuditEntry = AuditEntryDTO;
 
 export type AuditMetadataValue = string | number | boolean | null;
 export type AuditSnapshot = Record<string, unknown> | null;
@@ -33,21 +25,7 @@ export interface AuditEntryInput {
   metadata?: Record<string, AuditMetadataValue>;
 }
 
-export interface AuditEntry {
-  id: string;
-  actor: AuditActor;
-  target: AuditTarget;
-  action: string;
-  beforeHash: string | null;
-  afterHash: string | null;
-  diffHash: string | null;
-  requestId: string;
-  timestamp: string;
-  prevHash: string | null;
-  entryHash: string;
-  retentionUntil: string;
-  metadata?: Record<string, AuditMetadataValue>;
-}
+// AuditEntry is now defined via Zod DTO above
 
 export interface AuditListFilters {
   actorId?: string | null;

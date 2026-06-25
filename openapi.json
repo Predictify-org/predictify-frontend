@@ -144,6 +144,95 @@
             "example": "2024-01-16T10:00:00.000Z"
           }
         }
+      },
+      "AuditActor": {
+        "type": "object",
+        "required": ["id", "role"],
+        "properties": {
+          "id": { "type": "string" },
+          "role": {
+            "type": "string",
+            "enum": ["user", "support", "admin", "finance", "security", "compliance", "system"]
+          }
+        }
+      },
+      "AuditTarget": {
+        "type": "object",
+        "required": ["type", "id"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["stream", "account"]
+          },
+          "id": { "type": "string" },
+          "account": { "type": "string" }
+        }
+      },
+      "AuditEntry": {
+        "type": "object",
+        "required": ["id", "actor", "target", "action", "requestId", "timestamp", "entryHash", "retentionUntil"],
+        "properties": {
+          "id": { "type": "string" },
+          "actor": { "$ref": "#/components/schemas/AuditActor" },
+          "target": { "$ref": "#/components/schemas/AuditTarget" },
+          "action": { "type": "string" },
+          "beforeHash": { "type": ["string", "null"] },
+          "afterHash": { "type": ["string", "null"] },
+          "diffHash": { "type": ["string", "null"] },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "prevHash": { "type": ["string", "null"] },
+          "entryHash": { "type": "string" },
+          "retentionUntil": { "type": "string", "format": "date-time" },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                { "type": "string" },
+                { "type": "number" },
+                { "type": "boolean" },
+                { "type": "null" }
+              ]
+            }
+          }
+        }
+      },
+      "AuditResponse": {
+        "type": "object",
+        "required": ["access", "data", "links", "meta"],
+        "properties": {
+          "access": {
+            "type": "object",
+            "required": ["actorId", "role"],
+            "properties": {
+              "actorId": { "type": "string" },
+              "role": {
+                "type": "string",
+                "enum": ["user", "support", "admin", "finance", "security", "compliance", "system"]
+              }
+            }
+          },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AuditEntry" }
+          },
+          "links": {
+            "type": "object",
+            "required": ["self"],
+            "properties": {
+              "self": { "type": "string" }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": ["chainIntact", "retentionDays", "total"],
+            "properties": {
+              "chainIntact": { "type": "boolean" },
+              "retentionDays": { "type": "number" },
+              "total": { "type": "number" }
+            }
+          }
+        }
       }
     },
     "responses": {
@@ -210,6 +299,71 @@
     }
   },
   "paths": {
+    "/api/audit": {
+      "get": {
+        "operationId": "listAuditLogs",
+        "summary": "List audit logs",
+        "description": "Returns a paginated list of audit events. Requires audit log access.",
+        "tags": ["Audit"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of records to return (1-250, default 50).",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 250, "default": 50 }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "description": "Filter by action.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "description": "Filter by actor ID.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search query.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "requestId",
+            "in": "query",
+            "description": "Filter by request ID.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "description": "Filter by actor role.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "targetId",
+            "in": "query",
+            "description": "Filter by target ID.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit log list.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuditResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/401" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
     "/api/auth/wallet": {
       "get": {
         "operationId": "getWalletChallenge",
