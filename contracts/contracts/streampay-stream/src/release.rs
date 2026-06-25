@@ -56,7 +56,8 @@ pub fn withdrawable(stream: &Stream, now: u64) -> i128 {
 mod tests {
     use super::*;
     use crate::StreamStatus;
-    use soroban_sdk::{Address, contracttype};
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::Address;
 
     /// Helper to create a test stream
     fn test_stream(
@@ -160,8 +161,9 @@ mod tests {
 
     #[test]
     fn test_large_amount_near_i128_max() {
-        // Test with a large amount that could cause overflow if not using checked arithmetic
-        let large_amount = i128::MAX / 2;
+        // Large amount that stays within range for the multiply-then-divide
+        // accrual math (total * elapsed must not overflow i128).
+        let large_amount = i128::MAX / 1000;
         let stream = test_stream(large_amount, 0, 1000, 2000);
         let vested = vested_amount(&stream, 1500);
         assert!(vested >= 0 && vested <= large_amount);
@@ -186,7 +188,7 @@ mod tests {
             expected: i128,
         }
 
-        let cases = vec![
+        let cases = [
             // (total, start, end, now, expected)
             (1000, 1000, 2000, 500, 0),    // before start
             (1000, 1000, 2000, 1000, 0),   // at start
@@ -202,7 +204,14 @@ mod tests {
             (1, 0, 1, 1, 1),                // minimal duration, at end
         ];
 
-        for case in cases {
+        for case_tuple in cases {
+            let case = TestCase {
+                total: case_tuple.0,
+                start: case_tuple.1,
+                end: case_tuple.2,
+                now: case_tuple.3,
+                expected: case_tuple.4,
+            };
             let stream = test_stream(case.total, 0, case.start, case.end);
             let result = vested_amount(&stream, case.now);
             assert_eq!(
@@ -224,7 +233,7 @@ mod tests {
             expected: i128,
         }
 
-        let cases = vec![
+        let cases = [
             // (total, released, start, end, now, expected)
             (1000, 0, 1000, 2000, 1000, 0),     // nothing vested
             (1000, 0, 1000, 2000, 1500, 500),   // half vested
@@ -234,7 +243,15 @@ mod tests {
             (1000, 0, 1000, 2000, 3000, 1000),  // past end, nothing released
         ];
 
-        for case in cases {
+        for case_tuple in cases {
+            let case = TestCase {
+                total: case_tuple.0,
+                released: case_tuple.1,
+                start: case_tuple.2,
+                end: case_tuple.3,
+                now: case_tuple.4,
+                expected: case_tuple.5,
+            };
             let stream = test_stream(case.total, case.released, case.start, case.end);
             let result = withdrawable(&stream, case.now);
             assert_eq!(

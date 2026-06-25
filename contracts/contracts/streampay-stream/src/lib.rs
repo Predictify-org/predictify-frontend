@@ -2,14 +2,19 @@
 
 mod error;
 mod events;
+mod release;
 mod storage;
 
 pub use error::Error;
-use soroban_sdk::{contract, contractimpl, token, Address, Env};
+use soroban_sdk::{contract, contractimpl, token, Address, Env, Vec};
 pub use storage::{Stream, StreamStatus};
 
 #[contract]
 pub struct Contract;
+
+/// Maximum number of addresses allowed in a per-stream withdrawer allowlist.
+/// Bounded to keep storage writes and the per-withdrawal membership check cheap.
+const MAX_WITHDRAWERS: u32 = 10;
 
 #[contractimpl]
 impl Contract {
@@ -134,6 +139,73 @@ impl Contract {
         start_time: u64,
         end_time: u64,
     ) -> Result<u64, Error> {
+        let no_withdrawers = Vec::new(&env);
+        Self::create_stream_inner(
+            env,
+            sender,
+            recipient,
+            token,
+            total_amount,
+            start_time,
+            end_time,
+            no_withdrawers,
+        )
+    }
+
+    /// Creates a funded active stream with an optional allowlist of additional
+    /// withdrawers.
+    ///
+    /// Identical to [`Contract::create_stream`], but `additional_withdrawers`
+    /// records extra addresses that — alongside the recipient — may trigger a
+    /// withdrawal via [`Contract::withdraw_as`]. The allowlist is fixed at
+    /// create-time and can never be changed afterwards (there is no setter), so
+    /// it is immutable for the life of the stream. Funds always flow to the
+    /// `recipient`, never to the calling withdrawer, so an allowlisted address
+    /// can release accrued funds but cannot redirect them.
+    ///
+    /// An empty `additional_withdrawers` behaves exactly like `create_stream`
+    /// and stores no allowlist entry.
+    ///
+    /// # Errors
+    /// - All errors from [`Contract::create_stream`].
+    /// - [`Error::TooManyWithdrawers`] if the list exceeds `MAX_WITHDRAWERS`.
+    ///
+    /// # Auth
+    /// Requires authorisation from `sender`.
+    pub fn create_stream_with_withdrawers(
+        env: Env,
+        sender: Address,
+        recipient: Address,
+        token: Address,
+        total_amount: i128,
+        start_time: u64,
+        end_time: u64,
+        additional_withdrawers: Vec<Address>,
+    ) -> Result<u64, Error> {
+        Self::create_stream_inner(
+            env,
+            sender,
+            recipient,
+            token,
+            total_amount,
+            start_time,
+            end_time,
+            additional_withdrawers,
+        )
+    }
+
+    /// Shared creation core for `create_stream` and
+    /// `create_stream_with_withdrawers`. Not exported as a contract method.
+    fn create_stream_inner(
+        env: Env,
+        sender: Address,
+        recipient: Address,
+        token: Address,
+        total_amount: i128,
+        start_time: u64,
+        end_time: u64,
+        additional_withdrawers: Vec<Address>,
+    ) -> Result<u64, Error> {
         require_not_paused(&env)?;
         sender.require_auth();
 
@@ -143,6 +215,12 @@ impl Contract {
 
         if sender == recipient {
             return Err(Error::InvalidState);
+        }
+
+        // Validate the allowlist before escrowing any funds so a rejected
+        // stream never moves tokens.
+        if additional_withdrawers.len() > MAX_WITHDRAWERS {
+            return Err(Error::TooManyWithdrawers);
         }
 
         if storage::is_token_blocked(&env, &token) {
@@ -181,6 +259,13 @@ impl Contract {
         };
 
         storage::set_stream(&env, id, &stream);
+
+        // Persist the allowlist only when one is supplied, so plain streams
+        // incur no extra storage cost.
+        if !additional_withdrawers.is_empty() {
+            storage::set_stream_withdrawers(&env, id, &additional_withdrawers);
+        }
+
         events::created(&env, id, &stream.sender, &stream.recipient, &stream.token, stream.total_amount, now);
 
         Ok(id)
@@ -261,52 +346,76 @@ impl Contract {
     }
 
     /// Withdraws accrued escrow to the recipient.
+    ///
+    /// Authorised by the stream `recipient`. Funds are transferred to the
+    /// recipient. For withdrawals triggered by an allowlisted address, see
+    /// [`Contract::withdraw_as`].
     pub fn withdraw(env: Env, stream_id: u64, amount: i128) -> Result<i128, Error> {
         require_not_paused(&env)?;
         if amount <= 0 {
             return Err(Error::InvalidAmount);
         }
 
-        let mut stream = get_existing_stream(&env, stream_id)?;
+        let stream = get_existing_stream(&env, stream_id)?;
         stream.recipient.require_auth();
 
-        if stream.status == StreamStatus::Settled {
-            return Err(Error::AlreadySettled);
+        withdraw_inner(&env, stream, amount)
+    }
+
+    /// Withdraws accrued escrow on behalf of the recipient, authorised by
+    /// `caller`.
+    ///
+    /// `caller` must be either the stream `recipient` or an address in the
+    /// stream's withdrawer allowlist (set at create-time via
+    /// [`Contract::create_stream_with_withdrawers`]). Regardless of who calls,
+    /// the funds are always transferred to the `recipient` — an allowlisted
+    /// withdrawer can release accrued funds but can never redirect them.
+    ///
+    /// # Errors
+    /// - [`Error::ContractPaused`] if the contract is paused.
+    /// - [`Error::InvalidAmount`] if `amount <= 0`.
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::Unauthorized`] if `caller` is neither the recipient nor an
+    ///   allowlisted withdrawer.
+    /// - [`Error::AlreadySettled`], [`Error::InvalidState`], or
+    ///   [`Error::OverWithdraw`] per the withdrawal rules.
+    ///
+    /// # Auth
+    /// Requires authorisation from `caller`.
+    pub fn withdraw_as(
+        env: Env,
+        caller: Address,
+        stream_id: u64,
+        amount: i128,
+    ) -> Result<i128, Error> {
+        require_not_paused(&env)?;
+        if amount <= 0 {
+            return Err(Error::InvalidAmount);
         }
 
-        // Allow withdrawals from Active or Paused streams
-        if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
-            return Err(Error::InvalidState);
+        let stream = get_existing_stream(&env, stream_id)?;
+
+        // The recipient is always permitted; any other caller must be on the
+        // per-stream allowlist.
+        if caller != stream.recipient {
+            let allowlist = storage::get_stream_withdrawers(&env, stream_id);
+            if !allowlist.contains(&caller) {
+                return Err(Error::Unauthorized);
+            }
         }
 
-        let now = env.ledger().timestamp();
-        let available = withdrawable_amount(now, &stream);
-        if amount > available {
-            return Err(Error::OverWithdraw);
-        }
+        caller.require_auth();
 
-        stream.released_amount += amount;
-        stream.last_update = now;
+        withdraw_inner(&env, stream, amount)
+    }
 
-        if stream.released_amount == stream.total_amount {
-            stream.status = StreamStatus::Settled;
-        }
-
-        #[allow(clippy::needless_borrows_for_generic_args)]
-        token::Client::new(&env, &stream.token).transfer(
-            &env.current_contract_address(),
-            &stream.recipient,
-            &amount,
-        );
-
-        storage::set_stream(&env, stream_id, &stream);
-        let ts = stream.last_update;
-        events::withdrawn(&env, stream_id, &stream.recipient, amount, ts);
-        if stream.status == StreamStatus::Settled {
-            events::settled(&env, stream_id, &stream.recipient, stream.total_amount, ts);
-        }
-
-        Ok(amount)
+    /// Returns the per-stream withdrawer allowlist (empty when none was set).
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    pub fn get_withdrawers(env: Env, stream_id: u64) -> Result<Vec<Address>, Error> {
+        get_existing_stream(&env, stream_id)?;
+        Ok(storage::get_stream_withdrawers(&env, stream_id))
     }
 
     /// Pauses an active stream, freezing accrual while preserving vested funds.
@@ -329,6 +438,7 @@ impl Contract {
         stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::paused(&env, stream_id, &stream.sender, stream.pause_time, now);
 
         Ok(stream)
     }
@@ -368,6 +478,7 @@ impl Contract {
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::resumed(&env, stream_id, &stream.sender, stream.end_time, now);
 
         Ok(stream)
     }
@@ -426,28 +537,60 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
     storage::get_stream(env, stream_id).ok_or(Error::NotFound)
 }
 
+/// Amount accrued and available to withdraw now (vested minus already
+/// released). Delegates to the linear-release math in [`release`].
 fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
-    }
-    if now < stream.start_time {
-        return 0;
-    }
+    release::withdrawable(stream, now)
+}
 
+/// Total vested amount for the stream at the current ledger timestamp.
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
     release::vested_amount(stream, env.ledger().timestamp())
 }
 
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
+/// Shared withdrawal core for [`Contract::withdraw`] and
+/// [`Contract::withdraw_as`]. Assumes the caller has already been authorised;
+/// funds are always transferred to `stream.recipient`.
+fn withdraw_inner(env: &Env, mut stream: Stream, amount: i128) -> Result<i128, Error> {
+    let stream_id = stream.id;
+
+    if stream.status == StreamStatus::Settled {
+        return Err(Error::AlreadySettled);
     }
+
+    // Allow withdrawals from Active or Paused streams.
+    if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
+        return Err(Error::InvalidState);
+    }
+
     let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
+    let available = withdrawable_amount(now, &stream);
+    if amount > available {
+        return Err(Error::OverWithdraw);
     }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+
+    stream.released_amount += amount;
+    stream.last_update = now;
+
+    if stream.released_amount == stream.total_amount {
+        stream.status = StreamStatus::Settled;
+    }
+
+    #[allow(clippy::needless_borrows_for_generic_args)]
+    token::Client::new(env, &stream.token).transfer(
+        &env.current_contract_address(),
+        &stream.recipient,
+        &amount,
+    );
+
+    storage::set_stream(env, stream_id, &stream);
+    let ts = stream.last_update;
+    events::withdrawn(env, stream_id, &stream.recipient, amount, ts);
+    if stream.status == StreamStatus::Settled {
+        events::settled(env, stream_id, &stream.recipient, stream.total_amount, ts);
+    }
+
+    Ok(amount)
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {

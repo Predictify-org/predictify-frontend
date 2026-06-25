@@ -14,7 +14,7 @@
 //! plus a generous recovery buffer; keep them in sync with the
 //! operational runbook.
 
-use soroban_sdk::{contracttype, Address, Env};
+use soroban_sdk::{contracttype, Address, Env, Vec};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
@@ -50,48 +50,43 @@ pub struct Stream {
 enum DataKey {
     Admin,
     Paused,
-    StreamCount,
+    NextStreamId,
     Stream(u64),
     TokenAllowed(Address),
+    /// Optional per-stream allowlist of addresses permitted to trigger a
+    /// withdrawal in addition to the recipient. Written once at create-time
+    /// (only when non-empty) and never updated, so the allowlist is immutable.
+    StreamWithdrawers(u64),
 }
 
-/// Threshold and absolute target values are expressed in ledger sequences.
+/// TTL values are expressed in ledgers and passed straight to the SDK's
+/// `extend_ttl(threshold, extend_to)`: if the entry's remaining TTL drops below
+/// the `*_MIN_REMAINING` threshold, it is extended to the `*_EXTEND_TO` horizon.
+/// The host performs the comparison, so no explicit TTL read is required.
 ///
-/// The stream TTL helper extends the stored stream entry to a rolling multi-
-/// week horizon, while the instance TTL helper preserves admin and counter
-/// keys used by contract governance and stream creation.
+/// The stream constants keep a stored stream entry alive on a rolling multi-week
+/// horizon, while the instance constants preserve the admin, pause, and counter
+/// singletons used by contract governance and stream creation.
 ///
-/// These constants are tuned for long-running payments, with a buffer to keep
-/// active streams alive across the full start..end window plus recovery time.
+/// These are tuned for long-running payments, with a buffer to keep active
+/// streams alive across the full start..end window plus recovery time.
 pub const STREAM_TTL_MIN_REMAINING: u32 = 120_960; // ~1 week at 5s ledgers
 pub const STREAM_TTL_EXTEND_TO: u32 = 483_840; // ~4 weeks at 5s ledgers
 pub const INSTANCE_TTL_MIN_REMAINING: u32 = 43_200; // ~2.5 days
 pub const INSTANCE_TTL_EXTEND_TO: u32 = 120_960; // ~1 week
 
-fn ttl_target(env: &Env, extra_ledgers: u32) -> u32 {
-    env.ledger().sequence().saturating_add(extra_ledgers)
-}
-
 fn extend_persistent_ttl(env: &Env, key: &DataKey) {
-    let target = ttl_target(env, STREAM_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().persistent().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().persistent().extend_ttl(key, &target);
+    env.storage()
+        .persistent()
+        .extend_ttl(key, STREAM_TTL_MIN_REMAINING, STREAM_TTL_EXTEND_TO);
 }
 
-fn extend_instance_ttl(env: &Env, key: &DataKey) {
-    let target = ttl_target(env, INSTANCE_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().instance().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().instance().extend_ttl(key, &target);
+/// Instance storage is a single shared bucket, so its TTL is extended as a
+/// whole rather than per key.
+fn extend_instance_ttl(env: &Env) {
+    env.storage()
+        .instance()
+        .extend_ttl(INSTANCE_TTL_MIN_REMAINING, INSTANCE_TTL_EXTEND_TO);
 }
 
 fn extend_stream_ttl(env: &Env, stream_id: u64) {
@@ -99,15 +94,15 @@ fn extend_stream_ttl(env: &Env, stream_id: u64) {
 }
 
 fn extend_admin_key_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::Admin);
+    extend_instance_ttl(env);
 }
 
 fn extend_pause_key_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::Paused);
+    extend_instance_ttl(env);
 }
 
 fn extend_next_stream_id_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::NextStreamId);
+    extend_instance_ttl(env);
 }
 
 pub fn has_admin(env: &Env) -> bool {
@@ -182,4 +177,25 @@ pub fn get_stream(env: &Env, stream_id: u64) -> Option<Stream> {
         extend_stream_ttl(env, stream_id);
     }
     stream
+}
+
+/// Stores the per-stream withdrawer allowlist. Called once at create-time and
+/// never again, which is what makes the allowlist immutable.
+pub fn set_stream_withdrawers(env: &Env, stream_id: u64, withdrawers: &Vec<Address>) {
+    let key = DataKey::StreamWithdrawers(stream_id);
+    env.storage().persistent().set(&key, withdrawers);
+    extend_persistent_ttl(env, &key);
+}
+
+/// Returns the per-stream withdrawer allowlist, or an empty vector when the
+/// stream was created without one.
+pub fn get_stream_withdrawers(env: &Env, stream_id: u64) -> Vec<Address> {
+    let key = DataKey::StreamWithdrawers(stream_id);
+    match env.storage().persistent().get(&key) {
+        Some(withdrawers) => {
+            extend_persistent_ttl(env, &key);
+            withdrawers
+        }
+        None => Vec::new(env),
+    }
 }

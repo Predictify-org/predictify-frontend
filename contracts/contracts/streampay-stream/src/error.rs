@@ -39,4 +39,6 @@ pub enum Error {
     AlreadySettled = 8,
     /// 9: Token is not allowed for streaming.
     TokenNotAllowed = 9,
+    /// 10: Per-stream withdrawer allowlist exceeds the maximum size.
+    TooManyWithdrawers = 10,
 }
