@@ -42,7 +42,7 @@ proptest! {
 
         // Create active stream
         let stream_id = client
-            .create_stream(&sender, &recipient, &token, &total_amount, &1_000, &(1_000 + duration));
+            .create_stream(&sender, &recipient, &token, &total_amount, &duration, &false);
 
         // Check initial state invariants
         let stream = client.get_stream(&stream_id);
@@ -101,7 +101,7 @@ proptest! {
         let client = ContractClient::new(&env, &contract_id);
 
         let stream_id = client
-            .create_stream(&sender, &recipient, &token, &total_amount, &1_000, &(1_000 + duration));
+            .create_stream(&sender, &recipient, &token, &total_amount, &duration, &false);
 
         // Advance to halfway point
         env.ledger().set_timestamp(1_000 + duration / 2);
@@ -155,7 +155,7 @@ proptest! {
         let client = ContractClient::new(&env, &contract_id);
 
         let stream_id = client
-            .create_stream(&sender, &recipient, &token, &total_amount, &1_000, &(1_000 + duration));
+            .create_stream(&sender, &recipient, &token, &total_amount, &duration, &false);
 
         // Advance to pause time
         let pause_elapsed = duration * pause_time / 100;
@@ -220,7 +220,7 @@ proptest! {
         let safe_duration = duration.min(1_000_000u64);
 
         let stream_id = client
-            .create_stream(&sender, &recipient, &token, &safe_total, &1_000, &(1_000 + safe_duration));
+            .create_stream(&sender, &recipient, &token, &safe_total, &safe_duration, &false);
 
         // Advance to various points
         let checkpoints = [
@@ -254,7 +254,7 @@ proptest! {
         let client = ContractClient::new(&env, &contract_id);
 
         let stream_id = client
-            .create_stream(&sender, &recipient, &token, &total_amount, &1_000, &(1_000 + duration));
+            .create_stream(&sender, &recipient, &token, &total_amount, &duration, &false);
 
         let mut previous_withdrawable = 0i128;
 

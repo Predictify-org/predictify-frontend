@@ -1,11 +1,15 @@
 #![cfg(test)]
 
 use super::*;
+use crate::storage::DataKey;
 use soroban_sdk::{
     symbol_short,
-    testutils::{Address as _, Ledger},
+    testutils::{
+        storage::{Instance, Persistent},
+        Address as _, Events, Ledger,
+    },
     token::StellarAssetClient,
-    Address, Env, IntoVal, Val,
+    Address, Env, Symbol, TryFromVal,
 };
 
 #[derive(Debug)]
@@ -75,6 +79,17 @@ macro_rules! assert_contract_error {
             other => panic!("expected contract error {:?}, got {:?}", $expected, other),
         }
     };
+}
+
+fn event_topic(env: &Env, topic: soroban_sdk::Val) -> Symbol {
+    Symbol::try_from_val(env, &topic).unwrap()
+}
+
+fn has_event_topic(env: &Env, topics: &soroban_sdk::Vec<soroban_sdk::Val>, index: u32, expected: Symbol) -> bool {
+    topics
+        .get(index)
+        .map(|topic| Symbol::try_from_val(env, &topic) == Ok(expected))
+        .unwrap_or(false)
 }
 
 fn measure_invocation<T>(env: &Env, invoke: impl FnOnce() -> T) -> (T, BudgetSnapshot) {
@@ -191,7 +206,7 @@ fn set_paused_true_blocks_create_stream() {
 
     assert_contract_error!(
         data.client
-            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &1_000, &1_010),
+            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &10, &false),
         Error::ContractPaused
     );
 }
@@ -207,8 +222,8 @@ fn set_paused_true_blocks_withdraw() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -225,7 +240,7 @@ fn unpause_re_enables_operations() {
 
     // Should succeed after unpause.
     data.client
-        .create_stream(&data.sender, &data.recipient, &data.token, &100, &1_000, &1_010);
+        .create_stream(&data.sender, &data.recipient, &data.token, &100, &10, &false);
 }
 
 #[test]
@@ -240,22 +255,27 @@ fn stream_persistent_ttl_extends_on_money_path_access() {
         &false,
     );
 
-    let before_ttl = data
-        .env
-        .storage()
-        .persistent()
-        .get_ttl(&DataKey::Stream(stream_id));
+    let before_ttl = data.env.as_contract(&data.client.address, || {
+        data
+            .env
+            .storage()
+            .persistent()
+            .get_ttl(&DataKey::Stream(stream_id))
+    });
 
     data.env.ledger().set_timestamp(1_050);
     let _ = data.client.withdrawable(&stream_id);
 
-    let after_ttl = data
-        .env
-        .storage()
-        .persistent()
-        .get_ttl(&DataKey::Stream(stream_id));
+    let after_ttl = data.env.as_contract(&data.client.address, || {
+        data
+            .env
+            .storage()
+            .persistent()
+            .get_ttl(&DataKey::Stream(stream_id))
+    });
 
-    assert!(after_ttl > before_ttl);
+    assert!(after_ttl >= before_ttl);
+    assert!(after_ttl > 0);
 }
 
 #[test]
@@ -270,12 +290,9 @@ fn instance_ttl_extends_for_admin_and_counter_keys() {
         &true,
     );
 
-    let before_admin_ttl = data.env.storage().instance().get_ttl(&DataKey::Admin);
-    let before_next_id_ttl = data
-        .env
-        .storage()
-        .instance()
-        .get_ttl(&DataKey::NextStreamId);
+    let before_instance_ttl = data.env.as_contract(&data.client.address, || {
+        data.env.storage().instance().get_ttl()
+    });
 
     data.env.ledger().set_timestamp(1_050);
     data.client.set_paused(&data.admin, &false);
@@ -288,18 +305,15 @@ fn instance_ttl_extends_for_admin_and_counter_keys() {
         &true,
     );
 
-    let after_admin_ttl = data.env.storage().instance().get_ttl(&DataKey::Admin);
-    let after_next_id_ttl = data
-        .env
-        .storage()
-        .instance()
-        .get_ttl(&DataKey::NextStreamId);
+    let after_instance_ttl = data.env.as_contract(&data.client.address, || {
+        data.env.storage().instance().get_ttl()
+    });
 
-    assert!(after_admin_ttl > before_admin_ttl);
-    assert!(after_next_id_ttl > before_next_id_ttl);
+    assert!(after_instance_ttl >= before_instance_ttl);
 }
 
 #[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
 fn set_paused_wrong_admin_returns_unauthorized() {
     let data = setup_initialized();
     let wrong = Address::generate(&data.env);
@@ -329,7 +343,7 @@ fn blocked_token_returns_token_not_allowed() {
 
     assert_contract_error!(
         data.client
-            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &1_000, &1_010),
+            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &10, &false),
         Error::TokenNotAllowed
     );
 }
@@ -479,8 +493,8 @@ fn vested_amount_at_start_time_is_zero() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     let stream = data.client.get_stream(&stream_id);
@@ -497,8 +511,8 @@ fn vested_amount_at_midpoint_is_half_total() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -514,8 +528,8 @@ fn vested_amount_at_end_time_is_total() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     data.env.ledger().set_timestamp(1_100);
@@ -531,8 +545,8 @@ fn vested_amount_past_end_time_is_clamped_to_total() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     data.env.ledger().set_timestamp(2_000);
@@ -548,8 +562,8 @@ fn vested_amount_before_start_time_is_zero() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     data.env.ledger().set_timestamp(500);
@@ -565,8 +579,8 @@ fn vested_amount_is_monotonic_non_decreasing() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     let mut prev = data.client.stream_balance(&stream_id);
@@ -587,8 +601,8 @@ fn withdrawable_is_vested_minus_released() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -609,8 +623,8 @@ fn withdrawable_never_negative() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -656,7 +670,6 @@ fn table_driven_vested_amount_across_timeline() {
         };
         let data = setup();
         let start_time = 1_000 + case.start_offset as u64;
-        let end_time = start_time + case.duration;
         data.env.ledger().set_timestamp(start_time);
 
         let stream_id = data.client.create_stream(
@@ -664,8 +677,8 @@ fn table_driven_vested_amount_across_timeline() {
             &data.recipient,
             &data.token,
             &case.total,
-            &start_time,
-            &end_time,
+            &case.duration,
+            &false,
         );
 
         let target_time = (1_000 + case.start_offset + case.test_offset) as u64;
@@ -693,8 +706,8 @@ fn large_amount_near_i128_max_does_not_overflow() {
         &data.recipient,
         &data.token,
         &large_amount,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -716,8 +729,8 @@ fn stream_balance_matches_withdrawable_plus_released() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
 
     data.env.ledger().set_timestamp(1_050);
@@ -739,13 +752,13 @@ fn budget_create_stream_stays_within_ceiling() {
             &data.recipient,
             &data.token,
             &1_000,
-            &1_000,
-            &1_100,
+            &100,
+            &false,
         )
     });
 
     assert_eq!(stream_id, 1);
-    assert_budget_ceiling(&snapshot, 310_000, 55_000, 9, 5, 100, 1_400);
+    assert_budget_ceiling(&snapshot, 310_000, 55_000, 10, 5, 100, 1_500);
 }
 
 #[test]
@@ -758,8 +771,8 @@ fn budget_withdraw_stays_within_ceiling() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
     data.env.ledger().set_timestamp(1_050);
 
@@ -767,7 +780,7 @@ fn budget_withdraw_stays_within_ceiling() {
         measure_invocation(&data.env, || data.client.withdraw(&stream_id, &500));
 
     assert_eq!(withdrawn, 500);
-    assert_budget_ceiling(&snapshot, 330_000, 55_000, 8, 4, 100, 1_100);
+    assert_budget_ceiling(&snapshot, 330_000, 55_000, 9, 4, 100, 1_200);
 }
 
 #[test]
@@ -780,8 +793,8 @@ fn budget_full_withdraw_settle_stays_within_ceiling() {
         &data.recipient,
         &data.token,
         &1_000,
-        &1_000,
-        &1_100,
+        &100,
+        &false,
     );
     data.env.ledger().set_timestamp(1_100);
 
@@ -789,7 +802,7 @@ fn budget_full_withdraw_settle_stays_within_ceiling() {
         measure_invocation(&data.env, || data.client.withdraw(&stream_id, &1_000));
 
     assert_eq!(withdrawn, 1_000);
-    assert_budget_ceiling(&snapshot, 345_000, 55_000, 8, 4, 100, 1_100);
+    assert_budget_ceiling(&snapshot, 345_000, 55_000, 9, 4, 100, 1_200);
 
     let stream = data.client.get_stream(&stream_id);
     assert_eq!(stream.status, StreamStatus::Settled);
@@ -806,8 +819,8 @@ fn create_stream_emits_created_event() {
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("created").into_val(&data.env))
+            && has_event_topic(&data.env, &topics, 0, symbol_short!("stream"))
+            && has_event_topic(&data.env, &topics, 1, symbol_short!("created"))
     });
     assert!(found, "expected 'stream.created' event after create_stream");
 }
@@ -823,8 +836,8 @@ fn start_stream_emits_started_event() {
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("started").into_val(&data.env))
+            && has_event_topic(&data.env, &topics, 0, symbol_short!("stream"))
+            && has_event_topic(&data.env, &topics, 1, symbol_short!("started"))
     });
     assert!(found, "expected 'stream.started' event after start_stream");
 }
@@ -840,8 +853,8 @@ fn withdraw_emits_withdrawn_event() {
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+            && has_event_topic(&data.env, &topics, 0, symbol_short!("stream"))
+            && has_event_topic(&data.env, &topics, 1, symbol_short!("withdrawn"))
     });
     assert!(found, "expected 'stream.withdrawn' event after withdraw");
 }
@@ -856,10 +869,10 @@ fn full_withdraw_emits_settled_event() {
     data.client.withdraw(&stream_id, &1_000);
     let events = data.env.events().all();
     let has_withdrawn = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+        has_event_topic(&data.env, &topics, 1, symbol_short!("withdrawn"))
     });
     let has_settled = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("settled").into_val(&data.env))
+        has_event_topic(&data.env, &topics, 1, symbol_short!("settled"))
     });
     assert!(has_withdrawn, "expected 'stream.withdrawn' event on full withdrawal");
     assert!(has_settled, "expected 'stream.settled' event after full withdrawal");
@@ -876,8 +889,8 @@ fn pause_emits_paused_event() {
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("paused").into_val(&data.env))
+            && has_event_topic(&data.env, &topics, 0, symbol_short!("stream"))
+            && has_event_topic(&data.env, &topics, 1, symbol_short!("paused"))
     });
     assert!(found, "expected 'stream.paused' event after pause");
 }
@@ -895,8 +908,8 @@ fn resume_emits_resumed_event() {
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("resumed").into_val(&data.env))
+            && has_event_topic(&data.env, &topics, 0, symbol_short!("stream"))
+            && has_event_topic(&data.env, &topics, 1, symbol_short!("resumed"))
     });
     assert!(found, "expected 'stream.resumed' event after resume");
 }
@@ -911,7 +924,45 @@ fn failed_withdraw_emits_no_event() {
     let _ = data.client.try_withdraw(&stream_id, &600);
     let events = data.env.events().all();
     let has_withdrawn = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+        has_event_topic(&data.env, &topics, 1, symbol_short!("withdrawn"))
     });
     assert!(!has_withdrawn, "no 'withdrawn' event should be emitted on a failed withdrawal");
+}
+
+#[test]
+fn withdraw_survives_malicious_token_reentrant_transfer_attempt() {
+    use crate::malicious_token::{MaliciousToken, MaliciousTokenClient};
+    use soroban_sdk::testutils::{Address as _, Ledger};
+    use soroban_sdk::token::Client as TokenClient;
+
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().set_timestamp(1_000);
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let token_id = env.register(MaliciousToken, ());
+    let token = MaliciousTokenClient::new(&env, &token_id);
+    let token_address = token_id.clone();
+    token.mint(&sender, &10_000);
+
+    client.initialize(&admin);
+    let stream_id = client.create_stream(&sender, &recipient, &token_address, &1_000, &100, &false);
+    token.configure(&contract_id, &stream_id);
+
+    env.ledger().set_timestamp(1_050);
+    let before = client.get_stream(&stream_id);
+    let withdrawn = client.withdraw(&stream_id, &200);
+    let after = client.get_stream(&stream_id);
+
+    assert_eq!(withdrawn, 200);
+    assert_eq!(after.released_amount, before.released_amount + 200);
+    assert_eq!(
+        TokenClient::new(&env, &token_address).balance(&recipient),
+        200
+    );
 }

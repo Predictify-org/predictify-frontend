@@ -2,6 +2,7 @@
 
 mod error;
 mod events;
+mod release;
 mod storage;
 
 pub use error::Error;
@@ -109,30 +110,14 @@ impl Contract {
     ///
     /// # Auth
     /// Requires authorisation from `sender`.
-    /// Creates a funded active stream and escrows `total_amount` from `sender`.
-    ///
-    /// **Token transfer**: `total_amount` is transferred from `sender` to the
-    /// contract address immediately.
-    ///
-    /// Returns the new stream's numeric ID.
-    ///
-    /// # Errors
-    /// - [`Error::ContractPaused`] if the global pause flag is set.
-    /// - [`Error::InvalidAmount`] if `total_amount <= 0`.
-    /// - [`Error::InvalidState`] if `sender == recipient`.
-    /// - [`Error::TokenNotAllowed`] if the token has been blocked by the admin.
-    /// - [`Error::InvalidTimeRange`] if `end_time <= start_time` or `start_time < now`.
-    ///
-    /// # Auth
-    /// Requires authorisation from `sender`.
     pub fn create_stream(
         env: Env,
         sender: Address,
         recipient: Address,
         token: Address,
         total_amount: i128,
-        start_time: u64,
-        end_time: u64,
+        duration: u64,
+        draft: bool,
     ) -> Result<u64, Error> {
         require_not_paused(&env)?;
         sender.require_auth();
@@ -149,17 +134,22 @@ impl Contract {
             return Err(Error::TokenNotAllowed);
         }
 
-        if end_time <= start_time {
+        if duration == 0 {
             return Err(Error::InvalidTimeRange);
         }
 
-        let now = env.ledger().timestamp();
-        if start_time < now {
-            return Err(Error::InvalidTimeRange);
-        }
-
-        let duration = end_time - start_time;
         let id = storage::next_stream_id(&env);
+        let now = env.ledger().timestamp();
+        let (start_time, end_time, last_update, status) = if draft {
+            (0, 0, 0, StreamStatus::Draft)
+        } else {
+            (
+                now,
+                now.checked_add(duration).ok_or(Error::InvalidTimeRange)?,
+                now,
+                StreamStatus::Active,
+            )
+        };
         let contract_address = env.current_contract_address();
 
         token::Client::new(&env, &token).transfer(&sender, &contract_address, &total_amount);
@@ -174,14 +164,22 @@ impl Contract {
             start_time,
             end_time,
             duration,
-            last_update: start_time,
-            status: StreamStatus::Active,
+            last_update,
+            status,
             pause_time: 0,
             total_paused_duration: 0,
         };
 
         storage::set_stream(&env, id, &stream);
-        events::created(&env, id, &stream.sender, &stream.recipient, &stream.token, stream.total_amount, now);
+        events::created(
+            &env,
+            id,
+            &stream.sender,
+            &stream.recipient,
+            &stream.token,
+            stream.total_amount,
+            now,
+        );
 
         Ok(id)
     }
@@ -233,13 +231,13 @@ impl Contract {
 
     /// Returns the token amount currently accrued and available for withdrawal.
     ///
-    /// Delegates to [`withdrawable_amount`]. Returns `0` for `Draft` streams.
+    /// Delegates to [`release::withdrawable`]. Returns `0` for `Draft` streams.
     ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
     pub fn withdrawable(env: Env, stream_id: u64) -> Result<i128, Error> {
         let stream = get_existing_stream(&env, stream_id)?;
-        Ok(withdrawable_amount(env.ledger().timestamp(), &stream))
+        Ok(release::withdrawable(&stream, env.ledger().timestamp()))
     }
 
     /// Returns the stream balance (vested amount) at a given ledger timestamp.
@@ -257,53 +255,81 @@ impl Contract {
     /// The vested amount as an i128, always in the range `[0, total_amount]`.
     pub fn stream_balance(env: Env, stream_id: u64) -> Result<i128, Error> {
         let stream = get_existing_stream(&env, stream_id)?;
-        Ok(stream_balance_amount(&env, &stream))
+        Ok(release::vested_amount(&stream, env.ledger().timestamp()))
     }
 
     /// Withdraws accrued escrow to the recipient.
+    ///
+    /// Follows checks-effects-interactions: stream accounting is persisted before
+    /// the SEP-41 transfer, then a post-transfer storage re-read asserts invariants
+    /// to surface unexpected token-side behaviour at the external-call boundary.
     pub fn withdraw(env: Env, stream_id: u64, amount: i128) -> Result<i128, Error> {
         require_not_paused(&env)?;
         if amount <= 0 {
             return Err(Error::InvalidAmount);
         }
 
-        let mut stream = get_existing_stream(&env, stream_id)?;
+        let stream = get_existing_stream(&env, stream_id)?;
         stream.recipient.require_auth();
 
         if stream.status == StreamStatus::Settled {
             return Err(Error::AlreadySettled);
         }
 
-        // Allow withdrawals from Active or Paused streams
+        // Allow withdrawals from Active or Paused streams.
         if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
             return Err(Error::InvalidState);
         }
 
         let now = env.ledger().timestamp();
-        let available = withdrawable_amount(now, &stream);
+        let available = release::withdrawable(&stream, now);
         if amount > available {
             return Err(Error::OverWithdraw);
         }
 
-        stream.released_amount += amount;
-        stream.last_update = now;
+        let expected_released = stream.released_amount + amount;
+        let expected_last_update = now;
+        let expected_status = if expected_released == stream.total_amount {
+            StreamStatus::Settled
+        } else {
+            stream.status
+        };
 
-        if stream.released_amount == stream.total_amount {
-            stream.status = StreamStatus::Settled;
-        }
+        let mut updated = stream;
+        updated.released_amount = expected_released;
+        updated.last_update = expected_last_update;
+        updated.status = expected_status;
 
+        // Effects before interactions: persist accounting before the token call.
+        storage::set_stream(&env, stream_id, &updated);
+
+        // Interactions: SEP-41 token transfer.
         #[allow(clippy::needless_borrows_for_generic_args)]
-        token::Client::new(&env, &stream.token).transfer(
+        token::Client::new(&env, &updated.token).transfer(
             &env.current_contract_address(),
-            &stream.recipient,
+            &updated.recipient,
             &amount,
         );
 
-        storage::set_stream(&env, stream_id, &stream);
-        let ts = stream.last_update;
-        events::withdrawn(&env, stream_id, &stream.recipient, amount, ts);
-        if stream.status == StreamStatus::Settled {
-            events::settled(&env, stream_id, &stream.recipient, stream.total_amount, ts);
+        // Post-transfer reentrancy-equivalent guard.
+        assert_post_withdraw_transfer_invariants(
+            &env,
+            stream_id,
+            &updated,
+            expected_released,
+            expected_last_update,
+            expected_status,
+        )?;
+
+        events::withdrawn(&env, stream_id, &updated.recipient, amount, expected_last_update);
+        if expected_status == StreamStatus::Settled {
+            events::settled(
+                &env,
+                stream_id,
+                &updated.recipient,
+                updated.total_amount,
+                expected_last_update,
+            );
         }
 
         Ok(amount)
@@ -323,12 +349,13 @@ impl Contract {
         }
 
         let now = env.ledger().timestamp();
-        
+
         stream.last_update = now;
         stream.status = StreamStatus::Paused;
         stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::paused(&env, stream_id, &stream.sender, stream.pause_time, stream.pause_time);
 
         Ok(stream)
     }
@@ -351,43 +378,50 @@ impl Contract {
             .checked_sub(stream.pause_time)
             .ok_or(Error::InvalidTimeRange)?;
 
-        // Track total paused duration for accrual calculations
         stream.total_paused_duration = stream
             .total_paused_duration
             .checked_add(paused_duration)
             .ok_or(Error::InvalidTimeRange)?;
 
-        // Extend end_time by the paused duration to preserve unstreamed time
         stream.end_time = stream
             .end_time
             .checked_add(paused_duration)
             .ok_or(Error::InvalidTimeRange)?;
-        
+
         stream.last_update = now;
         stream.status = StreamStatus::Active;
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::resumed(&env, stream_id, &stream.sender, stream.end_time, stream.last_update);
 
         Ok(stream)
+    }
+
+    /// Cancels an active stream early. Reserved for lifecycle expansion; requires
+    /// sender authorisation before any state transition is applied.
+    pub fn cancel_stream(env: Env, stream_id: u64) -> Result<Stream, Error> {
+        let stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+        Err(Error::InvalidState)
     }
 
     /// Finalizes a stream whose time window has fully elapsed, paying out
     /// any remaining vested funds to the recipient and transitioning it to a
     /// terminal `Settled` state.
     ///
-    /// This function is permissionless and can be triggered by anyone after
-    /// `end_time` has been reached. Calling it on an already `Settled` stream
-    /// is a no-op (returns `Ok(())`).
-    ///
     /// # Errors
     /// - [`Error::ContractPaused`] if the contract is paused.
     /// - [`Error::NotFound`] if `stream_id` does not exist.
     /// - [`Error::InvalidState`] if the stream is in `Draft` or cancelled state,
     ///   or if the current ledger timestamp has not yet reached `end_time`.
+    ///
+    /// # Auth
+    /// Requires authorisation from the stream's `recipient`.
     pub fn settle(env: Env, stream_id: u64) -> Result<(), Error> {
         require_not_paused(&env)?;
         let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.recipient.require_auth();
 
         if stream.status == StreamStatus::Settled {
             return Ok(());
@@ -404,19 +438,22 @@ impl Contract {
 
         let payout_amount = stream.total_amount - stream.released_amount;
         if payout_amount > 0 {
+            stream.released_amount = stream.total_amount;
+            stream.last_update = now;
+            stream.status = StreamStatus::Settled;
+            storage::set_stream(&env, stream_id, &stream);
+
             #[allow(clippy::needless_borrows_for_generic_args)]
             token::Client::new(&env, &stream.token).transfer(
                 &env.current_contract_address(),
                 &stream.recipient,
                 &payout_amount,
             );
-            stream.released_amount = stream.total_amount;
+        } else {
+            stream.status = StreamStatus::Settled;
+            stream.last_update = now;
+            storage::set_stream(&env, stream_id, &stream);
         }
-
-        stream.status = StreamStatus::Settled;
-        stream.last_update = now;
-
-        storage::set_stream(&env, stream_id, &stream);
 
         Ok(())
     }
@@ -426,28 +463,40 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
     storage::get_stream(env, stream_id).ok_or(Error::NotFound)
 }
 
-fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
-    }
-    if now < stream.start_time {
-        return 0;
+/// Re-reads persisted stream state after a withdraw token transfer and asserts
+/// accounting invariants. Surfaces SEP-41 token misbehaviour or unexpected
+/// storage mutation at the external-call boundary.
+fn assert_post_withdraw_transfer_invariants(
+    env: &Env,
+    stream_id: u64,
+    expected: &Stream,
+    expected_released: i128,
+    expected_last_update: u64,
+    expected_status: StreamStatus,
+) -> Result<(), Error> {
+    let stored = get_existing_stream(env, stream_id)?;
+
+    if stored.released_amount != expected_released
+        || stored.last_update != expected_last_update
+        || stored.status != expected_status
+    {
+        return Err(Error::InvalidState);
     }
 
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
-}
+    if stored.released_amount < 0 || stored.released_amount > stored.total_amount {
+        return Err(Error::InvalidState);
+    }
 
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
+    if stored.id != expected.id
+        || stored.sender != expected.sender
+        || stored.recipient != expected.recipient
+        || stored.token != expected.token
+        || stored.total_amount != expected.total_amount
+    {
+        return Err(Error::InvalidState);
     }
-    let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
-    }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+
+    Ok(())
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
@@ -471,7 +520,61 @@ fn require_not_paused(env: &Env) -> Result<(), Error> {
 }
 
 #[cfg(test)]
+mod malicious_token;
+
+#[cfg(test)]
 mod test;
 
 #[cfg(test)]
 mod prop_test;
+
+#[cfg(test)]
+mod withdraw_guard_tests {
+    use super::*;
+    use soroban_sdk::{
+        testutils::{Address as _, Ledger},
+        token::StellarAssetClient,
+        Address, Env,
+    };
+
+    #[test]
+    fn post_transfer_guard_rejects_storage_drift() {
+        let env = Env::default();
+        env.mock_all_auths();
+        env.ledger().set_timestamp(1_000);
+
+        let contract_id = env.register(Contract, ());
+        let client = ContractClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let sender = Address::generate(&env);
+        let recipient = Address::generate(&env);
+        let token = env
+            .register_stellar_asset_contract_v2(admin.clone())
+            .address();
+        StellarAssetClient::new(&env, &token).mint(&sender, &i128::MAX);
+
+        client.initialize(&admin);
+        let stream_id = client.create_stream(&sender, &recipient, &token, &1_000, &100, &false);
+        env.ledger().set_timestamp(1_050);
+        client.withdraw(&stream_id, &200);
+
+        let expected = client.get_stream(&stream_id);
+        let mut tampered = expected.clone();
+        tampered.released_amount = 0;
+        env.as_contract(&contract_id, || {
+            storage::set_stream(&env, stream_id, &tampered);
+        });
+
+        let err = env.as_contract(&contract_id, || {
+            assert_post_withdraw_transfer_invariants(
+                &env,
+                stream_id,
+                &expected,
+                expected.released_amount,
+                expected.last_update,
+                expected.status,
+            )
+        });
+        assert_eq!(err, Err(Error::InvalidState));
+    }
+}

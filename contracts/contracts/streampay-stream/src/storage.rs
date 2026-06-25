@@ -16,7 +16,7 @@
 
 use soroban_sdk::{contracttype, Address, Env};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[contracttype]
 pub enum StreamStatus {
     Draft,
@@ -47,10 +47,10 @@ pub struct Stream {
 
 #[derive(Clone)]
 #[contracttype]
-enum DataKey {
+pub(crate) enum DataKey {
     Admin,
     Paused,
-    StreamCount,
+    NextStreamId,
     Stream(u64),
     TokenAllowed(Address),
 }
@@ -74,24 +74,14 @@ fn ttl_target(env: &Env, extra_ledgers: u32) -> u32 {
 
 fn extend_persistent_ttl(env: &Env, key: &DataKey) {
     let target = ttl_target(env, STREAM_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().persistent().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().persistent().extend_ttl(key, &target);
+    let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
+    env.storage().persistent().extend_ttl(key, threshold, target);
 }
 
-fn extend_instance_ttl(env: &Env, key: &DataKey) {
+fn extend_instance_ttl(env: &Env, _key: &DataKey) {
     let target = ttl_target(env, INSTANCE_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().instance().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().instance().extend_ttl(key, &target);
+    let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
+    env.storage().instance().extend_ttl(threshold, target);
 }
 
 fn extend_stream_ttl(env: &Env, stream_id: u64) {
