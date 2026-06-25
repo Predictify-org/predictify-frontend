@@ -20,6 +20,9 @@ conventions the team relies on when reviewing pull requests.
 - Avoid `any` in new code unless an external type genuinely demands it.
 - Keep components small and prefer composition over deep prop drilling.
 
+For backend-specific guidance — adding routes, repositories, and tests —
+see [docs/backend-contributing.md](docs/backend-contributing.md).
+
 ## Tests
 
 - Unit tests live next to the module they cover (`foo.ts` + `foo.test.ts`).
