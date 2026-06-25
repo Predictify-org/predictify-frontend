@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { MockWorker } from './worker';
-import { MockQueue } from './queue';
+import { MockQueue, retryQueue } from './queue';
 import { withCorrelationContext, logger, type CorrelationContext } from './logger';
+import { getMetrics, resetMetrics } from './rate-limit-metrics';
+import { webhookDeliveryStore } from './webhook-delivery-store';
 
 const vi = jest;
 
@@ -251,6 +253,101 @@ describe('Mock Worker System', () => {
       });
 
       expect(processor).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('Soroban Retry Queue', () => {
+    let mockDelayFn: any;
+    let recordedDelays: number[];
+
+    beforeEach(() => {
+      recordedDelays = [];
+      mockDelayFn = vi.fn().mockImplementation((ms: number) => {
+        recordedDelays.push(ms);
+        return Promise.resolve();
+      });
+      resetMetrics();
+      webhookDeliveryStore.clear();
+      retryQueue.clear();
+    });
+
+    it('should set maxAttempts to 5 for jobs added to retry-queue', async () => {
+      const context = { request_id: 'req-1', correlation_id: 'corr-1', stream_id: 'stream-1' };
+      await withCorrelationContext(context, async () => {
+        const job = await retryQueue.add('test-job', { data: '123' });
+        expect(job.maxAttempts).toBe(5);
+        expect(job.queueName).toBe('retry-queue');
+
+        // Check metrics enqueued
+        const metrics = getMetrics();
+        expect(metrics.queueQueued['retry-queue']).toBe(1);
+      });
+    });
+
+    it('should retry transient errors with exponential backoff and then DLQ on final failure', async () => {
+      const context = { request_id: 'req-1', correlation_id: 'corr-1', stream_id: 'stream-1' };
+      const processor = vi.fn<any>().mockRejectedValue(new Error('Transient connection error'));
+      const worker = new MockWorker(retryQueue, processor, mockDelayFn);
+
+      await withCorrelationContext(context, async () => {
+        const job = await retryQueue.add('test-job', { data: 'test-payload' });
+        await expect(worker.processJob(job.id)).rejects.toThrow('Transient connection error');
+
+        // Processor should be called 5 times total (1 initial + 4 retries)
+        expect(processor).toHaveBeenCalledTimes(5);
+
+        // Backoff delays: 1s (1000), 5s (5000), 30s (30000), 5m (300000)
+        expect(recordedDelays).toEqual([1000, 5000, 30000, 300000]);
+
+        // Job attempts should be 5
+        expect(job.attempts).toBe(5);
+
+        // Verify DLQ write
+        const dlqEntries = webhookDeliveryStore.getAllDLQEntries();
+        expect(dlqEntries).toHaveLength(1);
+        expect(dlqEntries[0].deliveryId).toBe(job.id);
+        expect(dlqEntries[0].reason).toContain('Max attempts (5) exhausted');
+        expect(dlqEntries[0].eventId).toBe(`event-${job.id}`);
+
+        // Verify metrics
+        const metrics = getMetrics();
+        expect(metrics.queueRetries['retry-queue']).toBe(4);
+        expect(metrics.queueFailures['retry-queue']).toBe(1);
+        expect(metrics.queueDLQWrites['retry-queue']).toBe(1);
+      });
+    });
+
+    it('should not retry terminal errors and write straight to DLQ', async () => {
+      const context = { request_id: 'req-1', correlation_id: 'corr-1', stream_id: 'stream-1' };
+      
+      // A terminal validation error
+      const terminalError = new Error('Validation failed for Stream submission');
+      const processor = vi.fn<any>().mockRejectedValue(terminalError);
+      const worker = new MockWorker(retryQueue, processor, mockDelayFn);
+
+      await withCorrelationContext(context, async () => {
+        const job = await retryQueue.add('test-job', { data: 'test-payload' });
+        await expect(worker.processJob(job.id)).rejects.toThrow('Validation failed for Stream submission');
+
+        // Processor should only be called once (no retries)
+        expect(processor).toHaveBeenCalledTimes(1);
+        expect(recordedDelays).toEqual([]);
+
+        // Job attempts should be 1
+        expect(job.attempts).toBe(1);
+
+        // Verify DLQ write
+        const dlqEntries = webhookDeliveryStore.getAllDLQEntries();
+        expect(dlqEntries).toHaveLength(1);
+        expect(dlqEntries[0].deliveryId).toBe(job.id);
+        expect(dlqEntries[0].reason).toContain('Terminal error on attempt 1');
+
+        // Verify metrics
+        const metrics = getMetrics();
+        expect(metrics.queueRetries['retry-queue']).toBeUndefined();
+        expect(metrics.queueFailures['retry-queue']).toBe(1);
+        expect(metrics.queueDLQWrites['retry-queue']).toBe(1);
+      });
     });
   });
 });

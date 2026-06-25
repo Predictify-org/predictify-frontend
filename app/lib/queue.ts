@@ -1,4 +1,5 @@
 import { CorrelationContext, withCorrelationContext, getCorrelationContext, logger } from './logger';
+import { recordQueueEnqueue } from './rate-limit-metrics';
 
 // Mock job interface
 export interface Job<T = unknown> {
@@ -39,10 +40,13 @@ export class MockQueue {
       queueName: this.queueName,
       createdAt: new Date().toISOString(),
       attempts: 0,
-      maxAttempts: 3,
+      maxAttempts: this.queueName === 'retry-queue' ? 5 : 3,
     };
 
     this.jobs.set(jobId, job);
+
+    // Record enqueue metric
+    recordQueueEnqueue(this.queueName);
 
     logger.info('Job enqueued', {
       job_id: jobId,
