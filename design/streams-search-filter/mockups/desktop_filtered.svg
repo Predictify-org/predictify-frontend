@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1366" height="768">
+  <rect width="100%" height="100%" fill="#fff"/>
+  <rect x="32" y="24" width="700" height="56" rx="8" fill="#fff" stroke="#d1d5db"/>
+  <text x="48" y="62" font-family="Arial" font-size="14" fill="#6b7280">Search: "Acme"</text>
+  <g transform="translate(760,24)">
+    <rect width="140" height="40" rx="6" fill="#fff" stroke="#d1d5db"/>
+    <text x="16" y="26" font-family="Arial" font-size="13" fill="#374151">Sort: Next payout</text>
+  </g>
+  <g transform="translate(32,96)">
+    <rect width="1200" height="48" rx="6" fill="#fff" stroke="#e5e7eb"/>
+    <text x="12" y="32" font-family="Arial" font-size="13" fill="#111827">Status: <tspan fill="#f97316">Paused</tspan></text>
+  </g>
+  <g transform="translate(32,160)">
+    <!-- single matching row -->
+    <rect width="1200" height="64" rx="6" fill="#fff" stroke="#e5e7eb"/>
+    <text x="16" y="40" font-family="Arial" font-size="14" fill="#111827">Acme Corp — USD — Paused — Next payout: May 2</text>
+  </g>
+</svg>

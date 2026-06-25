@@ -1,6 +1,13 @@
 "use client";
 
-import React, { PropsWithChildren, useEffect, useState } from "react";
+import React, {
+  KeyboardEvent,
+  PropsWithChildren,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -15,13 +22,101 @@ export const Modal: React.FC<PropsWithChildren<ModalProps>> = ({
   children,
 }) => {
   const [shouldRender, setShouldRender] = useState(isOpen);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (isOpen) setShouldRender(true);
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      previouslyFocusedElementRef.current = document.activeElement as HTMLElement | null;
+      dialogRef.current?.focus();
+      return;
+    }
+
+    previouslyFocusedElementRef.current?.focus();
+    previouslyFocusedElementRef.current = null;
+  }, [isOpen]);
+
   const handleAnimationEnd = () => {
     if (!isOpen) setShouldRender(false);
+  };
+
+  // Keep keyboard focus inside the active dialog per WAI-ARIA dialog guidance.
+  const getFocusableElements = () => {
+    if (!dialogRef.current) return [];
+
+    return Array.from(
+      dialogRef.current.querySelectorAll<HTMLElement>(
+        [
+          "a[href]",
+          "button:not([disabled])",
+          "textarea:not([disabled])",
+          "input:not([disabled])",
+          "select:not([disabled])",
+          "[tabindex]:not([tabindex='-1'])",
+        ].join(",")
+      )
+    ).filter(
+      (element) =>
+        !element.hasAttribute("hidden") &&
+        element.getAttribute("aria-hidden") !== "true"
+    );
+  };
+
+  const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (event.key !== "Tab") return;
+
+    const focusableElements = getFocusableElements();
+
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+      return;
+    }
+
+    const firstFocusableElement = focusableElements[0];
+    const lastFocusableElement = focusableElements[focusableElements.length - 1];
+    const activeElement = document.activeElement;
+
+    if (event.shiftKey) {
+      if (
+        activeElement === firstFocusableElement ||
+        !dialogRef.current?.contains(activeElement)
+      ) {
+        event.preventDefault();
+        lastFocusableElement.focus();
+      }
+      return;
+    }
+
+    if (
+      activeElement === lastFocusableElement ||
+      !dialogRef.current?.contains(activeElement)
+    ) {
+      event.preventDefault();
+      firstFocusableElement.focus();
+    }
   };
 
   if (!shouldRender) return null;
@@ -44,7 +139,13 @@ export const Modal: React.FC<PropsWithChildren<ModalProps>> = ({
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleDialogKeyDown}
         style={{
           width: "100%",
           maxWidth: "500px",
@@ -64,9 +165,10 @@ export const Modal: React.FC<PropsWithChildren<ModalProps>> = ({
             marginBottom: "1.5rem",
           }}
         >
-          <h2 style={{ fontSize: "1.25rem" }}>{title}</h2>
+          <h2 id={titleId} style={{ fontSize: "1.25rem" }}>{title}</h2>
           <button
             onClick={onClose}
+            aria-label="Close modal"
             style={{
               background: "none",
               border: "none",

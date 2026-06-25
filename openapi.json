@@ -1,0 +1,531 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StreamPay API",
+    "version": "2.0.0",
+    "description": "REST API for the StreamPay payment-streaming platform on Stellar.\n\nAll error responses use the canonical envelope:\n```json\n{ \"error\": { \"code\": \"ERROR_CODE\", \"message\": \"Human-readable detail.\", \"request_id\": \"req_...\" } }\n```\n\nv1 stream paths are deprecated and will be removed. Use `/api/v2/streams`."
+  },
+  "servers": [
+    { "url": "http://localhost:3000", "description": "Local development" }
+  ],
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque",
+        "description": "Obtain a token via POST /api/auth/wallet, then pass it as `Authorization: Bearer <token>`."
+      }
+    },
+    "schemas": {
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message", "request_id"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Machine-readable error code.",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable description safe to display to clients.",
+                "example": "The requested stream does not exist."
+              },
+              "request_id": {
+                "type": "string",
+                "description": "Opaque identifier for this request, useful for log correlation.",
+                "example": "req_01HZ9ABCDEF"
+              }
+            }
+          }
+        }
+      },
+      "StreamV2": {
+        "type": "object",
+        "required": ["id", "recipient", "rate", "status", "allowed_actions", "created_at", "settlement"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique stream identifier.",
+            "example": "stream_lf3k9z"
+          },
+          "recipient": {
+            "type": "string",
+            "description": "Stellar public key of the payment recipient.",
+            "example": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG"
+          },
+          "rate": {
+            "type": "string",
+            "description": "Human-readable payment rate.",
+            "example": "120 XLM/month"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "active", "paused", "ended"],
+            "description": "Current lifecycle state of the stream."
+          },
+          "allowed_actions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Actions the authenticated user may perform on this stream. Replaces v1 `actions`.",
+            "example": ["pause", "stop"]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 creation timestamp. Replaces v1 `createdAt`.",
+            "example": "2024-01-15T10:00:00.000Z"
+          },
+          "settlement": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["settled_at", "amount", "currency"],
+                "properties": {
+                  "settled_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2024-02-01T12:00:00.000Z"
+                  },
+                  "amount": {
+                    "type": "string",
+                    "example": "360 XLM"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "example": "XLM"
+                  }
+                }
+              },
+              { "type": "null" }
+            ],
+            "description": "Settlement details once the stream has been settled, otherwise `null`. Clients must handle `null` explicitly."
+          }
+        }
+      },
+      "WalletChallenge": {
+        "type": "object",
+        "required": ["challenge", "expires_at"],
+        "properties": {
+          "challenge": {
+            "type": "string",
+            "description": "One-time nonce the client must sign with their Stellar private key.",
+            "example": "streampay_auth_1716000000000_x7k2m"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Challenge expiry (5 minutes from issuance).",
+            "example": "2024-01-15T10:05:00.000Z"
+          }
+        }
+      },
+      "WalletToken": {
+        "type": "object",
+        "required": ["token", "expires_at"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Opaque bearer token. Pass as `Authorization: Bearer <token>`.",
+            "example": "tok_R0FCQzEyMzQ1Njc4OTA"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Token expiry (24 hours from issuance).",
+            "example": "2024-01-16T10:00:00.000Z"
+          }
+        }
+      }
+    },
+    "responses": {
+      "400": {
+        "description": "Bad request — invalid input.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": {
+              "error": {
+                "code": "BAD_REQUEST",
+                "message": "Request body must include 'recipient' and 'rate'.",
+                "request_id": "req_01HZ9ABCDEF"
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "description": "Unauthorized — missing or invalid bearer token.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": {
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "Bearer token required.",
+                "request_id": "req_01HZ9ABCDEF"
+              }
+            }
+          }
+        }
+      },
+      "403": {
+        "description": "Forbidden.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": {
+              "error": {
+                "code": "FORBIDDEN",
+                "message": "This endpoint is not available in production.",
+                "request_id": "req_01HZ9ABCDEF"
+              }
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Internal server error.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": {
+              "error": {
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "An unexpected error occurred.",
+                "request_id": "req_01HZ9ABCDEF"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/auth/wallet": {
+      "get": {
+        "operationId": "getWalletChallenge",
+        "summary": "Issue a wallet authentication challenge",
+        "description": "Returns a one-time nonce the client must sign with their Stellar private key, then submit to `POST /api/auth/wallet`.",
+        "security": [],
+        "tags": ["Auth"],
+        "parameters": [
+          {
+            "name": "address",
+            "in": "query",
+            "required": true,
+            "description": "Stellar public key (G…, 56 characters).",
+            "schema": {
+              "type": "string",
+              "pattern": "^G[A-Z2-7]{55}$",
+              "example": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Challenge issued.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WalletChallenge" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      },
+      "post": {
+        "operationId": "verifyWalletSignature",
+        "summary": "Verify a signed challenge and issue a bearer token",
+        "security": [],
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["address", "challenge", "signature"],
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "description": "Stellar public key.",
+                    "example": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG"
+                  },
+                  "challenge": {
+                    "type": "string",
+                    "description": "The nonce returned by GET /api/auth/wallet.",
+                    "example": "streampay_auth_1716000000000_x7k2m"
+                  },
+                  "signature": {
+                    "type": "string",
+                    "description": "Base64-encoded Ed25519 signature of the challenge.",
+                    "example": "dGVzdHNpZ25hdHVyZQ=="
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token issued.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WalletToken" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400" },
+          "401": { "$ref": "#/components/responses/401" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
+    "/api/v2/streams": {
+      "get": {
+        "operationId": "listStreamsV2",
+        "summary": "List payment streams (v2)",
+        "description": "Returns all streams owned by the authenticated user in the v2 shape (`allowed_actions`, `created_at`, `settlement`).",
+        "tags": ["Streams"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Stream list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["streams"],
+                  "properties": {
+                    "streams": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/StreamV2" }
+                    }
+                  }
+                },
+                "example": {
+                  "streams": [
+                    {
+                      "id": "stream_lf3k9z",
+                      "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                      "rate": "120 XLM/month",
+                      "status": "active",
+                      "allowed_actions": ["pause", "stop"],
+                      "created_at": "2024-01-15T10:00:00.000Z",
+                      "settlement": null
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/401" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      },
+      "post": {
+        "operationId": "createStreamV2",
+        "summary": "Create a payment stream (v2)",
+        "tags": ["Streams"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["recipient", "rate"],
+                "properties": {
+                  "recipient": {
+                    "type": "string",
+                    "description": "Stellar public key of the recipient.",
+                    "example": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG"
+                  },
+                  "rate": {
+                    "type": "string",
+                    "description": "Payment rate string.",
+                    "example": "120 XLM/month"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "description": "Asset code (optional, defaults to XLM).",
+                    "example": "XLM"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Stream created. Initial status is `draft`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreamV2" },
+                "example": {
+                  "id": "stream_lf3k9z",
+                  "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                  "rate": "120 XLM/month",
+                  "status": "draft",
+                  "allowed_actions": ["start"],
+                  "created_at": "2024-01-15T10:00:00.000Z",
+                  "settlement": null
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400" },
+          "401": { "$ref": "#/components/responses/401" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
+    "/api/webhooks/dlq": {
+      "post": {
+        "operationId": "receiveDlqWebhook",
+        "summary": "Receive a dead-letter-queue webhook event",
+        "description": "Accepts failed webhook events for reprocessing. No authentication required (secured at the network/gateway level).",
+        "security": [],
+        "tags": ["Webhooks"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Arbitrary webhook event payload.",
+                "example": { "event": "payment.failed", "id": "evt_001" }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["received"],
+                  "properties": {
+                    "received": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
+    "/api/webhooks/deliveries": {
+      "get": {
+        "operationId": "listWebhookDeliveries",
+        "summary": "List webhook delivery attempts",
+        "security": [],
+        "tags": ["Webhooks"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of records to return (1–100, default 20).",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque pagination cursor from a previous response.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delivery list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["deliveries", "cursor", "limit"],
+                  "properties": {
+                    "deliveries": { "type": "array", "items": { "type": "object" } },
+                    "cursor": { "type": ["string", "null"] },
+                    "limit": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
+    "/api/debug/kms-sign": {
+      "post": {
+        "operationId": "debugKmsSign",
+        "summary": "Sign a payload via KMS (debug only)",
+        "description": "**Non-production only.** Returns a base64-encoded signature for the given payload. Returns 403 in production.",
+        "security": [],
+        "tags": ["Debug"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["payload"],
+                "properties": {
+                  "payload": {
+                    "type": "string",
+                    "description": "Base64-encoded data to sign.",
+                    "example": "aGVsbG8="
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signature produced.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["signature"],
+                  "properties": {
+                    "signature": {
+                      "type": "string",
+                      "description": "Base64-encoded signature.",
+                      "example": "c2lnbmVkOmFHVnNiRzg9"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400" },
+          "403": { "$ref": "#/components/responses/403" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    }
+  },
+  "tags": [
+    { "name": "Auth", "description": "Wallet-based authentication flow" },
+    { "name": "Streams", "description": "Payment stream management (v2)" },
+    { "name": "Webhooks", "description": "Webhook ingestion and delivery history" },
+    { "name": "Debug", "description": "Non-production debugging utilities" }
+  ]
+}
