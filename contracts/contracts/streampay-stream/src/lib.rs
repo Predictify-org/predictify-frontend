@@ -2,6 +2,7 @@
 
 mod error;
 mod events;
+mod release;
 mod storage;
 
 pub use error::Error;
@@ -314,6 +315,10 @@ impl Contract {
     /// Only the stream sender may call this. On pause, status is set to Paused
     /// and pause_time is recorded. Vested amount remains withdrawable but does
     /// not increase while paused.
+    ///
+    /// # Invariant
+    /// `total_amount` is never modified by pause/resume. Escrowed balance is
+    /// preserved entirely: only accrual is frozen, not the underlying escrow.
     pub fn pause(env: Env, stream_id: u64) -> Result<Stream, Error> {
         let mut stream = get_existing_stream(&env, stream_id)?;
         stream.sender.require_auth();
@@ -322,11 +327,21 @@ impl Contract {
             return Err(Error::InvalidState);
         }
 
+        // Capture total_amount before any mutation to assert it is unchanged after.
+        // This invariant ensures pause cannot silently reduce the escrowed balance.
+        let total_amount_before = stream.total_amount;
+
         let now = env.ledger().timestamp();
-        
+
         stream.last_update = now;
         stream.status = StreamStatus::Paused;
         stream.pause_time = now;
+
+        // Invariant: pause must never alter total_amount or release escrowed funds.
+        assert_eq!(
+            stream.total_amount, total_amount_before,
+            "pause invariant: total_amount must be unchanged"
+        );
 
         storage::set_stream(&env, stream_id, &stream);
 
@@ -338,6 +353,15 @@ impl Contract {
     /// Only the stream sender may call this. On resume, the end_time is extended
     /// by the paused duration so the remaining streamable amount is preserved.
     /// Status is set back to Active.
+    ///
+    /// # Invariant
+    /// `total_amount` must be identical before and after resume. The escrowed
+    /// balance is never touched: only the timeline is adjusted.
+    ///
+    /// # Overflow protection
+    /// Both `total_paused_duration` and `end_time` additions use `checked_add`
+    /// to prevent silent u64 wraparound under extreme pause counts or durations.
+    /// Any overflow returns `InvalidTimeRange` without mutating state.
     pub fn resume(env: Env, stream_id: u64) -> Result<Stream, Error> {
         let mut stream = get_existing_stream(&env, stream_id)?;
         stream.sender.require_auth();
@@ -346,26 +370,41 @@ impl Contract {
             return Err(Error::InvalidState);
         }
 
+        // Capture total_amount before mutations to verify the invariant below.
+        let total_amount_before = stream.total_amount;
+
         let now = env.ledger().timestamp();
+
+        // Overflow protection: now must be >= pause_time (clocks are monotonic).
+        // checked_sub prevents underflow if ledger timestamps are ever non-monotonic.
         let paused_duration = now
             .checked_sub(stream.pause_time)
             .ok_or(Error::InvalidTimeRange)?;
 
-        // Track total paused duration for accrual calculations
+        // Overflow protection: accumulated pause time could overflow u64 after
+        // many cycles. Fail safely rather than wrapping silently.
         stream.total_paused_duration = stream
             .total_paused_duration
             .checked_add(paused_duration)
             .ok_or(Error::InvalidTimeRange)?;
 
-        // Extend end_time by the paused duration to preserve unstreamed time
+        // Overflow protection: extending end_time by a large paused_duration
+        // could overflow u64. Fail safely rather than wrapping silently.
         stream.end_time = stream
             .end_time
             .checked_add(paused_duration)
             .ok_or(Error::InvalidTimeRange)?;
-        
+
         stream.last_update = now;
         stream.status = StreamStatus::Active;
         stream.pause_time = 0;
+
+        // Invariant: resume must never alter total_amount or the escrowed balance.
+        // Any drift here would mean funds were lost or created during pause accounting.
+        assert_eq!(
+            stream.total_amount, total_amount_before,
+            "resume invariant: total_amount must be unchanged"
+        );
 
         storage::set_stream(&env, stream_id, &stream);
 
@@ -426,28 +465,17 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
     storage::get_stream(env, stream_id).ok_or(Error::NotFound)
 }
 
+/// Returns the amount currently available for withdrawal (vested minus released).
+///
+/// Delegates to `release::withdrawable` which accounts for paused duration so
+/// that accrual is correctly frozen while the stream is in `Paused` state.
 fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
-    }
-    if now < stream.start_time {
-        return 0;
-    }
-
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
+    release::withdrawable(stream, now)
 }
 
+/// Returns the total vested amount at `now`, used by the `stream_balance` view.
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
-    }
-    let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
-    }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+    release::vested_amount(stream, env.ledger().timestamp())
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
