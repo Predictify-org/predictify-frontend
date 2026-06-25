@@ -1,7 +1,22 @@
 import { createHmac } from "crypto";
+import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
-import { tryAuthenticateRequest, JWT_SECRET } from "@/app/lib/auth";
 import { ExportJob, getStore } from "@/app/lib/db";
+
+const JWT_SECRET = process.env.JWT_SECRET ?? "streampay-dev-secret-do-not-use-in-prod";
+
+function tryAuthenticateRequest(request: Request): { walletAddress: string } | null {
+  const authHeader = request.headers.get?.("authorization") ?? null;
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  try {
+    const verified = jwt.verify(authHeader.slice(7), JWT_SECRET, {
+      algorithms: ["HS256"],
+    }) as { sub?: string };
+    return verified.sub ? { walletAddress: verified.sub } : null;
+  } catch {
+    return null;
+  }
+}
 
 const EXPORT_RETENTION_DAYS = 7;
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
@@ -21,11 +36,6 @@ function createAuditRecord(exportId: string, type: "export.requested" | "export.
   });
 }
 
-function escapeCsvField(value: string | undefined): string {
-  const safe = String(value ?? "").replace(/"/g, '""');
-  return `"${safe}"`;
-}
-
 /** Creates an HMAC-SHA256 signed download URL scoped to this server. */
 function createSignedUrl(jobId: string, expiresAt: string): string {
   const payload = `${jobId}:${expiresAt}`;
@@ -39,32 +49,12 @@ async function generateExportArtifact(jobId: string) {
   const job = exportRepository.jobs.get(jobId);
   if (!job) return;
 
-  // Scope streams and activity to the job owner
-  const streams = Array.from(streamRepository.streams.values())
-    .filter((s) => (s as { ownerId?: string }).ownerId === job.ownerId)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  // Count rows scoped to the job owner (no CSV buffering)
+  const streamCount = Array.from(streamRepository.streams.values())
+    .filter((s) => (s as { ownerId?: string }).ownerId === job.ownerId).length;
 
-  const events = Array.from(streamRepository.activity.values())
-    .filter((e) => (e as { ownerId?: string }).ownerId === job.ownerId)
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-
-  const streamRows = streams.map((stream) =>
-    ["stream", stream.id, stream.recipient, stream.rate, stream.schedule, stream.status, "", "", ""]
-      .map(escapeCsvField)
-      .join(",")
-  );
-
-  const eventRows = events.map((event) =>
-    ["activity", event.streamId ?? "", "", "", "", "", event.type, event.timestamp, event.description]
-      .map(escapeCsvField)
-      .join(",")
-  );
-
-  const allRows = [
-    "record_type,stream_id,recipient,rate,schedule,status,event_type,event_timestamp,description",
-    ...streamRows,
-    ...eventRows,
-  ];
+  const eventCount = Array.from(streamRepository.activity.values())
+    .filter((e) => (e as { ownerId?: string }).ownerId === job.ownerId).length;
 
   const signedUrlExpiresAt = new Date(Date.now() + SIGNED_URL_TTL_SECONDS * 1000).toISOString();
   const signedUrl = createSignedUrl(jobId, signedUrlExpiresAt);
@@ -74,10 +64,10 @@ async function generateExportArtifact(jobId: string) {
     status: "ready",
     signedUrl,
     signedUrlExpiresAt,
-    rows: Math.max(0, allRows.length - 1),
+    rows: streamCount + eventCount,
   });
 
-  createAuditRecord(jobId, "export.requested", { rows: allRows.length - 1 });
+  createAuditRecord(jobId, "export.requested", { rows: streamCount + eventCount });
 }
 
 function scheduleExportJob(jobId: string) {
@@ -118,7 +108,7 @@ export async function POST(request: Request) {
     requestedAt,
     status: "pending",
     expiresAt,
-    fileName: `streampay-export-${requestedAt.slice(0, 10)}.csv`,
+    fileName: `streampay-export-${requestedAt.slice(0, 10)}.ndjson`,
     rows: 0,
   };
 

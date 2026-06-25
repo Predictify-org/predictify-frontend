@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { db, resetDb } from "@/app/lib/db";
+import { resetConcurrency, MAX_CONCURRENT_EXPORTS } from "@/app/lib/export-concurrency";
 import { POST as createExport } from "./route";
 import { GET as getExport } from "./[id]/route";
 
@@ -22,6 +23,7 @@ function wait(ms: number) {
 describe("Exports API — authentication and scoping", () => {
   beforeEach(() => {
     resetDb();
+    resetConcurrency();
   });
 
   // ── POST /api/exports ──────────────────────────────────────────────────────
@@ -80,7 +82,6 @@ describe("Exports API — authentication and scoping", () => {
       const res = await getExport(authRequest(`http://localhost/api/exports/${data.id}`, otherToken), {
         params: Promise.resolve({ id: data.id }),
       });
-      // Returns 404 (not 403) to avoid leaking job existence
       expect(res.status).toBe(404);
     });
 
@@ -108,7 +109,6 @@ describe("Exports API — authentication and scoping", () => {
       const createRes = await createExport(authRequest("http://localhost/api/exports", token));
       const { data } = await createRes.json();
 
-      // Backdate the job's expiresAt
       const job = db.exportJobs.get(data.id)!;
       db.exportJobs.set(data.id, { ...job, expiresAt: new Date(Date.now() - 1000).toISOString() });
 
@@ -121,7 +121,7 @@ describe("Exports API — authentication and scoping", () => {
     });
   });
 
-  // ── Download (signed URL) ─────────────────────────────────────────────────
+  // ── Download (NDJSON stream) ───────────────────────────────────────────────
 
   describe("GET /api/exports/[id]?download=true", () => {
     it("returns 409 when export is not yet ready", async () => {
@@ -129,7 +129,6 @@ describe("Exports API — authentication and scoping", () => {
       const createRes = await createExport(authRequest("http://localhost/api/exports", token));
       const { data } = await createRes.json();
 
-      // Don't wait — job is still pending
       const res = await getExport(
         authRequest(`http://localhost/api/exports/${data.id}?download=true`, token),
         { params: Promise.resolve({ id: data.id }) }
@@ -170,11 +169,9 @@ describe("Exports API — authentication and scoping", () => {
       const { data } = await createRes.json();
       await wait(200);
 
-      // Backdate the signedUrlExpiresAt on the stored job
       const job = db.exportJobs.get(data.id)!;
       const pastExpiry = new Date(Date.now() - 1000).toISOString();
 
-      // Re-sign with the past expiry so the sig is valid but expired
       const { createHmac } = await import("crypto");
       const sig = createHmac("sha256", JWT_SECRET).update(`${data.id}:${pastExpiry}`).digest("hex");
       db.exportJobs.set(data.id, { ...job, signedUrlExpiresAt: pastExpiry });
@@ -191,13 +188,12 @@ describe("Exports API — authentication and scoping", () => {
       expect(json.error.code).toBe("EXPORT_URL_EXPIRED");
     });
 
-    it("returns 200 with valid signed URL for the owning actor", async () => {
+    it("returns NDJSON stream with valid signed URL for the owning actor", async () => {
       const token = makeToken("GOWNER1");
       const createRes = await createExport(authRequest("http://localhost/api/exports", token));
       const { data } = await createRes.json();
       await wait(200);
 
-      // Get the signed URL from the status endpoint
       const statusRes = await getExport(
         authRequest(`http://localhost/api/exports/${data.id}`, token),
         { params: Promise.resolve({ id: data.id }) }
@@ -205,7 +201,6 @@ describe("Exports API — authentication and scoping", () => {
       const statusJson = await statusRes.json();
       expect(statusJson.data.status).toBe("ready");
 
-      // Use the signed URL directly (it's a relative URL)
       const signedUrl = statusJson.data.signedUrl as string;
       const fullUrl = `http://localhost${signedUrl}`;
 
@@ -214,6 +209,28 @@ describe("Exports API — authentication and scoping", () => {
         { params: Promise.resolve({ id: data.id }) }
       );
       expect(downloadRes.status).toBe(200);
+      expect(downloadRes.headers.get("content-type")).toBe("application/x-ndjson");
+      expect(downloadRes.headers.get("content-disposition")).toMatch(/\.ndjson"/);
+
+      const body = await downloadRes.text();
+      const lines = body.trim().split("\n");
+      expect(lines.length).toBeGreaterThanOrEqual(2);
+
+      const meta = JSON.parse(lines[0]);
+      expect(meta.type).toBe("export.meta");
+      expect(meta.exportId).toBe(data.id);
+      expect(meta.ownerId).toBe("GOWNER1");
+
+      const summary = JSON.parse(lines[lines.length - 1]);
+      expect(summary.type).toBe("export.summary");
+      expect(typeof summary.streams).toBe("number");
+      expect(typeof summary.events).toBe("number");
+
+      for (let i = 1; i < lines.length - 1; i++) {
+        const row = JSON.parse(lines[i]);
+        expect(["stream", "activity"]).toContain(row.recordType);
+      }
+
       expect(db.exportAudit.some((r: any) => r.type === "export.downloaded" && r.exportId === data.id)).toBe(true);
     });
 
@@ -231,7 +248,6 @@ describe("Exports API — authentication and scoping", () => {
       const signedUrl = readyJob.signedUrl as string;
       const fullUrl = `http://localhost${signedUrl}`;
 
-      // Different actor tries to use the signed URL
       const otherToken = makeToken("GOTHER2");
       const downloadRes = await getExport(
         authRequest(fullUrl, otherToken),
@@ -241,11 +257,105 @@ describe("Exports API — authentication and scoping", () => {
     });
   });
 
+  // ── Concurrency cap ────────────────────────────────────────────────────────
+
+  describe("Export concurrency cap", () => {
+    it("rejects downloads beyond MAX_CONCURRENT_EXPORTS per tenant", async () => {
+      const token = makeToken("GOWNER1");
+      const createRes = await createExport(authRequest("http://localhost/api/exports", token));
+      const { data } = await createRes.json();
+      await wait(200);
+
+      const statusRes = await getExport(
+        authRequest(`http://localhost/api/exports/${data.id}`, token),
+        { params: Promise.resolve({ id: data.id }) }
+      );
+      const { data: readyJob } = await statusRes.json();
+      const signedUrl = readyJob.signedUrl as string;
+      const fullUrl = `http://localhost${signedUrl}`;
+
+      const requests = Array.from({ length: MAX_CONCURRENT_EXPORTS + 1 }, () =>
+        getExport(authRequest(fullUrl, token), { params: Promise.resolve({ id: data.id }) })
+      );
+
+      const responses = await Promise.all(requests);
+      const ok = responses.filter((r) => r.status === 200);
+      const tooMany = responses.filter((r) => r.status === 429);
+
+      expect(ok.length).toBe(MAX_CONCURRENT_EXPORTS);
+      expect(tooMany.length).toBe(1);
+
+      if (tooMany.length > 0) {
+        const json = await tooMany[0].json();
+        expect(json.error.code).toBe("TOO_MANY_EXPORTS");
+      }
+
+      await Promise.all(ok.map((r) => r.text()));
+    });
+
+    it("allows a new download after a previous one completes", async () => {
+      const token = makeToken("GOWNER1");
+      const createRes = await createExport(authRequest("http://localhost/api/exports", token));
+      const { data } = await createRes.json();
+      await wait(200);
+
+      const statusRes = await getExport(
+        authRequest(`http://localhost/api/exports/${data.id}`, token),
+        { params: Promise.resolve({ id: data.id }) }
+      );
+      const { data: readyJob } = await statusRes.json();
+      const signedUrl = readyJob.signedUrl as string;
+      const fullUrl = `http://localhost${signedUrl}`;
+
+      const res1 = await getExport(authRequest(fullUrl, token), { params: Promise.resolve({ id: data.id }) });
+      await res1.text();
+      expect(res1.status).toBe(200);
+
+      const res2 = await getExport(authRequest(fullUrl, token), { params: Promise.resolve({ id: data.id }) });
+      expect(res2.status).toBe(200);
+      await res2.text();
+    });
+
+    it("does not affect different tenants", async () => {
+      const token1 = makeToken("GOWNER1");
+      const token2 = makeToken("GOTHER2");
+
+      const create1 = await createExport(authRequest("http://localhost/api/exports", token1));
+      const { data: job1 } = await create1.json();
+
+      const create2 = await createExport(authRequest("http://localhost/api/exports", token2));
+      const { data: job2 } = await create2.json();
+
+      await wait(200);
+
+      const status1 = await getExport(authRequest(`http://localhost/api/exports/${job1.id}`, token1), {
+        params: Promise.resolve({ id: job1.id }),
+      });
+      const s1 = await status1.json();
+      const url1 = `http://localhost${s1.data.signedUrl as string}`;
+
+      const status2 = await getExport(authRequest(`http://localhost/api/exports/${job2.id}`, token2), {
+        params: Promise.resolve({ id: job2.id }),
+      });
+      const s2 = await status2.json();
+      const url2 = `http://localhost${s2.data.signedUrl as string}`;
+
+      const [r1, r2] = await Promise.all([
+        getExport(authRequest(url1, token1), { params: Promise.resolve({ id: job1.id }) }),
+        getExport(authRequest(url2, token2), { params: Promise.resolve({ id: job2.id }) }),
+      ]);
+
+      expect(r1.status).toBe(200);
+      expect(r2.status).toBe(200);
+
+      await Promise.all([r1.text(), r2.text()]);
+    });
+  });
+
   // ── Scoping: export only contains owner's data ────────────────────────────
 
   describe("Export scoping", () => {
     it("export job only includes streams owned by the requesting actor", async () => {
-      // Seed streams with ownerId
       db.streams.set("s-owner", {
         id: "s-owner",
         recipient: "Owner Stream",
@@ -279,8 +389,65 @@ describe("Exports API — authentication and scoping", () => {
         { params: Promise.resolve({ id: data.id }) }
       );
       const statusJson = await statusRes.json();
-      // Only 1 stream row (not 2)
       expect(statusJson.data.rows).toBe(1);
+    });
+
+    it("export NDJSON only contains streams owned by the requesting actor", async () => {
+      db.streams.set("s-owner-2", {
+        id: "s-owner-2",
+        recipient: "Owner 2 Stream",
+        rate: "10 XLM / month",
+        schedule: "Monthly",
+        status: "active",
+        nextAction: "pause",
+        createdAt: "2026-04-01T00:00:00Z",
+        updatedAt: "2026-04-01T00:00:00Z",
+        ownerId: "GOWNER2",
+      });
+      db.streams.set("s-other-2", {
+        id: "s-other-2",
+        recipient: "Other Tenant Stream 2",
+        rate: "20 XLM / month",
+        schedule: "Monthly",
+        status: "active",
+        nextAction: "pause",
+        createdAt: "2026-04-01T00:00:00Z",
+        updatedAt: "2026-04-01T00:00:00Z",
+        ownerId: "GOTHER2",
+      });
+
+      const token = makeToken("GOWNER2");
+      const createRes = await createExport(authRequest("http://localhost/api/exports", token));
+      const { data } = await createRes.json();
+      await wait(200);
+
+      const statusRes = await getExport(
+        authRequest(`http://localhost/api/exports/${data.id}`, token),
+        { params: Promise.resolve({ id: data.id }) }
+      );
+      const statusJson = await statusRes.json();
+      const signedUrl = statusJson.data.signedUrl as string;
+      const fullUrl = `http://localhost${signedUrl}`;
+
+      const downloadRes = await getExport(
+        authRequest(fullUrl, token),
+        { params: Promise.resolve({ id: data.id }) }
+      );
+      const body = await downloadRes.text();
+      const lines = body.trim().split("\n");
+
+      const streamRows = lines.filter((l) => {
+        try {
+          return JSON.parse(l).recordType === "stream";
+        } catch {
+          return false;
+        }
+      });
+
+      expect(streamRows.length).toBe(1);
+      const streamData = JSON.parse(streamRows[0]);
+      expect(streamData.id).toBe("s-owner-2");
+      expect(streamData.recipient).toBe("Owner 2 Stream");
     });
   });
 });
