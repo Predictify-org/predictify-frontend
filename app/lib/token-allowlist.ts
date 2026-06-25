@@ -1,5 +1,5 @@
 /**
- * SEP-41 Token Allowlist
+ * SEP-41 Token Allowlist with TTL Cache and Single-Flight Semantics
  *
  * Provides an optional admin-gated allowlist of accepted token addresses for
  * stream creation. When the allowlist is enabled (non-empty), any token not
@@ -16,10 +16,21 @@
  *   and every well-formed token is accepted (open mode).
  * - Admins can mutate the list at runtime via `addAllowedToken` /
  *   `removeAllowedToken` (e.g. from an internal admin route).
+ * - **Caching**: Both allowlist state and token check results are cached with
+ *   a 30-second TTL. Single-flight semantics (via promise-based locking) ensure
+ *   that when the cache expires, only ONE request refreshes it. This prevents
+ *   cache stampedes where many concurrent requests would otherwise all trigger
+ *   expensive operations (e.g., DB queries, external API calls) simultaneously.
  *
  * Token format:
  *   - "XLM" or "native" → Stellar native lumens
  *   - "CODE:ISSUER"      → SEP-41 / Stellar Classic asset
+ *
+ * ## Cache Behavior
+ * - TTL: 30 seconds for both allowlist state and token check results
+ * - Mutations (add/remove token) invalidate all caches immediately
+ * - Single-flight lock ensures stampede protection without blocking
+ * - Thread-safe for concurrent calls via Promise coordination
  */
 
 import { parseAssetString } from "./assets";
@@ -35,6 +46,57 @@ export function normaliseToken(token: string): string {
   return `${asset.code}:${asset.issuer}`;
 }
 
+// ── TTL Cache with Single-Flight Semantics ───────────────────────────────────
+
+/**
+ * Cache entry for a token check result.
+ * Stores the result and expiration timestamp.
+ */
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+
+/**
+ * Returns true if a cache entry has expired.
+ */
+function isCacheExpired<T>(entry: CacheEntry<T> | null): boolean {
+  if (!entry) return true;
+  return Date.now() >= entry.expiresAt;
+}
+
+/**
+ * Creates a cache entry with the given TTL (in milliseconds).
+ */
+function createCacheEntry<T>(data: T, ttlMs: number): CacheEntry<T> {
+  return {
+    data,
+    expiresAt: Date.now() + ttlMs,
+  };
+}
+
+// 30-second TTL for cache entries
+const CACHE_TTL_MS = 30_000;
+
+/**
+ * In-flight promises for single-flight semantics.
+ * Maps token → Promise that resolves to the check result.
+ * Prevents concurrent calls to the same expensive operation.
+ */
+const _inFlightChecks = new Map<string, Promise<{ accepted: true } | { accepted: false; reason: string }>>();
+
+/**
+ * Cache for token check results.
+ * Maps normalised token → cached check result with expiration.
+ */
+const _checkResultCache = new Map<string, CacheEntry<{ accepted: true } | { accepted: false; reason: string }>>();
+
+/**
+ * Cache for allowlist state (isEnabled flag).
+ * Single entry to track whether allowlist is currently enabled.
+ */
+let _allowlistStateCache: CacheEntry<boolean> | null = null;
+
 // ── In-memory allowlist state ─────────────────────────────────────────────────
 
 /**
@@ -42,6 +104,16 @@ export function normaliseToken(token: string): string {
  * An empty set means the allowlist is disabled (all valid tokens accepted).
  */
 const _allowlist: Set<string> = new Set();
+
+/**
+ * Invalidate all caches.
+ * Called whenever the allowlist is mutated.
+ */
+function _invalidateAllCaches(): void {
+  _checkResultCache.clear();
+  _allowlistStateCache = null;
+  _inFlightChecks.clear();
+}
 
 /** Seed from environment on module load. */
 (function seedFromEnv() {
@@ -63,9 +135,19 @@ const _allowlist: Set<string> = new Set();
 /**
  * Returns `true` when the allowlist is active (has at least one entry).
  * When inactive every well-formed token is accepted.
+ *
+ * Uses cached state with 30s TTL.
  */
 export function isAllowlistEnabled(): boolean {
-  return _allowlist.size > 0;
+  // Check cache first
+  if (!isCacheExpired(_allowlistStateCache)) {
+    return _allowlistStateCache!.data;
+  }
+
+  // Cache miss or expired: recompute and cache
+  const enabled = _allowlist.size > 0;
+  _allowlistStateCache = createCacheEntry(enabled, CACHE_TTL_MS);
+  return enabled;
 }
 
 /**
@@ -79,19 +161,23 @@ export function getAllowedTokens(): string[] {
 /**
  * Add a token to the allowlist (admin operation).
  * Automatically enables the allowlist if it was previously empty.
+ * Invalidates all caches.
  *
  * @throws {Error} if the token string is malformed.
  */
 export function addAllowedToken(token: string): void {
   _allowlist.add(normaliseToken(token));
+  _invalidateAllCaches();
 }
 
 /**
  * Remove a token from the allowlist (admin operation).
  * If the last entry is removed the allowlist becomes disabled (open mode).
+ * Invalidates all caches.
  */
 export function removeAllowedToken(token: string): void {
   _allowlist.delete(normaliseToken(token));
+  _invalidateAllCaches();
 }
 
 /**
@@ -100,18 +186,65 @@ export function removeAllowedToken(token: string): void {
  * - When the allowlist is **disabled** (empty): every well-formed token passes.
  * - When the allowlist is **enabled**: only listed tokens pass.
  *
+ * Implements single-flight semantics: when the cache expires and multiple
+ * concurrent calls arrive, only one will re-evaluate; others will wait for
+ * its result. This prevents cache stampedes.
+ *
  * @param token  Raw token string from the API request body.
  * @returns `{ accepted: true }` or `{ accepted: false, reason: string }`.
  */
-export function checkTokenAllowed(token: string): { accepted: true } | { accepted: false; reason: string } {
+export async function checkTokenAllowed(
+  token: string,
+): Promise<{ accepted: true } | { accepted: false; reason: string }> {
   let normalised: string;
   try {
     normalised = normaliseToken(token);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
+    // Malformed tokens are not cached — fail fast without cache
     return { accepted: false, reason: `Invalid token format: ${msg}` };
   }
 
+  // Check token result cache
+  const cachedResult = _checkResultCache.get(normalised);
+  if (!isCacheExpired(cachedResult)) {
+    return cachedResult!.data;
+  }
+
+  // Check if another request is already performing the check (single-flight)
+  const inFlight = _inFlightChecks.get(normalised);
+  if (inFlight) {
+    // Wait for the in-flight operation to complete
+    return inFlight;
+  }
+
+  // Create a new check operation and store it as in-flight
+  const checkPromise = (async () => {
+    try {
+      // Perform the actual check
+      const result = _performCheckTokenAllowed(normalised);
+
+      // Cache the result
+      _checkResultCache.set(normalised, createCacheEntry(result, CACHE_TTL_MS));
+
+      return result;
+    } finally {
+      // Always remove from in-flight map when done
+      _inFlightChecks.delete(normalised);
+    }
+  })();
+
+  _inFlightChecks.set(normalised, checkPromise);
+  return checkPromise;
+}
+
+/**
+ * Synchronous implementation of token check (no async operations).
+ * This is called internally and can be wrapped by the async cache layer.
+ *
+ * @private
+ */
+function _performCheckTokenAllowed(normalised: string): { accepted: true } | { accepted: false; reason: string } {
   if (!isAllowlistEnabled()) {
     // Open mode — any well-formed token is accepted.
     return { accepted: true };
@@ -129,8 +262,21 @@ export function checkTokenAllowed(token: string): { accepted: true } | { accepte
 
 /**
  * Reset the allowlist to its initial (empty / disabled) state.
+ * Clears all caches as well.
  * Intended for use in tests only.
  */
 export function _resetAllowlistForTesting(): void {
   _allowlist.clear();
+  _invalidateAllCaches();
+}
+
+/**
+ * Wait for all in-flight operations to complete.
+ * Intended for use in tests only (to ensure cache operations finish).
+ */
+export async function _waitForInFlightOperations(): Promise<void> {
+  const promises = Array.from(_inFlightChecks.values());
+  if (promises.length > 0) {
+    await Promise.all(promises);
+  }
 }
