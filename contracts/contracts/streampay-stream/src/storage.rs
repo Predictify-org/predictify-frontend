@@ -73,25 +73,23 @@ fn ttl_target(env: &Env, extra_ledgers: u32) -> u32 {
 }
 
 fn extend_persistent_ttl(env: &Env, key: &DataKey) {
+    // In soroban-sdk 23.x, get_ttl is only available via testutils and the
+    // extend_ttl call itself short-circuits when the key's TTL is already
+    // above the threshold. We therefore call extend_ttl unconditionally
+    // with the minimum remaining TTL as the threshold.
+    let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
     let target = ttl_target(env, STREAM_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().persistent().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().persistent().extend_ttl(key, &target);
+    env.storage().persistent().extend_ttl(key, threshold, target);
 }
 
-fn extend_instance_ttl(env: &Env, key: &DataKey) {
+fn extend_instance_ttl(env: &Env, _key: &DataKey) {
+    // Instance storage in soroban-sdk 23.x does not accept a key argument
+    // to extend_ttl; the host function extends the entire current contract
+    // instance. The call short-circuits internally when the instance TTL
+    // already exceeds the threshold.
+    let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
     let target = ttl_target(env, INSTANCE_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().instance().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().instance().extend_ttl(key, &target);
+    env.storage().instance().extend_ttl(threshold, target);
 }
 
 fn extend_stream_ttl(env: &Env, stream_id: u64) {
@@ -107,7 +105,7 @@ fn extend_pause_key_ttl(env: &Env) {
 }
 
 fn extend_next_stream_id_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::NextStreamId);
+    extend_instance_ttl(env, &DataKey::StreamCount);
 }
 
 pub fn has_admin(env: &Env) -> bool {
@@ -163,8 +161,8 @@ pub fn is_token_blocked(env: &Env, token: &Address) -> bool {
 
 pub fn next_stream_id(env: &Env) -> u64 {
     let storage = env.storage().instance();
-    let id = storage.get(&DataKey::NextStreamId).unwrap_or(1u64);
-    storage.set(&DataKey::NextStreamId, &(id + 1));
+    let id = storage.get(&DataKey::StreamCount).unwrap_or(1u64);
+    storage.set(&DataKey::StreamCount, &(id + 1));
     extend_next_stream_id_ttl(env);
     id
 }

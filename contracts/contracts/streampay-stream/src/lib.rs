@@ -2,6 +2,7 @@
 
 mod error;
 mod events;
+mod release;
 mod storage;
 
 pub use error::Error;
@@ -31,6 +32,86 @@ impl Contract {
         admin.require_auth();
         storage::set_admin(&env, &admin);
         storage::set_paused(&env, false);
+        Ok(())
+    }
+
+    /// Atomic initialisation + token allowlist.
+    ///
+    /// Performs the work of `initialize` and then marks each
+    /// address in `tokens` as `allowed = true` in the per-token
+    /// allowlist, all within a single transaction.
+    ///
+    /// Use this from deployment scripts so that the admin and the
+    /// initial allowlist are committed together: either the whole
+    /// configuration lands atomically or nothing does. Because
+    /// Soroban rolls back all storage writes on failure, calling
+    /// this on a contract that is already initialised (or with a
+    /// caller that fails auth) leaves zero partial state.
+    ///
+    /// Tokens are allowed by default; explicitly writing
+    /// `allowed = true` here is idempotent for tokens that are
+    /// already allowed and has no effect on tokens that are
+    /// subsequently blocked via `set_token_allowed`.
+    ///
+    /// # Arguments
+    ///
+    /// * `admin`  - The privileged address authorised to call
+    ///   admin entrypoints (`set_paused`, `set_admin`,
+    ///   `set_token_allowed`).
+    /// * `tokens` - The list of token contract addresses to
+    ///   register in the allowlist. May be empty if the contract
+    ///   intends to stream the native asset or add tokens lazily
+    ///   via `set_token_allowed` later.
+    ///
+    /// # Errors
+    ///
+    /// - `Error::InvalidState` if the contract has already been
+    ///   initialised. The allowlist is *not* partially written.
+    ///
+    /// # Auth
+    ///
+    /// Requires authorisation from `admin`. Auth is consumed
+    /// before any state mutation so that an auth failure cannot
+    /// leave the contract half-configured.
+    ///
+    /// # See also
+    ///
+    /// - `initialize` - the legacy two-step path; still supported
+    ///   for backward compatibility.
+    /// - `set_token_allowed` - the per-token toggle used after
+    ///   initialisation.
+    pub fn init_with_token_allowlist(
+        env: Env,
+        admin: Address,
+        tokens: soroban_sdk::Vec<Address>,
+    ) -> Result<(), Error> {
+        // Guard against double initialisation. We check *before* any
+        // writes so that a previously-initialised contract cannot have
+        // its allowlist silently mutated.
+        if storage::has_admin(&env) {
+            return Err(Error::InvalidState);
+        }
+
+        // Authorise the caller up-front. Soroban rolls back all
+        // storage writes on auth failure, but collecting auth first
+        // makes the atomicity guarantee obvious to reviewers and
+        // mirrors the pattern used by `initialize`.
+        admin.require_auth();
+
+        // From this point on the transaction either commits all
+        // writes or none of them - the host aborts and reverts on
+        // any panic, so any failure below (none expected under
+        // normal conditions) leaves the contract uninitialised.
+        storage::set_admin(&env, &admin);
+        storage::set_paused(&env, false);
+
+        // Iterate the allowlist. `Vec::iter` returns an iterator
+        // over the on-chain vector; each `set_token_allowed` call
+        // writes a single persistent-storage entry.
+        for token in tokens.iter() {
+            storage::set_token_allowed(&env, &token, true);
+        }
+
         Ok(())
     }
 

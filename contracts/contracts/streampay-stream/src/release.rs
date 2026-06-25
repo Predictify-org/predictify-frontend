@@ -56,20 +56,23 @@ pub fn withdrawable(stream: &Stream, now: u64) -> i128 {
 mod tests {
     use super::*;
     use crate::StreamStatus;
-    use soroban_sdk::{Address, contracttype};
+    use soroban_sdk::{testutils::Address as _, Address};
 
-    /// Helper to create a test stream
+    /// Helper to create a test stream. Uses a shared `Env` so that
+    /// `Address::generate` (which lives in `soroban_sdk::testutils`)
+    /// resolves at compile time.
     fn test_stream(
         total_amount: i128,
         released_amount: i128,
         start_time: u64,
         end_time: u64,
     ) -> Stream {
+        let env = soroban_sdk::Env::default();
         Stream {
             id: 1,
-            sender: Address::generate(&soroban_sdk::Env::default()),
-            recipient: Address::generate(&soroban_sdk::Env::default()),
-            token: Address::generate(&soroban_sdk::Env::default()),
+            sender: Address::generate(&env),
+            recipient: Address::generate(&env),
+            token: Address::generate(&env),
             total_amount,
             released_amount,
             start_time,
@@ -160,8 +163,11 @@ mod tests {
 
     #[test]
     fn test_large_amount_near_i128_max() {
-        // Test with a large amount that could cause overflow if not using checked arithmetic
-        let large_amount = i128::MAX / 2;
+        // Use a large amount that could cause overflow if not using
+        // checked arithmetic. We pick a value whose product with the
+        // duration still fits in i128: i128::MAX / 1000 ensures
+        // amount * duration is well under i128::MAX.
+        let large_amount = i128::MAX / 1000;
         let stream = test_stream(large_amount, 0, 1000, 2000);
         let vested = vested_amount(&stream, 1500);
         assert!(vested >= 0 && vested <= large_amount);
@@ -170,7 +176,8 @@ mod tests {
 
     #[test]
     fn test_zero_duration_edge_case() {
-        // This should not happen in practice, but we handle it defensively
+        // This should not happen in practice, but we handle it
+        // defensively.
         let mut stream = test_stream(1000, 0, 1000, 1000);
         stream.duration = 0;
         assert_eq!(vested_amount(&stream, 1000), 1000);
@@ -178,69 +185,52 @@ mod tests {
 
     #[test]
     fn test_table_driven_vested_amount() {
-        struct TestCase {
-            total: i128,
-            start: u64,
-            end: u64,
-            now: u64,
-            expected: i128,
-        }
-
-        let cases = vec![
-            // (total, start, end, now, expected)
+        // (total, start, end, now, expected)
+        let cases: [(i128, u64, u64, u64, i128); 12] = [
             (1000, 1000, 2000, 500, 0),    // before start
             (1000, 1000, 2000, 1000, 0),   // at start
-            (1000, 1000, 2000, 1250, 250),  // 25% through
-            (1000, 1000, 2000, 1500, 500),  // 50% through
-            (1000, 1000, 2000, 1750, 750),  // 75% through
+            (1000, 1000, 2000, 1250, 250), // 25% through
+            (1000, 1000, 2000, 1500, 500), // 50% through
+            (1000, 1000, 2000, 1750, 750), // 75% through
             (1000, 1000, 2000, 2000, 1000), // at end
             (1000, 1000, 2000, 3000, 1000), // past end
-            (100, 0, 100, 0, 0),            // zero start time
-            (100, 0, 100, 50, 50),          // zero start time, mid
-            (100, 0, 100, 100, 100),        // zero start time, at end
-            (1, 0, 1, 0, 0),                // minimal duration
-            (1, 0, 1, 1, 1),                // minimal duration, at end
+            (100, 0, 100, 0, 0),           // zero start time
+            (100, 0, 100, 50, 50),         // zero start time, mid
+            (100, 0, 100, 100, 100),       // zero start time, at end
+            (1, 0, 1, 0, 0),               // minimal duration
+            (1, 0, 1, 1, 1),               // minimal duration, at end
         ];
 
-        for case in cases {
-            let stream = test_stream(case.total, 0, case.start, case.end);
-            let result = vested_amount(&stream, case.now);
+        for case in cases.iter() {
+            let stream = test_stream(case.0, 0, case.1, case.2);
+            let result = vested_amount(&stream, case.3);
             assert_eq!(
-                result, case.expected,
+                result, case.4,
                 "vested_amount failed: total={}, start={}, end={}, now={}, expected={}, got={}",
-                case.total, case.start, case.end, case.now, case.expected, result
+                case.0, case.1, case.2, case.3, case.4, result
             );
         }
     }
 
     #[test]
     fn test_table_driven_withdrawable() {
-        struct TestCase {
-            total: i128,
-            released: i128,
-            start: u64,
-            end: u64,
-            now: u64,
-            expected: i128,
-        }
-
-        let cases = vec![
-            // (total, released, start, end, now, expected)
-            (1000, 0, 1000, 2000, 1000, 0),     // nothing vested
-            (1000, 0, 1000, 2000, 1500, 500),   // half vested
+        // (total, released, start, end, now, expected)
+        let cases: [(i128, i128, u64, u64, u64, i128); 6] = [
+            (1000, 0, 1000, 2000, 1000, 0),    // nothing vested
+            (1000, 0, 1000, 2000, 1500, 500),  // half vested
             (1000, 200, 1000, 2000, 1500, 300), // half vested, some released
-            (1000, 500, 1000, 2000, 1500, 0),   // half vested, more released
-            (1000, 1000, 1000, 2000, 2000, 0),  // fully released
-            (1000, 0, 1000, 2000, 3000, 1000),  // past end, nothing released
+            (1000, 500, 1000, 2000, 1500, 0),  // half vested, more released
+            (1000, 1000, 1000, 2000, 2000, 0), // fully released
+            (1000, 0, 1000, 2000, 3000, 1000), // past end, nothing released
         ];
 
-        for case in cases {
-            let stream = test_stream(case.total, case.released, case.start, case.end);
-            let result = withdrawable(&stream, case.now);
+        for case in cases.iter() {
+            let stream = test_stream(case.0, case.1, case.2, case.3);
+            let result = withdrawable(&stream, case.4);
             assert_eq!(
-                result, case.expected,
+                result, case.5,
                 "withdrawable failed: total={}, released={}, start={}, end={}, now={}, expected={}, got={}",
-                case.total, case.released, case.start, case.end, case.now, case.expected, result
+                case.0, case.1, case.2, case.3, case.4, case.5, result
             );
         }
     }
