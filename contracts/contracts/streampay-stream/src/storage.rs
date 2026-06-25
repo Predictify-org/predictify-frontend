@@ -47,7 +47,7 @@ pub struct Stream {
 
 #[derive(Clone)]
 #[contracttype]
-enum DataKey {
+pub enum DataKey {
     Admin,
     Paused,
     StreamCount,
@@ -73,73 +73,51 @@ fn ttl_target(env: &Env, extra_ledgers: u32) -> u32 {
 }
 
 fn extend_persistent_ttl(env: &Env, key: &DataKey) {
+    let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
     let target = ttl_target(env, STREAM_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().persistent().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().persistent().extend_ttl(key, &target);
+    env.storage().persistent().extend_ttl(key, threshold, target);
 }
 
-fn extend_instance_ttl(env: &Env, key: &DataKey) {
+fn extend_instance_ttl(env: &Env) {
+    let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
     let target = ttl_target(env, INSTANCE_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().instance().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().instance().extend_ttl(key, &target);
+    env.storage().instance().extend_ttl(threshold, target);
 }
 
 fn extend_stream_ttl(env: &Env, stream_id: u64) {
     extend_persistent_ttl(env, &DataKey::Stream(stream_id));
 }
 
-fn extend_admin_key_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::Admin);
-}
-
-fn extend_pause_key_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::Paused);
-}
-
-fn extend_next_stream_id_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::NextStreamId);
+fn extend_instance_keys_ttl(env: &Env) {
+    extend_instance_ttl(env);
 }
 
 pub fn has_admin(env: &Env) -> bool {
-    let exists = env.storage().instance().has(&DataKey::Admin);
-    if exists {
-        extend_admin_key_ttl(env);
-    }
-    exists
+    env.storage().instance().has(&DataKey::Admin)
 }
 
 pub fn set_admin(env: &Env, admin: &Address) {
     env.storage().instance().set(&DataKey::Admin, admin);
-    extend_admin_key_ttl(env);
+    extend_instance_keys_ttl(env);
 }
 
 pub fn get_admin(env: &Env) -> Option<Address> {
     let admin = env.storage().instance().get(&DataKey::Admin);
     if admin.is_some() {
-        extend_admin_key_ttl(env);
+        extend_instance_keys_ttl(env);
     }
     admin
 }
 
 pub fn set_paused(env: &Env, paused: bool) {
     env.storage().instance().set(&DataKey::Paused, &paused);
-    extend_pause_key_ttl(env);
+    extend_instance_keys_ttl(env);
 }
 
 pub fn is_paused(env: &Env) -> bool {
     let paused = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
-    if env.storage().instance().has(&DataKey::Paused) {
-        extend_pause_key_ttl(env);
+    if paused {
+        extend_instance_keys_ttl(env);
     }
     paused
 }
@@ -163,9 +141,9 @@ pub fn is_token_blocked(env: &Env, token: &Address) -> bool {
 
 pub fn next_stream_id(env: &Env) -> u64 {
     let storage = env.storage().instance();
-    let id = storage.get(&DataKey::NextStreamId).unwrap_or(1u64);
-    storage.set(&DataKey::NextStreamId, &(id + 1));
-    extend_next_stream_id_ttl(env);
+    let id = storage.get(&DataKey::StreamCount).unwrap_or(1u64);
+    storage.set(&DataKey::StreamCount, &(id + 1));
+    extend_instance_keys_ttl(env);
     id
 }
 

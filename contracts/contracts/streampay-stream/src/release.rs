@@ -54,9 +54,12 @@ pub fn withdrawable(stream: &Stream, now: u64) -> i128 {
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+    use alloc::vec;
     use super::*;
     use crate::StreamStatus;
-    use soroban_sdk::{Address, contracttype};
+    use soroban_sdk::Address;
+    use soroban_sdk::testutils::Address as _;
 
     /// Helper to create a test stream
     fn test_stream(
@@ -203,12 +206,12 @@ mod tests {
         ];
 
         for case in cases {
-            let stream = test_stream(case.total, 0, case.start, case.end);
-            let result = vested_amount(&stream, case.now);
+            let stream = test_stream(case.0, 0, case.1, case.2);
+            let result = vested_amount(&stream, case.3);
             assert_eq!(
-                result, case.expected,
+                result, case.4,
                 "vested_amount failed: total={}, start={}, end={}, now={}, expected={}, got={}",
-                case.total, case.start, case.end, case.now, case.expected, result
+                case.0, case.1, case.2, case.3, case.4, result
             );
         }
     }
@@ -235,12 +238,12 @@ mod tests {
         ];
 
         for case in cases {
-            let stream = test_stream(case.total, case.released, case.start, case.end);
-            let result = withdrawable(&stream, case.now);
+            let stream = test_stream(case.0, case.1, case.2, case.3);
+            let result = withdrawable(&stream, case.4);
             assert_eq!(
-                result, case.expected,
+                result, case.5,
                 "withdrawable failed: total={}, released={}, start={}, end={}, now={}, expected={}, got={}",
-                case.total, case.released, case.start, case.end, case.now, case.expected, result
+                case.0, case.1, case.2, case.3, case.4, case.5, result
             );
         }
     }

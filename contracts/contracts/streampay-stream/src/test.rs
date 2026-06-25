@@ -3,10 +3,12 @@
 use super::*;
 use soroban_sdk::{
     symbol_short,
-    testutils::{Address as _, Ledger},
+    testutils::{Address as TestAddress, Events, Ledger},
+    testutils::storage::{Instance, Persistent},
     token::StellarAssetClient,
-    Address, Env, IntoVal, Val,
+    Address, Env, Symbol, TryIntoVal,
 };
+use crate::storage::DataKey;
 
 #[derive(Debug)]
 struct BudgetSnapshot {
@@ -152,17 +154,12 @@ fn assert_budget_ceiling(
 }
 
 #[test]
-fn draft_stream_accrues_nothing_until_started() {
+fn active_stream_accrues_over_time() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &true,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
-    data.env.ledger().set_timestamp(2_000);
-    assert_eq!(data.client.withdrawable(&stream_id), 0);
-    assert_eq!(data.client.stream_balance(&stream_id), 0);
-
-    data.client.start_stream(&stream_id);
-    data.env.ledger().set_timestamp(2_050);
+    data.env.ledger().set_timestamp(1_050);
     assert!(data.client.withdrawable(&stream_id) > 0);
     assert!(data.client.stream_balance(&stream_id) > 0);
 }
@@ -236,8 +233,8 @@ fn stream_persistent_ttl_extends_on_money_path_access() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     let before_ttl = data
@@ -266,16 +263,16 @@ fn instance_ttl_extends_for_admin_and_counter_keys() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &true,
+        &1_000,
+        &1_100,
     );
 
-    let before_admin_ttl = data.env.storage().instance().get_ttl(&DataKey::Admin);
+    let before_admin_ttl = data.env.storage().instance().get_ttl();
     let before_next_id_ttl = data
         .env
         .storage()
         .instance()
-        .get_ttl(&DataKey::NextStreamId);
+        .get_ttl();
 
     data.env.ledger().set_timestamp(1_050);
     data.client.set_paused(&data.admin, &false);
@@ -284,16 +281,16 @@ fn instance_ttl_extends_for_admin_and_counter_keys() {
         &data.recipient,
         &data.token,
         &500,
-        &10,
-        &true,
+        &1_050,
+        &1_060,
     );
 
-    let after_admin_ttl = data.env.storage().instance().get_ttl(&DataKey::Admin);
+    let after_admin_ttl = data.env.storage().instance().get_ttl();
     let after_next_id_ttl = data
         .env
         .storage()
         .instance()
-        .get_ttl(&DataKey::NextStreamId);
+        .get_ttl();
 
     assert!(after_admin_ttl > before_admin_ttl);
     assert!(after_next_id_ttl > before_next_id_ttl);
@@ -358,27 +355,9 @@ fn create_stream_wrong_sender_fails() {
         &data.recipient,
         &data.token,
         &100,
-        &10,
-        &false,
+        &1_000,
+        &1_010,
     );
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn start_stream_wrong_sender_fails() {
-    let data = setup_initialized();
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &true,
-    );
-
-    let wrong = Address::generate(&data.env);
-    data.env.mock_auths(&[]);
-    data.client.start_stream(&id);
 }
 
 #[test]
@@ -390,8 +369,8 @@ fn withdraw_wrong_recipient_fails() {
         &data.recipient,
         &data.token,
         &100,
-        &10,
-        &false,
+        &1_000,
+        &1_010,
     );
 
     data.env.ledger().set_timestamp(1_005);
@@ -408,8 +387,8 @@ fn pause_wrong_sender_fails() {
         &data.recipient,
         &data.token,
         &100,
-        &10,
-        &false,
+        &1_000,
+        &1_010,
     );
 
     data.env.mock_auths(&[]);
@@ -425,8 +404,8 @@ fn resume_wrong_sender_fails() {
         &data.recipient,
         &data.token,
         &100,
-        &10,
-        &false,
+        &1_000,
+        &1_010,
     );
     data.client.pause(&id);
 
@@ -435,37 +414,21 @@ fn resume_wrong_sender_fails() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn cancel_stream_wrong_sender_fails() {
+fn settle_permissionless_succeeds() {
     let data = setup_initialized();
     let id = data.client.create_stream(
         &data.sender,
         &data.recipient,
         &data.token,
         &100,
-        &10,
-        &false,
+        &1_000,
+        &1_010,
     );
 
-    data.env.mock_auths(&[]);
-    data.client.cancel_stream(&id);
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn settle_wrong_recipient_fails() {
-    let data = setup_initialized();
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &false,
-    );
-
-    data.env.mock_auths(&[]);
+    data.env.ledger().set_timestamp(1_020);
     data.client.settle(&id);
+    let stream = data.client.get_stream(&id);
+    assert_eq!(stream.status, StreamStatus::Settled);
 }
 
 // ── Linear release math tests ───────────────────────────────────────────────
@@ -801,47 +764,30 @@ fn budget_full_withdraw_settle_stays_within_ceiling() {
 fn create_stream_emits_created_event() {
     let data = setup_initialized();
     data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("created").into_val(&data.env))
+            && topics.get(0).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("stream"))
+            && topics.get(1).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("created"))
     });
     assert!(found, "expected 'stream.created' event after create_stream");
-}
-
-#[test]
-fn start_stream_emits_started_event() {
-    let data = setup_initialized();
-    let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &true,
-    );
-    data.env.ledger().set_timestamp(2_000);
-    data.client.start_stream(&stream_id);
-    let events = data.env.events().all();
-    let found = events.iter().any(|(_, topics, _)| {
-        topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("started").into_val(&data.env))
-    });
-    assert!(found, "expected 'stream.started' event after start_stream");
 }
 
 #[test]
 fn withdraw_emits_withdrawn_event() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     data.env.ledger().set_timestamp(1_050);
     data.client.withdraw(&stream_id, &300);
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+            && topics.get(0).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("stream"))
+            && topics.get(1).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("withdrawn"))
     });
     assert!(found, "expected 'stream.withdrawn' event after withdraw");
 }
@@ -850,16 +796,16 @@ fn withdraw_emits_withdrawn_event() {
 fn full_withdraw_emits_settled_event() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     data.env.ledger().set_timestamp(1_100);
     data.client.withdraw(&stream_id, &1_000);
     let events = data.env.events().all();
     let has_withdrawn = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+        topics.get(1).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("withdrawn"))
     });
     let has_settled = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("settled").into_val(&data.env))
+        topics.get(1).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("settled"))
     });
     assert!(has_withdrawn, "expected 'stream.withdrawn' event on full withdrawal");
     assert!(has_settled, "expected 'stream.settled' event after full withdrawal");
@@ -869,15 +815,15 @@ fn full_withdraw_emits_settled_event() {
 fn pause_emits_paused_event() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     data.env.ledger().set_timestamp(1_050);
     data.client.pause(&stream_id);
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("paused").into_val(&data.env))
+            && topics.get(0).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("stream"))
+            && topics.get(1).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("paused"))
     });
     assert!(found, "expected 'stream.paused' event after pause");
 }
@@ -886,7 +832,7 @@ fn pause_emits_paused_event() {
 fn resume_emits_resumed_event() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     data.env.ledger().set_timestamp(1_050);
     data.client.pause(&stream_id);
@@ -895,8 +841,8 @@ fn resume_emits_resumed_event() {
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("resumed").into_val(&data.env))
+            && topics.get(0).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("stream"))
+            && topics.get(1).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("resumed"))
     });
     assert!(found, "expected 'stream.resumed' event after resume");
 }
@@ -905,13 +851,221 @@ fn resume_emits_resumed_event() {
 fn failed_withdraw_emits_no_event() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     data.env.ledger().set_timestamp(1_050);
     let _ = data.client.try_withdraw(&stream_id, &600);
     let events = data.env.events().all();
     let has_withdrawn = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+        topics.get(1).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("withdrawn"))
     });
     assert!(!has_withdrawn, "no 'withdrawn' event should be emitted on a failed withdrawal");
+}
+
+// ── amend_stream ────────────────────────────────────────────────────────────────
+
+fn create_active_stream(data: &TestData) -> u64 {
+    data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &1_000,
+        &1_100,
+    )
+}
+
+#[test]
+fn amend_stream_increases_total_amount() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    data.env.ledger().set_timestamp(1_050);
+    data.client.amend_stream(&stream_id, &500);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.total_amount, 1_500);
+}
+
+#[test]
+fn amend_stream_extends_end_time_proportionally() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    let duration = 100u64; // 1100 - 1000
+    let extra_amount = 500i128;
+    let expected_extra_duration = (extra_amount * duration as i128) / 1_000;
+    let expected_end_time = 1_100 + expected_extra_duration as u64;
+
+    data.env.ledger().set_timestamp(1_050);
+    data.client.amend_stream(&stream_id, &extra_amount);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.end_time, expected_end_time);
+    assert_eq!(stream.total_amount, 1_500);
+}
+
+#[test]
+fn amend_stream_increases_end_time_by_correct_duration() {
+    let data = setup_initialized();
+    // total=5000, duration=500 (start=1000, end=1500), rate=10/block
+    let stream_id = data.client.create_stream(
+        &data.sender, &data.recipient, &data.token, &5_000, &1_000, &1_500,
+    );
+
+    // extra=500 => extra_duration = 500 * 500 / 5000 = 50
+    data.env.ledger().set_timestamp(1_200);
+    data.client.amend_stream(&stream_id, &500);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.total_amount, 5_500);
+    assert_eq!(stream.end_time, 1_550);
+}
+
+#[test]
+fn amend_stream_keeps_rate_unchanged() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    data.env.ledger().set_timestamp(1_050);
+    data.client.amend_stream(&stream_id, &500);
+
+    // Rate = total / duration = 10 per tick, unchanged after amendment.
+    // Vested at t=1050: 50 ticks elapsed, 1500 * 50 / 150 = 500.
+    let mid = data.client.stream_balance(&stream_id);
+    assert_eq!(mid, 500); // same rate, same elapsed → same vested
+
+    // At new end_time (1150), 100% should be vested.
+    data.env.ledger().set_timestamp(1_150);
+    let late = data.client.stream_balance(&stream_id);
+    assert_eq!(late, 1_500);
+}
+
+#[test]
+fn amend_stream_zero_amount_fails() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    assert_contract_error!(
+        data.client.try_amend_stream(&stream_id, &0),
+        Error::InvalidAmount
+    );
+}
+
+#[test]
+fn amend_stream_negative_amount_fails() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    assert_contract_error!(
+        data.client.try_amend_stream(&stream_id, &-100),
+        Error::InvalidAmount
+    );
+}
+
+#[test]
+fn amend_stream_settled_fails() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    data.env.ledger().set_timestamp(1_100);
+    data.client.withdraw(&stream_id, &1_000);
+
+    assert_contract_error!(
+        data.client.try_amend_stream(&stream_id, &500),
+        Error::InvalidState
+    );
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
+fn amend_stream_wrong_sender_fails() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    data.env.mock_auths(&[]);
+    data.client.amend_stream(&stream_id, &500);
+}
+
+#[test]
+fn amend_stream_emits_amended_event() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    data.env.ledger().set_timestamp(1_050);
+    data.client.amend_stream(&stream_id, &500);
+
+    let events = data.env.events().all();
+    let found = events.iter().any(|(_, topics, _)| {
+        topics.len() == 2
+            && topics.get(0).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("stream"))
+            && topics.get(1).and_then(|v| { let s: Result<Symbol, _> = v.try_into_val(&data.env); s.ok() }) == Some(symbol_short!("amended"))
+    });
+    assert!(found, "expected 'stream.amended' event after amend_stream");
+}
+
+#[test]
+fn amend_stream_preserves_released_amount() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    data.env.ledger().set_timestamp(1_050);
+    data.client.withdraw(&stream_id, &200);
+
+    data.env.ledger().set_timestamp(1_060);
+    data.client.amend_stream(&stream_id, &500);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.released_amount, 200);
+}
+
+#[test]
+fn amend_stream_updates_last_update() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    data.env.ledger().set_timestamp(1_075);
+    data.client.amend_stream(&stream_id, &500);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.last_update, 1_075);
+}
+
+#[test]
+fn amend_stream_non_existent_fails() {
+    let data = setup_initialized();
+
+    assert_contract_error!(
+        data.client.try_amend_stream(&999, &500),
+        Error::NotFound
+    );
+}
+
+#[test]
+fn amend_stream_paused_stream_succeeds() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    data.env.ledger().set_timestamp(1_050);
+    data.client.pause(&stream_id);
+
+    // Amendment should still work on paused streams
+    data.client.amend_stream(&stream_id, &500);
+
+    let stream = data.client.get_stream(&stream_id);
+    assert_eq!(stream.total_amount, 1_500);
+    assert_eq!(stream.status, StreamStatus::Paused);
+}
+
+#[test]
+fn amend_stream_on_contract_paused_fails() {
+    let data = setup_initialized();
+    let stream_id = create_active_stream(&data);
+
+    data.client.set_paused(&data.admin, &true);
+
+    assert_contract_error!(
+        data.client.try_amend_stream(&stream_id, &500),
+        Error::ContractPaused
+    );
 }

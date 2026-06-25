@@ -12,8 +12,9 @@
 //! | started   | "started"   | (stream_id: u64, start_time: u64, end_time: u64, timestamp: u64)                                         |
 //! | withdrawn | "withdrawn" | (stream_id: u64, recipient: Address, amount: i128, timestamp: u64)                                       |
 //! | settled   | "settled"   | (stream_id: u64, recipient: Address, total_amount: i128, timestamp: u64)                                 |
-//! | paused    | "paused"    | (stream_id: u64, sender: Address, pause_time: u64, timestamp: u64)                                       |
+//! | paused    | "paused"    | (stream_id: u64, sender: Address, pause_time: u64, timestamp: u64)                                         |
 //! | resumed   | "resumed"   | (stream_id: u64, sender: Address, end_time: u64, timestamp: u64)                                         |
+//! | amended   | "amended"   | (stream_id: u64, sender: Address, extra_amount: i128, total_amount: i128, end_time: u64, timestamp: u64) |
 //!
 //! All events are emitted AFTER successful state mutation and any token transfer.
 //! Failed calls (returning Err) emit no events.
@@ -92,5 +93,27 @@ pub fn resumed(env: &Env, stream_id: u64, sender: &Address, end_time: u64, times
     env.events().publish(
         (symbol_short!("stream"), symbol_short!("resumed")),
         (stream_id, sender.clone(), end_time, timestamp),
+    );
+}
+
+pub fn amended(
+    env: &Env,
+    stream_id: u64,
+    sender: &Address,
+    extra_amount: i128,
+    total_amount: i128,
+    end_time: u64,
+    timestamp: u64,
+) {
+    env.events().publish(
+        (symbol_short!("stream"), symbol_short!("amended")),
+        (
+            stream_id,
+            sender.clone(),
+            extra_amount,
+            total_amount,
+            end_time,
+            timestamp,
+        ),
     );
 }

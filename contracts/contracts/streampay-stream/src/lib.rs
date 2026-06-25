@@ -2,6 +2,7 @@
 
 mod error;
 mod events;
+mod release;
 mod storage;
 
 pub use error::Error;
@@ -372,6 +373,84 @@ impl Contract {
         Ok(stream)
     }
 
+    /// Top-ups an active (or paused/draft) stream with additional funds.
+    ///
+    /// Transfers `extra_amount` from `sender` to the contract, increases
+    /// `total_amount`, and extends `end_time` proportionally so the stream
+    /// rate stays unchanged:
+    ///
+    /// ```text
+    /// extra_duration = (extra_amount * duration) / total_amount
+    /// ```
+    ///
+    /// # Errors
+    /// - [`Error::ContractPaused`] if the global pause flag is set.
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::InvalidAmount`] if `extra_amount <= 0` or arithmetic overflows.
+    /// - [`Error::InvalidState`] if the stream is `Settled`, `Cancelled`, or `Ended`.
+    ///
+    /// # Auth
+    /// Requires authorisation from the stream's `sender`.
+    pub fn amend_stream(
+        env: Env,
+        stream_id: u64,
+        extra_amount: i128,
+    ) -> Result<(), Error> {
+        require_not_paused(&env)?;
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if extra_amount <= 0 {
+            return Err(Error::InvalidAmount);
+        }
+
+        if stream.status == StreamStatus::Settled
+            || stream.status == StreamStatus::Cancelled
+            || stream.status == StreamStatus::Ended
+        {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+
+        #[allow(clippy::needless_borrows_for_generic_args)]
+        token::Client::new(&env, &stream.token).transfer(
+            &stream.sender,
+            &env.current_contract_address(),
+            &extra_amount,
+        );
+
+        let extra_duration = extra_amount
+            .checked_mul(stream.duration as i128)
+            .ok_or(Error::InvalidAmount)?
+            .checked_div(stream.total_amount)
+            .ok_or(Error::InvalidAmount)? as u64;
+
+        stream.total_amount = stream
+            .total_amount
+            .checked_add(extra_amount)
+            .ok_or(Error::InvalidAmount)?;
+
+        stream.end_time = stream
+            .end_time
+            .checked_add(extra_duration)
+            .ok_or(Error::InvalidTimeRange)?;
+
+        stream.duration = stream
+            .end_time
+            .checked_sub(stream.start_time)
+            .ok_or(Error::InvalidTimeRange)?
+            .checked_sub(stream.total_paused_duration)
+            .ok_or(Error::InvalidTimeRange)?;
+
+        stream.last_update = now;
+
+        storage::set_stream(&env, stream_id, &stream);
+        events::amended(&env, stream_id, &stream.sender, extra_amount, stream.total_amount, stream.end_time, now);
+
+        Ok(())
+    }
+
     /// Finalizes a stream whose time window has fully elapsed, paying out
     /// any remaining vested funds to the recipient and transitioning it to a
     /// terminal `Settled` state.
@@ -427,27 +506,11 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
 }
 
 fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
-    }
-    if now < stream.start_time {
-        return 0;
-    }
-
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
+    release::withdrawable(stream, now)
 }
 
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
-    }
-    let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
-    }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+    release::vested_amount(stream, env.ledger().timestamp())
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
