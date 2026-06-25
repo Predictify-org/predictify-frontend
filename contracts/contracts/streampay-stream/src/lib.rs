@@ -1,6 +1,7 @@
 #![no_std]
 
 mod error;
+mod time;
 mod events;
 mod storage;
 
@@ -158,7 +159,7 @@ impl Contract {
             return Err(Error::InvalidTimeRange);
         }
 
-        let duration = end_time - start_time;
+        let duration = time::duration_checked(start_time, end_time)?;
         let id = storage::next_stream_id(&env);
         let contract_address = env.current_contract_address();
 
@@ -213,9 +214,7 @@ impl Contract {
         stream.status = StreamStatus::Active;
         stream.start_time = now;
         stream.last_update = now;
-        stream.end_time = now
-            .checked_add(stream.duration)
-            .ok_or(Error::InvalidTimeRange)?;
+        stream.end_time = time::add_seconds_checked(now, stream.duration)?;
 
         storage::set_stream(&env, stream_id, &stream);
         events::started(&env, stream_id, stream.start_time, stream.end_time, stream.start_time);
@@ -347,9 +346,7 @@ impl Contract {
         }
 
         let now = env.ledger().timestamp();
-        let paused_duration = now
-            .checked_sub(stream.pause_time)
-            .ok_or(Error::InvalidTimeRange)?;
+        let paused_duration = time::sub_checked(now, stream.pause_time)?;
 
         // Track total paused duration for accrual calculations
         stream.total_paused_duration = stream
@@ -358,10 +355,7 @@ impl Contract {
             .ok_or(Error::InvalidTimeRange)?;
 
         // Extend end_time by the paused duration to preserve unstreamed time
-        stream.end_time = stream
-            .end_time
-            .checked_add(paused_duration)
-            .ok_or(Error::InvalidTimeRange)?;
+        stream.end_time = time::add_seconds_checked(stream.end_time, paused_duration)?;
         
         stream.last_update = now;
         stream.status = StreamStatus::Active;
