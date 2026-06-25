@@ -8,6 +8,17 @@ This directory contains Prometheus alert rules and SLO definitions for StreamPay
 |--------|--------------|---------------------------|
 | Stellar Submission Success | > 99% | > 5% failure rate (5m) |
 | Settlement Latency (p95) | < 60s | > 60s (5m) |
+
+## In-process latency SLO tracker (`app/lib/health.ts`)
+
+The readiness module maintains a constant-memory rolling latency tracker used by `/api/readyz`:
+
+- **Retention**: 96 hours of samples (ring buffer capped at 4096 entries).
+- **Rolling p95**: computed over the 30-minute evaluation window.
+- **Burn rate**: `(violation_rate / 0.05)` where a violation is any sample above the 60s SLO threshold.
+- **Alert**: emits structured `slo_latency_burn_rate_alert` logs when the 30-minute burn rate exceeds **14×** the allowed budget (Google SRE fast-burn pattern).
+
+When the burn-rate alert fires, `/api/readyz` returns `503` with `status: "degraded"` and the alert payload under `slo.alerts`.
 | Max Job Age | < 30m | > 30m |
 | DLQ Depth | 0 | > 10 items |
 

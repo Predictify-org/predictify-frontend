@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 
 /**
  * Canonical error envelope used by every API route.
@@ -55,14 +54,6 @@ export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
  * or generates a lightweight fallback so every response always carries one.
  */
 function resolveRequestId(): string {
-  try {
-    const hdrs = headers();
-    const forwarded = (hdrs as unknown as { get(name: string): string | null }).get("x-request-id");
-    if (forwarded) return forwarded;
-  } catch {
-    // headers() throws outside a request context (e.g. unit tests)
-  }
-  // Fallback: timestamp + random hex — not a UUID but stable enough for logs
   return `req_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 10)}`;
 }
 

@@ -1,13 +1,3 @@
-import { AsyncLocalStorage } from 'async_hooks';
-
-const correlationStorage = new AsyncLocalStorage<{ correlationId: string }>();
-
-export function getCorrelationContext() {
-  return correlationStorage.getStore();
-}
-
-export function runWithCorrelation<T>(correlationId: string, callback: () => T): T {
-  return correlationStorage.run({ correlationId }, callback);
 import { NextRequest, NextResponse } from 'next/server';
 import { extractCorrelationContext, withCorrelationContext, logger, updateCorrelationContext } from '@/app/lib/logger';
 
@@ -161,4 +151,15 @@ export function withWebhookContext(webhookId: string) {
  */
 export function withRetryContext(retryCount: number) {
   updateCorrelationContext({ retry_count: retryCount });
+}
+
+export function getCorrelationContext() {
+  return extractCorrelationContext(new Headers());
+}
+
+export function runWithCorrelation<T>(correlationId: string, callback: () => T): T {
+  return withCorrelationContext(
+    { request_id: correlationId, correlation_id: correlationId },
+    callback,
+  ) as T;
 }

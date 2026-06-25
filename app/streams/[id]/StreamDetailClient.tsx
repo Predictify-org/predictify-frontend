@@ -8,8 +8,8 @@ import { NetworkBadge } from "../../components/NetworkBadge";
 import { PaymentTimeline } from "../../components/PaymentTimeline";
 import { ErrorToast } from "../../components/ErrorToast";
 import { fetchWithIdempotency } from "../../../lib/apiClient";
-import { isStreamPayError, normalizeError } from "../../lib/errors";
-import type { StreamPayError } from "../../lib/errors";
+import { isStreamPayError, normalizeError } from "../../lib/errors/mapper";
+import type { StreamPayError } from "../../lib/errors/types";
 
 type StreamDetailClientProps = {
   stream: Stream;

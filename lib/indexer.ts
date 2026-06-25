@@ -76,6 +76,9 @@ export class Indexer {
     }
     
     this.metrics.eventsProcessed++;
+  }
+}
+
 import { randomUUID } from 'crypto';
 
 export interface IndexerConfig {

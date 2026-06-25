@@ -14,8 +14,9 @@ import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 import { checkTokenAllowed, normaliseToken } from "@/app/lib/token-allowlist";
 import { validateCreateStreamBody } from "@/app/lib/stream-validation";
+import type { Stream } from "@/app/types/openapi";
 
-export function errorResponse(code: string, message: string, status: number) {
+function errorResponse(code: string, message: string, status: number) {
   return createErrorResponse(code, message, status);
 }
 
@@ -176,14 +177,14 @@ export async function POST(request: Request) {
 
   const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
-  const newStream = {
+  const newStream: Stream = {
     createdAt: now,
     id,
-    nextAction: "start" as const,
-    rate,
-    recipient,
-    schedule,
-    status: "draft" as const,
+    nextAction: "start",
+    rate: rate ?? "",
+    recipient: recipient ?? "",
+    schedule: schedule ?? "",
+    status: "draft",
     updatedAt: now,
     token: normalisedToken,
   };

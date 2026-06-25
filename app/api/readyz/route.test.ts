@@ -22,6 +22,13 @@ describe("GET /api/readyz", () => {
         stellar: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
         kms: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
       },
+      slo: {
+        p95_latency_ms: 120,
+        burn_rate_30m: 0.5,
+        slo_threshold_ms: 60_000,
+        sample_count_30m: 3,
+        alerts: [],
+      },
     });
 
     const response = await GET();
@@ -41,6 +48,13 @@ describe("GET /api/readyz", () => {
           checked_at: "2026-05-27T00:00:00.000Z",
         },
         kms: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
+      },
+      slo: {
+        p95_latency_ms: 120,
+        burn_rate_30m: 0.5,
+        slo_threshold_ms: 60_000,
+        sample_count_30m: 3,
+        alerts: [],
       },
     });
 
