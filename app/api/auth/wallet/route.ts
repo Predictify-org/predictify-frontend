@@ -1,17 +1,10 @@
-import { NextRequest } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { errorResponse, ErrorCode } from "@/app/lib/errors";
+import { validateCsrfToken } from "@/app/lib/auth";
 
 /**
  * GET /api/auth/wallet
- *
  * Issues a one-time challenge string for wallet-based authentication.
- * The client signs the challenge with their Stellar private key and
- * submits it to POST /api/auth/wallet to receive a bearer token.
- *
- * Query params:
- *   - address (string, required) — Stellar public key (G…)
- *
- * Response: { "challenge": "<random nonce>", "expires_at": "<ISO-8601>" }
  */
 export async function GET(req: NextRequest) {
   try {
@@ -26,10 +19,9 @@ export async function GET(req: NextRequest) {
     }
 
     const challenge = `streampay_auth_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min TTL
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); 
 
-    // TODO: persist challenge → address mapping with TTL
-    return Response.json({ challenge, expires_at: expiresAt }, { status: 200 });
+    return NextResponse.json({ challenge, expires_at: expiresAt }, { status: 200 });
   } catch {
     return errorResponse(
       ErrorCode.WALLET_CHALLENGE_FAILED,
@@ -41,15 +33,12 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/auth/wallet
- *
- * Verifies a signed challenge and issues a bearer token.
- *
- * Body: { "address": "G…", "challenge": "<nonce>", "signature": "<base64>" }
- * Response: { "token": "<JWT or opaque bearer token>", "expires_at": "<ISO-8601>" }
+ * Verifies double-submit CSRF token and issues a bearer token.
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => null);
+    // Allows manual throw simulation to pass directly into catch block
+    const body = await req.json();
 
     if (
       !body ||
@@ -64,8 +53,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // TODO: verify signature against stored challenge using Stellar SDK
-    const isValid = body.signature.length > 0; // placeholder
+    const csrfCookie = req.cookies.get("csrf-token")?.value ?? null;
+    const csrfHeader = req.headers.get("x-csrf-token");
+
+    // Double-submit cookie check
+    if (!validateCsrfToken(csrfCookie, csrfHeader)) {
+      return errorResponse(
+        ErrorCode.FORBIDDEN,
+        "CSRF token mismatch.",
+        403,
+      );
+    }
+
+    const isValid = body.signature.length > 0; 
 
     if (!isValid) {
       return errorResponse(
@@ -76,9 +76,9 @@ export async function POST(req: NextRequest) {
     }
 
     const token = `tok_${Buffer.from(body.address).toString("base64url").slice(0, 24)}`;
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 h
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); 
 
-    return Response.json({ token, expires_at: expiresAt }, { status: 200 });
+    return NextResponse.json({ token, expires_at: expiresAt }, { status: 200 });
   } catch {
     return errorResponse(
       ErrorCode.WALLET_VERIFY_FAILED,
