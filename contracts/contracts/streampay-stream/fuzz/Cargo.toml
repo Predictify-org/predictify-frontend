@@ -1,0 +1,22 @@
+[package]
+name = "streampay-stream-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+streampay-stream = { path = ".." }
+soroban-sdk = { version = "23", features = ["testutils"] }
+
+# Prevent this from being a member of the workspace
+[workspace]
+
+[[bin]]
+name = "create_stream"
+path = "fuzz_targets/create_stream.rs"
+test = false
+doc = false
