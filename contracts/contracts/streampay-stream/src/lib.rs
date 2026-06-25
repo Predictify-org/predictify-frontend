@@ -2,11 +2,13 @@
 
 mod error;
 mod events;
+mod release;
 mod storage;
 
 pub use error::Error;
 use soroban_sdk::{contract, contractimpl, token, Address, Env};
 pub use storage::{Stream, StreamStatus};
+pub(crate) use storage::DataKey;
 
 #[contract]
 pub struct Contract;
@@ -85,6 +87,42 @@ impl Contract {
     ) -> Result<(), Error> {
         require_admin(&env, &admin)?;
         storage::set_token_allowed(&env, &token, allowed);
+        Ok(())
+    }
+
+    /// Migrates storage from an old DataKey variant to a new one.
+    ///
+    /// Reads the value stored under `old_key`, writes it under `new_key`,
+    /// and removes `old_key`. This is useful when enum variant order changes
+    /// (e.g. inserting a new variant mid-enum) which shifts the XDR encoding
+    /// of every subsequent variant. Emits a `migrated` event on success.
+    ///
+    /// Only unit variants (Admin, Paused, StreamCount) are supported via
+    /// discriminant. Stream and TokenAllowed keys require a dedicated
+    /// release that can enumerate their keys.
+    ///
+    /// # Errors
+    /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
+    /// - [`Error::NotFound`] if the contract has not been initialised.
+    /// - [`Error::InvalidState`] if either discriminant is out of range.
+    ///
+    /// # Auth
+    /// Requires authorisation from `admin`.
+    pub fn migrate(
+        env: Env,
+        admin: Address,
+        old_discriminant: u32,
+        new_discriminant: u32,
+    ) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+
+        let old = unit_key_from_discriminant(old_discriminant)?;
+        let new = unit_key_from_discriminant(new_discriminant)?;
+
+        if storage::migrate_instance_key(&env, &old, &new) {
+            events::migrated(&env, old_discriminant, new_discriminant, env.ledger().timestamp());
+        }
+
         Ok(())
     }
 
@@ -329,6 +367,7 @@ impl Contract {
         stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::paused(&env, stream_id, &stream.sender, now, now);
 
         Ok(stream)
     }
@@ -368,6 +407,7 @@ impl Contract {
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::resumed(&env, stream_id, &stream.sender, stream.end_time, now);
 
         Ok(stream)
     }
@@ -427,27 +467,11 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
 }
 
 fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
-    }
-    if now < stream.start_time {
-        return 0;
-    }
-
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
+    release::withdrawable(stream, now)
 }
 
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
-    }
-    let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
-    }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+    release::vested_amount(stream, env.ledger().timestamp())
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
@@ -468,6 +492,20 @@ fn require_not_paused(env: &Env) -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+/// Maps a `u32` discriminant to a [`DataKey`] unit variant.
+///
+/// Only unit variants (no payload) are supported. Parameterised variants
+/// such as `Stream(u64)` and `TokenAllowed(Address)` require a dedicated
+/// migration entrypoint that can construct the old key pattern.
+fn unit_key_from_discriminant(d: u32) -> Result<DataKey, Error> {
+    match d {
+        0 => Ok(DataKey::Admin),
+        1 => Ok(DataKey::Paused),
+        2 => Ok(DataKey::StreamCount),
+        _ => Err(Error::InvalidState),
+    }
 }
 
 #[cfg(test)]

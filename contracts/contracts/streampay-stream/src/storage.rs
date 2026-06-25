@@ -45,9 +45,14 @@ pub struct Stream {
     pub total_paused_duration: u64,
 }
 
+/// The `Val` generic lets us move data between keys without knowing
+/// the concrete value type at compile time — the old value is read as
+/// a raw `Val` and written back under the new key with the same bytes.
+use soroban_sdk::Val;
+
 #[derive(Clone)]
 #[contracttype]
-enum DataKey {
+pub(crate) enum DataKey {
     Admin,
     Paused,
     StreamCount,
@@ -74,72 +79,50 @@ fn ttl_target(env: &Env, extra_ledgers: u32) -> u32 {
 
 fn extend_persistent_ttl(env: &Env, key: &DataKey) {
     let target = ttl_target(env, STREAM_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().persistent().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().persistent().extend_ttl(key, &target);
+    let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
+    env.storage().persistent().extend_ttl(key, threshold, target);
 }
 
-fn extend_instance_ttl(env: &Env, key: &DataKey) {
+fn extend_instance_ttl(env: &Env) {
     let target = ttl_target(env, INSTANCE_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().instance().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().instance().extend_ttl(key, &target);
+    let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
+    env.storage().instance().extend_ttl(threshold, target);
 }
 
 fn extend_stream_ttl(env: &Env, stream_id: u64) {
     extend_persistent_ttl(env, &DataKey::Stream(stream_id));
 }
 
-fn extend_admin_key_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::Admin);
-}
-
-fn extend_pause_key_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::Paused);
-}
-
-fn extend_next_stream_id_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::NextStreamId);
-}
-
 pub fn has_admin(env: &Env) -> bool {
     let exists = env.storage().instance().has(&DataKey::Admin);
     if exists {
-        extend_admin_key_ttl(env);
+        extend_instance_ttl(env);
     }
     exists
 }
 
 pub fn set_admin(env: &Env, admin: &Address) {
     env.storage().instance().set(&DataKey::Admin, admin);
-    extend_admin_key_ttl(env);
+    extend_instance_ttl(env);
 }
 
 pub fn get_admin(env: &Env) -> Option<Address> {
     let admin = env.storage().instance().get(&DataKey::Admin);
     if admin.is_some() {
-        extend_admin_key_ttl(env);
+        extend_instance_ttl(env);
     }
     admin
 }
 
 pub fn set_paused(env: &Env, paused: bool) {
     env.storage().instance().set(&DataKey::Paused, &paused);
-    extend_pause_key_ttl(env);
+    extend_instance_ttl(env);
 }
 
 pub fn is_paused(env: &Env) -> bool {
     let paused = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
     if env.storage().instance().has(&DataKey::Paused) {
-        extend_pause_key_ttl(env);
+        extend_instance_ttl(env);
     }
     paused
 }
@@ -163,9 +146,9 @@ pub fn is_token_blocked(env: &Env, token: &Address) -> bool {
 
 pub fn next_stream_id(env: &Env) -> u64 {
     let storage = env.storage().instance();
-    let id = storage.get(&DataKey::NextStreamId).unwrap_or(1u64);
-    storage.set(&DataKey::NextStreamId, &(id + 1));
-    extend_next_stream_id_ttl(env);
+    let id = storage.get(&DataKey::StreamCount).unwrap_or(1u64);
+    storage.set(&DataKey::StreamCount, &(id + 1));
+    extend_instance_ttl(env);
     id
 }
 
@@ -182,4 +165,43 @@ pub fn get_stream(env: &Env, stream_id: u64) -> Option<Stream> {
         extend_stream_ttl(env, stream_id);
     }
     stream
+}
+
+/// Migrate an instance-storage key by reading the value under `old`,
+/// writing it under `new`, and removing `old`. Returns `true` if a value
+/// was migrated, `false` if the old key did not exist.
+///
+/// Uses `Val` as an intermediate to avoid requiring the concrete value
+/// type — the stored XDR bytes are preserved verbatim.
+pub fn migrate_instance_key(env: &Env, old: &DataKey, new: &DataKey) -> bool {
+    if !env.storage().instance().has(old) {
+        return false;
+    }
+    let val: Option<Val> = env.storage().instance().get(old);
+    match val {
+        Some(v) => {
+            env.storage().instance().set(new, &v);
+            env.storage().instance().remove(old);
+            true
+        }
+        None => false,
+    }
+}
+
+/// Migrate a persistent-storage key by reading the value under `old`,
+/// writing it under `new`, and removing `old`. Returns `true` if a value
+/// was migrated, `false` if the old key did not exist.
+pub fn migrate_persistent_key(env: &Env, old: &DataKey, new: &DataKey) -> bool {
+    if !env.storage().persistent().has(old) {
+        return false;
+    }
+    let val: Option<Val> = env.storage().persistent().get(old);
+    match val {
+        Some(v) => {
+            env.storage().persistent().set(new, &v);
+            env.storage().persistent().remove(old);
+            true
+        }
+        None => false,
+    }
 }

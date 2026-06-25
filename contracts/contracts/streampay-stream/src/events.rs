@@ -14,6 +14,7 @@
 //! | settled   | "settled"   | (stream_id: u64, recipient: Address, total_amount: i128, timestamp: u64)                                 |
 //! | paused    | "paused"    | (stream_id: u64, sender: Address, pause_time: u64, timestamp: u64)                                       |
 //! | resumed   | "resumed"   | (stream_id: u64, sender: Address, end_time: u64, timestamp: u64)                                         |
+//! | migrated  | "migrated"  | (old_discriminant: u32, new_discriminant: u32, timestamp: u64)                                           |
 //!
 //! All events are emitted AFTER successful state mutation and any token transfer.
 //! Failed calls (returning Err) emit no events.
@@ -92,5 +93,14 @@ pub fn resumed(env: &Env, stream_id: u64, sender: &Address, end_time: u64, times
     env.events().publish(
         (symbol_short!("stream"), symbol_short!("resumed")),
         (stream_id, sender.clone(), end_time, timestamp),
+    );
+}
+
+/// Emits the `stream::migrated` event after a storage key is migrated.
+/// Carries the old and new discriminant so indexers can trace the rename.
+pub fn migrated(env: &Env, old_discriminant: u32, new_discriminant: u32, timestamp: u64) {
+    env.events().publish(
+        (symbol_short!("stream"), symbol_short!("migrated")),
+        (old_discriminant, new_discriminant, timestamp),
     );
 }
