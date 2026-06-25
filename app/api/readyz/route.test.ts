@@ -21,6 +21,7 @@ describe("GET /api/readyz", () => {
         config: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
         stellar: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
         kms: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
+        soroban: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
       },
     });
 
@@ -41,6 +42,7 @@ describe("GET /api/readyz", () => {
           checked_at: "2026-05-27T00:00:00.000Z",
         },
         kms: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
+        soroban: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
       },
     });
 
@@ -52,6 +54,33 @@ describe("GET /api/readyz", () => {
       status: "degraded",
       checks: {
         stellar: { status: "degraded", message: "Horizon timeout" },
+      },
+    });
+  });
+
+  it("returns 503 when Soroban RPC is degraded", async () => {
+    mockedGetReadinessReport.mockResolvedValue({
+      status: "degraded",
+      checks: {
+        config: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
+        stellar: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
+        kms: { status: "ok", checked_at: "2026-05-27T00:00:00.000Z" },
+        soroban: {
+          status: "degraded",
+          message: "The operation was aborted",
+          checked_at: "2026-05-27T00:00:00.000Z",
+        },
+      },
+    });
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).toMatchObject({
+      status: "degraded",
+      checks: {
+        soroban: { status: "degraded" },
       },
     });
   });

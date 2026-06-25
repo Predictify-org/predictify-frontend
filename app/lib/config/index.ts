@@ -47,6 +47,8 @@ interface RequiredEnvVars {
  * Optional environment variables with defaults
  */
 interface OptionalEnvVars {
+  /** Override Soroban RPC URL (defaults to the selected network's built-in URL) */
+  SOROBAN_RPC_URL?: string;
   /** Deprecated shared token for service-to-service communication */
   INTERNAL_AUTH_TOKEN?: string;
   /** JSON object map of HMAC key IDs to shared secrets */
@@ -386,7 +388,12 @@ export function validateConfig(): ValidatedConfig {
   
   // Validate network
   const networkProfile = validateStellarNetwork(env.STELLAR_NETWORK);
-  
+
+  // Allow env-var override of Soroban RPC URL (e.g. for self-hosted nodes)
+  if (env.SOROBAN_RPC_URL) {
+    networkProfile.sorobanRpcUrl = env.SOROBAN_RPC_URL;
+  }
+
   // Validate JWT secret
   const jwtSecret = validateJwtSecret(env.JWT_SECRET);
   

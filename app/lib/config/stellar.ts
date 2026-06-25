@@ -20,6 +20,8 @@ export interface StellarNetworkProfile {
   passphrase: string;
   /** Horizon server URL for API calls */
   horizonUrl: string;
+  /** Soroban RPC URL for smart-contract calls (optional; overridden by SOROBAN_RPC_URL env var) */
+  sorobanRpcUrl?: string;
   /** Whether friendbot is available for funding */
   hasFriendbot: boolean;
   /** Friendbot URL if available */
@@ -39,6 +41,7 @@ export const TESTNET_PROFILE: StellarNetworkProfile = {
   name: 'testnet',
   passphrase: 'Test SDF Network ; September 2015',
   horizonUrl: 'https://horizon-testnet.stellar.org',
+  sorobanRpcUrl: 'https://soroban-testnet.stellar.org',
   hasFriendbot: true,
   friendbotUrl: 'https://friendbot.stellar.org',
   explorerUrl: 'https://stellar.expert/testnet',
@@ -53,6 +56,7 @@ export const MAINNET_PROFILE: StellarNetworkProfile = {
   name: 'mainnet',
   passphrase: 'Public Global Stellar Network ; September 2015',
   horizonUrl: 'https://horizon.stellar.org',
+  sorobanRpcUrl: 'https://soroban-mainnet.stellar.org',
   hasFriendbot: false,
   explorerUrl: 'https://stellar.expert',
   assetLabel: '',

@@ -1,6 +1,7 @@
 import { validateConfig } from "@/app/lib/config";
 import { getSigner } from "@/app/lib/kms/factory";
 import { createResilientStellarClient } from "@/app/lib/stellarClient";
+import { TenantScopedCache } from "@/app/lib/cache";
 
 export type HealthStatus = "ok" | "degraded";
 
@@ -20,6 +21,8 @@ export type HealthCheckDependencies = {
   validateConfig?: typeof validateConfig;
   getSigner?: typeof getSigner;
   createStellarClient?: typeof createResilientStellarClient;
+  /** Injectable fetch for Soroban ping (defaults to global fetch) */
+  fetch?: typeof fetch;
 };
 
 async function runCheck(
@@ -39,6 +42,46 @@ async function runCheck(
   }
 }
 
+/**
+ * 5-second cache for the Soroban ping result.
+ * Keyed by tenant="health" id=sorobanRpcUrl to avoid cross-URL pollution.
+ */
+const sorobanCache = new TenantScopedCache<DependencyCheckResult>("soroban-ping", 5_000);
+
+/**
+ * Ping the Soroban RPC endpoint with a 1-second timeout.
+ * Uses the JSON-RPC `getHealth` method which all Soroban nodes expose.
+ * Returns "ok" if the node responds, "degraded" if it times out or errors.
+ * Result is cached for 5 s to avoid hammering RPC on every readyz poll.
+ */
+async function checkSoroban(
+  sorobanRpcUrl: string,
+  now: () => Date,
+  fetcher: typeof fetch,
+): Promise<DependencyCheckResult> {
+  const cached = sorobanCache.get("health", sorobanRpcUrl);
+  if (cached) return cached;
+
+  const result = await runCheck(now, async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1_000);
+    try {
+      const res = await fetcher(sorobanRpcUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth", params: [] }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`Soroban RPC returned HTTP ${res.status}`);
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
+  sorobanCache.set("health", sorobanRpcUrl, result);
+  return result;
+}
+
 export async function getReadinessReport(
   dependencies: HealthCheckDependencies = {},
 ): Promise<ReadinessReport> {
@@ -46,6 +89,7 @@ export async function getReadinessReport(
   const validate = dependencies.validateConfig ?? validateConfig;
   const signerFactory = dependencies.getSigner ?? getSigner;
   const stellarClientFactory = dependencies.createStellarClient ?? createResilientStellarClient;
+  const fetcher = dependencies.fetch ?? fetch;
 
   const configCheck = await runCheck(now, () => {
     validate();
@@ -76,6 +120,17 @@ export async function getReadinessReport(
     }
   });
 
+  // Soroban ping — skipped gracefully if no URL is configured
+  let sorobanCheck: DependencyCheckResult | null = null;
+  try {
+    const config = validate();
+    if (config.network.sorobanRpcUrl) {
+      sorobanCheck = await checkSoroban(config.network.sorobanRpcUrl, now, fetcher);
+    }
+  } catch {
+    // config already failed above; don't double-report
+  }
+
   const checks: ReadinessReport["checks"] = {
     config: configCheck,
     stellar: {
@@ -83,6 +138,7 @@ export async function getReadinessReport(
       ...(horizonUrl && stellarCheck.status === "ok" ? { message: `reachable: ${horizonUrl}` } : {}),
     },
     kms: kmsCheck,
+    ...(sorobanCheck !== null ? { soroban: sorobanCheck } : {}),
   };
 
   return {
