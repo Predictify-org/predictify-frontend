@@ -8,8 +8,11 @@ export function getCorrelationContext() {
 
 export function runWithCorrelation<T>(correlationId: string, callback: () => T): T {
   return correlationStorage.run({ correlationId }, callback);
+}
+
 import { NextRequest, NextResponse } from 'next/server';
 import { extractCorrelationContext, withCorrelationContext, logger, updateCorrelationContext } from '@/app/lib/logger';
+import { context as otelContext, propagation } from '@opentelemetry/api';
 
 // Internal headers that should not be exposed to external clients
 const INTERNAL_HEADERS = [
@@ -48,7 +51,13 @@ export async function withCorrelationMiddleware(
   
   // Execute handler with correlation context
   return withCorrelationContext(context, async () => {
-    const response = await handler();
+    const traceparent = context.traceparent;
+    const parentCtx = traceparent 
+      ? propagation.extract(otelContext.active(), { traceparent })
+      : otelContext.active();
+
+    return otelContext.with(parentCtx, async () => {
+      const response = await handler();
     
     // Strip internal headers from response
     const responseHeaders = new Headers(response.headers);
@@ -75,6 +84,7 @@ export async function withCorrelationMiddleware(
       statusText: response.statusText,
       headers: responseHeaders,
     });
+   });
   });
 }
 

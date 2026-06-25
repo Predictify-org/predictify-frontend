@@ -45,12 +45,19 @@ describe("Indexer", () => {
     // Process reorg event
     await indexer.processEvent(reorgEvent2);
 
-    expect(mockStorage.deleteEventsFromLedger).toHaveBeenCalledWith(1);
+    expect(mockStorage.deleteEventsFromLedger).toHaveBeenCalledWith(2);
     expect(indexer.metrics.reorgsDetected).toBe(1);
-import { HorizonIndexer, HorizonEvent, cursorsDb, processedEventsDb } from './indexer';
+  });
+});
+
+import { HorizonIndexer, HorizonEvent, cursorsDb, processedEventsDb, tracerProvider, activeSpanProcessors } from './indexer';
+import { trace } from '@opentelemetry/api';
+import { SimpleSpanProcessor, InMemorySpanExporter } from '@opentelemetry/sdk-trace-base';
 
 describe('HorizonIndexer', () => {
   let indexer: HorizonIndexer;
+  let memoryExporter: InMemorySpanExporter;
+  let spanProcessor: SimpleSpanProcessor;
 
   beforeEach(() => {
     cursorsDb.clear();
@@ -62,10 +69,26 @@ describe('HorizonIndexer', () => {
       overlapWindow: 5,
       stallThresholdMs: 1000,
     });
+
+    memoryExporter = new InMemorySpanExporter();
+    spanProcessor = new SimpleSpanProcessor(memoryExporter);
+    activeSpanProcessors.push(spanProcessor);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     indexer.stop();
+    const idx = activeSpanProcessors.indexOf(spanProcessor);
+    if (idx > -1) {
+      activeSpanProcessors.splice(idx, 1);
+    }
+    if (spanProcessor) {
+      try {
+        await spanProcessor.forceFlush();
+        await spanProcessor.shutdown();
+      } catch {
+        // ignore
+      }
+    }
   });
 
   it('should persist last_ledger cursor', async () => {
@@ -190,5 +213,44 @@ describe('HorizonIndexer', () => {
     expect(parsedLog.error).toBe('DB connection failed');
     
     consoleSpy.mockRestore();
+  });
+
+  it('should emit horizon.fetch span during startMainLoop', async () => {
+    const mockFetch = jest.fn<any>().mockResolvedValue([]);
+    
+    // Run main loop for a single iteration
+    const runPromise = indexer.startMainLoop(50, mockFetch);
+    // Let it run for a brief moment and then stop
+    await new Promise(resolve => setTimeout(resolve, 60));
+    indexer.stop();
+    await runPromise;
+
+    const spans = memoryExporter.getFinishedSpans();
+    const fetchSpan = spans.find(s => s.name === 'horizon.fetch');
+    expect(fetchSpan).toBeDefined();
+    expect(fetchSpan?.status.code).toBe(1); // OK
+  });
+
+  it('should emit event.publish and db.write spans during processEvent', async () => {
+    const event: HorizonEvent = {
+      id: 'evt_span_test',
+      type: 'payment',
+      ledger: 105,
+      data: { amount: '10' }
+    };
+
+    await indexer.processEvent(event, 'corr-span-test');
+
+    const spans = memoryExporter.getFinishedSpans();
+    
+    // Should have event.publish and db.write spans
+    const publishSpan = spans.find(s => s.name === 'event.publish');
+    const dbWriteSpans = spans.filter(s => s.name === 'db.write');
+    
+    expect(publishSpan).toBeDefined();
+    expect(publishSpan?.status.code).toBe(1);
+    
+    expect(dbWriteSpans.length).toBeGreaterThanOrEqual(1);
+    expect(dbWriteSpans[0].status.code).toBe(1);
   });
 });

@@ -76,9 +76,88 @@ export class Indexer {
     }
     
     this.metrics.eventsProcessed++;
-import { randomUUID } from 'crypto';
+  }
+}
 
-export interface IndexerConfig {
+import { randomUUID } from 'crypto';
+import { trace, context, propagation } from '@opentelemetry/api';
+import { 
+  BasicTracerProvider, 
+  SimpleSpanProcessor, 
+  AlwaysOnSampler, 
+  AlwaysOffSampler, 
+  TraceIdRatioBasedSampler, 
+  ParentBasedSampler 
+} from '@opentelemetry/sdk-trace-base';
+import { getCorrelationContext, updateCorrelationContext } from '@/app/lib/logger';
+
+export let tracerProvider: BasicTracerProvider | undefined;
+export const activeSpanProcessors: any[] = [];
+
+const delegatingProcessor = {
+  onStart(span: any, ctx: any) {
+    for (const p of activeSpanProcessors) {
+      if (p.onStart) p.onStart(span, ctx);
+    }
+  },
+  onEnd(span: any) {
+    for (const p of activeSpanProcessors) {
+      if (p.onEnd) p.onEnd(span);
+    }
+  },
+  forceFlush() {
+    return Promise.all(activeSpanProcessors.map(p => p.forceFlush ? p.forceFlush() : Promise.resolve())).then(() => {});
+  },
+  shutdown() {
+    return Promise.all(activeSpanProcessors.map(p => p.shutdown ? p.shutdown() : Promise.resolve())).then(() => {});
+  }
+};
+
+// Setup provider if not already registered/registered globally
+let isSetup = false;
+function setupTracing() {
+  if (isSetup) {
+    return;
+  }
+  isSetup = true;
+
+  // Configure sampler based on environment variables
+  let sampler;
+  const otelSampler = process.env.OTEL_TRACES_SAMPLER || 'always_on';
+  const otelSamplerArg = process.env.OTEL_TRACES_SAMPLER_ARG;
+
+  if (otelSampler === 'always_on') {
+    sampler = new AlwaysOnSampler();
+  } else if (otelSampler === 'always_off') {
+    sampler = new AlwaysOffSampler();
+  } else if (otelSampler === 'traceidratio') {
+    const ratio = otelSamplerArg ? parseFloat(otelSamplerArg) : 1.0;
+    sampler = new TraceIdRatioBasedSampler(ratio);
+  } else if (otelSampler === 'parentbased_always_on') {
+    sampler = new ParentBasedSampler({ root: new AlwaysOnSampler() });
+  } else if (otelSampler === 'parentbased_always_off') {
+    sampler = new ParentBasedSampler({ root: new AlwaysOffSampler() });
+  } else if (otelSampler === 'parentbased_traceidratio') {
+    const ratio = otelSamplerArg ? parseFloat(otelSamplerArg) : 1.0;
+    sampler = new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(ratio) });
+  } else {
+    sampler = new AlwaysOnSampler();
+  }
+
+  const provider = new BasicTracerProvider({
+    sampler: sampler,
+    spanProcessors: [delegatingProcessor],
+  });
+
+  tracerProvider = provider;
+  trace.setGlobalTracerProvider(provider);
+}
+
+setupTracing();
+
+const tracer = trace.getTracer('streampay-indexer');
+
+export interface HorizonIndexerConfig {
   network: string;
   horizonUrl: string;
   overlapWindow: number; // number of ledgers to overlap during backfill or restart
@@ -110,7 +189,7 @@ export class HorizonIndexer {
   private stallThresholdMs: number;
   private isRunning: boolean = false;
 
-  constructor(config: IndexerConfig) {
+  constructor(config: HorizonIndexerConfig) {
     this.network = config.network;
     this.horizonUrl = config.horizonUrl;
     this.overlapWindow = config.overlapWindow;
@@ -123,7 +202,18 @@ export class HorizonIndexer {
   }
 
   public async saveCursor(ledger: number) {
-    cursorsDb.set(this.network, { lastLedger: ledger, lastUpdatedAt: Date.now() });
+    await tracer.startActiveSpan('db.write', async (span) => {
+      try {
+        cursorsDb.set(this.network, { lastLedger: ledger, lastUpdatedAt: Date.now() });
+        span.setStatus({ code: 1 }); // OK
+      } catch (err) {
+        span.setStatus({ code: 2, message: err instanceof Error ? err.message : String(err) });
+        if (err instanceof Error) span.recordException(err);
+        throw err;
+      } finally {
+        span.end();
+      }
+    });
   }
 
   public checkStall() {
@@ -141,23 +231,56 @@ export class HorizonIndexer {
       return; // Deduplicate
     }
 
-    try {
-      // Simulate event processing logic here
-      processedEventsDb.add(eventKey);
-      
-      // Persist the cursor after successfully processing
-      await this.saveCursor(event.ledger);
-    } catch (error) {
-      console.error(JSON.stringify({
-        level: "error",
-        message: "Failed to process event",
-        correlation_id: correlationId,
-        stream_id: event.streamId,
-        event_id: event.id,
-        error: error instanceof Error ? error.message : "Unknown error"
-      }));
-      throw error;
-    }
+    const currentCorrelation = getCorrelationContext();
+    const traceparent = currentCorrelation?.traceparent;
+    const parentCtx = traceparent 
+      ? propagation.extract(context.active(), { traceparent })
+      : context.active();
+
+    await context.with(parentCtx, async () => {
+      await tracer.startActiveSpan('event.publish', async (eventSpan) => {
+        try {
+          // Propagate active trace context to correlation metadata
+          const carrier: Record<string, string> = {};
+          propagation.inject(context.active(), carrier);
+          if (carrier.traceparent) {
+            updateCorrelationContext({ traceparent: carrier.traceparent });
+          }
+
+          // Simulate event processing logic here (wrapped in db.write span)
+          await tracer.startActiveSpan('db.write', async (dbSpan) => {
+            try {
+              processedEventsDb.add(eventKey);
+              dbSpan.setStatus({ code: 1 });
+            } catch (err) {
+              dbSpan.setStatus({ code: 2, message: err instanceof Error ? err.message : String(err) });
+              if (err instanceof Error) dbSpan.recordException(err);
+              throw err;
+            } finally {
+              dbSpan.end();
+            }
+          });
+          
+          // Persist the cursor after successfully processing
+          await this.saveCursor(event.ledger);
+          eventSpan.setStatus({ code: 1 });
+        } catch (error) {
+          eventSpan.setStatus({ code: 2, message: error instanceof Error ? error.message : "Unknown error" });
+          if (error instanceof Error) eventSpan.recordException(error);
+          console.error(JSON.stringify({
+            level: "error",
+            message: "Failed to process event",
+            correlation_id: correlationId,
+            stream_id: event.streamId,
+            event_id: event.id,
+            error: error instanceof Error ? error.message : "Unknown error"
+          }));
+          throw error;
+        } finally {
+          eventSpan.end();
+        }
+      });
+    });
   }
 
   public async backfill(targetLedger: number, mockEvents: HorizonEvent[] = []) {
@@ -182,8 +305,21 @@ export class HorizonIndexer {
         const cursor = await this.getCursor();
         const nextLedger = cursor + 1;
         
-        // Mock fetch from Horizon
-        const events = fetchEvents ? await fetchEvents(nextLedger) : [];
+        // Mock fetch from Horizon wrapped in horizon.fetch span
+        const events = await tracer.startActiveSpan('horizon.fetch', async (span) => {
+          try {
+            const res = fetchEvents ? await fetchEvents(nextLedger) : [];
+            span.setStatus({ code: 1 });
+            return res;
+          } catch (err) {
+            span.setStatus({ code: 2, message: err instanceof Error ? err.message : String(err) });
+            if (err instanceof Error) span.recordException(err);
+            throw err;
+          } finally {
+            span.end();
+          }
+        });
+
         for (const event of events) {
           const correlationId = randomUUID();
           await this.processEvent(event, correlationId);

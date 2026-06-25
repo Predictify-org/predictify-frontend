@@ -1,16 +1,19 @@
-import { getCorrelationContext, runWithCorrelation } from "./correlation-middleware";
+import { getCorrelationContext as getCorrelationContextMock, runWithCorrelation } from "./correlation-middleware";
 
 describe("correlation-middleware", () => {
   it("propagates correlation context", () => {
     runWithCorrelation("test-correlation-id", () => {
-      const context = getCorrelationContext();
+      const context = getCorrelationContextMock();
       expect(context?.correlationId).toBe("test-correlation-id");
     });
   });
 
   it("returns undefined outside of correlation context", () => {
-    const context = getCorrelationContext();
+    const context = getCorrelationContextMock();
     expect(context).toBeUndefined();
+  });
+});
+
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { NextRequest, NextResponse } from 'next/server';
 import {
