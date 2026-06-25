@@ -3,7 +3,7 @@
   "info": {
     "title": "StreamPay API",
     "version": "2.0.0",
-    "description": "REST API for the StreamPay payment-streaming platform on Stellar.\n\nAll error responses use the canonical envelope:\n```json\n{ \"error\": { \"code\": \"ERROR_CODE\", \"message\": \"Human-readable detail.\", \"request_id\": \"req_...\" } }\n```\n\nv1 stream paths are deprecated and will be removed. Use `/api/v2/streams`."
+    "description": "REST API for the StreamPay payment-streaming platform on Stellar.\n\nAll error responses use the canonical envelope:\n```json\n{ \"error\": { \"code\": \"ERROR_CODE\", \"message\": \"Human-readable detail.\", \"request_id\": \"req_...\" } }\n```\n\nv1 stream paths (`/api/streams`) are deprecated and will be removed. Use `/api/v2/streams`."
   },
   "servers": [
     { "url": "http://localhost:3000", "description": "Local development" }
@@ -45,6 +45,61 @@
                 "example": "req_01HZ9ABCDEF"
               }
             }
+          }
+        }
+      },
+      "StreamV1": {
+        "type": "object",
+        "description": "v1 payment stream shape. **Deprecated** — use `StreamV2` via `/api/v2/streams`.",
+        "required": ["id", "recipient", "rate", "schedule", "status", "nextAction", "token", "createdAt", "updatedAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique stream identifier.",
+            "example": "stream-abc12345"
+          },
+          "recipient": {
+            "type": "string",
+            "description": "Stellar public key of the payment recipient.",
+            "example": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG"
+          },
+          "rate": {
+            "type": "string",
+            "description": "Numeric payment amount per schedule interval.",
+            "example": "120"
+          },
+          "schedule": {
+            "type": "string",
+            "enum": ["second", "minute", "hour", "day", "week", "month", "year"],
+            "description": "Payment interval.",
+            "example": "month"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "active", "paused", "ended"],
+            "description": "Current lifecycle state of the stream."
+          },
+          "nextAction": {
+            "type": ["string", "null"],
+            "description": "The next permitted action for the authenticated user.",
+            "example": "start"
+          },
+          "token": {
+            "type": "string",
+            "description": "Stellar asset code.",
+            "example": "XLM"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 creation timestamp.",
+            "example": "2024-01-15T10:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 last-updated timestamp.",
+            "example": "2024-01-15T10:00:00.000Z"
           }
         }
       },
@@ -281,6 +336,51 @@
           }
         }
       },
+      "404": {
+        "description": "Not found — the requested resource does not exist.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": {
+              "error": {
+                "code": "STREAM_NOT_FOUND",
+                "message": "Stream 'stream-abc12345' not found.",
+                "request_id": "req_01HZ9ABCDEF"
+              }
+            }
+          }
+        }
+      },
+      "409": {
+        "description": "Conflict — the operation is not valid for the current stream state.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": {
+              "error": {
+                "code": "STREAM_INACTIVE_STATE",
+                "message": "Cannot delete a stream that is active or paused. Stop it first.",
+                "request_id": "req_01HZ9ABCDEF"
+              }
+            }
+          }
+        }
+      },
+      "422": {
+        "description": "Unprocessable entity — request body failed schema validation.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+            "example": {
+              "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "One or more fields are invalid.",
+                "request_id": "req_01HZ9ABCDEF"
+              }
+            }
+          }
+        }
+      },
       "500": {
         "description": "Internal server error.",
         "content": {
@@ -445,6 +545,556 @@
         }
       }
     },
+    "/api/streams": {
+      "get": {
+        "operationId": "listStreams",
+        "summary": "List payment streams (v1, deprecated)",
+        "description": "Returns a cursor-paginated list of streams owned by the authenticated identity. **Deprecated** — use `GET /api/v2/streams` instead.",
+        "deprecated": true,
+        "tags": ["Streams v1"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of streams to return (1–100, default 20).",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20, "example": 20 }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque pagination cursor from a previous response `meta.nextCursor` field.",
+            "schema": { "type": "string", "example": "c3RyZWFtLWFiYzEyMzQ1" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter results to streams with this status.",
+            "schema": { "type": "string", "enum": ["draft", "active", "paused", "ended"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated stream list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "links", "meta"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/StreamV1" }
+                    },
+                    "links": {
+                      "type": "object",
+                      "required": ["self"],
+                      "properties": {
+                        "self": { "type": "string", "example": "/api/v1/streams?limit=20" }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": ["hasNext", "nextCursor", "total"],
+                      "properties": {
+                        "hasNext": { "type": "boolean", "example": false },
+                        "nextCursor": { "type": ["string", "null"], "example": null },
+                        "total": { "type": "integer", "example": 1 }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "single-active-stream": {
+                    "summary": "One active stream, no further pages",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "stream-abc12345",
+                          "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                          "rate": "120",
+                          "schedule": "month",
+                          "status": "active",
+                          "nextAction": "pause",
+                          "token": "XLM",
+                          "createdAt": "2024-01-15T10:00:00.000Z",
+                          "updatedAt": "2024-01-16T08:30:00.000Z"
+                        }
+                      ],
+                      "links": { "self": "/api/v1/streams?limit=20" },
+                      "meta": { "hasNext": false, "nextCursor": null, "total": 1 }
+                    }
+                  },
+                  "empty-list": {
+                    "summary": "No streams exist yet",
+                    "value": {
+                      "data": [],
+                      "links": { "self": "/api/v1/streams?limit=20" },
+                      "meta": { "hasNext": false, "nextCursor": null, "total": 0 }
+                    }
+                  },
+                  "paginated-first-page": {
+                    "summary": "First page of a multi-page result",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "stream-abc12345",
+                          "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                          "rate": "50",
+                          "schedule": "week",
+                          "status": "draft",
+                          "nextAction": "start",
+                          "token": "XLM",
+                          "createdAt": "2024-01-15T10:00:00.000Z",
+                          "updatedAt": "2024-01-15T10:00:00.000Z"
+                        }
+                      ],
+                      "links": { "self": "/api/v1/streams?limit=1" },
+                      "meta": { "hasNext": true, "nextCursor": "c3RyZWFtLWFiYzEyMzQ1", "total": 3 }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed cursor.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "INVALID_CURSOR",
+                    "message": "Malformed cursor",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMIT_EXCEEDED",
+                    "message": "Too many requests. Retry after 30 seconds.",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      },
+      "post": {
+        "operationId": "createStream",
+        "summary": "Create a payment stream (v1, deprecated)",
+        "description": "Creates a new payment stream in `draft` status. **Deprecated** — use `POST /api/v2/streams` instead.\n\nSupplying an `Idempotency-Key` header makes this request idempotent; replaying the same key and body returns the cached response.",
+        "deprecated": true,
+        "tags": ["Streams v1"],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Client-generated key (UUID recommended) to make the request idempotent.",
+            "schema": { "type": "string", "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["recipient", "rate", "schedule"],
+                "properties": {
+                  "recipient": {
+                    "type": "string",
+                    "description": "Stellar public key of the payment recipient (56-character G… address).",
+                    "example": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG"
+                  },
+                  "rate": {
+                    "type": "string",
+                    "description": "Positive decimal payment amount per schedule interval (max 7 decimal places).",
+                    "example": "120"
+                  },
+                  "schedule": {
+                    "type": "string",
+                    "enum": ["second", "minute", "hour", "day", "week", "month", "year"],
+                    "description": "Payment interval.",
+                    "example": "month"
+                  },
+                  "token": {
+                    "type": "string",
+                    "description": "Stellar asset code (optional, defaults to XLM).",
+                    "example": "XLM"
+                  }
+                }
+              },
+              "example": {
+                "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                "rate": "120",
+                "schedule": "month",
+                "token": "XLM"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Stream created. Initial status is `draft`; call `POST /api/streams/{id}/start` to activate.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "links"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/StreamV1" },
+                    "links": {
+                      "type": "object",
+                      "required": ["self"],
+                      "properties": {
+                        "self": { "type": "string", "example": "/api/v1/streams/stream-abc12345" }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "data": {
+                    "id": "stream-abc12345",
+                    "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                    "rate": "120",
+                    "schedule": "month",
+                    "status": "draft",
+                    "nextAction": "start",
+                    "token": "XLM",
+                    "createdAt": "2024-01-15T10:00:00.000Z",
+                    "updatedAt": "2024-01-15T10:00:00.000Z"
+                  },
+                  "links": { "self": "/api/v1/streams/stream-abc12345" }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400" },
+          "409": {
+            "description": "Idempotency key reused with a different request body.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "IDEMPOTENCY_CONFLICT",
+                    "message": "Idempotency key has been used with a different request.",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "422": { "$ref": "#/components/responses/422" },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMIT_EXCEEDED",
+                    "message": "Too many requests. Retry after 30 seconds.",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
+    "/api/streams/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Stream identifier.",
+          "schema": { "type": "string", "example": "stream-abc12345" }
+        },
+        {
+          "name": "x-tenant-id",
+          "in": "header",
+          "required": true,
+          "description": "Tenant context for multi-tenant isolation. Must be a non-empty string.",
+          "schema": { "type": "string", "example": "tenant-org-xyz" }
+        }
+      ],
+      "get": {
+        "operationId": "getStream",
+        "summary": "Get a payment stream (v1, deprecated)",
+        "description": "Returns a single stream by ID in the v1 shape. **Deprecated** — use `GET /api/v2/streams/{id}` instead.\n\nResponses are cached; a cache hit returns `X-Cache: HIT`.",
+        "deprecated": true,
+        "tags": ["Streams v1"],
+        "responses": {
+          "200": {
+            "description": "Stream found.",
+            "headers": {
+              "X-Cache": {
+                "description": "Whether the response was served from cache (`HIT`) or fetched from the data store (`MISS`).",
+                "schema": { "type": "string", "enum": ["HIT", "MISS"] }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "links"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/StreamV1" },
+                    "links": {
+                      "type": "object",
+                      "required": ["self"],
+                      "properties": {
+                        "self": { "type": "string", "example": "/api/v1/streams/stream-abc12345" }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "draft-stream": {
+                    "summary": "A newly created stream waiting to be started",
+                    "value": {
+                      "data": {
+                        "id": "stream-abc12345",
+                        "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                        "rate": "120",
+                        "schedule": "month",
+                        "status": "draft",
+                        "nextAction": "start",
+                        "token": "XLM",
+                        "createdAt": "2024-01-15T10:00:00.000Z",
+                        "updatedAt": "2024-01-15T10:00:00.000Z"
+                      },
+                      "links": { "self": "/api/v1/streams/stream-abc12345" }
+                    }
+                  },
+                  "active-stream": {
+                    "summary": "A running stream that can be paused or stopped",
+                    "value": {
+                      "data": {
+                        "id": "stream-def67890",
+                        "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                        "rate": "50",
+                        "schedule": "week",
+                        "status": "active",
+                        "nextAction": "pause",
+                        "token": "XLM",
+                        "createdAt": "2024-01-10T08:00:00.000Z",
+                        "updatedAt": "2024-01-16T09:15:00.000Z"
+                      },
+                      "links": { "self": "/api/v1/streams/stream-def67890" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or empty `x-tenant-id` header.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "MISSING_TENANT",
+                    "message": "Tenant ID header is required",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/404" },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMIT_EXCEEDED",
+                    "message": "Too many requests. Retry after 30 seconds.",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      },
+      "post": {
+        "operationId": "updateStream",
+        "summary": "Update a payment stream (v1, deprecated)",
+        "description": "Partially updates a stream by merging the request body fields. **Deprecated** — there is no direct v2 equivalent; update streams via their lifecycle action sub-routes.\n\nThe `updatedAt` field is always refreshed. Cache is invalidated on success.",
+        "deprecated": true,
+        "tags": ["Streams v1"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Partial stream fields to update. Any top-level `StreamV1` field may be included.",
+                "properties": {
+                  "rate": {
+                    "type": "string",
+                    "description": "New rate amount.",
+                    "example": "150"
+                  },
+                  "schedule": {
+                    "type": "string",
+                    "enum": ["second", "minute", "hour", "day", "week", "month", "year"],
+                    "example": "month"
+                  },
+                  "token": {
+                    "type": "string",
+                    "description": "New asset code.",
+                    "example": "USDC"
+                  }
+                }
+              },
+              "example": { "rate": "150" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stream updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/StreamV1" }
+                  }
+                },
+                "example": {
+                  "data": {
+                    "id": "stream-abc12345",
+                    "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                    "rate": "150",
+                    "schedule": "month",
+                    "status": "draft",
+                    "nextAction": "start",
+                    "token": "XLM",
+                    "createdAt": "2024-01-15T10:00:00.000Z",
+                    "updatedAt": "2024-01-15T11:30:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing `x-tenant-id` header or invalid JSON body.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "missing-tenant": {
+                    "summary": "x-tenant-id header absent",
+                    "value": {
+                      "error": {
+                        "code": "MISSING_TENANT",
+                        "message": "Tenant ID header is required",
+                        "request_id": "req_01HZ9ABCDEF"
+                      }
+                    }
+                  },
+                  "invalid-json": {
+                    "summary": "Malformed JSON body",
+                    "value": {
+                      "error": {
+                        "code": "INVALID_REQUEST",
+                        "message": "Request body must be valid JSON",
+                        "request_id": "req_01HZ9ABCDEF"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/404" },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMIT_EXCEEDED",
+                    "message": "Too many requests. Retry after 30 seconds.",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteStream",
+        "summary": "Delete a payment stream (v1, deprecated)",
+        "description": "Permanently deletes a stream. **Deprecated** — use `DELETE /api/v2/streams/{id}` instead.\n\nA stream must be in `draft` or `ended` status before it can be deleted. Attempting to delete an `active` or `paused` stream returns 409. Cache is invalidated on success.",
+        "deprecated": true,
+        "tags": ["Streams v1"],
+        "responses": {
+          "204": {
+            "description": "Stream deleted. No response body."
+          },
+          "400": {
+            "description": "Missing or empty `x-tenant-id` header.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "MISSING_TENANT",
+                    "message": "Tenant ID header is required",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/404" },
+          "409": { "$ref": "#/components/responses/409" },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMIT_EXCEEDED",
+                    "message": "Too many requests. Retry after 30 seconds.",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
     "/api/v2/streams": {
       "get": {
         "operationId": "listStreamsV2",
@@ -467,18 +1117,47 @@
                     }
                   }
                 },
-                "example": {
-                  "streams": [
-                    {
-                      "id": "stream_lf3k9z",
-                      "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
-                      "rate": "120 XLM/month",
-                      "status": "active",
-                      "allowed_actions": ["pause", "stop"],
-                      "created_at": "2024-01-15T10:00:00.000Z",
-                      "settlement": null
+                "examples": {
+                  "one-active-stream": {
+                    "summary": "Single active stream",
+                    "value": {
+                      "streams": [
+                        {
+                          "id": "stream_lf3k9z",
+                          "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                          "rate": "120 XLM/month",
+                          "status": "active",
+                          "allowed_actions": ["pause", "stop"],
+                          "created_at": "2024-01-15T10:00:00.000Z",
+                          "settlement": null
+                        }
+                      ]
                     }
-                  ]
+                  },
+                  "settled-stream": {
+                    "summary": "Ended stream with settlement details",
+                    "value": {
+                      "streams": [
+                        {
+                          "id": "stream_lf3k9z",
+                          "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                          "rate": "120 XLM/month",
+                          "status": "ended",
+                          "allowed_actions": [],
+                          "created_at": "2024-01-15T10:00:00.000Z",
+                          "settlement": {
+                            "settled_at": "2024-02-01T12:00:00.000Z",
+                            "amount": "360 XLM",
+                            "currency": "XLM"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "empty-list": {
+                    "summary": "No streams for this user",
+                    "value": { "streams": [] }
+                  }
                 }
               }
             }
@@ -498,24 +1177,35 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["recipient", "rate"],
+                "required": ["recipient", "rate", "schedule"],
                 "properties": {
                   "recipient": {
                     "type": "string",
-                    "description": "Stellar public key of the recipient.",
+                    "description": "Stellar public key of the recipient (56-character G… address).",
                     "example": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG"
                   },
                   "rate": {
                     "type": "string",
-                    "description": "Payment rate string.",
-                    "example": "120 XLM/month"
+                    "description": "Positive decimal payment amount per schedule interval (max 7 decimal places).",
+                    "example": "120"
                   },
-                  "currency": {
+                  "schedule": {
                     "type": "string",
-                    "description": "Asset code (optional, defaults to XLM).",
+                    "enum": ["second", "minute", "hour", "day", "week", "month", "year"],
+                    "description": "Payment interval.",
+                    "example": "month"
+                  },
+                  "token": {
+                    "type": "string",
+                    "description": "Stellar asset code (optional, defaults to XLM).",
                     "example": "XLM"
                   }
                 }
+              },
+              "example": {
+                "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                "rate": "120",
+                "schedule": "month"
               }
             }
           }
@@ -540,6 +1230,118 @@
           },
           "400": { "$ref": "#/components/responses/400" },
           "401": { "$ref": "#/components/responses/401" },
+          "422": { "$ref": "#/components/responses/422" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
+    "/api/v2/streams/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Stream identifier.",
+          "schema": { "type": "string", "example": "stream_lf3k9z" }
+        }
+      ],
+      "get": {
+        "operationId": "getStreamV2",
+        "summary": "Get a payment stream (v2)",
+        "description": "Returns a single stream by ID in the v2 shape.",
+        "tags": ["Streams"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Stream found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "links"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/StreamV2" },
+                    "links": {
+                      "type": "object",
+                      "required": ["self"],
+                      "properties": {
+                        "self": { "type": "string", "example": "/api/v2/streams/stream_lf3k9z" }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "draft-stream": {
+                    "summary": "Newly created stream awaiting activation",
+                    "value": {
+                      "data": {
+                        "id": "stream_lf3k9z",
+                        "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                        "rate": "120 XLM/month",
+                        "status": "draft",
+                        "allowed_actions": ["start"],
+                        "created_at": "2024-01-15T10:00:00.000Z",
+                        "settlement": null
+                      },
+                      "links": { "self": "/api/v2/streams/stream_lf3k9z" }
+                    }
+                  },
+                  "active-stream": {
+                    "summary": "Running stream that can be paused or stopped",
+                    "value": {
+                      "data": {
+                        "id": "stream_lf3k9z",
+                        "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                        "rate": "120 XLM/month",
+                        "status": "active",
+                        "allowed_actions": ["pause", "stop"],
+                        "created_at": "2024-01-15T10:00:00.000Z",
+                        "settlement": null
+                      },
+                      "links": { "self": "/api/v2/streams/stream_lf3k9z" }
+                    }
+                  },
+                  "ended-settled-stream": {
+                    "summary": "Ended stream with settlement details",
+                    "value": {
+                      "data": {
+                        "id": "stream_lf3k9z",
+                        "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                        "rate": "120 XLM/month",
+                        "status": "ended",
+                        "allowed_actions": [],
+                        "created_at": "2024-01-15T10:00:00.000Z",
+                        "settlement": {
+                          "settled_at": "2024-02-01T12:00:00.000Z",
+                          "amount": "360 XLM",
+                          "currency": "XLM"
+                        }
+                      },
+                      "links": { "self": "/api/v2/streams/stream_lf3k9z" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/401" },
+          "404": { "$ref": "#/components/responses/404" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteStreamV2",
+        "summary": "Delete a payment stream (v2)",
+        "description": "Permanently deletes a stream. The stream must be in `draft` or `ended` status; attempting to delete an `active` or `paused` stream returns 409.",
+        "tags": ["Streams"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": {
+            "description": "Stream deleted. No response body."
+          },
+          "401": { "$ref": "#/components/responses/401" },
+          "404": { "$ref": "#/components/responses/404" },
+          "409": { "$ref": "#/components/responses/409" },
           "500": { "$ref": "#/components/responses/500" }
         }
       }
@@ -662,7 +1464,7 @@
                     "signature": {
                       "type": "string",
                       "description": "Base64-encoded signature.",
-                      "example": "c2lnbmVkOmFHVnNiRzg9"
+                      "example": "c2lnbmVkOmFHVnNiRzg5"
                     }
                   }
                 }
@@ -679,6 +1481,7 @@
   "tags": [
     { "name": "Auth", "description": "Wallet-based authentication flow" },
     { "name": "Streams", "description": "Payment stream management (v2)" },
+    { "name": "Streams v1", "description": "Payment stream management (v1, deprecated — use Streams)" },
     { "name": "Webhooks", "description": "Webhook ingestion and delivery history" },
     { "name": "Debug", "description": "Non-production debugging utilities" }
   ]
