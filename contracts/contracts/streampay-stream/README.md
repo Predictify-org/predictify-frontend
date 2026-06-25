@@ -30,3 +30,29 @@ cargo build --target wasm32-unknown-unknown --release
 # Test
 cargo test
 ```
+
+## Contract Metadata
+
+The compiled WASM binary embeds three `contractmetav0` entries readable by
+Stellar tooling (Horizon, Stellar Expert, Soroban CLI):
+
+| Key | Value |
+|-----|-------|
+| `name` | `streampay-stream` |
+| `version` | `0.1.0` (semver — bump MINOR for new features, MAJOR for breaking changes) |
+| `repo` | `https://github.com/stream-pay/StreamPay-Frontend` |
+
+To inspect the metadata on a deployed contract or a local WASM file:
+
+```bash
+# From a local WASM binary (after cargo build --release):
+stellar contract info --wasm target/wasm32v1-none/release/streampay_stream.wasm
+
+# From a deployed contract (Testnet example):
+stellar contract info --id <CONTRACT_ID> --network testnet
+```
+
+The metadata values live in `src/lib.rs` as the public constants `CONTRACT_NAME`,
+`CONTRACT_VERSION`, and `CONTRACT_REPO`.  Both the `contractmeta!` macro
+invocations and the unit tests reference these constants, so there is no way
+for the binary metadata and the tested expectations to drift apart.

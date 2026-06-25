@@ -39,4 +39,17 @@ pub enum Error {
     AlreadySettled = 8,
     /// 9: Token is not allowed for streaming.
     TokenNotAllowed = 9,
+    /// 10: Recipient has no trustline for the SEP-41 token; transfer would fail.
+    ///
+    /// This is a best-effort check performed at stream-creation time by calling
+    /// `balance()` on the token contract for the recipient address. If the call
+    /// traps (which the Stellar Asset Contract does when no trustline exists),
+    /// the stream is rejected early rather than having funds locked in escrow
+    /// with no way for the recipient to ever withdraw them.
+    ///
+    /// **SEP-41 limitation**: Pure SEP-41 tokens (non-SAC) must manage their
+    /// own trustline semantics. For those tokens `balance()` always succeeds
+    /// and this error is never returned; the check is a no-op. Only SAC-wrapped
+    /// Stellar classic assets enforce trustline requirements at the host level.
+    RecipientNotTrusted = 10,
 }

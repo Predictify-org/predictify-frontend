@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use proptest::prelude::*;
+use proptest::test_runner::Config;
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
     token::StellarAssetClient,
@@ -8,6 +9,83 @@ use soroban_sdk::{
 };
 
 use crate::{Contract, ContractClient, StreamStatus};
+
+// ── Operation enum for state-machine property test ───────────────────────────
+//
+// Each variant represents one contract call in the lifecycle sequence. The
+// test engine drives the stream through arbitrary sequences of these
+// operations and asserts `released_amount <= total_amount` after every step.
+
+/// Encoded lifecycle operation for use in the state-machine property test.
+///
+/// - `Withdraw(fraction)` — withdraw `withdrawable / fraction` tokens (1-8).
+///   Using a fraction guards against the OverWithdraw error.
+/// - `Pause` — pause if Active; skip if Paused/Settled.
+/// - `Resume` — resume if Paused; skip otherwise.
+/// - `Settle` — try to settle; only succeeds after end_time.
+/// - `AdvanceTime(steps)` — advance ledger by `steps * (duration / 16)`.
+#[derive(Debug, Clone)]
+enum Op {
+    Withdraw(u64), // fraction denominator in 1..=8
+    Pause,
+    Resume,
+    Settle,
+    AdvanceTime(u64), // step multiplier in 1..=4
+}
+
+/// Proptest strategy that generates a single `Op`.
+fn arb_op() -> impl Strategy<Value = Op> {
+    prop_oneof![
+        (1u64..=8u64).prop_map(Op::Withdraw),
+        Just(Op::Pause),
+        Just(Op::Resume),
+        Just(Op::Settle),
+        (1u64..=4u64).prop_map(Op::AdvanceTime),
+    ]
+}
+
+/// Proptest strategy for a sequence of 8–20 operations.
+///
+/// A sequence of 8–20 ops with the five variants above gives each test
+/// run plenty of opportunity to hit every branch (pause→resume, multiple
+/// withdrawals, settle after end) while staying fast per iteration.
+fn arb_ops() -> impl Strategy<Value = Vec<Op>> {
+    proptest::collection::vec(arb_op(), 8..=20)
+}
+
+// ── Global invariant: released_amount never exceeds total_amount ─────────────
+
+/// Asserts the central safety invariant on a stream snapshot.
+///
+/// Called after every operation so any violation is caught at the earliest
+/// possible point and the failing sequence is reported verbatim.
+macro_rules! assert_invariant {
+    ($stream:expr, $label:expr) => {{
+        let s = &$stream;
+        prop_assert!(
+            s.released_amount >= 0,
+            "[{}] released_amount {} is negative",
+            $label,
+            s.released_amount
+        );
+        prop_assert!(
+            s.released_amount <= s.total_amount,
+            "[{}] released_amount {} exceeds total_amount {}",
+            $label,
+            s.released_amount,
+            s.total_amount
+        );
+        let withdrawable = s.total_amount
+            .checked_sub(s.released_amount)
+            .expect("subtraction overflow in assert_invariant");
+        prop_assert!(
+            withdrawable >= 0,
+            "[{}] remaining ({}) is negative",
+            $label,
+            withdrawable
+        );
+    }};
+}
 
 /// Helper to set up test environment
 fn setup_env() -> (Env, Address, Address, Address, Address) {
@@ -25,11 +103,20 @@ fn setup_env() -> (Env, Address, Address, Address, Address) {
         .address();
 
     StellarAssetClient::new(&env, &token).mint(&sender, &10_000_000_000);
+    // Establish a SAC balance entry for recipient so the trustline check passes.
+    StellarAssetClient::new(&env, &token).mint(&recipient, &1);
 
     (env, admin, sender, recipient, token)
 }
 
 proptest! {
+    // ── Configuration: 1 024 cases for thorough coverage ─────────────────────
+    #![proptest_config(Config {
+        cases: 1_024,
+        // Fixed failure persistence so flakes are reproduced by re-running.
+        failure_persistence: None,
+        ..Config::default()
+    })]
     #[test]
     fn prop_accrual_invariants(
         total_amount in 1_000_000i128..10_000_000_000i128,
@@ -274,6 +361,130 @@ proptest! {
             );
 
             previous_withdrawable = withdrawable;
+        }
+    }
+
+    // ── Global invariant: released_amount never exceeds total_amount ──────────
+    //
+    // This is the central safety property of the escrow contract.
+    // The stream holds `total_amount` tokens; no more than that amount
+    // must ever be marked released, regardless of operation order.
+    //
+    // Strategy
+    // --------
+    //   1. Create an Active stream with arbitrary amount and duration.
+    //   2. Drive it through an arbitrary 8–20-op sequence (Withdraw, Pause,
+    //      Resume, Settle, AdvanceTime), skipping inapplicable ops.
+    //   3. Assert `assert_invariant!` — released in [0, total] — after every
+    //      single step, not just at the end.
+    //
+    // 1 024 cases × up to 20 ops ≈ 20 000 invocations per run.
+    #[test]
+    fn prop_released_amount_never_exceeds_total(
+        total_amount in 1_000_000i128..10_000_000_000i128,
+        duration    in 100u64..500_000u64,
+        ops         in arb_ops(),
+    ) {
+        let (env, _admin, sender, recipient, token) = setup_env();
+        let contract_id = env.register(Contract, ());
+        let client = ContractClient::new(&env, &contract_id);
+
+        let start_time = 1_000u64;
+        let end_time   = start_time + duration;
+        // time_step gives ~16 evenly-spaced probes across the duration window.
+        let time_step  = duration / 16; // >= 6 when duration >= 100
+
+        let stream_id = client.create_stream(
+            &sender, &recipient, &token, &total_amount, &start_time, &end_time,
+        );
+
+        // Invariant must hold immediately after creation.
+        assert_invariant!(client.get_stream(&stream_id), "after create");
+
+        let mut now = start_time;
+
+        for op in &ops {
+            let stream = client.get_stream(&stream_id);
+
+            match op {
+                // Withdraw `available / fraction` tokens (fraction in 1..=8).
+                // Skip when Settled, wrong state, or nothing available.
+                Op::Withdraw(fraction) => {
+                    if stream.status == StreamStatus::Settled
+                        || (stream.status != StreamStatus::Active
+                            && stream.status != StreamStatus::Paused)
+                    {
+                        continue;
+                    }
+                    let available = client.withdrawable(&stream_id);
+                    let amount    = available / (*fraction as i128);
+                    if amount <= 0 { continue; }
+                    let _ = client.try_withdraw(&stream_id, &amount);
+                    assert_invariant!(client.get_stream(&stream_id), "after withdraw");
+                }
+
+                // Pause only from Active state.
+                Op::Pause => {
+                    if stream.status != StreamStatus::Active { continue; }
+                    let _ = client.try_pause(&stream_id);
+                    assert_invariant!(client.get_stream(&stream_id), "after pause");
+                }
+
+                // Resume only from Paused state.
+                // Advance clock past pause_time so paused_duration >= 0.
+                Op::Resume => {
+                    if stream.status != StreamStatus::Paused { continue; }
+                    if now <= stream.pause_time {
+                        now = stream.pause_time + 1;
+                        env.ledger().set_timestamp(now);
+                    }
+                    let _ = client.try_resume(&stream_id);
+                    assert_invariant!(client.get_stream(&stream_id), "after resume");
+                }
+
+                // Settle: permissionless once now >= end_time.
+                // Jump the clock to end_time to guarantee the op fires at least
+                // sometimes, exercising the settle-with-partial-release branch.
+                Op::Settle => {
+                    if stream.status == StreamStatus::Settled {
+                        assert_invariant!(stream, "settle noop");
+                        continue;
+                    }
+                    if stream.status != StreamStatus::Active
+                        && stream.status != StreamStatus::Paused
+                    {
+                        continue;
+                    }
+                    let current_end = client.get_stream(&stream_id).end_time;
+                    if now < current_end {
+                        now = current_end;
+                        env.ledger().set_timestamp(now);
+                    }
+                    let _ = client.try_settle(&stream_id);
+                    assert_invariant!(client.get_stream(&stream_id), "after settle");
+                }
+
+                // AdvanceTime: move clock forward; no contract mutation.
+                // Validates that read-only queries stay stable without writes.
+                Op::AdvanceTime(multiplier) => {
+                    now = now.saturating_add(multiplier * time_step.max(1));
+                    env.ledger().set_timestamp(now);
+                    assert_invariant!(client.get_stream(&stream_id), "after advance_time");
+                }
+            }
+        }
+
+        // ── Terminal invariants ───────────────────────────────────────────────
+        let final_stream = client.get_stream(&stream_id);
+        assert_invariant!(final_stream, "final");
+
+        // A Settled stream must have released exactly total_amount.
+        if final_stream.status == StreamStatus::Settled {
+            prop_assert_eq!(
+                final_stream.released_amount,
+                final_stream.total_amount,
+                "Settled stream must have released_amount == total_amount"
+            );
         }
     }
 }

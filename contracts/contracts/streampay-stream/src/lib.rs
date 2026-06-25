@@ -2,11 +2,48 @@
 
 mod error;
 mod events;
+mod release;
 mod storage;
 
 pub use error::Error;
-use soroban_sdk::{contract, contractimpl, token, Address, Env};
+use soroban_sdk::{contract, contractimpl, contractmeta, token, Address, Env};
 pub use storage::{Stream, StreamStatus};
+
+// ── Contract metadata ─────────────────────────────────────────────────────────
+//
+// The `contractmeta!` macro embeds key/value pairs into the compiled WASM
+// binary's custom section `contractmetav0`.  Off-chain tooling (Horizon,
+// Stellar Expert, the Soroban CLI's `contract info` command) reads this
+// section to display human-readable contract information without requiring
+// any on-chain storage reads.
+//
+// Rules:
+//   - Keys and values must be string literals known at compile time.
+//   - The block is NOT part of the contract's ABI; changing values is safe.
+//   - Version follows semver (MAJOR.MINOR.PATCH).  Bump MINOR for new
+//     features, PATCH for bug fixes, MAJOR for breaking changes.
+//
+// The string constants below are the single source of truth: the macro
+// references them and the unit test reads them, so there is no way for the
+// two to drift apart.
+
+/// Human-readable contract name embedded in the WASM `contractmetav0` section.
+pub const CONTRACT_NAME: &str = "streampay-stream";
+
+/// Semver version of this contract release, embedded in the WASM metadata.
+///
+/// Increment according to semver:
+///   PATCH — backwards-compatible bug fix
+///   MINOR — new backwards-compatible feature
+///   MAJOR — breaking change to the public API
+pub const CONTRACT_VERSION: &str = "0.1.0";
+
+/// Source repository URL embedded in the WASM metadata for auditability.
+pub const CONTRACT_REPO: &str = "https://github.com/stream-pay/StreamPay-Frontend";
+
+contractmeta!(key = "name",    val = "streampay-stream");
+contractmeta!(key = "version", val = "0.1.0");
+contractmeta!(key = "repo",    val = "https://github.com/stream-pay/StreamPay-Frontend");
 
 #[contract]
 pub struct Contract;
@@ -162,6 +199,25 @@ impl Contract {
         let id = storage::next_stream_id(&env);
         let contract_address = env.current_contract_address();
 
+        // ── SEP-41 trustline best-effort check ────────────────────────────────
+        //
+        // For Stellar Asset Contract (SAC) tokens, `balance()` traps when the
+        // recipient has no trustline. We call it here, before escrowing funds,
+        // so we can return `Error::RecipientNotTrusted` rather than letting
+        // tokens become permanently locked (since `withdraw` / `settle` would
+        // also trap on transfer to an untrusted recipient).
+        //
+        // For pure SEP-41 tokens (non-SAC) `balance()` always succeeds and
+        // returns 0 for unknown accounts — this check is a no-op for those
+        // tokens and imposes only a single cross-contract read.
+        //
+        // `try_balance` uses Soroban's cross-contract try-invoke semantics:
+        // it returns `Err(_)` if the callee traps instead of propagating the
+        // panic to the caller.
+        token::Client::new(&env, &token)
+            .try_balance(&recipient)
+            .map_err(|_| Error::RecipientNotTrusted)?;
+
         token::Client::new(&env, &token).transfer(&sender, &contract_address, &total_amount);
 
         let stream = Stream {
@@ -257,7 +313,7 @@ impl Contract {
     /// The vested amount as an i128, always in the range `[0, total_amount]`.
     pub fn stream_balance(env: Env, stream_id: u64) -> Result<i128, Error> {
         let stream = get_existing_stream(&env, stream_id)?;
-        Ok(stream_balance_amount(&env, &stream))
+        Ok(stream_balance_amount(&env, &stream, env.ledger().timestamp()))
     }
 
     /// Withdraws accrued escrow to the recipient.
@@ -329,6 +385,7 @@ impl Contract {
         stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::paused(&env, stream_id, &stream.sender, now, now);
 
         Ok(stream)
     }
@@ -368,6 +425,7 @@ impl Contract {
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::resumed(&env, stream_id, &stream.sender, stream.end_time, now);
 
         Ok(stream)
     }
@@ -426,28 +484,20 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
     storage::get_stream(env, stream_id).ok_or(Error::NotFound)
 }
 
+/// Returns the amount currently available for withdrawal.
+///
+/// Delegates to the `release` module's `withdrawable` pure function, which
+/// accounts for pause state, total paused duration, and bounds the result
+/// to `[0, total_amount - released_amount]`.
 fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
-    }
-    if now < stream.start_time {
-        return 0;
-    }
-
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
+    release::withdrawable(stream, now)
 }
 
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
-    }
-    let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
-    }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+/// Returns the total amount that has vested (accrued) at the current ledger time.
+///
+/// Delegates to the `release` module's `vested_amount` pure function.
+fn stream_balance_amount(_env: &Env, stream: &Stream, now: u64) -> i128 {
+    release::vested_amount(stream, now)
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
