@@ -419,8 +419,8 @@ impl Contract {
 fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
     storage::get_stream(env, stream_id).ok_or(Error::NotFound)
 }
-
 fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
+    // Withdrawable is vested_amount(now) - released_amount, clamped at 0.
     if stream.status != StreamStatus::Active || stream.start_time == 0 {
         return 0;
     }
@@ -428,20 +428,14 @@ fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
         return 0;
     }
 
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
+    let vested = release::vested_amount(stream, now);
+    let available = vested.saturating_sub(stream.released_amount);
+    if available < 0 { 0 } else { available }
 }
 
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
-    }
-    let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
-    }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+    // Delegate to release::vested_amount for consistent, tested logic.
+    release::vested_amount(stream, env.ledger().timestamp())
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
