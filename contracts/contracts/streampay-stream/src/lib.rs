@@ -433,9 +433,9 @@ fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
     if now < stream.start_time {
         return 0;
     }
-
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
+    let end = if now > stream.end_time { stream.end_time } else { now };
+    let elapsed = end - stream.start_time;
+    (stream.total_amount * elapsed as i128) / stream.duration as i128
 }
 
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {

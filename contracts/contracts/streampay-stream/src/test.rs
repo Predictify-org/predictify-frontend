@@ -3,7 +3,7 @@
 use super::*;
 use soroban_sdk::{
     symbol_short,
-    testutils::{Address as _, Ledger},
+    testutils::{Address as _, Ledger, Events},
     token::StellarAssetClient,
     Address, Env, IntoVal, Val,
 };
@@ -228,6 +228,80 @@ fn unpause_re_enables_operations() {
         .create_stream(&data.sender, &data.recipient, &data.token, &100, &1_000, &1_010);
 }
 
+// ── Blocked operations when contract is paused ──────────────────────────────
+
+/// Negative test: Paused contract blocks start_stream operation.
+#[test]
+fn set_paused_true_blocks_start_stream() {
+    let data = setup_initialized();
+    let id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &1_000,
+        &1_100,
+    );
+
+    data.client.set_paused(&data.admin, &true);
+
+    // Verify pause blocks start_stream
+    assert_contract_error!(
+        data.client.try_start_stream(&id),
+        Error::ContractPaused
+    );
+}
+
+/// Negative test: Paused contract blocks settle operation.
+#[test]
+fn set_paused_true_blocks_settle() {
+    let data = setup_initialized();
+    let id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &1_000,
+        &1_100,
+    );
+
+    data.env.ledger().set_timestamp(1_101);
+    data.client.set_paused(&data.admin, &true);
+
+    // Verify pause blocks settle
+    assert_contract_error!(
+        data.client.try_settle(&id),
+        Error::ContractPaused
+    );
+}
+
+/// Negative test: Read operations work while money-path is blocked.
+#[test]
+fn paused_state_allows_read_operations() {
+    let data = setup_initialized();
+    let id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &1_000,
+        &1_100,
+    );
+
+    data.env.ledger().set_timestamp(1_050);
+    data.client.set_paused(&data.admin, &true);
+
+    // Read operations should work
+    let _ = data.client.get_stream(&id);
+    let _ = data.client.withdrawable(&id);
+
+    // But withdraw should fail
+    assert_contract_error!(
+        data.client.try_withdraw(&id, &100),
+        Error::ContractPaused
+    );
+}
+
 #[test]
 fn stream_persistent_ttl_extends_on_money_path_access() {
     let data = setup_initialized();
@@ -299,7 +373,101 @@ fn instance_ttl_extends_for_admin_and_counter_keys() {
     assert!(after_next_id_ttl > before_next_id_ttl);
 }
 
+// ── set_paused authorization tests ──────────────────────────────────────────
+
+/// Negative test: Non-admin cannot pause - returns Error::Unauthorized.
 #[test]
+fn set_paused_unauthorized_caller_returns_error() {
+    let data = setup_initialized();
+    let non_admin = Address::generate(&data.env);
+
+    data.env.mock_all_auths();
+    assert_contract_error!(
+        data.client.try_set_paused(&non_admin, &true),
+        Error::Unauthorized
+    );
+}
+
+/// Negative test: Multiple non-admins all get Error::Unauthorized.
+#[test]
+fn set_paused_multiple_unauthorized_all_fail() {
+    let data = setup_initialized();
+    let non_admin1 = Address::generate(&data.env);
+    let non_admin2 = Address::generate(&data.env);
+    let non_admin3 = Address::generate(&data.env);
+
+    data.env.mock_all_auths();
+    assert_contract_error!(
+        data.client.try_set_paused(&non_admin1, &true),
+        Error::Unauthorized
+    );
+    assert_contract_error!(
+        data.client.try_set_paused(&non_admin2, &false),
+        Error::Unauthorized
+    );
+    assert_contract_error!(
+        data.client.try_set_paused(&non_admin3, &true),
+        Error::Unauthorized
+    );
+}
+
+/// Negative test: Unauthorized caller cannot change pause state.
+#[test]
+fn set_paused_unauthorized_cannot_toggle() {
+    let data = setup_initialized();
+    let non_admin = Address::generate(&data.env);
+
+    data.env.mock_all_auths();
+    
+    // Attempt to pause fails
+    assert_contract_error!(
+        data.client.try_set_paused(&non_admin, &true),
+        Error::Unauthorized
+    );
+
+    // Contract still unpaused - create_stream works
+    data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &100,
+        &1_000,
+        &1_010,
+    );
+}
+
+/// Negative test: Non-admin cannot unpause either.
+#[test]
+fn set_paused_unauthorized_cannot_unpause() {
+    let data = setup_initialized();
+    let non_admin = Address::generate(&data.env);
+
+    // Admin pauses
+    data.client.set_paused(&data.admin, &true);
+
+    // Non-admin tries to unpause
+    data.env.mock_all_auths();
+    assert_contract_error!(
+        data.client.try_set_paused(&non_admin, &false),
+        Error::Unauthorized
+    );
+
+    // Contract still paused
+    assert_contract_error!(
+        data.client.try_create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.token,
+            &100,
+            &1_000,
+            &1_010
+        ),
+        Error::ContractPaused
+    );
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
 fn set_paused_wrong_admin_returns_unauthorized() {
     let data = setup_initialized();
     let wrong = Address::generate(&data.env);
