@@ -74,7 +74,7 @@ mod tests {
             released_amount,
             start_time,
             end_time,
-            duration: end_time - start_time,
+            duration: super::time::duration_checked(start_time, end_time).unwrap_or(0),
             last_update: start_time,
             status: StreamStatus::Active,
             pause_time: 0,

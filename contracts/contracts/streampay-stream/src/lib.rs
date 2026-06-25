@@ -1,6 +1,7 @@
 #![no_std]
 
 mod error;
+mod time;
 mod events;
 mod storage;
 
@@ -158,7 +159,7 @@ impl Contract {
             return Err(Error::InvalidTimeRange);
         }
 
-        let duration = end_time - start_time;
+        let duration = time::duration_checked(start_time, end_time)?;
         let id = storage::next_stream_id(&env);
         let contract_address = env.current_contract_address();
 
@@ -213,9 +214,7 @@ impl Contract {
         stream.status = StreamStatus::Active;
         stream.start_time = now;
         stream.last_update = now;
-        stream.end_time = now
-            .checked_add(stream.duration)
-            .ok_or(Error::InvalidTimeRange)?;
+        stream.end_time = time::add_seconds_checked(now, stream.duration)?;
 
         storage::set_stream(&env, stream_id, &stream);
         events::started(&env, stream_id, stream.start_time, stream.end_time, stream.start_time);
@@ -347,9 +346,7 @@ impl Contract {
         }
 
         let now = env.ledger().timestamp();
-        let paused_duration = now
-            .checked_sub(stream.pause_time)
-            .ok_or(Error::InvalidTimeRange)?;
+        let paused_duration = time::sub_checked(now, stream.pause_time)?;
 
         // Track total paused duration for accrual calculations
         stream.total_paused_duration = stream
@@ -358,10 +355,7 @@ impl Contract {
             .ok_or(Error::InvalidTimeRange)?;
 
         // Extend end_time by the paused duration to preserve unstreamed time
-        stream.end_time = stream
-            .end_time
-            .checked_add(paused_duration)
-            .ok_or(Error::InvalidTimeRange)?;
+        stream.end_time = time::add_seconds_checked(stream.end_time, paused_duration)?;
         
         stream.last_update = now;
         stream.status = StreamStatus::Active;
@@ -425,8 +419,8 @@ impl Contract {
 fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
     storage::get_stream(env, stream_id).ok_or(Error::NotFound)
 }
-
 fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
+    // Withdrawable is vested_amount(now) - released_amount, clamped at 0.
     if stream.status != StreamStatus::Active || stream.start_time == 0 {
         return 0;
     }
@@ -434,20 +428,14 @@ fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
         return 0;
     }
 
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
+    let vested = release::vested_amount(stream, now);
+    let available = vested.saturating_sub(stream.released_amount);
+    if available < 0 { 0 } else { available }
 }
 
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
-    }
-    let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
-    }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+    // Delegate to release::vested_amount for consistent, tested logic.
+    release::vested_amount(stream, env.ledger().timestamp())
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
