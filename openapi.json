@@ -1099,27 +1099,68 @@
       "get": {
         "operationId": "listStreamsV2",
         "summary": "List payment streams (v2)",
-        "description": "Returns all streams owned by the authenticated user in the v2 shape (`allowed_actions`, `created_at`, `settlement`).",
+        "description": "Returns all streams owned by the authenticated user with cursor-based pagination. Streams are ordered by (created_at DESC, id DESC) for stable pagination. Cursors are opaque, base64-encoded tokens signed with HMAC-SHA256 to prevent tampering.",
         "tags": ["Streams"],
         "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque pagination cursor from previous response `pagination.next_cursor` field. Encodes (created_at, id) tuple with HMAC signature.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY3ODkw"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of streams to return per page (1-100, default 20).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "example": 20
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Stream list.",
+            "description": "Paginated stream list with cursor metadata.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["streams"],
+                  "required": ["streams", "pagination"],
                   "properties": {
                     "streams": {
                       "type": "array",
                       "items": { "$ref": "#/components/schemas/StreamV2" }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "required": ["next_cursor", "limit"],
+                      "properties": {
+                        "next_cursor": {
+                          "type": ["string", "null"],
+                          "description": "Opaque cursor for the next page. `null` if no more results.",
+                          "example": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY3ODkw"
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "description": "Page size used for this request.",
+                          "example": 20
+                        }
+                      }
                     }
                   }
                 },
                 "examples": {
-                  "one-active-stream": {
-                    "summary": "Single active stream",
+                  "first-page-with-more": {
+                    "summary": "First page with more results available",
                     "value": {
                       "streams": [
                         {
@@ -1131,38 +1172,63 @@
                           "created_at": "2024-01-15T10:00:00.000Z",
                           "settlement": null
                         }
-                      ]
+                      ],
+                      "pagination": {
+                        "next_cursor": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY3ODkw",
+                        "limit": 20
+                      }
                     }
                   },
-                  "settled-stream": {
-                    "summary": "Ended stream with settlement details",
+                  "last-page": {
+                    "summary": "Final page with no more results",
                     "value": {
                       "streams": [
                         {
-                          "id": "stream_lf3k9z",
+                          "id": "stream_abc123",
                           "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
-                          "rate": "120 XLM/month",
-                          "status": "ended",
-                          "allowed_actions": [],
-                          "created_at": "2024-01-15T10:00:00.000Z",
-                          "settlement": {
-                            "settled_at": "2024-02-01T12:00:00.000Z",
-                            "amount": "360 XLM",
-                            "currency": "XLM"
-                          }
+                          "rate": "50 XLM/week",
+                          "status": "draft",
+                          "allowed_actions": ["start"],
+                          "created_at": "2024-01-10T08:00:00.000Z",
+                          "settlement": null
                         }
-                      ]
+                      ],
+                      "pagination": {
+                        "next_cursor": null,
+                        "limit": 20
+                      }
                     }
                   },
                   "empty-list": {
                     "summary": "No streams for this user",
-                    "value": { "streams": [] }
+                    "value": {
+                      "streams": [],
+                      "pagination": {
+                        "next_cursor": null,
+                        "limit": 20
+                      }
+                    }
                   }
                 }
               }
             }
           },
           "401": { "$ref": "#/components/responses/401" },
+          "422": {
+            "description": "Invalid or tampered cursor.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "INVALID_CURSOR",
+                    "message": "Invalid cursor: signature verification failed",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
           "500": { "$ref": "#/components/responses/500" }
         }
       },

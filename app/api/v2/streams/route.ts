@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, ErrorCode } from "@/app/lib/errors";
-import { toV2Stream, type StreamV1 } from "@/app/lib/api-version";
+import { toV2Stream, type StreamV1, dbStreamToV1 } from "@/app/lib/api-version";
 import { validateCreateStreamBody } from "@/app/lib/stream-validation";
+import { db } from "@/app/lib/db";
+import {
+  encodeCursor,
+  parsePaginationParams,
+  type CursorPayload,
+} from "@/app/lib/cursor-pagination";
 
 /**
  * GET /api/v2/streams
  *
- * Returns the authenticated user's payment streams in the v2 shape.
+ * Returns the authenticated user's payment streams with cursor-based pagination.
  * Requires: Authorization: Bearer <token>
  *
- * Response: { "streams": StreamV2[] }
+ * Query parameters:
+ * - `cursor`: Opaque pagination cursor from previous response (optional)
+ * - `limit`: Number of records to return (1-100, default 20)
  *
+ * Response: {
+ *   "streams": StreamV2[],
+ *   "pagination": {
+ *     "next_cursor": string | null,
+ *     "limit": number
+ *   }
+ * }
+ *
+ * Streams are ordered by (created_at DESC, id DESC) for stable pagination.
  * Deprecation notice: v1 /api/streams is sunset — see Deprecation header.
  */
 export async function GET(req: NextRequest) {
@@ -20,18 +37,95 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // TODO: fetch from data layer using token identity
-    const v1Streams: StreamV1[] = [];
-    const streams = v1Streams.map(toV2Stream);
+    // Parse pagination parameters
+    const { cursor, limit } = parsePaginationParams(req.nextUrl.searchParams);
 
-    return NextResponse.json({ streams }, { status: 200 });
-  } catch {
+    // Fetch streams from data layer with cursor-based filtering
+    const allStreams = Array.from(db.streams.values());
+
+    // Apply cursor filter and stable ordering
+    const filtered = filterAndSortStreams(allStreams, cursor);
+
+    // Take limit + 1 to determine if there are more pages
+    const page = filtered.slice(0, limit + 1);
+    const hasMore = page.length > limit;
+    const streams = page.slice(0, limit);
+
+    // Convert to v2 shape
+    const v2Streams = streams.map((s) => toV2Stream(dbStreamToV1(s)));
+
+    // Generate next cursor if there are more results
+    const nextCursor =
+      hasMore && streams.length > 0
+        ? encodeCursor(
+            streams[streams.length - 1].createdAt,
+            streams[streams.length - 1].id,
+          )
+        : null;
+
+    return NextResponse.json(
+      {
+        streams: v2Streams,
+        pagination: {
+          next_cursor: nextCursor,
+          limit,
+        },
+      },
+      { status: 200 },
+    );
+  } catch (err) {
+    // Handle invalid cursor errors with 422
+    if (err instanceof Error && err.message.includes("Invalid cursor")) {
+      return errorResponse(ErrorCode.INVALID_CURSOR, err.message, 422);
+    }
+
     return errorResponse(
       ErrorCode.INTERNAL_SERVER_ERROR,
       "Failed to retrieve streams.",
       500,
     );
   }
+}
+
+/**
+ * Filter and sort streams for cursor pagination.
+ *
+ * Ordering: (created_at DESC, id DESC) — stable two-column sort.
+ *
+ * When a cursor is provided:
+ * - Include only streams where (created_at, id) < cursor tuple
+ * - This implements keyset pagination (more efficient than OFFSET)
+ *
+ * @param streams - All streams from data layer
+ * @param cursor - Decoded cursor payload (null for first page)
+ * @returns Sorted and filtered stream array
+ */
+function filterAndSortStreams(
+  streams: Array<{ id: string; createdAt: string; [key: string]: any }>,
+  cursor: CursorPayload | null,
+): Array<{ id: string; createdAt: string; [key: string]: any }> {
+  // Apply cursor filter
+  let filtered = streams;
+  if (cursor) {
+    filtered = streams.filter((s) => {
+      // Include streams where (created_at, id) < cursor
+      // (created_at DESC, id DESC) means we want earlier timestamps
+      if (s.createdAt < cursor.createdAt) return true;
+      if (s.createdAt > cursor.createdAt) return false;
+      // Same timestamp: use id for tie-breaking
+      return s.id < cursor.id;
+    });
+  }
+
+  // Sort by (created_at DESC, id DESC)
+  return filtered.sort((a, b) => {
+    // DESC order: newer first
+    if (a.createdAt !== b.createdAt) {
+      return b.createdAt.localeCompare(a.createdAt);
+    }
+    // Tie-break on id DESC
+    return b.id.localeCompare(a.id);
+  });
 }
 
 /**
