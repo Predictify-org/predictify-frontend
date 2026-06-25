@@ -5,7 +5,7 @@ import { StatusBadge, type StreamStatus } from "./StatusBadge";
 import { StreamProgress } from "./StreamProgress";
 import { ErrorToast } from "./ErrorToast";
 import { fetchWithIdempotency } from "../../lib/apiClient";
-import { isStreamPayError } from "../lib/errors/mapper";
+import { isStreamPayError, normalizeError } from "../lib/errors/mapper";
 import { formatErrorForDisplay } from "../lib/errors/handler";
 import type { StreamPayError } from "../lib/errors/types";
 
@@ -84,9 +84,9 @@ export function StreamRow({ stream }: StreamRowProps) {
       }, 0);
 
     } catch (err: unknown) {
-      const normalizedError = isStreamPayError(err) 
-        ? err 
-        : formatErrorForDisplay(err as StreamPayError);
+      const normalizedError = isStreamPayError(err)
+        ? formatErrorForDisplay(err)
+        : formatErrorForDisplay(normalizeError(err));
       
       if (process.env.NODE_ENV === 'development') {
         console.error('Stream action failed:', err);
