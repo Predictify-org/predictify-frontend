@@ -259,6 +259,32 @@ fn stream_persistent_ttl_extends_on_money_path_access() {
 }
 
 #[test]
+fn token_allowlist_ttl_extends_on_access() {
+    let data = setup_initialized();
+    data.client
+        .set_token_allowed(&data.admin, &data.token, &false);
+
+    let before_ttl = data
+        .env
+        .storage()
+        .persistent()
+        .get_ttl(&DataKey::TokenAllowed(data.token.clone()))
+        .unwrap();
+
+    data.env.ledger().set_timestamp(1_050);
+    let _ = data.client.is_token_blocked(&data.token);
+
+    let after_ttl = data
+        .env
+        .storage()
+        .persistent()
+        .get_ttl(&DataKey::TokenAllowed(data.token.clone()))
+        .unwrap();
+
+    assert!(after_ttl > before_ttl);
+}
+
+#[test]
 fn instance_ttl_extends_for_admin_and_counter_keys() {
     let data = setup_initialized();
     let _ = data.client.create_stream(

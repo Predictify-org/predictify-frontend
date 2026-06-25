@@ -50,22 +50,22 @@ pub struct Stream {
 enum DataKey {
     Admin,
     Paused,
-    StreamCount,
+    NextStreamId,
     Stream(u64),
     TokenAllowed(Address),
 }
 
 /// Threshold and absolute target values are expressed in ledger sequences.
 ///
-/// The stream TTL helper extends the stored stream entry to a rolling multi-
-/// week horizon, while the instance TTL helper preserves admin and counter
-/// keys used by contract governance and stream creation.
+/// The stream TTL helper extends the stored stream row to a rolling multi-week
+/// horizon, while the instance TTL helper preserves admin and counter keys used
+/// by contract governance and stream creation.
 ///
 /// These constants are tuned for long-running payments, with a buffer to keep
 /// active streams alive across the full start..end window plus recovery time.
-pub const STREAM_TTL_MIN_REMAINING: u32 = 120_960; // ~1 week at 5s ledgers
+pub const STREAM_TTL_THRESHOLD: u32 = 120_960; // ~1 week at 5s ledgers
 pub const STREAM_TTL_EXTEND_TO: u32 = 483_840; // ~4 weeks at 5s ledgers
-pub const INSTANCE_TTL_MIN_REMAINING: u32 = 43_200; // ~2.5 days
+pub const INSTANCE_TTL_THRESHOLD: u32 = 43_200; // ~2.5 days
 pub const INSTANCE_TTL_EXTEND_TO: u32 = 120_960; // ~1 week
 
 fn ttl_target(env: &Env, extra_ledgers: u32) -> u32 {
@@ -75,7 +75,7 @@ fn ttl_target(env: &Env, extra_ledgers: u32) -> u32 {
 fn extend_persistent_ttl(env: &Env, key: &DataKey) {
     let target = ttl_target(env, STREAM_TTL_EXTEND_TO);
     if let Some(current_ttl) = env.storage().persistent().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
+        let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_THRESHOLD);
         if current_ttl > threshold {
             return;
         }
@@ -86,7 +86,7 @@ fn extend_persistent_ttl(env: &Env, key: &DataKey) {
 fn extend_instance_ttl(env: &Env, key: &DataKey) {
     let target = ttl_target(env, INSTANCE_TTL_EXTEND_TO);
     if let Some(current_ttl) = env.storage().instance().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
+        let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_THRESHOLD);
         if current_ttl > threshold {
             return;
         }
@@ -145,18 +145,18 @@ pub fn is_paused(env: &Env) -> bool {
 }
 
 pub fn set_token_allowed(env: &Env, token: &Address, allowed: bool) {
-    env.storage()
-        .persistent()
-        .set(&DataKey::TokenAllowed(token.clone()), &allowed);
+    let key = DataKey::TokenAllowed(token.clone());
+    env.storage().persistent().set(&key, &allowed);
+    extend_persistent_ttl(env, &key);
 }
 
 pub fn is_token_blocked(env: &Env, token: &Address) -> bool {
-    match env
-        .storage()
-        .persistent()
-        .get::<DataKey, bool>(&DataKey::TokenAllowed(token.clone()))
-    {
-        Some(allowed) => !allowed,
+    let key = DataKey::TokenAllowed(token.clone());
+    match env.storage().persistent().get::<DataKey, bool>(&key) {
+        Some(allowed) => {
+            extend_persistent_ttl(env, &key);
+            !allowed
+        }
         None => false,
     }
 }
