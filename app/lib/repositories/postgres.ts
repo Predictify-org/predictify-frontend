@@ -8,6 +8,7 @@ import type {
   StreamRepository,
 } from "@/app/lib/db";
 import type { ActivityEvent, ExportJob, Stream, User } from "@/app/types/openapi";
+import type { Pool } from "pg";
 
 export interface SqlExecutor {
   query<TResult = unknown>(
@@ -16,8 +17,34 @@ export interface SqlExecutor {
   ): Promise<{ rows: TResult[] }>;
 }
 
+export interface PostgresPoolConfig {
+  connectionString: string;
+  max?: number;
+  min?: number;
+  idleTimeoutMillis?: number;
+  connectionTimeoutMillis?: number;
+}
+
 export interface PostgresStoreConfig {
   executor: SqlExecutor;
+}
+
+export function createPostgresPool(config: PostgresPoolConfig): Pool {
+  const pool = new Pool({
+    connectionString: config.connectionString,
+    max: config.max ?? Number(process.env.POSTGRES_POOL_SIZE ?? 10),
+    min: config.min,
+    idleTimeoutMillis: config.idleTimeoutMillis,
+    connectionTimeoutMillis: config.connectionTimeoutMillis,
+  });
+
+  return pool;
+}
+
+export function createPostgresExecutor(pool: Pool): SqlExecutor {
+  return {
+    query: (sql, params) => pool.query(sql, params),
+  };
 }
 
 export const POSTGRES_SCHEMA_SKETCH = `
@@ -103,71 +130,302 @@ export const POSTGRES_ROLLOUT_NOTES = [
   "Keep idempotency keys on a retention/TTL policy in the durable store so replay safety is preserved without unbounded growth.",
 ];
 
-class UnsupportedKeyValueStore<K, V> implements KeyValueStore<K, V> {
-  constructor(private readonly resourceName: string) {}
+class InMemoryKeyValueStore<K, V> implements KeyValueStore<K, V> {
+  constructor(private readonly backing: Map<K, V>) {}
 
   get size(): number {
-    throw unsupported(this.resourceName, "size");
+    return this.backing.size;
   }
 
   clear(): void {
-    throw unsupported(this.resourceName, "clear");
+    this.backing.clear();
   }
 
-  delete(_key: K): boolean {
-    throw unsupported(this.resourceName, "delete");
+  delete(key: K): boolean {
+    return this.backing.delete(key);
   }
 
   entries(): IterableIterator<[K, V]> {
-    throw unsupported(this.resourceName, "entries");
+    return this.backing.entries();
   }
 
-  forEach(_callbackfn: (value: V, key: K) => void): void {
-    throw unsupported(this.resourceName, "forEach");
+  forEach(callbackfn: (value: V, key: K) => void): void {
+    this.backing.forEach((value, key) => callbackfn(value, key));
   }
 
-  get(_key: K): V | undefined {
-    throw unsupported(this.resourceName, "get");
+  get(key: K): V | undefined {
+    return this.backing.get(key);
   }
 
-  has(_key: K): boolean {
-    throw unsupported(this.resourceName, "has");
+  has(key: K): boolean {
+    return this.backing.has(key);
   }
 
-  set(_key: K, _value: V): void {
-    throw unsupported(this.resourceName, "set");
+  set(key: K, value: V): void {
+    this.backing.set(key, value);
   }
 
   values(): IterableIterator<V> {
-    throw unsupported(this.resourceName, "values");
+    return this.backing.values();
   }
 }
 
-class UnsupportedAppendOnlyStore<T> implements AppendOnlyStore<T> {
-  constructor(private readonly resourceName: string) {}
+class PostgresQueuedStore {
+  private pending: Promise<void> = Promise.resolve();
+  private ready: Promise<void>;
 
-  get length(): number {
-    throw unsupported(this.resourceName, "length");
+  constructor(protected readonly executor: SqlExecutor) {
+    this.ready = Promise.resolve();
   }
 
-  [Symbol.iterator](): Iterator<T> {
-    throw unsupported(this.resourceName, "iterator");
+  protected schedule<T extends unknown>(work: () => Promise<T>): void {
+    this.pending = this.pending
+      .catch(() => undefined)
+      .then(() => work())
+      .then(() => undefined)
+      .catch((error) => {
+        console.error("PostgreSQL persistence error:", error);
+      });
+  }
+
+  async drain(): Promise<void> {
+    await this.ready;
+    await this.pending;
+  }
+}
+
+abstract class PostgresJsonKeyValueStore<K extends string, V>
+  extends PostgresQueuedStore
+  implements KeyValueStore<K, V>
+{
+  protected readonly cache = new Map<K, V>();
+
+  constructor(executor: SqlExecutor, protected readonly table: string, protected readonly keyColumn: string) {
+    super(executor);
+    this.loadAll();
+  }
+
+  protected async loadAll(): Promise<void> {
+    const rows = await this.executor.query<{ key: string; payload: V }>(
+      `select ${this.keyColumn} as key, payload from ${this.table}`,
+    );
+
+    this.cache.clear();
+    for (const row of rows.rows) {
+      this.cache.set(row.key as K, row.payload);
+    }
+  }
+
+  abstract async writeUpsert(key: K, value: V): Promise<void>;
+  abstract async writeClear(): Promise<void>;
+  abstract async writeDelete(key: K): Promise<void>;
+
+  get size(): number {
+    return this.cache.size;
   }
 
   clear(): void {
-    throw unsupported(this.resourceName, "clear");
+    this.cache.clear();
+    this.schedule(async () => this.writeClear());
   }
 
-  push(_value: T): number {
-    throw unsupported(this.resourceName, "push");
+  delete(key: K): boolean {
+    const result = this.cache.delete(key);
+    this.schedule(async () => this.writeDelete(key));
+    return result;
   }
 
-  some(_predicate: (value: T, index: number, array: T[]) => boolean): boolean {
-    throw unsupported(this.resourceName, "some");
+  entries(): IterableIterator<[K, V]> {
+    return this.cache.entries();
   }
 
-  toArray(): T[] {
-    throw unsupported(this.resourceName, "toArray");
+  forEach(callbackfn: (value: V, key: K) => void): void {
+    this.cache.forEach(callbackfn);
+  }
+
+  get(key: K): V | undefined {
+    return this.cache.get(key);
+  }
+
+  has(key: K): boolean {
+    return this.cache.has(key);
+  }
+
+  set(key: K, value: V): void {
+    this.cache.set(key, value);
+    this.schedule(async () => this.writeUpsert(key, value));
+  }
+
+  values(): IterableIterator<V> {
+    return this.cache.values();
+  }
+}
+
+class PostgresStreamStore extends PostgresJsonKeyValueStore<string, Stream> {
+  constructor(executor: SqlExecutor) {
+    super(executor, "streams", "id");
+  }
+
+  async writeUpsert(id: string, stream: Stream): Promise<void> {
+    await this.executor.query(
+      `insert into streams (id, status, created_at, updated_at, payload) values ($1, $2, $3, $4, $5)
+       on conflict (id) do update set status = excluded.status, updated_at = excluded.updated_at, payload = excluded.payload`,
+      [id, stream.status, stream.createdAt, stream.updatedAt, stream],
+    );
+  }
+
+  async writeClear(): Promise<void> {
+    await this.executor.query(`delete from streams`);
+  }
+
+  async writeDelete(id: string): Promise<void> {
+    await this.executor.query(`delete from streams where id = $1`, [id]);
+  }
+}
+
+class PostgresUserStore extends PostgresJsonKeyValueStore<string, User> {
+  constructor(executor: SqlExecutor) {
+    super(executor, "users", "wallet_address");
+  }
+
+  async writeUpsert(walletAddress: string, user: User): Promise<void> {
+    await this.executor.query(
+      `insert into users (wallet_address, created_at, payload) values ($1, $2, $3)
+       on conflict (wallet_address) do update set payload = excluded.payload`,
+      [walletAddress, user.created_at, user],
+    );
+  }
+
+  async writeClear(): Promise<void> {
+    await this.executor.query(`delete from users`);
+  }
+
+  async writeDelete(walletAddress: string): Promise<void> {
+    await this.executor.query(`delete from users where wallet_address = $1`, [walletAddress]);
+  }
+}
+
+class PostgresActivityStore extends PostgresJsonKeyValueStore<string, ActivityEvent> {
+  constructor(executor: SqlExecutor) {
+    super(executor, "activity_events", "id");
+  }
+
+  async writeUpsert(id: string, event: ActivityEvent): Promise<void> {
+    await this.executor.query(
+      `insert into activity_events (id, stream_id, event_type, happened_at, payload)
+       values ($1, $2, $3, $4, $5)
+       on conflict (id) do update set stream_id = excluded.stream_id, event_type = excluded.event_type, happened_at = excluded.happened_at, payload = excluded.payload`,
+      [id, (event as any).streamId ?? null, event.type, event.timestamp, event],
+    );
+  }
+
+  async writeClear(): Promise<void> {
+    await this.executor.query(`delete from activity_events`);
+  }
+
+  async writeDelete(id: string): Promise<void> {
+    await this.executor.query(`delete from activity_events where id = $1`, [id]);
+  }
+}
+
+class PostgresExportJobStore extends PostgresJsonKeyValueStore<string, ExportJob> {
+  constructor(executor: SqlExecutor) {
+    super(executor, "export_jobs", "id");
+  }
+
+  async writeUpsert(id: string, job: ExportJob): Promise<void> {
+    await this.executor.query(
+      `insert into export_jobs (id, owner_id, status, requested_at, expires_at, signed_url, signed_url_expires_at, rows, payload)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       on conflict (id) do update set status = excluded.status, expires_at = excluded.expires_at, signed_url = excluded.signed_url, signed_url_expires_at = excluded.signed_url_expires_at, rows = excluded.rows, payload = excluded.payload`,
+      [
+        id,
+        job.ownerId,
+        job.status,
+        job.requestedAt,
+        job.expiresAt,
+        job.signedUrl ?? null,
+        job.signedUrlExpiresAt ?? null,
+        job.rows,
+        job,
+      ],
+    );
+  }
+
+  async writeClear(): Promise<void> {
+    await this.executor.query(`delete from export_jobs`);
+  }
+
+  async writeDelete(id: string): Promise<void> {
+    await this.executor.query(`delete from export_jobs where id = $1`, [id]);
+  }
+}
+
+class PostgresExportAuditStore implements AppendOnlyStore<ExportAuditRecord> {
+  private readonly cache: ExportAuditRecord[] = [];
+  private readonly pending: Promise<void>;
+
+  constructor(private readonly executor: SqlExecutor) {
+    this.pending = this.loadAll();
+  }
+
+  private async loadAll(): Promise<void> {
+    const rows = await this.executor.query<{
+      id: string;
+      export_id: string;
+      audit_type: string;
+      happened_at: Date;
+      details_json: unknown;
+    }>(
+      `select id, export_id, audit_type, happened_at, details_json from export_audit_records order by happened_at asc, id asc`,
+    );
+
+    this.cache.length = 0;
+    for (const row of rows.rows) {
+      this.cache.push({
+        id: row.id,
+        exportId: row.export_id,
+        type: row.audit_type,
+        timestamp: row.happened_at.toISOString(),
+        details: row.details_json as Record<string, unknown> | undefined,
+      });
+    }
+  }
+
+  get length(): number {
+    return this.cache.length;
+  }
+
+  [Symbol.iterator](): Iterator<ExportAuditRecord> {
+    return this.cache[Symbol.iterator]();
+  }
+
+  clear(): void {
+    this.cache.length = 0;
+    this.pending.then(async () => {
+      await this.executor.query(`delete from export_audit_records`);
+    }).catch((error) => console.error("PostgreSQL export audit persistence error:", error));
+  }
+
+  push(value: ExportAuditRecord): number {
+    this.cache.push(value);
+    this.pending.then(async () => {
+      await this.executor.query(
+        `insert into export_audit_records (id, export_id, audit_type, happened_at, details_json)
+         values ($1, $2, $3, $4, $5)
+         on conflict (id) do nothing`,
+        [value.id, value.exportId, value.type, value.timestamp, value.details ?? null],
+      );
+    }).catch((error) => console.error("PostgreSQL export audit persistence error:", error));
+    return this.cache.length;
+  }
+
+  some(predicate: (value: ExportAuditRecord, index: number, array: ExportAuditRecord[]) => boolean): boolean {
+    return this.cache.some(predicate);
+  }
+
+  toArray(): ExportAuditRecord[] {
+    return [...this.cache];
   }
 }
 
@@ -175,34 +433,38 @@ class PostgresStreamRepository implements StreamRepository {
   readonly activity: KeyValueStore<string, ActivityEvent>;
   readonly streams: KeyValueStore<string, Stream>;
   readonly users: KeyValueStore<string, User>;
+  private readonly locks = new Map<string, Promise<void>>();
 
   constructor(private readonly executor: SqlExecutor) {
-    void this.executor;
-    this.activity = new UnsupportedKeyValueStore<string, ActivityEvent>("activity_events");
-    this.streams = new UnsupportedKeyValueStore<string, Stream>("streams");
-    this.users = new UnsupportedKeyValueStore<string, User>("users");
+    this.streams = new PostgresStreamStore(executor);
+    this.users = new PostgresUserStore(executor);
+    this.activity = new PostgresActivityStore(executor);
   }
 
   reset(): void {
-    throw unsupported("postgres-stream-repository", "reset");
+    this.streams.clear();
+    this.users.clear();
+    this.activity.clear();
   }
 
-  async withLock<T>(_id: string, _callback: () => Promise<T>): Promise<T> {
-    throw unsupported("postgres-stream-repository", "withLock");
-  }
-}
+  async withLock<T>(id: string, callback: () => Promise<T>): Promise<T> {
+    const existingLock = this.locks.get(id) ?? Promise.resolve();
+    let releaseCurrent!: () => void;
+    const currentLock = new Promise<void>((resolve) => {
+      releaseCurrent = resolve;
+    });
 
-class PostgresIdempotencyStore
-  extends UnsupportedKeyValueStore<string, unknown>
-  implements IdempotencyStore
-{
-  constructor(executor: SqlExecutor) {
-    void executor;
-    super("idempotency_keys");
-  }
+    this.locks.set(id, currentLock);
 
-  reset(): void {
-    throw unsupported("postgres-idempotency-store", "reset");
+    try {
+      await existingLock;
+      return await callback();
+    } finally {
+      if (this.locks.get(id) === currentLock) {
+        this.locks.delete(id);
+      }
+      releaseCurrent();
+    }
   }
 }
 
@@ -211,15 +473,130 @@ class PostgresExportRepository implements ExportRepository {
   readonly jobs: KeyValueStore<string, ExportJob>;
   readonly processing: KeyValueStore<string, Promise<void>>;
 
-  constructor(private readonly executor: SqlExecutor) {
-    void this.executor;
-    this.audit = new UnsupportedAppendOnlyStore<ExportAuditRecord>("export_audit_records");
-    this.jobs = new UnsupportedKeyValueStore<string, ExportJob>("export_jobs");
-    this.processing = new UnsupportedKeyValueStore<string, Promise<void>>("export_job_processing");
+  constructor(executor: SqlExecutor) {
+    this.audit = new PostgresExportAuditStore(executor);
+    this.jobs = new PostgresExportJobStore(executor);
+    this.processing = new InMemoryKeyValueStore<string, Promise<void>>(new Map());
   }
 
   reset(): void {
-    throw unsupported("postgres-export-repository", "reset");
+    (this.jobs as PostgresExportJobStore).clear();
+    (this.audit as PostgresExportAuditStore).clear();
+    this.processing.clear();
+  }
+}
+
+class PostgresIdempotencyStore extends PostgresQueuedStore implements IdempotencyStore {
+  private readonly cache = new Map<string, unknown>();
+
+  constructor(executor: SqlExecutor) {
+    super(executor);
+    this.loadAll().catch((error) => {
+      console.error("PostgreSQL idempotency load error:", error);
+    });
+  }
+
+  private async loadAll(): Promise<void> {
+    const rows = await this.executor.query<{
+      token: string;
+      fingerprint: string;
+      response_status: number;
+      response_json: unknown;
+      expires_at: Date;
+    }>(
+      `select token, fingerprint, response_status, response_json, expires_at from idempotency_keys`,
+    );
+
+    const now = Date.now();
+    for (const row of rows.rows) {
+      const expiresAt = new Date(row.expires_at).getTime();
+      if (expiresAt < now) {
+        await this.executor.query(`delete from idempotency_keys where token = $1`, [row.token]);
+        continue;
+      }
+
+      this.cache.set(row.token, {
+        fingerprint: row.fingerprint,
+        response_status: row.response_status,
+        response_json: row.response_json,
+        expires_at: expiresAt,
+      });
+    }
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
+
+  clear(): void {
+    this.cache.clear();
+    this.schedule(async () => {
+      await this.executor.query(`delete from idempotency_keys`);
+    });
+  }
+
+  delete(token: string): boolean {
+    const removed = this.cache.delete(token);
+    this.schedule(async () => {
+      await this.executor.query(`delete from idempotency_keys where token = $1`, [token]);
+    });
+    return removed;
+  }
+
+  entries(): IterableIterator<[string, unknown]> {
+    return this.cache.entries();
+  }
+
+  forEach(callbackfn: (value: unknown, key: string) => void): void {
+    this.cache.forEach(callbackfn);
+  }
+
+  get(token: string): unknown | undefined {
+    const entry = this.cache.get(token) as Partial<{
+      fingerprint: string;
+      response_status: number;
+      response_json: unknown;
+      expires_at: number;
+    }> | undefined;
+    if (!entry) return undefined;
+
+    if (entry.expires_at !== undefined && entry.expires_at < Date.now()) {
+      this.delete(token);
+      return undefined;
+    }
+
+    return entry;
+  }
+
+  has(token: string): boolean {
+    return this.get(token) !== undefined;
+  }
+
+  set(token: string, value: unknown): void {
+    this.cache.set(token, value);
+    const entry = value as {
+      fingerprint: string;
+      response_status: number;
+      response_json: unknown;
+      expires_at: number;
+    };
+
+    this.schedule(async () => {
+      await this.executor.query(
+        `insert into idempotency_keys (token, fingerprint, response_status, response_json, expires_at)
+         values ($1, $2, $3, $4, to_timestamp($5::double precision / 1000.0))
+         on conflict (token) do update set fingerprint = excluded.fingerprint, response_status = excluded.response_status, response_json = excluded.response_json, expires_at = excluded.expires_at`,
+        [token, entry.fingerprint, entry.response_status, entry.response_json, entry.expires_at],
+      );
+    });
+  }
+
+  reset(): void {
+    this.clear();
+  }
+
+  values(): IterableIterator<unknown> {
+    return this.cache.values();
   }
 }
 

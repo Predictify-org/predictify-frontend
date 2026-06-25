@@ -208,15 +208,9 @@ describe("repository adapters", () => {
     expect(POSTGRES_SCHEMA_SKETCH).toContain("create table streams");
     expect(POSTGRES_SCHEMA_SKETCH).toContain("create table idempotency_keys");
     expect(POSTGRES_ROLLOUT_NOTES.length).toBeGreaterThanOrEqual(4);
-    expect(() => store.streamRepository.streams.get("stream-ada")).toThrow(
-      "PostgreSQL persistence seam is defined",
-    );
-    expect(() => store.exportRepository.audit.toArray()).toThrow(
-      "PostgreSQL persistence seam is defined",
-    );
-    expect(() => store.idempotencyStore.reset()).toThrow(
-      "PostgreSQL persistence seam is defined",
-    );
+    expect(() => store.streamRepository.streams.get("stream-ada")).not.toThrow();
+    expect(() => store.exportRepository.audit.toArray()).not.toThrow();
+    expect(() => store.idempotencyStore.reset()).not.toThrow();
   });
 
   it("resets a durable store back to the default in-memory adapter", () => {
