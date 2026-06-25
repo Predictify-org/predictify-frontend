@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
 import type { AuditActorRole } from "@/app/types/audit";
+import crypto from "crypto";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -12,8 +13,8 @@ export const JWT_ISSUER   = "streampay";
 /** Token audience — must match the value used when signing. */
 export const JWT_AUDIENCE = "streampay-api";
 
-/** Only HS256 is accepted. Prevents alg=none and algorithm-confusion attacks. */
-const JWT_ALGORITHMS: jwt.Algorithm[] = ["HS256"];
+/** Allowed verification algorithms. HS256 still supported as fallback. */
+const JWT_ALGORITHMS: jwt.Algorithm[] = ["HS256", "RS256"];
 
 /** JWT lifetime for newly issued tokens. */
 export const JWT_EXPIRES_IN = "15m";
@@ -73,6 +74,76 @@ function resolveJwtSecret(): string {
  * if the secret is missing or too short.
  */
 export const JWT_SECRET: string = resolveJwtSecret();
+
+// ── Key rotation store ──────────────────────────────────────────────────────
+
+export interface KeyEntry {
+  kid: string;
+  privateKeyPem?: string; // kept only in secure deployments
+  publicKeyPem: string;
+  createdAt: number; // epoch ms
+  retiredAt?: number; // epoch ms when retired
+}
+
+/** In-memory keystore. In production, keys should come from a secure KMS. */
+const keyStore: KeyEntry[] = [];
+
+/** Rotation overlap window in ms (24 hours). */
+export const KEY_OVERLAP_MS = 24 * 60 * 60 * 1000;
+
+/** Add a key to the in-memory store. Does not log private material. */
+export function addKey(entry: KeyEntry) {
+  // Basic validation
+  if (!entry || !entry.kid || !entry.publicKeyPem || !entry.createdAt) {
+    throw new Error("invalid key entry");
+  }
+  // Avoid duplicates
+  const existing = keyStore.find(k => k.kid === entry.kid);
+  if (existing) {
+    // merge retiredAt if provided
+    if (entry.retiredAt) existing.retiredAt = entry.retiredAt;
+    return;
+  }
+  keyStore.push({
+    kid: entry.kid,
+    publicKeyPem: entry.publicKeyPem,
+    createdAt: entry.createdAt,
+    retiredAt: entry.retiredAt,
+  });
+}
+
+/** Get public-facing JWKS payload (minimal: kid + public PEM). */
+export function getPublicKeys() {
+  return keyStore.map(k => ({ kid: k.kid, publicKeyPem: k.publicKeyPem, createdAt: k.createdAt, retiredAt: k.retiredAt }));
+}
+
+/** Return the active signing key (the most recently created key that is not retired). */
+export function getActiveSigningKey(): KeyEntry | undefined {
+  const active = keyStore
+    .filter(k => !k.retiredAt)
+    .sort((a, b) => b.createdAt - a.createdAt)[0];
+  return active;
+}
+
+/** Resolve a public key by kid, taking overlap window into account. */
+export function resolvePublicKeyByKid(kid: string): string | undefined {
+  const now = Date.now();
+  const key = keyStore.find(k => k.kid === kid);
+  if (!key) return undefined;
+  if (!key.retiredAt) return key.publicKeyPem;
+  // Allow verification within overlap window after retirement
+  if (now <= key.retiredAt + KEY_OVERLAP_MS) return key.publicKeyPem;
+  return undefined;
+}
+
+/** Helper: generate an RSA keypair for tests or development. */
+export function generateRsaKeypair(): { privateKeyPem: string; publicKeyPem: string; kid: string } {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const privateKeyPem = privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+  const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
+  const kid = crypto.createHash("sha256").update(publicKeyPem).digest("hex").slice(0, 8);
+  return { privateKeyPem, publicKeyPem, kid };
+}
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
 
@@ -148,6 +219,17 @@ export function signToken(
   walletAddress: string,
   extra: Record<string, unknown> = {},
 ): string {
+  // Prefer active RSA signing key if available
+  const active = getActiveSigningKey();
+  if (active && active.privateKeyPem) {
+    return jwt.sign(
+      { sub: walletAddress, iss: JWT_ISSUER, aud: JWT_AUDIENCE, ...extra },
+      active.privateKeyPem,
+      { expiresIn: JWT_EXPIRES_IN, algorithm: "RS256", keyid: active.kid },
+    );
+  }
+
+  // Fallback to symmetric HMAC signing
   return jwt.sign(
     { sub: walletAddress, iss: JWT_ISSUER, aud: JWT_AUDIENCE, ...extra },
     JWT_SECRET,
@@ -175,11 +257,34 @@ export function tryAuthenticateRequest(request: Request): AuthenticatedActor | n
 
   const token = authHeader.slice(7);
   try {
-    const verified = jwt.verify(token, JWT_SECRET, {
-      issuer:     JWT_ISSUER,
-      audience:   JWT_AUDIENCE,
-      algorithms: JWT_ALGORITHMS,
-    }) as TokenClaims;
+    // Decode header to determine algorithm/kid without verifying signature
+    const decodedHeader = jwt.decode(token, { complete: true }) as { header?: Record<string, unknown> } | null;
+    const kid = decodedHeader?.header?.kid as string | undefined;
+    const alg = decodedHeader?.header?.alg as string | undefined;
+
+    let verified: TokenClaims;
+
+    // If token uses RSA and we have a matching public key (considering overlap), verify with that
+    if (alg && alg.startsWith("RS") && kid) {
+      const pub = resolvePublicKeyByKid(kid);
+      if (pub) {
+        verified = jwt.verify(token, pub, {
+          issuer: JWT_ISSUER,
+          audience: JWT_AUDIENCE,
+          algorithms: ["RS256"],
+        }) as TokenClaims;
+      } else {
+        // No usable public key found for this kid
+        return null;
+      }
+    } else {
+      // Fallback to HMAC verification using shared secret
+      verified = jwt.verify(token, JWT_SECRET, {
+        issuer:     JWT_ISSUER,
+        audience:   JWT_AUDIENCE,
+        algorithms: ["HS256"],
+      }) as TokenClaims;
+    }
 
     if (!verified.sub) return null;
 
