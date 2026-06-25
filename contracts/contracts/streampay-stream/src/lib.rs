@@ -2,9 +2,11 @@
 
 mod error;
 mod events;
+mod release;
 mod storage;
 
 pub use error::Error;
+use core::cmp::min;
 use soroban_sdk::{contract, contractimpl, token, Address, Env};
 pub use storage::{Stream, StreamStatus};
 
@@ -329,6 +331,7 @@ impl Contract {
         stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::paused(&env, stream_id, &stream.sender, stream.pause_time, stream.last_update);
 
         Ok(stream)
     }
@@ -368,8 +371,75 @@ impl Contract {
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::resumed(&env, stream_id, &stream.sender, stream.end_time, stream.last_update);
 
         Ok(stream)
+    }
+
+    /// Cancels a stream, splitting escrow between recipient (vested amount minus already released)
+    /// and sender (remaining unvested amount).
+    ///
+    /// Only the stream sender may call this. After cancellation, stream status becomes Cancelled.
+    ///
+    /// # Errors
+    /// - [`Error::ContractPaused`] if the global pause flag is set.
+    /// - [`Error::NotFound`] if stream_id does not exist.
+    /// - [`Error::InvalidState`] if the stream is already settled or cancelled.
+    ///
+    /// # Auth
+    /// Requires authorization from the stream's sender.
+    pub fn cancel_stream(env: Env, stream_id: u64) -> Result<(i128, i128), Error> {
+        require_not_paused(&env)?;
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if stream.status == StreamStatus::Settled || stream.status == StreamStatus::Cancelled {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        let vested = release::vested_amount(&stream, now);
+        let recipient_payout = vested.saturating_sub(stream.released_amount);
+        let sender_refund = stream.total_amount.saturating_sub(vested);
+
+        // Transfer recipient payout first (per requirements)
+        if recipient_payout > 0 {
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            token::Client::new(&env, &stream.token).transfer(
+                &env.current_contract_address(),
+                &stream.recipient,
+                &recipient_payout,
+            );
+        }
+
+        // Transfer sender refund
+        if sender_refund > 0 {
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            token::Client::new(&env, &stream.token).transfer(
+                &env.current_contract_address(),
+                &stream.sender,
+                &sender_refund,
+            );
+        }
+
+        // Update stream state
+        stream.status = StreamStatus::Cancelled;
+        stream.last_update = now;
+        storage::set_stream(&env, stream_id, &stream);
+
+        // Emit cancelled event
+        events::cancelled(
+            &env,
+            stream_id,
+            &stream.sender,
+            &stream.recipient,
+            &stream.token,
+            recipient_payout,
+            sender_refund,
+            now,
+        );
+
+        Ok((recipient_payout, sender_refund))
     }
 
     /// Finalizes a stream whose time window has fully elapsed, paying out
@@ -434,20 +504,14 @@ fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
         return 0;
     }
 
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
+    let elapsed = min(now, stream.end_time) - stream.start_time;
+    let accrued = (stream.total_amount * elapsed as i128) / stream.duration as i128;
+
+    accrued - stream.released_amount
 }
 
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
-    }
-    let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
-    }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+    release::vested_amount(stream, env.ledger().timestamp())
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {

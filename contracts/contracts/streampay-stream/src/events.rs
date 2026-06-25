@@ -14,6 +14,7 @@
 //! | settled   | "settled"   | (stream_id: u64, recipient: Address, total_amount: i128, timestamp: u64)                                 |
 //! | paused    | "paused"    | (stream_id: u64, sender: Address, pause_time: u64, timestamp: u64)                                       |
 //! | resumed   | "resumed"   | (stream_id: u64, sender: Address, end_time: u64, timestamp: u64)                                         |
+//! | cancelled | "cancelled" | (stream_id: u64, sender: Address, recipient: Address, token: Address, recipient_payout: i128, sender_refund: i128, timestamp: u64) |
 //!
 //! All events are emitted AFTER successful state mutation and any token transfer.
 //! Failed calls (returning Err) emit no events.
@@ -92,5 +93,31 @@ pub fn resumed(env: &Env, stream_id: u64, sender: &Address, end_time: u64, times
     env.events().publish(
         (symbol_short!("stream"), symbol_short!("resumed")),
         (stream_id, sender.clone(), end_time, timestamp),
+    );
+}
+
+/// Emits the `stream::cancelled` event after `cancel_stream` has split
+/// the escrow between recipient (vested) and sender (unvested).
+pub fn cancelled(
+    env: &Env,
+    stream_id: u64,
+    sender: &Address,
+    recipient: &Address,
+    token: &Address,
+    recipient_payout: i128,
+    sender_refund: i128,
+    timestamp: u64,
+) {
+    env.events().publish(
+        (symbol_short!("stream"), symbol_short!("cancelled")),
+        (
+            stream_id,
+            sender.clone(),
+            recipient.clone(),
+            token.clone(),
+            recipient_payout,
+            sender_refund,
+            timestamp,
+        ),
     );
 }
