@@ -6,7 +6,7 @@ mod release;
 mod storage;
 
 pub use error::Error;
-use soroban_sdk::{contract, contractimpl, token, Address, Env};
+use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 pub use storage::{Stream, StreamStatus};
 
 #[contract]
@@ -501,6 +501,25 @@ impl Contract {
 
         Ok(())
     }
+
+    /// Upgrades the contract to a new WASM binary.
+    ///
+    /// This function is admin-only and allows for updating the contract's
+    /// code while preserving its state. It emits an `upgraded` event upon
+    /// successful execution.
+    ///
+    /// # Errors
+    /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
+    /// - [`Error::NotFound`] if the contract has not been initialised.
+    ///
+    /// # Auth
+    /// Requires authorisation from `admin`.
+    pub fn upgrade(env: Env, admin: Address, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        env.deployer().update_current_contract_wasm(new_wasm_hash.clone());
+        events::upgraded(&env, new_wasm_hash);
+        Ok(())
+    }
 }
 
 fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
@@ -540,3 +559,32 @@ mod test;
 
 #[cfg(test)]
 mod prop_test;
+
+#[cfg(test)]
+mod upgrade_test {
+    use super::*;
+    use soroban_sdk::{testutils::Events, vec, BytesN, IntoVal};
+
+    #[test]
+    fn test_upgrade() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let contract_id = env.register_contract(None, Contract);
+        let client = ContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+
+        let new_wasm_hash = env.deployer().upload_contract_wasm(soroban_sdk::contractimpl::wasmi::Module::default());
+
+        client.upgrade(&admin, &new_wasm_hash);
+
+        let expected_events = vec![
+            &env,
+            (contract_id.clone(), ("StreamPay", "upgraded").into_val(&env), new_wasm_hash.into_val(&env)),
+        ];
+
+        assert_eq!(env.events().all().last(), Some(expected_events.last().unwrap()));
+    }
+}
