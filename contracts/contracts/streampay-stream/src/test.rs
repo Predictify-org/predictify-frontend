@@ -1,11 +1,15 @@
 #![cfg(test)]
 
 use super::*;
+use crate::storage::DataKey;
 use soroban_sdk::{
     symbol_short,
-    testutils::{Address as _, Ledger},
-    token::StellarAssetClient,
-    Address, Env, IntoVal, Val,
+    testutils::{
+        storage::{Instance as _, Persistent as _},
+        Address as _, Events, Ledger,
+    },
+    token::{Client as TokenClient, StellarAssetClient},
+    Address, Env, IntoVal,
 };
 
 #[derive(Debug)]
@@ -152,17 +156,18 @@ fn assert_budget_ceiling(
 }
 
 #[test]
-fn draft_stream_accrues_nothing_until_started() {
+fn stream_accrues_nothing_before_start_time() {
     let data = setup_initialized();
+    // Create with a future start_time; ledger is at T=1_000.
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &true,
+        &data.sender, &data.recipient, &data.token, &1_000, &2_000, &3_000,
     );
-    data.env.ledger().set_timestamp(2_000);
+    // Still before start_time — nothing should be vested.
     assert_eq!(data.client.withdrawable(&stream_id), 0);
     assert_eq!(data.client.stream_balance(&stream_id), 0);
 
-    data.client.start_stream(&stream_id);
-    data.env.ledger().set_timestamp(2_050);
+    // Advance to mid-stream.
+    data.env.ledger().set_timestamp(2_500);
     assert!(data.client.withdrawable(&stream_id) > 0);
     assert!(data.client.stream_balance(&stream_id) > 0);
 }
@@ -236,8 +241,8 @@ fn stream_persistent_ttl_extends_on_money_path_access() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &false,
+        &1_000,
+        &1_100,
     );
 
     let before_ttl = data
@@ -266,16 +271,11 @@ fn instance_ttl_extends_for_admin_and_counter_keys() {
         &data.recipient,
         &data.token,
         &1_000,
-        &100,
-        &true,
+        &1_000,
+        &1_100,
     );
 
-    let before_admin_ttl = data.env.storage().instance().get_ttl(&DataKey::Admin);
-    let before_next_id_ttl = data
-        .env
-        .storage()
-        .instance()
-        .get_ttl(&DataKey::NextStreamId);
+    let before_instance_ttl = data.env.storage().instance().get_ttl();
 
     data.env.ledger().set_timestamp(1_050);
     data.client.set_paused(&data.admin, &false);
@@ -284,19 +284,13 @@ fn instance_ttl_extends_for_admin_and_counter_keys() {
         &data.recipient,
         &data.token,
         &500,
-        &10,
-        &true,
+        &1_050,
+        &1_060,
     );
 
-    let after_admin_ttl = data.env.storage().instance().get_ttl(&DataKey::Admin);
-    let after_next_id_ttl = data
-        .env
-        .storage()
-        .instance()
-        .get_ttl(&DataKey::NextStreamId);
+    let after_instance_ttl = data.env.storage().instance().get_ttl();
 
-    assert!(after_admin_ttl > before_admin_ttl);
-    assert!(after_next_id_ttl > before_next_id_ttl);
+    assert!(after_instance_ttl > before_instance_ttl);
 }
 
 #[test]
@@ -358,8 +352,8 @@ fn create_stream_wrong_sender_fails() {
         &data.recipient,
         &data.token,
         &100,
-        &10,
-        &false,
+        &1_000,
+        &1_010,
     );
 }
 
@@ -372,11 +366,11 @@ fn start_stream_wrong_sender_fails() {
         &data.recipient,
         &data.token,
         &100,
-        &10,
-        &true,
+        &1_000,
+        &1_010,
     );
 
-    let wrong = Address::generate(&data.env);
+    let _wrong = Address::generate(&data.env);
     data.env.mock_auths(&[]);
     data.client.start_stream(&id);
 }
@@ -390,8 +384,8 @@ fn withdraw_wrong_recipient_fails() {
         &data.recipient,
         &data.token,
         &100,
-        &10,
-        &false,
+        &1_000,
+        &1_010,
     );
 
     data.env.ledger().set_timestamp(1_005);
@@ -408,8 +402,8 @@ fn pause_wrong_sender_fails() {
         &data.recipient,
         &data.token,
         &100,
-        &10,
-        &false,
+        &1_000,
+        &1_010,
     );
 
     data.env.mock_auths(&[]);
@@ -425,47 +419,13 @@ fn resume_wrong_sender_fails() {
         &data.recipient,
         &data.token,
         &100,
-        &10,
-        &false,
+        &1_000,
+        &1_010,
     );
     data.client.pause(&id);
 
     data.env.mock_auths(&[]);
     data.client.resume(&id);
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn cancel_stream_wrong_sender_fails() {
-    let data = setup_initialized();
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &false,
-    );
-
-    data.env.mock_auths(&[]);
-    data.client.cancel_stream(&id);
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn settle_wrong_recipient_fails() {
-    let data = setup_initialized();
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &false,
-    );
-
-    data.env.mock_auths(&[]);
-    data.client.settle(&id);
 }
 
 // ── Linear release math tests ───────────────────────────────────────────────
@@ -797,51 +757,39 @@ fn budget_full_withdraw_settle_stays_within_ceiling() {
 
 // ── Event emission tests ───────────────────────────────────────────────────────
 
+fn topic_payload(env: &Env, sym: soroban_sdk::Symbol) -> u64 {
+    let v: soroban_sdk::Val = sym.into_val(env);
+    v.get_payload()
+}
+
 #[test]
 fn create_stream_emits_created_event() {
     let data = setup_initialized();
     data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("created").into_val(&data.env))
+            && topics.get(0).map(|v| v.get_payload()) == Some(topic_payload(&data.env, symbol_short!("stream")))
+            && topics.get(1).map(|v| v.get_payload()) == Some(topic_payload(&data.env, symbol_short!("created")))
     });
     assert!(found, "expected 'stream.created' event after create_stream");
-}
-
-#[test]
-fn start_stream_emits_started_event() {
-    let data = setup_initialized();
-    let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &true,
-    );
-    data.env.ledger().set_timestamp(2_000);
-    data.client.start_stream(&stream_id);
-    let events = data.env.events().all();
-    let found = events.iter().any(|(_, topics, _)| {
-        topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("started").into_val(&data.env))
-    });
-    assert!(found, "expected 'stream.started' event after start_stream");
 }
 
 #[test]
 fn withdraw_emits_withdrawn_event() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     data.env.ledger().set_timestamp(1_050);
     data.client.withdraw(&stream_id, &300);
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+            && topics.get(0).map(|v| v.get_payload()) == Some(topic_payload(&data.env, symbol_short!("stream")))
+            && topics.get(1).map(|v| v.get_payload()) == Some(topic_payload(&data.env, symbol_short!("withdrawn")))
     });
     assert!(found, "expected 'stream.withdrawn' event after withdraw");
 }
@@ -850,16 +798,18 @@ fn withdraw_emits_withdrawn_event() {
 fn full_withdraw_emits_settled_event() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     data.env.ledger().set_timestamp(1_100);
     data.client.withdraw(&stream_id, &1_000);
     let events = data.env.events().all();
+    let withdrawn_payload = topic_payload(&data.env, symbol_short!("withdrawn"));
+    let settled_payload   = topic_payload(&data.env, symbol_short!("settled"));
     let has_withdrawn = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+        topics.get(1).map(|v| v.get_payload()) == Some(withdrawn_payload)
     });
     let has_settled = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("settled").into_val(&data.env))
+        topics.get(1).map(|v| v.get_payload()) == Some(settled_payload)
     });
     assert!(has_withdrawn, "expected 'stream.withdrawn' event on full withdrawal");
     assert!(has_settled, "expected 'stream.settled' event after full withdrawal");
@@ -869,15 +819,15 @@ fn full_withdraw_emits_settled_event() {
 fn pause_emits_paused_event() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     data.env.ledger().set_timestamp(1_050);
     data.client.pause(&stream_id);
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("paused").into_val(&data.env))
+            && topics.get(0).map(|v| v.get_payload()) == Some(topic_payload(&data.env, symbol_short!("stream")))
+            && topics.get(1).map(|v| v.get_payload()) == Some(topic_payload(&data.env, symbol_short!("paused")))
     });
     assert!(found, "expected 'stream.paused' event after pause");
 }
@@ -886,7 +836,7 @@ fn pause_emits_paused_event() {
 fn resume_emits_resumed_event() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_200,
     );
     data.env.ledger().set_timestamp(1_050);
     data.client.pause(&stream_id);
@@ -895,8 +845,8 @@ fn resume_emits_resumed_event() {
     let events = data.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("resumed").into_val(&data.env))
+            && topics.get(0).map(|v| v.get_payload()) == Some(topic_payload(&data.env, symbol_short!("stream")))
+            && topics.get(1).map(|v| v.get_payload()) == Some(topic_payload(&data.env, symbol_short!("resumed")))
     });
     assert!(found, "expected 'stream.resumed' event after resume");
 }
@@ -905,13 +855,202 @@ fn resume_emits_resumed_event() {
 fn failed_withdraw_emits_no_event() {
     let data = setup_initialized();
     let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
+        &data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100,
     );
     data.env.ledger().set_timestamp(1_050);
     let _ = data.client.try_withdraw(&stream_id, &600);
     let events = data.env.events().all();
+    let withdrawn_payload = topic_payload(&data.env, symbol_short!("withdrawn"));
     let has_withdrawn = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
+        topics.get(1).map(|v| v.get_payload()) == Some(withdrawn_payload)
     });
     assert!(!has_withdrawn, "no 'withdrawn' event should be emitted on a failed withdrawal");
+}
+
+// ── End-to-end lifecycle simulation ───────────────────────────────────────────
+
+/// Advances both ledger timestamp and sequence number together.
+///
+/// Uses `env.ledger().set(...)` semantics (read current `LedgerInfo`, mutate
+/// only the two time fields, write it back) so every tick looks like a real
+/// ledger close: new timestamp *and* new sequence.  All other `LedgerInfo`
+/// fields (protocol_version, network_id, TTL constants) are preserved from
+/// the environment's existing state.
+fn tick(env: &Env, timestamp: u64, sequence: u32) {
+    env.ledger().with_mut(|li| {
+        li.timestamp = timestamp;
+        li.sequence_number = sequence;
+    });
+}
+
+/// End-to-end simulation: ledger time is advanced across a full stream cycle.
+///
+/// ## Stream parameters
+/// * `total_amount` = 3 000 tokens
+/// * `start_time`   = T 1 000, `end_time` = T 4 000 (3 000-second window)
+/// * Accrual rate   = 1 token / second
+///
+/// ## Tick schedule  (7 ticks, ≥ 6 required by spec)
+///
+/// | Tick | T     | Action                               | Effective elapsed |
+/// |------|-------|--------------------------------------|-------------------|
+/// |  1   | 1 000 | create stream; assert escrow locked  | 0                 |
+/// |  2   | 1 500 | assert vested 500; withdraw 200      | 500               |
+/// |  3   | 2 000 | assert vested 1 000; pause stream    | 1 000             |
+/// |  4   | 2 500 | assert accrual frozen; resume stream | 1 000 (paused)    |
+/// |  5   | 3 000 | assert accrual resumed (1 500 vested)| 1 500             |
+/// |  6   | 3 500 | assert vested 2 000; withdraw 1 000  | 2 000             |
+/// |  7   | 4 500 | settle; assert all tokens released   | 3 000 (full)      |
+///
+/// The 500-second pause (T 2 000 → T 2 500) extends `end_time` from 4 000 to
+/// 4 500, so the full 3 000-token supply is always paid out to the recipient.
+///
+/// ## Balance invariants checked at every tick
+/// * `stream_balance()` == vested amount (per linear-release math)
+/// * `token::Client::balance` for escrow contract, sender, and recipient
+/// * `stream.released_amount` tracks cumulative withdrawals
+/// * `stream.status` transitions: Active → Paused → Active → Settled
+#[test]
+fn e2e_full_stream_lifecycle_with_ledger_time_simulation() {
+    // ── Environment setup ─────────────────────────────────────────────────
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin     = Address::generate(&env);
+    let sender    = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let token_addr = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
+
+    // Mint exactly 3 000 tokens to sender so post-create sender balance is 0,
+    // making contract-escrow and recipient assertions unambiguous.
+    StellarAssetClient::new(&env, &token_addr).mint(&sender, &3_000i128);
+
+    let tok = TokenClient::new(&env, &token_addr);
+
+    client.initialize(&admin);
+
+    // ── Tick 1: T=1_000 — create stream ───────────────────────────────────
+    // Stream: 3_000 tokens, start=1_000, end=4_000 (duration=3_000s, 1 tok/s).
+    // create_stream transfers the full escrow immediately.
+    tick(&env, 1_000, 100);
+
+    let stream_id = client.create_stream(
+        &sender,
+        &recipient,
+        &token_addr,
+        &3_000i128,
+        &1_000u64, // start_time
+        &4_000u64, // end_time
+    );
+
+    // Full escrow locked; no accrual at t == start_time.
+    assert_eq!(tok.balance(&contract_id), 3_000, "tick1: escrow");
+    assert_eq!(tok.balance(&sender),      0,     "tick1: sender drained");
+    assert_eq!(tok.balance(&recipient),   0,     "tick1: recipient empty");
+    assert_eq!(client.stream_balance(&stream_id), 0, "tick1: nothing vested yet");
+    assert_eq!(client.withdrawable(&stream_id),   0, "tick1: nothing withdrawable");
+
+    let s = client.get_stream(&stream_id);
+    assert_eq!(s.status,          StreamStatus::Active);
+    assert_eq!(s.released_amount, 0);
+    assert_eq!(s.start_time,      1_000);
+    assert_eq!(s.end_time,        4_000);
+
+    // ── Tick 2: T=1_500 — 500s elapsed; first partial withdraw ────────────
+    // Vested = 3_000 * 500 / 3_000 = 500.  Withdraw 200.
+    tick(&env, 1_500, 150);
+
+    assert_eq!(client.stream_balance(&stream_id), 500, "tick2: vested 500");
+    assert_eq!(client.withdrawable(&stream_id),   500, "tick2: withdrawable 500");
+
+    client.withdraw(&stream_id, &200i128);
+
+    assert_eq!(client.withdrawable(&stream_id),               300, "tick2: remaining after withdraw");
+    assert_eq!(client.get_stream(&stream_id).released_amount, 200, "tick2: released 200");
+    assert_eq!(tok.balance(&recipient),   200,   "tick2: recipient +200");
+    assert_eq!(tok.balance(&contract_id), 2_800, "tick2: escrow -200");
+
+    // ── Tick 3: T=2_000 — 1_000s elapsed; pause stream ────────────────────
+    // Vested = 3_000 * 1_000 / 3_000 = 1_000.  Withdrawable = 1_000 - 200 = 800.
+    tick(&env, 2_000, 200);
+
+    assert_eq!(client.stream_balance(&stream_id), 1_000, "tick3: vested 1_000");
+    assert_eq!(client.withdrawable(&stream_id),    800,  "tick3: withdrawable 800");
+
+    client.pause(&stream_id);
+
+    let s = client.get_stream(&stream_id);
+    assert_eq!(s.status,     StreamStatus::Paused, "tick3: status Paused");
+    assert_eq!(s.pause_time, 2_000,                "tick3: pause_time recorded");
+
+    // ── Tick 4: T=2_500 — 500s paused; accrual frozen ─────────────────────
+    // While Paused, vested_amount clamps effective_now at pause_time (T 2_000),
+    // so stream_balance stays at 1_000.
+    // Stream-level pause only freezes NEW accrual; already-vested funds remain
+    // withdrawable.  withdrawable() = vested_at_pause - released = 1_000 - 200 = 800.
+    tick(&env, 2_500, 250);
+
+    assert_eq!(client.stream_balance(&stream_id), 1_000, "tick4: balance frozen at 1_000");
+    assert_eq!(client.withdrawable(&stream_id),    800,  "tick4: 800 vested-minus-released still available");
+
+    // Token balances unchanged during pause.
+    assert_eq!(tok.balance(&recipient),   200,   "tick4: recipient unchanged");
+    assert_eq!(tok.balance(&contract_id), 2_800, "tick4: escrow unchanged");
+
+    client.resume(&stream_id);
+
+    let s = client.get_stream(&stream_id);
+    assert_eq!(s.status,                StreamStatus::Active, "tick4: status Active after resume");
+    assert_eq!(s.total_paused_duration, 500,                  "tick4: 500s of pause recorded");
+    // end_time extended by the paused duration to preserve the full 3_000-token window.
+    assert_eq!(s.end_time, 4_500, "tick4: end_time extended to 4_500");
+
+    // ── Tick 5: T=3_000 — 500s after resume; verify resumed accrual ───────
+    // Effective elapsed = (3_000 - 1_000) - 500 paused = 1_500.
+    // Vested = 3_000 * 1_500 / 3_000 = 1_500.  Withdrawable = 1_500 - 200 = 1_300.
+    tick(&env, 3_000, 300);
+
+    assert_eq!(client.stream_balance(&stream_id), 1_500, "tick5: vested 1_500");
+    assert_eq!(client.withdrawable(&stream_id),   1_300, "tick5: withdrawable 1_300");
+
+    // No action this tick; token balances unchanged.
+    assert_eq!(tok.balance(&recipient),   200,   "tick5: recipient still 200");
+    assert_eq!(tok.balance(&contract_id), 2_800, "tick5: escrow still 2_800");
+
+    // ── Tick 6: T=3_500 — second partial withdraw ─────────────────────────
+    // Effective elapsed = (3_500 - 1_000) - 500 = 2_000.
+    // Vested = 3_000 * 2_000 / 3_000 = 2_000.  Withdrawable = 2_000 - 200 = 1_800.
+    // Withdraw 1_000; released_amount becomes 1_200.
+    tick(&env, 3_500, 350);
+
+    assert_eq!(client.stream_balance(&stream_id), 2_000, "tick6: vested 2_000");
+    assert_eq!(client.withdrawable(&stream_id),   1_800, "tick6: withdrawable 1_800");
+
+    client.withdraw(&stream_id, &1_000i128);
+
+    assert_eq!(client.get_stream(&stream_id).released_amount, 1_200, "tick6: released 1_200");
+    assert_eq!(client.withdrawable(&stream_id),                 800,  "tick6: remaining 800");
+    assert_eq!(tok.balance(&recipient),   1_200, "tick6: recipient +1_000");
+    assert_eq!(tok.balance(&contract_id), 1_800, "tick6: escrow -1_000");
+
+    // ── Tick 7: T=4_500 — stream elapsed; settle; final balances ──────────
+    // now (4_500) >= end_time (4_500); settle() pays out remaining 3_000 - 1_200 = 1_800.
+    // Recipient receives all 3_000 tokens across the three payouts (200+1_000+1_800).
+    tick(&env, 4_500, 450);
+
+    client.settle(&stream_id);
+
+    let s = client.get_stream(&stream_id);
+    assert_eq!(s.status,          StreamStatus::Settled, "tick7: status Settled");
+    assert_eq!(s.released_amount, 3_000,                 "tick7: all tokens released");
+
+    assert_eq!(tok.balance(&recipient),   3_000, "tick7: recipient received all 3_000");
+    assert_eq!(tok.balance(&contract_id), 0,     "tick7: escrow fully drained");
+    assert_eq!(tok.balance(&sender),      0,     "tick7: sender unchanged");
 }

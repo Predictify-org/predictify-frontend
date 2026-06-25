@@ -47,10 +47,10 @@ pub struct Stream {
 
 #[derive(Clone)]
 #[contracttype]
-enum DataKey {
+pub(crate) enum DataKey {
     Admin,
     Paused,
-    StreamCount,
+    NextStreamId,
     Stream(u64),
     TokenAllowed(Address),
 }
@@ -68,30 +68,16 @@ pub const STREAM_TTL_EXTEND_TO: u32 = 483_840; // ~4 weeks at 5s ledgers
 pub const INSTANCE_TTL_MIN_REMAINING: u32 = 43_200; // ~2.5 days
 pub const INSTANCE_TTL_EXTEND_TO: u32 = 120_960; // ~1 week
 
-fn ttl_target(env: &Env, extra_ledgers: u32) -> u32 {
-    env.ledger().sequence().saturating_add(extra_ledgers)
-}
-
 fn extend_persistent_ttl(env: &Env, key: &DataKey) {
-    let target = ttl_target(env, STREAM_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().persistent().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().persistent().extend_ttl(key, &target);
+    env.storage()
+        .persistent()
+        .extend_ttl(key, STREAM_TTL_MIN_REMAINING, STREAM_TTL_EXTEND_TO);
 }
 
-fn extend_instance_ttl(env: &Env, key: &DataKey) {
-    let target = ttl_target(env, INSTANCE_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().instance().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().instance().extend_ttl(key, &target);
+fn extend_instance_ttl(env: &Env) {
+    env.storage()
+        .instance()
+        .extend_ttl(INSTANCE_TTL_MIN_REMAINING, INSTANCE_TTL_EXTEND_TO);
 }
 
 fn extend_stream_ttl(env: &Env, stream_id: u64) {
@@ -99,15 +85,15 @@ fn extend_stream_ttl(env: &Env, stream_id: u64) {
 }
 
 fn extend_admin_key_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::Admin);
+    extend_instance_ttl(env);
 }
 
 fn extend_pause_key_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::Paused);
+    extend_instance_ttl(env);
 }
 
 fn extend_next_stream_id_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::NextStreamId);
+    extend_instance_ttl(env);
 }
 
 pub fn has_admin(env: &Env) -> bool {

@@ -56,7 +56,7 @@ pub fn withdrawable(stream: &Stream, now: u64) -> i128 {
 mod tests {
     use super::*;
     use crate::StreamStatus;
-    use soroban_sdk::{Address, contracttype};
+    use soroban_sdk::{Address, testutils::Address as _};
 
     /// Helper to create a test stream
     fn test_stream(
@@ -186,23 +186,22 @@ mod tests {
             expected: i128,
         }
 
-        let cases = vec![
-            // (total, start, end, now, expected)
-            (1000, 1000, 2000, 500, 0),    // before start
-            (1000, 1000, 2000, 1000, 0),   // at start
-            (1000, 1000, 2000, 1250, 250),  // 25% through
-            (1000, 1000, 2000, 1500, 500),  // 50% through
-            (1000, 1000, 2000, 1750, 750),  // 75% through
-            (1000, 1000, 2000, 2000, 1000), // at end
-            (1000, 1000, 2000, 3000, 1000), // past end
-            (100, 0, 100, 0, 0),            // zero start time
-            (100, 0, 100, 50, 50),          // zero start time, mid
-            (100, 0, 100, 100, 100),        // zero start time, at end
-            (1, 0, 1, 0, 0),                // minimal duration
-            (1, 0, 1, 1, 1),                // minimal duration, at end
+        let cases = [
+            TestCase { total: 1000, start: 1000, end: 2000, now: 500,  expected: 0    }, // before start
+            TestCase { total: 1000, start: 1000, end: 2000, now: 1000, expected: 0    }, // at start
+            TestCase { total: 1000, start: 1000, end: 2000, now: 1250, expected: 250  }, // 25% through
+            TestCase { total: 1000, start: 1000, end: 2000, now: 1500, expected: 500  }, // 50% through
+            TestCase { total: 1000, start: 1000, end: 2000, now: 1750, expected: 750  }, // 75% through
+            TestCase { total: 1000, start: 1000, end: 2000, now: 2000, expected: 1000 }, // at end
+            TestCase { total: 1000, start: 1000, end: 2000, now: 3000, expected: 1000 }, // past end
+            TestCase { total: 100,  start: 0,    end: 100,  now: 0,    expected: 0    }, // zero start time
+            TestCase { total: 100,  start: 0,    end: 100,  now: 50,   expected: 50   }, // zero start time, mid
+            TestCase { total: 100,  start: 0,    end: 100,  now: 100,  expected: 100  }, // zero start time, at end
+            TestCase { total: 1,    start: 0,    end: 1,    now: 0,    expected: 0    }, // minimal duration
+            TestCase { total: 1,    start: 0,    end: 1,    now: 1,    expected: 1    }, // minimal duration, at end
         ];
 
-        for case in cases {
+        for case in &cases {
             let stream = test_stream(case.total, 0, case.start, case.end);
             let result = vested_amount(&stream, case.now);
             assert_eq!(
@@ -224,17 +223,16 @@ mod tests {
             expected: i128,
         }
 
-        let cases = vec![
-            // (total, released, start, end, now, expected)
-            (1000, 0, 1000, 2000, 1000, 0),     // nothing vested
-            (1000, 0, 1000, 2000, 1500, 500),   // half vested
-            (1000, 200, 1000, 2000, 1500, 300), // half vested, some released
-            (1000, 500, 1000, 2000, 1500, 0),   // half vested, more released
-            (1000, 1000, 1000, 2000, 2000, 0),  // fully released
-            (1000, 0, 1000, 2000, 3000, 1000),  // past end, nothing released
+        let cases = [
+            TestCase { total: 1000, released: 0,    start: 1000, end: 2000, now: 1000, expected: 0    }, // nothing vested
+            TestCase { total: 1000, released: 0,    start: 1000, end: 2000, now: 1500, expected: 500  }, // half vested
+            TestCase { total: 1000, released: 200,  start: 1000, end: 2000, now: 1500, expected: 300  }, // half vested, some released
+            TestCase { total: 1000, released: 500,  start: 1000, end: 2000, now: 1500, expected: 0    }, // half vested, more released
+            TestCase { total: 1000, released: 1000, start: 1000, end: 2000, now: 2000, expected: 0    }, // fully released
+            TestCase { total: 1000, released: 0,    start: 1000, end: 2000, now: 3000, expected: 1000 }, // past end, nothing released
         ];
 
-        for case in cases {
+        for case in &cases {
             let stream = test_stream(case.total, case.released, case.start, case.end);
             let result = withdrawable(&stream, case.now);
             assert_eq!(
