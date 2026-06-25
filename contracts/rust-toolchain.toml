@@ -1,0 +1,16 @@
+# rust-toolchain.toml
+#
+# Pins the contracts workspace to a specific nightly release so that
+# `#![feature(test)]` (required by the libtest benchmark harness) is
+# available without requiring every developer to manually install nightly.
+#
+# Usage:
+#   cargo bench -p streampay-stream      # automatically uses this toolchain
+#   rustup update nightly                # pull latest nightly when needed
+#
+# Update the channel date when upgrading the Soroban SDK to ensure the
+# SDK's proc-macros remain compatible with the pinned nightly.
+
+[toolchain]
+channel = "nightly"
+components = ["rustfmt", "clippy"]

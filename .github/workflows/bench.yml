@@ -1,0 +1,78 @@
+# .github/workflows/bench.yml
+#
+# Nightly benchmark job for the streampay-stream contract.
+#
+# Runs `cargo bench -p streampay-stream` on a schedule and on every push
+# that touches the contract source or bench files so regressions are caught
+# before they land in main.
+#
+# The raw benchmark output is archived as a workflow artifact so numbers
+# can be compared across runs without a dedicated benchmark storage backend.
+#
+# Trigger matrix
+# ──────────────
+#   schedule  – every day at 02:00 UTC (off-peak, avoids runner contention)
+#   push      – when contract source or bench files change on main
+#   workflow_dispatch – manual one-off runs (useful for profiling PRs)
+
+name: Contract Benchmarks
+
+on:
+  schedule:
+    # 02:00 UTC daily  (cron syntax: minute hour dom month dow)
+    - cron: "0 2 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+  workflow_dispatch: {}
+
+jobs:
+  bench:
+    name: cargo bench – streampay-stream
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Rust toolchain ───────────────────────────────────────────────────
+      # The contracts/rust-toolchain.toml pins the nightly channel needed
+      # by #![feature(test)].  rustup reads that file automatically when the
+      # working-directory is contracts/.
+      - name: Install Rust toolchain (nightly, from rust-toolchain.toml)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+
+      # ── Dependency cache ─────────────────────────────────────────────────
+      - name: Cache Cargo registry and build artefacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/target
+          key: bench-${{ runner.os }}-${{ hashFiles('contracts/Cargo.lock') }}
+          restore-keys: |
+            bench-${{ runner.os }}-
+
+      # ── Run benchmarks ────────────────────────────────────────────────────
+      # `-- --nocapture` ensures the per-iteration Soroban CPU / storage
+      # diagnostic lines printed by the bench file appear in the CI log.
+      - name: Run contract benchmarks
+        run: cargo bench -p streampay-stream -- --nocapture 2>&1 | tee bench-output.txt
+
+      # ── Archive results ───────────────────────────────────────────────────
+      # Retain the raw output for 90 days so it can be diffed against future
+      # runs.  The file is small (< 10 KB) so retention cost is negligible.
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results-${{ github.run_id }}
+          path: contracts/bench-output.txt
+          retention-days: 90

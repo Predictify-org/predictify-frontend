@@ -8,6 +8,10 @@ publish = false
 crate-type = ["lib", "cdylib"]
 doctest = false
 
+[[bench]]
+name = "stream_benchmarks"
+harness = true    # use the built-in libtest bench runner (requires nightly)
+
 [dependencies]
 soroban-sdk = { workspace = true }
 
