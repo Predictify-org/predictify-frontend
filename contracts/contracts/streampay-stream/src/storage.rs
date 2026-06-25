@@ -50,7 +50,7 @@ pub struct Stream {
 enum DataKey {
     Admin,
     Paused,
-    StreamCount,
+    NextStreamId,
     Stream(u64),
     TokenAllowed(Address),
 }
@@ -182,4 +182,16 @@ pub fn get_stream(env: &Env, stream_id: u64) -> Option<Stream> {
         extend_stream_ttl(env, stream_id);
     }
     stream
+}
+
+/// Returns the total number of streams created so far.
+///
+/// Derived from the next-id counter: count = next_id - 1.
+pub fn get_stream_count(env: &Env) -> u64 {
+    let next_id: u64 = env
+        .storage()
+        .instance()
+        .get(&DataKey::NextStreamId)
+        .unwrap_or(1u64);
+    next_id.saturating_sub(1)
 }

@@ -915,3 +915,100 @@ fn failed_withdraw_emits_no_event() {
     });
     assert!(!has_withdrawn, "no 'withdrawn' event should be emitted on a failed withdrawal");
 }
+
+// ── Enumeration view functions ─────────────────────────────────────────────────
+
+#[test]
+fn stream_count_is_zero_before_any_streams() {
+    let data = setup_initialized();
+    assert_eq!(data.client.stream_count(), 0);
+}
+
+#[test]
+fn stream_count_increments_with_each_create() {
+    let data = setup_initialized();
+    assert_eq!(data.client.stream_count(), 0);
+
+    data.client.create_stream(&data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100);
+    assert_eq!(data.client.stream_count(), 1);
+
+    data.client.create_stream(&data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100);
+    assert_eq!(data.client.stream_count(), 2);
+
+    data.client.create_stream(&data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100);
+    assert_eq!(data.client.stream_count(), 3);
+}
+
+#[test]
+fn get_stream_ids_empty_when_no_streams() {
+    let data = setup_initialized();
+    let ids = data.client.get_stream_ids(&0, &10);
+    assert_eq!(ids.len(), 0);
+}
+
+#[test]
+fn get_stream_ids_first_page() {
+    let data = setup_initialized();
+    for _ in 0..5 {
+        data.client.create_stream(&data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100);
+    }
+    let ids = data.client.get_stream_ids(&0, &5);
+    assert_eq!(ids.len(), 5);
+    assert_eq!(ids.get(0), Some(1u64));
+    assert_eq!(ids.get(4), Some(5u64));
+}
+
+#[test]
+fn get_stream_ids_second_page() {
+    let data = setup_initialized();
+    for _ in 0..5 {
+        data.client.create_stream(&data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100);
+    }
+    // page=1, page_size=3 → IDs 4, 5
+    let ids = data.client.get_stream_ids(&1, &3);
+    assert_eq!(ids.len(), 2);
+    assert_eq!(ids.get(0), Some(4u64));
+    assert_eq!(ids.get(1), Some(5u64));
+}
+
+#[test]
+fn get_stream_ids_page_size_capped_at_50() {
+    let data = setup_initialized();
+    // Create 60 streams
+    for _ in 0..60 {
+        data.client.create_stream(&data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100);
+    }
+    // Requesting 100 should be capped to 50
+    let ids = data.client.get_stream_ids(&0, &100);
+    assert_eq!(ids.len(), 50);
+}
+
+#[test]
+fn get_stream_ids_page_beyond_end_returns_empty() {
+    let data = setup_initialized();
+    data.client.create_stream(&data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100);
+    // page=5 is well past the single stream
+    let ids = data.client.get_stream_ids(&5, &10);
+    assert_eq!(ids.len(), 0);
+}
+
+#[test]
+fn get_stream_ids_partial_last_page() {
+    let data = setup_initialized();
+    for _ in 0..7 {
+        data.client.create_stream(&data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100);
+    }
+    // page=1, page_size=5 → only 2 remain (IDs 6, 7)
+    let ids = data.client.get_stream_ids(&1, &5);
+    assert_eq!(ids.len(), 2);
+    assert_eq!(ids.get(0), Some(6u64));
+    assert_eq!(ids.get(1), Some(7u64));
+}
+
+#[test]
+fn get_stream_ids_page_size_zero_returns_empty() {
+    let data = setup_initialized();
+    data.client.create_stream(&data.sender, &data.recipient, &data.token, &1_000, &1_000, &1_100);
+    let ids = data.client.get_stream_ids(&0, &0);
+    assert_eq!(ids.len(), 0);
+}

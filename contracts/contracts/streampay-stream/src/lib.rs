@@ -5,7 +5,7 @@ mod events;
 mod storage;
 
 pub use error::Error;
-use soroban_sdk::{contract, contractimpl, token, Address, Env};
+use soroban_sdk::{contract, contractimpl, token, vec, Address, Env, Vec};
 pub use storage::{Stream, StreamStatus};
 
 #[contract]
@@ -258,6 +258,38 @@ impl Contract {
     pub fn stream_balance(env: Env, stream_id: u64) -> Result<i128, Error> {
         let stream = get_existing_stream(&env, stream_id)?;
         Ok(stream_balance_amount(&env, &stream))
+    }
+
+    /// Returns the total number of streams ever created.
+    ///
+    /// View-only, no authentication required.
+    pub fn stream_count(env: Env) -> u64 {
+        storage::get_stream_count(&env)
+    }
+
+    /// Returns a page of stream IDs for off-chain enumeration.
+    ///
+    /// IDs are returned in creation order (ascending). Pagination is
+    /// zero-based: `page = 0` returns the first `page_size` IDs.
+    ///
+    /// # Arguments
+    /// - `page` – zero-based page index.
+    /// - `page_size` – number of IDs per page, capped at 50.
+    ///
+    /// View-only, no authentication required.
+    pub fn get_stream_ids(env: Env, page: u64, page_size: u64) -> Vec<u64> {
+        let page_size = page_size.min(50);
+        let count = storage::get_stream_count(&env);
+        let start = page.saturating_mul(page_size) + 1; // IDs are 1-based
+        let mut ids = vec![&env];
+        let mut id = start;
+        let mut fetched: u64 = 0;
+        while fetched < page_size && id <= count {
+            ids.push_back(id);
+            id += 1;
+            fetched += 1;
+        }
+        ids
     }
 
     /// Withdraws accrued escrow to the recipient.
