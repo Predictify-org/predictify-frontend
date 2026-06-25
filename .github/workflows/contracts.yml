@@ -1,0 +1,67 @@
+﻿name: Contract Coverage Gate
+
+on:
+  push:
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/contracts.yml'
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/contracts.yml'
+
+env:
+  COVERAGE_THRESHOLD: 95
+
+jobs:
+  coverage:
+    name: streampay-stream - cargo llvm-cov
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/streampay-stream/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/streampay-stream/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Run coverage (streampay-stream)
+        working-directory: contracts/streampay-stream
+        run: |
+          cargo llvm-cov \
+            --all-features \
+            --workspace \
+            --exclude-from-report "bench*" \
+            --lcov \
+            --output-path lcov.info \
+            --fail-under-lines ${{ env.COVERAGE_THRESHOLD }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: contracts/streampay-stream/lcov.info
+          flags: streampay-stream
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-streampay-stream
+          path: contracts/streampay-stream/lcov.info
+          retention-days: 14
