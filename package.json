@@ -10,7 +10,9 @@
     "lint": "node scripts/run-from-realpath.mjs eslint .",
     "test": "node scripts/run-from-realpath.mjs jest",
     "test:e2e": "node scripts/run-from-realpath.mjs jest --runInBand --testPathPattern=e2e\\.test\\.ts$",
-    "reconcile": "node scripts/run-from-realpath.mjs ts-node scripts/reconcile-streams.ts"
+    "reconcile": "node scripts/run-from-realpath.mjs ts-node scripts/reconcile-streams.ts",
+    "smoke": "bash scripts/smoke.sh",
+    "smoke:contract": "bash contracts/tests/smoke.sh"
   },
   "dependencies": {
     "jsonwebtoken": "^9.0.3",

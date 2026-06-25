@@ -1,0 +1,40 @@
+[package]
+name = "streampay-contracts"
+version = "0.1.0"
+edition = "2021"
+description = "StreamPay Soroban smart contracts for payment streaming"
+license = "MIT"
+repository = "https://github.com/Streampay-Org/StreamPay-Contracts"
+readme = "README.md"
+keywords = ["soroban", "stellar", "streaming", "payments", "smart-contract"]
+categories = ["cryptography::cryptocurrencies", "finance"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+testutils = ["soroban-sdk/testutils"]
+
+[dependencies]
+soroban-sdk = "22.0"
+
+[dev-dependencies]
+soroban-sdk = { version = "22.0", features = ["testutils"] }
+
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Enable link-time optimization
+codegen-units = 1   # Better optimization, slower compile
+strip = true        # Strip symbols
+panic = "abort"     # Smaller panic handler
+
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true
+
+[profile.test]
+opt-level = 0
+
+[profile.dev]
+opt-level = 0

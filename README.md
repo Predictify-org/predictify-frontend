@@ -262,10 +262,24 @@ MIT
 
 ## Smoke tests
 
-This repository includes a CI smoke suite that validates app health and a synthetic stream write/read path.
+This repository includes two smoke test suites:
+
+### Frontend API smoke tests
+
+Validates app health and a synthetic stream write/read path via HTTP.
 
 - `npm run smoke` runs `GET /readyz`, `GET /api/streams`, and a synthetic `POST /api/streams` + `POST /api/streams/{id}/settle`.
 - Use `SMOKE_TARGET_URL` to point at a deployed staging endpoint.
 - Use `SMOKE_AUTH_TOKEN` for synthetic credentials in CI secrets.
+- See [`scripts/smoke.sh`](scripts/smoke.sh).
+
+### Contract integration smoke tests
+
+Builds the Soroban smart contract WASM, starts a local Stellar sandbox,
+deploys the contract, and invokes every public entry point.
+
+- `npm run smoke:contract` runs the full pipeline.
+- Requires: Rust (with `wasm32-unknown-unknown` target), Stellar CLI.
+- See [`contracts/tests/smoke.sh`](contracts/tests/smoke.sh).
 
 A runtime feature flag is also available for incident mode: set `NEXT_PUBLIC_DISABLE_ONCHAIN_OPERATIONS=true` to pause new on-chain operations in the UI.

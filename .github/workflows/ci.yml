@@ -10,6 +10,7 @@ env:
   # CI is strictly testnet-only to prevent accidental production usage
   STELLAR_NETWORK: testnet
   JWT_SECRET: streampay-dev-secret-do-not-use-in-prod
+  ALLOWED_ORIGINS: http://localhost:3791
   NODE_ENV: test
   CI: true
 
@@ -60,3 +61,32 @@ jobs:
 
       - name: Run smoke tests
         run: npm run smoke
+
+  contract-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.93.0"
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo registry and build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          cache-targets: true
+
+      - name: Install stellar-cli
+        run: |
+          if ! command -v stellar &> /dev/null; then
+            echo "Installing stellar-cli..."
+            cargo install --locked stellar-cli --version 25.2.0
+          else
+            echo "stellar-cli already installed"
+          fi
+
+      - name: Run contract smoke tests
+        run: bash contracts/tests/smoke.sh
