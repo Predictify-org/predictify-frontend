@@ -11,7 +11,7 @@
     "test": "node scripts/run-from-realpath.mjs jest",
     "test:e2e": "node scripts/run-from-realpath.mjs jest --runInBand --testPathPattern=e2e\\.test\\.ts$",
     "test:e2e:coverage": "node scripts/run-from-realpath.mjs jest --runInBand --testPathPattern=stream-lifecycle.e2e --coverage --collectCoverageFrom='app/api/streams/**/*.ts' --forceExit",
-    "reconcile": "node scripts/run-from-realpath.mjs ts-node scripts/reconcile-streams.ts"
+    "reconcile": "node scripts/run-from-realpath.mjs ts-node scripts/reconcile.ts"
   },
   "dependencies": {
     "jsonwebtoken": "^9.0.3",
