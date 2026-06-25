@@ -2,9 +2,11 @@
 
 mod error;
 mod events;
+mod release;
 mod storage;
 
 pub use error::Error;
+use core::cmp::min;
 use soroban_sdk::{contract, contractimpl, token, Address, Env};
 pub use storage::{Stream, StreamStatus};
 
@@ -329,6 +331,7 @@ impl Contract {
         stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::paused(&env, stream_id, &stream.sender, stream.pause_time, stream.last_update);
 
         Ok(stream)
     }
@@ -368,6 +371,128 @@ impl Contract {
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
+        events::resumed(&env, stream_id, &stream.sender, stream.end_time, stream.last_update);
+
+        Ok(stream)
+    }
+
+    /// Cancels a stream, splitting escrow between recipient (vested amount minus already released)
+    /// and sender (remaining unvested amount).
+    ///
+    /// Only the stream sender may call this. After cancellation, stream status becomes Cancelled.
+    pub fn cancel_stream(env: Env, stream_id: u64) -> Result<(i128, i128), Error> {
+        require_not_paused(&env)?;
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if stream.status == StreamStatus::Settled || stream.status == StreamStatus::Cancelled {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        let vested = release::vested_amount(&stream, now);
+        let recipient_payout = vested.saturating_sub(stream.released_amount);
+        let sender_refund = stream.total_amount.saturating_sub(vested);
+
+        // Transfer recipient payout
+        if recipient_payout > 0 {
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            token::Client::new(&env, &stream.token).transfer(
+                &env.current_contract_address(),
+                &stream.recipient,
+                &recipient_payout,
+            );
+        }
+
+        // Transfer sender refund
+        if sender_refund > 0 {
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            token::Client::new(&env, &stream.token).transfer(
+                &env.current_contract_address(),
+                &stream.sender,
+                &sender_refund,
+            );
+        }
+
+        // Update stream state
+        stream.status = StreamStatus::Cancelled;
+        stream.last_update = now;
+        storage::set_stream(&env, stream_id, &stream);
+
+        // Emit cancelled event
+        events::cancelled(
+            &env,
+            stream_id,
+            &stream.sender,
+            &stream.recipient,
+            &stream.token,
+            recipient_payout,
+            sender_refund,
+            now,
+        );
+
+        Ok((recipient_payout, sender_refund))
+    }
+
+    /// Amends a stream, updating end time and/or total amount.
+    ///
+    /// Only the stream sender may call this. Requires that the stream is Active or Paused.
+    /// If total_amount can only be increased, and any additional amount must be escrowed
+    /// from the sender immediately.
+    pub fn amend_stream(
+        env: Env, stream_id: u64, new_end_time: Option<u64>, new_total_amount: Option<i128>) -> Result<Stream, Error> {
+        require_not_paused(&env)?;
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        let old_end_time = stream.end_time;
+        let old_total_amount = stream.total_amount;
+
+        // Update end time if provided
+        if let Some(ne) = new_end_time {
+            if ne <= stream.start_time {
+                return Err(Error::InvalidTimeRange);
+            }
+            stream.end_time = ne;
+            stream.duration = stream.end_time.saturating_sub(stream.start_time);
+        }
+
+        // Update total amount if provided
+        if let Some(nt) = new_total_amount {
+            if nt < stream.total_amount {
+                return Err(Error::InvalidAmount);
+            }
+            let additional_amount = nt.saturating_sub(stream.total_amount);
+            if additional_amount > 0 {
+                token::Client::new(&env, &stream.token).transfer(
+                    &stream.sender,
+                    &env.current_contract_address(),
+                    &additional_amount,
+                );
+            }
+            stream.total_amount = nt;
+        }
+
+        // Update stream
+        stream.last_update = now;
+        storage::set_stream(&env, stream_id, &stream);
+
+        // Emit amended event
+        events::amended(
+            &env,
+            stream_id,
+            &stream.sender,
+            old_end_time,
+            stream.end_time,
+            old_total_amount,
+            stream.total_amount,
+            now,
+        );
 
         Ok(stream)
     }
@@ -434,20 +559,14 @@ fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
         return 0;
     }
 
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
+    let elapsed = min(now, stream.end_time) - stream.start_time;
+    let accrued = (stream.total_amount * elapsed as i128) / stream.duration as i128;
+
+    accrued - stream.released_amount
 }
 
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
-    }
-    let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
-    }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+    release::vested_amount(stream, env.ledger().timestamp())
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
