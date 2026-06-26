@@ -43,7 +43,7 @@ describe('CORS middleware', () => {
     const response = await middleware(request as any);
 
     expect(response.headers.get('access-control-allow-origin')).toBeNull();
-    expect(response.headers.get('vary')).toBeNull();
+    expect(response.headers.get('vary')).toBe('Origin');
   });
 
   it('returns a preflight response with explicit headers for allowed origins', async () => {
