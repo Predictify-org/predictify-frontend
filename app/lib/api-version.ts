@@ -1,3 +1,5 @@
+import type { Stream } from "@/app/types/openapi";
+
 /**
  * API versioning utilities.
  *
@@ -50,5 +52,17 @@ export function toV2Stream(v1: StreamV1): StreamV2 {
     allowed_actions: v1.actions,
     created_at: v1.createdAt,
     settlement: null,
+  };
+}
+
+/** Convert a db Stream object to the StreamV1 shape. */
+export function dbStreamToV1(stream: Stream): StreamV1 {
+  return {
+    id: stream.id,
+    recipient: stream.recipient,
+    rate: stream.rate,
+    status: stream.status as StreamV1["status"],
+    actions: stream.nextAction ? [stream.nextAction] : [],
+    createdAt: stream.createdAt,
   };
 }

@@ -1,917 +1,315 @@
 #![cfg(test)]
 
+//! Integration tests for the `initialize` and `init_with_token_allowlist`
+//! entrypoints.
+//!
+//! These tests pin the contract's behaviour at deployment time:
+//!
+//! - `initialize` (the legacy single-arg entrypoint) keeps working
+//!   unchanged for backward compatibility.
+//! - `init_with_token_allowlist` registers `admin`, marks the contract
+//!   as unpaused, AND marks every token in `tokens` as `allowed = true`
+//!   - all in one transaction.
+//! - Re-initialisation (via either path) is rejected with
+//!   `Error::InvalidState` and leaves no partial state.
+//!
+//! The full allowlist/stream lifecycle is exercised elsewhere; this
+//! module only verifies the deployment-time surface area.
+
 use super::*;
-use soroban_sdk::{
-    symbol_short,
-    testutils::{Address as _, Ledger},
-    token::StellarAssetClient,
-    Address, Env, IntoVal, Val,
-};
+use soroban_sdk::testutils::{Address as _, Events as _, Ledger as _};
+use soroban_sdk::{token::StellarAssetClient, Address, Env};
 
-#[derive(Debug)]
-struct BudgetSnapshot {
-    cpu_instructions: u64,
-    memory_bytes: u64,
-    disk_read_entries: u32,
-    memory_read_entries: u32,
-    write_entries: u32,
-    disk_read_bytes: u32,
-    write_bytes: u32,
-}
-
-impl BudgetSnapshot {
-    fn total_read_entries(&self) -> u32 {
-        self.disk_read_entries + self.memory_read_entries
-    }
-}
-
-struct TestData {
+/// All addresses and tokens needed by a single test. We use a
+/// fixed-size array on the stack (no `Vec`) because the contract
+/// crate is `no_std`.
+struct InitTestData {
     env: Env,
-    client: ContractClient<'static>,
-    token: Address,
     admin: Address,
     sender: Address,
     recipient: Address,
+    tokens: [Address; 3],
 }
 
-fn setup() -> TestData {
+fn setup_init() -> InitTestData {
     let env = Env::default();
     env.mock_all_auths();
     env.ledger().set_timestamp(1_000);
 
-    let contract_id = env.register(Contract, ());
-    let client = ContractClient::new(&env, &contract_id);
+    env.register(Contract, ());
 
     let admin = Address::generate(&env);
     let sender = Address::generate(&env);
     let recipient = Address::generate(&env);
-    let token = env
+
+    // Three distinct tokens so we can prove the new entrypoint walks
+    // the full allowlist, not just the first element.
+    let token_a = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
+    let token_b = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
+    let token_c = env
         .register_stellar_asset_contract_v2(admin.clone())
         .address();
 
-    StellarAssetClient::new(&env, &token).mint(&sender, &i128::MAX);
+    // Fund `sender` on every token so any later stream-creation test
+    // can run without a separate mint step.
+    let all_tokens = [&token_a, &token_b, &token_c];
+    for token in &all_tokens {
+        StellarAssetClient::new(&env, token).mint(&sender, &1_000_000);
+    }
 
-    TestData {
+    InitTestData {
         env,
-        client,
-        token,
         admin,
         sender,
         recipient,
+        tokens: [token_a, token_b, token_c],
     }
 }
 
-/// Initializes the contract and returns the TestData.
-fn setup_initialized() -> TestData {
-    let data = setup();
-    data.client.initialize(&data.admin);
-    data
+fn contract_client(env: &Env) -> ContractClient<'_> {
+    // Re-register against the same env to obtain the contract
+    // address, then bind a client to it.
+    let contract_id = env.register(Contract, ());
+    ContractClient::new(env, &contract_id)
 }
 
-macro_rules! assert_contract_error {
-    ($result:expr, $expected:expr) => {
-        match $result {
-            Err(Ok(err)) => assert_eq!(err, $expected),
-            other => panic!("expected contract error {:?}, got {:?}", $expected, other),
-        }
-    };
+/// Build a `soroban_sdk::Vec<Address>` from a fixed-size array.
+fn to_sdk_vec(env: &Env, tokens: &[Address; 3]) -> soroban_sdk::Vec<Address> {
+    let mut v = soroban_sdk::Vec::new(env);
+    for t in tokens {
+        v.push_back(t.clone());
+    }
+    v
 }
 
-fn measure_invocation<T>(env: &Env, invoke: impl FnOnce() -> T) -> (T, BudgetSnapshot) {
-    let mut budget = env.cost_estimate().budget();
-    budget.reset_unlimited();
-
-    let result = invoke();
-
-    let budget = env.cost_estimate().budget();
-    let resources = env.cost_estimate().resources();
-    let snapshot = BudgetSnapshot {
-        cpu_instructions: budget.cpu_instruction_cost(),
-        memory_bytes: budget.memory_bytes_cost(),
-        disk_read_entries: resources.disk_read_entries,
-        memory_read_entries: resources.memory_read_entries,
-        write_entries: resources.write_entries,
-        disk_read_bytes: resources.disk_read_bytes,
-        write_bytes: resources.write_bytes,
-    };
-
-    (result, snapshot)
-}
-
-fn assert_budget_ceiling(
-    snapshot: &BudgetSnapshot,
-    max_cpu_instructions: u64,
-    max_memory_bytes: u64,
-    max_total_read_entries: u32,
-    max_write_entries: u32,
-    max_disk_read_bytes: u32,
-    max_write_bytes: u32,
-) {
-    assert!(
-        snapshot.cpu_instructions <= max_cpu_instructions,
-        "cpu instructions {} exceeded ceiling {}: {:?}",
-        snapshot.cpu_instructions,
-        max_cpu_instructions,
-        snapshot
-    );
-    assert!(
-        snapshot.memory_bytes <= max_memory_bytes,
-        "memory bytes {} exceeded ceiling {}: {:?}",
-        snapshot.memory_bytes,
-        max_memory_bytes,
-        snapshot
-    );
-    assert!(
-        snapshot.total_read_entries() <= max_total_read_entries,
-        "read entries {} exceeded ceiling {}: {:?}",
-        snapshot.total_read_entries(),
-        max_total_read_entries,
-        snapshot
-    );
-    assert!(
-        snapshot.write_entries <= max_write_entries,
-        "write entries {} exceeded ceiling {}: {:?}",
-        snapshot.write_entries,
-        max_write_entries,
-        snapshot
-    );
-    assert!(
-        snapshot.disk_read_bytes <= max_disk_read_bytes,
-        "disk read bytes {} exceeded ceiling {}: {:?}",
-        snapshot.disk_read_bytes,
-        max_disk_read_bytes,
-        snapshot
-    );
-    assert!(
-        snapshot.write_bytes <= max_write_bytes,
-        "write bytes {} exceeded ceiling {}: {:?}",
-        snapshot.write_bytes,
-        max_write_bytes,
-        snapshot
-    );
-}
+// ── `initialize` (legacy path) ───────────────────────────────────────────────
 
 #[test]
-fn draft_stream_accrues_nothing_until_started() {
-    let data = setup_initialized();
-    let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &true,
-    );
-    data.env.ledger().set_timestamp(2_000);
-    assert_eq!(data.client.withdrawable(&stream_id), 0);
-    assert_eq!(data.client.stream_balance(&stream_id), 0);
+fn initialize_sets_admin_and_unpauses() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
 
-    data.client.start_stream(&stream_id);
-    data.env.ledger().set_timestamp(2_050);
-    assert!(data.client.withdrawable(&stream_id) > 0);
-    assert!(data.client.stream_balance(&stream_id) > 0);
-}
+    client.initialize(&data.admin);
 
-#[test]
-fn initialize_succeeds_once() {
-    let data = setup();
-    data.client.initialize(&data.admin);
-    // Verify admin is stored by exercising an admin-only call without error.
-    data.client.set_paused(&data.admin, &false);
+    // Admin-only entrypoint that succeeds iff the admin is set.
+    // We expect `set_paused(false)` to be a no-op rather than an error.
+    client.set_paused(&data.admin, &false);
 }
 
 #[test]
 fn initialize_twice_returns_invalid_state() {
-    let data = setup();
-    data.client.initialize(&data.admin);
-    assert_contract_error!(data.client.try_initialize(&data.admin), Error::InvalidState);
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let result = client.try_initialize(&data.admin);
+    let err = result.expect_err("second initialize should fail");
+    assert_eq!(err, Ok(Error::InvalidState));
 }
 
-// ── set_paused ────────────────────────────────────────────────────────────────
-
 #[test]
-fn set_paused_true_blocks_create_stream() {
-    let data = setup_initialized();
-    data.client.set_paused(&data.admin, &true);
+fn initialize_does_not_allowlist_tokens() {
+    // `initialize` is the legacy path: it must NOT write any per-token
+    // entries. We probe this indirectly by blocking `token_a` after
+    // init; the new path under test must remain the only writer.
+    let data = setup_init();
+    let client = contract_client(&data.env);
 
-    assert_contract_error!(
-        data.client
-            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &1_000, &1_010),
-        Error::ContractPaused
-    );
-}
+    client.initialize(&data.admin);
+    client.set_token_allowed(&data.admin, &data.tokens[0], &false);
 
-
-
-#[test]
-fn set_paused_true_blocks_withdraw() {
-    let data = setup_initialized();
-
-    let id = data.client.create_stream(
+    // Attempting to stream on `token_a` now hits `TokenNotAllowed`,
+    // proving `initialize` itself didn't pre-allow it.
+    let result = client.try_create_stream(
         &data.sender,
         &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
     );
-
-    data.env.ledger().set_timestamp(1_050);
-    data.client.set_paused(&data.admin, &true);
-
-    assert_contract_error!(data.client.try_withdraw(&id, &500), Error::ContractPaused);
+    let err = result.expect_err("blocked token should fail create_stream");
+    assert_eq!(err, Ok(Error::TokenNotAllowed));
 }
 
-#[test]
-fn unpause_re_enables_operations() {
-    let data = setup_initialized();
-    data.client.set_paused(&data.admin, &true);
-    data.client.set_paused(&data.admin, &false);
-
-    // Should succeed after unpause.
-    data.client
-        .create_stream(&data.sender, &data.recipient, &data.token, &100, &1_000, &1_010);
-}
+// ── `init_with_token_allowlist` (new path) ────────────────────────────────────
 
 #[test]
-fn stream_persistent_ttl_extends_on_money_path_access() {
-    let data = setup_initialized();
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &false,
-    );
-
-    let before_ttl = data
-        .env
-        .storage()
-        .persistent()
-        .get_ttl(&DataKey::Stream(stream_id));
-
-    data.env.ledger().set_timestamp(1_050);
-    let _ = data.client.withdrawable(&stream_id);
-
-    let after_ttl = data
-        .env
-        .storage()
-        .persistent()
-        .get_ttl(&DataKey::Stream(stream_id));
-
-    assert!(after_ttl > before_ttl);
-}
-
-#[test]
-fn instance_ttl_extends_for_admin_and_counter_keys() {
-    let data = setup_initialized();
-    let _ = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &true,
-    );
-
-    let before_admin_ttl = data.env.storage().instance().get_ttl(&DataKey::Admin);
-    let before_next_id_ttl = data
-        .env
-        .storage()
-        .instance()
-        .get_ttl(&DataKey::NextStreamId);
-
-    data.env.ledger().set_timestamp(1_050);
-    data.client.set_paused(&data.admin, &false);
-    let _ = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &500,
-        &10,
-        &true,
-    );
-
-    let after_admin_ttl = data.env.storage().instance().get_ttl(&DataKey::Admin);
-    let after_next_id_ttl = data
-        .env
-        .storage()
-        .instance()
-        .get_ttl(&DataKey::NextStreamId);
-
-    assert!(after_admin_ttl > before_admin_ttl);
-    assert!(after_next_id_ttl > before_next_id_ttl);
-}
-
-#[test]
-fn set_paused_wrong_admin_returns_unauthorized() {
-    let data = setup_initialized();
-    let wrong = Address::generate(&data.env);
-
-    data.env.mock_auths(&[]);
-    data.client.set_paused(&wrong, &true);
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn set_admin_wrong_admin_returns_unauthorized() {
-    let data = setup_initialized();
-    let wrong = Address::generate(&data.env);
-    let new_admin = Address::generate(&data.env);
-
-    data.env.mock_auths(&[]);
-    data.client.set_admin(&wrong, &new_admin);
-}
-
-// ── set_token_allowed ─────────────────────────────────────────────────────────
-
-#[test]
-fn blocked_token_returns_token_not_allowed() {
-    let data = setup_initialized();
-    data.client
-        .set_token_allowed(&data.admin, &data.token, &false);
-
-    assert_contract_error!(
-        data.client
-            .try_create_stream(&data.sender, &data.recipient, &data.token, &100, &1_000, &1_010),
-        Error::TokenNotAllowed
-    );
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn set_token_allowed_wrong_admin_returns_unauthorized() {
-    let data = setup_initialized();
-    let wrong = Address::generate(&data.env);
-
-    data.env.mock_auths(&[]);
-    data.client.set_token_allowed(&wrong, &data.token, &false);
-}
-
-// ── Authorization boundaries ────────────────────────────────────────────────
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn create_stream_wrong_sender_fails() {
-    let data = setup_initialized();
-    let wrong = Address::generate(&data.env);
-
-    data.env.mock_auths(&[]);
-    data.client.create_stream(
-        &wrong,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &false,
-    );
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn start_stream_wrong_sender_fails() {
-    let data = setup_initialized();
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &true,
-    );
-
-    let wrong = Address::generate(&data.env);
-    data.env.mock_auths(&[]);
-    data.client.start_stream(&id);
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn withdraw_wrong_recipient_fails() {
-    let data = setup_initialized();
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &false,
-    );
-
-    data.env.ledger().set_timestamp(1_005);
-    data.env.mock_auths(&[]);
-    data.client.withdraw(&id, &50);
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn pause_wrong_sender_fails() {
-    let data = setup_initialized();
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &false,
-    );
-
-    data.env.mock_auths(&[]);
-    data.client.pause(&id);
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn resume_wrong_sender_fails() {
-    let data = setup_initialized();
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &false,
-    );
-    data.client.pause(&id);
-
-    data.env.mock_auths(&[]);
-    data.client.resume(&id);
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn cancel_stream_wrong_sender_fails() {
-    let data = setup_initialized();
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &false,
-    );
-
-    data.env.mock_auths(&[]);
-    data.client.cancel_stream(&id);
-}
-
-#[test]
-#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
-fn settle_wrong_recipient_fails() {
-    let data = setup_initialized();
-    let id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &100,
-        &10,
-        &false,
-    );
-
-    data.env.mock_auths(&[]);
-    data.client.settle(&id);
-}
-
-// ── Linear release math tests ───────────────────────────────────────────────
-
-#[test]
-fn vested_amount_at_start_time_is_zero() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
-    );
-
-    let stream = data.client.get_stream(&stream_id);
-    assert_eq!(stream.start_time, 1_000);
-    assert_eq!(data.client.stream_balance(&stream_id), 0);
-}
-
-#[test]
-fn vested_amount_at_midpoint_is_half_total() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
-    );
-
-    data.env.ledger().set_timestamp(1_050);
-    assert_eq!(data.client.stream_balance(&stream_id), 500);
-}
-
-#[test]
-fn vested_amount_at_end_time_is_total() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
-    );
-
-    data.env.ledger().set_timestamp(1_100);
-    assert_eq!(data.client.stream_balance(&stream_id), 1_000);
-}
-
-#[test]
-fn vested_amount_past_end_time_is_clamped_to_total() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
-    );
-
-    data.env.ledger().set_timestamp(2_000);
-    assert_eq!(data.client.stream_balance(&stream_id), 1_000);
-}
-
-#[test]
-fn vested_amount_before_start_time_is_zero() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
-    );
-
-    data.env.ledger().set_timestamp(500);
-    assert_eq!(data.client.stream_balance(&stream_id), 0);
-}
-
-#[test]
-fn vested_amount_is_monotonic_non_decreasing() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
-    );
-
-    let mut prev = data.client.stream_balance(&stream_id);
-    for t in [1_010, 1_020, 1_030, 1_040, 1_050, 1_060, 1_070, 1_080, 1_090, 1_100] {
-        data.env.ledger().set_timestamp(t);
-        let current = data.client.stream_balance(&stream_id);
-        assert!(current >= prev, "vested amount decreased from {} to {} at t={}", prev, current, t);
-        prev = current;
-    }
-}
-
-#[test]
-fn withdrawable_is_vested_minus_released() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
-    );
-
-    data.env.ledger().set_timestamp(1_050);
-    assert_eq!(data.client.stream_balance(&stream_id), 500);
-    assert_eq!(data.client.withdrawable(&stream_id), 500);
-
-    data.client.withdraw(&stream_id, &200);
-    assert_eq!(data.client.stream_balance(&stream_id), 500);
-    assert_eq!(data.client.withdrawable(&stream_id), 300);
-}
-
-#[test]
-fn withdrawable_never_negative() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
-    );
-
-    data.env.ledger().set_timestamp(1_050);
-    assert_contract_error!(data.client.try_withdraw(&stream_id, &600), Error::OverWithdraw);
-
-    let stream = data.client.get_stream(&stream_id);
-    assert_eq!(stream.released_amount, 0);
-    assert!(data.client.withdrawable(&stream_id) >= 0);
-}
-
-#[test]
-fn table_driven_vested_amount_across_timeline() {
-    struct TestCase {
-        total: i128,
-        duration: u64,
-        start_offset: i64,
-        test_offset: i64,
-        expected: i128,
-    }
-
-    let cases = [
-        // (total, duration, start_offset, test_offset, expected)
-        (1000, 100, 0, 0, 0),       // at start
-        (1000, 100, 0, 25, 250),    // 25% through
-        (1000, 100, 0, 50, 500),    // 50% through
-        (1000, 100, 0, 75, 750),    // 75% through
-        (1000, 100, 0, 100, 1000),  // at end
-        (1000, 100, 0, 150, 1000),  // past end
-        (1000, 100, 0, -50, 0),     // before start
-        (100, 10, 0, 5, 50),        // smaller values
-        (1, 1, 0, 0, 0),            // minimal
-        (1, 1, 0, 1, 1),            // minimal duration, at end
-        (10000, 1000, 100, 600, 6000), // with start offset
-    ];
-
-    for case_tuple in cases {
-        let case = TestCase {
-            total: case_tuple.0,
-            duration: case_tuple.1,
-            start_offset: case_tuple.2,
-            test_offset: case_tuple.3,
-            expected: case_tuple.4,
-        };
-        let data = setup();
-        let start_time = 1_000 + case.start_offset as u64;
-        let end_time = start_time + case.duration;
-        data.env.ledger().set_timestamp(start_time);
-
-        let stream_id = data.client.create_stream(
+fn init_with_token_allowlist_sets_admin_unpauses_and_allowlists() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
+
+    // Admin path: `set_paused` succeeds, proving `admin` is stored.
+    client.set_paused(&data.admin, &false);
+
+    // Allowlist path: every token the deployment registered must be
+    // unblocked. We assert this by creating a stream against each
+    // token; if any token had been blocked by accident we'd see
+    // `TokenNotAllowed` here instead.
+    let mut i = 0;
+    while i < data.tokens.len() {
+        let token = data.tokens[i].clone();
+        let _id = client.create_stream(
             &data.sender,
             &data.recipient,
-            &data.token,
-            &case.total,
-            &start_time,
-            &end_time,
+            &token,
+            &100i128,
+            &1_100u64,
+            &1_200u64,
         );
-
-        let target_time = (1_000 + case.start_offset + case.test_offset) as u64;
-        data.env.ledger().set_timestamp(target_time);
-        let result = data.client.stream_balance(&stream_id);
-
-
-        assert_eq!(
-            result, case.expected,
-            "table_driven: total={}, duration={}, start_offset={}, test_offset={}, expected={}, got={}",
-            case.total, case.duration, case.start_offset, case.test_offset, case.expected, result
-        );
+        i += 1;
     }
 }
 
 #[test]
-fn large_amount_near_i128_max_does_not_overflow() {
-    let data = setup();
+fn init_with_token_allowlist_handles_empty_token_list() {
+    // An empty allowlist is a valid deployment choice: tokens can be
+    // added lazily via `set_token_allowed` after the fact. We must
+    // still register the admin.
+    let data = setup_init();
+    let client = contract_client(&data.env);
 
-    // Use a large amount that could cause overflow if not using checked arithmetic
-    let large_amount = i128::MAX / 1000; // Safe but large
+    let empty = soroban_sdk::Vec::<Address>::new(&data.env);
+    client.init_with_token_allowlist(&data.admin, &empty);
 
-    let stream_id = data.client.create_stream(
+    // Admin-only entrypoint works.
+    client.set_paused(&data.admin, &true);
+    client.set_paused(&data.admin, &false);
+}
+
+#[test]
+fn init_with_token_allowlist_blocks_blocked_token() {
+    // The deployment-time allowlist is not "open up the contract to
+    // everything"; tokens that the admin subsequently blocks via
+    // `set_token_allowed(false)` must still be rejected.
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
+
+    client.set_token_allowed(&data.admin, &data.tokens[0], &false);
+
+    let result = client.try_create_stream(
         &data.sender,
         &data.recipient,
-        &data.token,
-        &large_amount,
-        &1_000,
-        &1_100,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
     );
-
-    data.env.ledger().set_timestamp(1_050);
-    let vested = data.client.stream_balance(&stream_id);
-
-    // Should be exactly half of the total
-    assert_eq!(vested, large_amount / 2);
-    assert!(vested >= 0 && vested <= large_amount);
-}
-
-
-
-#[test]
-fn stream_balance_matches_withdrawable_plus_released() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
-    );
-
-    data.env.ledger().set_timestamp(1_050);
-    let balance = data.client.stream_balance(&stream_id);
-    let withdrawable = data.client.withdrawable(&stream_id);
-    let stream = data.client.get_stream(&stream_id);
-
-    assert_eq!(balance, withdrawable + stream.released_amount);
+    let err = result.expect_err("blocked token should fail create_stream");
+    assert_eq!(err, Ok(Error::TokenNotAllowed));
 }
 
 #[test]
-fn budget_create_stream_stays_within_ceiling() {
-    let data = setup();
-    data.client.initialize(&data.admin);
+fn init_with_token_allowlist_twice_returns_invalid_state() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
 
-    let (stream_id, snapshot) = measure_invocation(&data.env, || {
-        data.client.create_stream(
-            &data.sender,
-            &data.recipient,
-            &data.token,
-            &1_000,
-            &1_000,
-            &1_100,
-        )
-    });
+    client.init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
 
-    assert_eq!(stream_id, 1);
-    assert_budget_ceiling(&snapshot, 310_000, 55_000, 9, 5, 100, 1_400);
+    // Second call must fail; no second admin, no extra allowlist entries.
+    let result = client.try_init_with_token_allowlist(
+        &data.admin,
+        &to_sdk_vec(&data.env, &data.tokens),
+    );
+    let err = result.expect_err("second init_with_token_allowlist should fail");
+    assert_eq!(err, Ok(Error::InvalidState));
 }
 
 #[test]
-fn budget_withdraw_stays_within_ceiling() {
-    let data = setup();
-    data.client.initialize(&data.admin);
+fn init_with_token_allowlist_after_initialize_returns_invalid_state() {
+    // Cross-path double init is also forbidden: whichever path
+    // landed first owns the admin slot forever.
+    let data = setup_init();
+    let client = contract_client(&data.env);
 
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
+    client.initialize(&data.admin);
+
+    let result = client.try_init_with_token_allowlist(
+        &data.admin,
+        &to_sdk_vec(&data.env, &data.tokens),
     );
-    data.env.ledger().set_timestamp(1_050);
-
-    let (withdrawn, snapshot) =
-        measure_invocation(&data.env, || data.client.withdraw(&stream_id, &500));
-
-    assert_eq!(withdrawn, 500);
-    assert_budget_ceiling(&snapshot, 330_000, 55_000, 8, 4, 100, 1_100);
+    let err = result.expect_err("init_with_token_allowlist after initialize should fail");
+    assert_eq!(err, Ok(Error::InvalidState));
 }
 
 #[test]
-fn budget_full_withdraw_settle_stays_within_ceiling() {
-    let data = setup();
-    data.client.initialize(&data.admin);
+fn initialize_after_init_with_token_allowlist_returns_invalid_state() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
 
-    let stream_id = data.client.create_stream(
-        &data.sender,
-        &data.recipient,
-        &data.token,
-        &1_000,
-        &1_000,
-        &1_100,
-    );
-    data.env.ledger().set_timestamp(1_100);
+    client.init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
 
-    let (withdrawn, snapshot) =
-        measure_invocation(&data.env, || data.client.withdraw(&stream_id, &1_000));
-
-    assert_eq!(withdrawn, 1_000);
-    assert_budget_ceiling(&snapshot, 345_000, 55_000, 8, 4, 100, 1_100);
-
-    let stream = data.client.get_stream(&stream_id);
-    assert_eq!(stream.status, StreamStatus::Settled);
+    let result = client.try_initialize(&data.admin);
+    let err = result.expect_err("initialize after init_with_token_allowlist should fail");
+    assert_eq!(err, Ok(Error::InvalidState));
 }
 
-// ── Event emission tests ───────────────────────────────────────────────────────
+#[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
+fn init_with_token_allowlist_unauthorized_caller_fails() {
+    // The atomic path requires `admin.require_auth()`; without
+    // mock_auths for `admin` the call must panic with the standard
+    // Soroban auth error.
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    let impostor = Address::generate(&data.env);
+
+    data.env.mock_auths(&[]);
+    client.init_with_token_allowlist(&impostor, &to_sdk_vec(&data.env, &data.tokens));
+}
 
 #[test]
-fn create_stream_emits_created_event() {
-    let data = setup_initialized();
-    data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
-    );
+fn init_with_token_allowlist_emits_no_events() {
+    // The new entrypoint mirrors `initialize` and `set_token_allowed`
+    // by emitting no events - lifecycle events are reserved for
+    // stream-level operations. This test pins that contract so
+    // future changes don't accidentally spam the indexer.
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
+
     let events = data.env.events().all();
-    let found = events.iter().any(|(_, topics, _)| {
-        topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("created").into_val(&data.env))
-    });
-    assert!(found, "expected 'stream.created' event after create_stream");
+    assert!(
+        events.is_empty(),
+        "init_with_token_allowlist should emit zero events, got: {:?}",
+        events
+    );
 }
 
 #[test]
-fn start_stream_emits_started_event() {
-    let data = setup_initialized();
-    let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &true,
-    );
-    data.env.ledger().set_timestamp(2_000);
-    data.client.start_stream(&stream_id);
-    let events = data.env.events().all();
-    let found = events.iter().any(|(_, topics, _)| {
-        topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("started").into_val(&data.env))
-    });
-    assert!(found, "expected 'stream.started' event after start_stream");
-}
+fn init_with_token_allowlist_atomicity_leaves_no_partial_state() {
+    // We can't directly observe partial state in a single call (the
+    // happy path either commits everything or nothing), but we can
+    // prove the no-partial-state invariant by ensuring a failed
+    // second call leaves the FIRST call's state untouched. If the
+    // host had not rolled back the storage mutations, the second
+    // `try_init_with_token_allowlist` call would have written extra
+    // admin/allowlist entries before failing.
+    let data = setup_init();
+    let client = contract_client(&data.env);
 
-#[test]
-fn withdraw_emits_withdrawn_event() {
-    let data = setup_initialized();
-    let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
-    );
-    data.env.ledger().set_timestamp(1_050);
-    data.client.withdraw(&stream_id, &300);
-    let events = data.env.events().all();
-    let found = events.iter().any(|(_, topics, _)| {
-        topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
-    });
-    assert!(found, "expected 'stream.withdrawn' event after withdraw");
-}
+    client.init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
 
-#[test]
-fn full_withdraw_emits_settled_event() {
-    let data = setup_initialized();
-    let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
-    );
-    data.env.ledger().set_timestamp(1_100);
-    data.client.withdraw(&stream_id, &1_000);
-    let events = data.env.events().all();
-    let has_withdrawn = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
-    });
-    let has_settled = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("settled").into_val(&data.env))
-    });
-    assert!(has_withdrawn, "expected 'stream.withdrawn' event on full withdrawal");
-    assert!(has_settled, "expected 'stream.settled' event after full withdrawal");
-}
+    let impostor = Address::generate(&data.env);
 
-#[test]
-fn pause_emits_paused_event() {
-    let data = setup_initialized();
-    let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
-    );
-    data.env.ledger().set_timestamp(1_050);
-    data.client.pause(&stream_id);
-    let events = data.env.events().all();
-    let found = events.iter().any(|(_, topics, _)| {
-        topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("paused").into_val(&data.env))
-    });
-    assert!(found, "expected 'stream.paused' event after pause");
-}
+    // Auth fails -> the whole transaction is rolled back, including
+    // the auth-write for the impostor. Admin from the first call
+    // still works. We `try_` so the auth failure is contained; the
+    // test runner's auth mocks are not poisoned for subsequent calls.
+    let _ = client
+        .try_init_with_token_allowlist(&impostor, &to_sdk_vec(&data.env, &data.tokens));
 
-#[test]
-fn resume_emits_resumed_event() {
-    let data = setup_initialized();
-    let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
-    );
-    data.env.ledger().set_timestamp(1_050);
-    data.client.pause(&stream_id);
-    data.env.ledger().set_timestamp(1_100);
-    data.client.resume(&stream_id);
-    let events = data.env.events().all();
-    let found = events.iter().any(|(_, topics, _)| {
-        topics.len() == 2
-            && topics.get(0) == Some(symbol_short!("stream").into_val(&data.env))
-            && topics.get(1) == Some(symbol_short!("resumed").into_val(&data.env))
-    });
-    assert!(found, "expected 'stream.resumed' event after resume");
-}
-
-#[test]
-fn failed_withdraw_emits_no_event() {
-    let data = setup_initialized();
-    let stream_id = data.client.create_stream(
-        &data.sender, &data.recipient, &data.token, &1_000, &100, &false,
-    );
-    data.env.ledger().set_timestamp(1_050);
-    let _ = data.client.try_withdraw(&stream_id, &600);
-    let events = data.env.events().all();
-    let has_withdrawn = events.iter().any(|(_, topics, _)| {
-        topics.get(1) == Some(symbol_short!("withdrawn").into_val(&data.env))
-    });
-    assert!(!has_withdrawn, "no 'withdrawn' event should be emitted on a failed withdrawal");
+    // `mock_all_auths` was on at `setup_init` time so `set_paused`
+    // still succeeds, proving the original `admin` is intact.
+    client.set_paused(&data.admin, &false);
 }

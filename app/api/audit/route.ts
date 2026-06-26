@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuditLogAccess } from "@/app/lib/auth";
 import { AUDIT_LOG_RETENTION_DAYS, auditLogStore } from "@/app/lib/audit-log";
 import type { AuditActorRole, AuditListFilters } from "@/app/types/audit";
+import { AuditResponseSchema, type AuditResponseDTO } from "@/app/lib/dtos/audit.dto";
 
 function createErrorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message, request_id: "mock-request-id" } }, { status });
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
   }
 
   const entries = auditLogStore.list(filters);
-  return NextResponse.json({
+  const payload = AuditResponseSchema.parse({
     access: {
       actorId: actor.actorId,
       role: actor.role,
@@ -71,6 +72,8 @@ export async function GET(request: Request) {
       total: entries.length,
     },
   });
+
+  return NextResponse.json<AuditResponseDTO>(payload);
 }
 
 export async function POST() {

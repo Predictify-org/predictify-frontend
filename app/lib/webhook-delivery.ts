@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { logger, withWebhookContext, getCorrelationContext } from './logger';
+import { getActiveSigningSecrets } from '@/app/lib/webhook-secrets';
 
 /**
  * Idempotent webhook delivery with exponential backoff + full jitter and DLQ support.
@@ -308,6 +309,17 @@ function signaturesMatch(providedSignature: string, expectedSignature: string): 
   }
 
   return crypto.timingSafeEqual(provided, expected);
+}
+
+export function applyWebhookSecretsFromStore(
+  endpoint: WebhookEndpoint,
+): WebhookEndpoint {
+  const secrets = getActiveSigningSecrets();
+  return {
+    ...endpoint,
+    secret: secrets[0],
+    previousSecrets: secrets.slice(1),
+  };
 }
 
 export class WebhookDeliveryClient {

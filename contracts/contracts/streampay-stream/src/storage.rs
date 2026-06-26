@@ -73,25 +73,23 @@ fn ttl_target(env: &Env, extra_ledgers: u32) -> u32 {
 }
 
 fn extend_persistent_ttl(env: &Env, key: &DataKey) {
+    // In soroban-sdk 23.x, get_ttl is only available via testutils and the
+    // extend_ttl call itself short-circuits when the key's TTL is already
+    // above the threshold. We therefore call extend_ttl unconditionally
+    // with the minimum remaining TTL as the threshold.
+    let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
     let target = ttl_target(env, STREAM_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().persistent().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().persistent().extend_ttl(key, &target);
+    env.storage().persistent().extend_ttl(key, threshold, target);
 }
 
-fn extend_instance_ttl(env: &Env, key: &DataKey) {
+fn extend_instance_ttl(env: &Env, _key: &DataKey) {
+    // Instance storage in soroban-sdk 23.x does not accept a key argument
+    // to extend_ttl; the host function extends the entire current contract
+    // instance. The call short-circuits internally when the instance TTL
+    // already exceeds the threshold.
+    let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
     let target = ttl_target(env, INSTANCE_TTL_EXTEND_TO);
-    if let Some(current_ttl) = env.storage().instance().get_ttl(key) {
-        let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
-        if current_ttl > threshold {
-            return;
-        }
-    }
-    env.storage().instance().extend_ttl(key, &target);
+    env.storage().instance().extend_ttl(threshold, target);
 }
 
 fn extend_stream_ttl(env: &Env, stream_id: u64) {
@@ -107,9 +105,20 @@ fn extend_pause_key_ttl(env: &Env) {
 }
 
 fn extend_next_stream_id_ttl(env: &Env) {
-    extend_instance_ttl(env, &DataKey::NextStreamId);
+    extend_instance_ttl(env, &DataKey::StreamCount);
 }
 
+/// Returns whether an admin key is present in instance storage.
+///
+/// If the admin key exists, this helper extends its TTL to ensure the
+/// governance address does not expire mid-flight.
+///
+/// # Returns
+/// - `true` if [`DataKey::Admin`] exists.
+/// - `false` otherwise.
+///
+/// # Errors
+/// This helper does not return errors.
 pub fn has_admin(env: &Env) -> bool {
     let exists = env.storage().instance().has(&DataKey::Admin);
     if exists {
@@ -118,11 +127,30 @@ pub fn has_admin(env: &Env) -> bool {
     exists
 }
 
+/// Sets the contract admin address in instance storage.
+///
+/// This helper also extends the admin key TTL.
+///
+/// # Returns
+/// This helper does not return a value.
+///
+/// # Errors
+/// This helper does not return errors.
 pub fn set_admin(env: &Env, admin: &Address) {
     env.storage().instance().set(&DataKey::Admin, admin);
     extend_admin_key_ttl(env);
 }
 
+/// Returns the stored admin address, if any.
+///
+/// If an admin value exists, this helper extends its TTL.
+///
+/// # Returns
+/// - `Some(Address)` if [`DataKey::Admin`] exists.
+/// - `None` otherwise.
+///
+/// # Errors
+/// This helper does not return errors.
 pub fn get_admin(env: &Env) -> Option<Address> {
     let admin = env.storage().instance().get(&DataKey::Admin);
     if admin.is_some() {
@@ -131,11 +159,30 @@ pub fn get_admin(env: &Env) -> Option<Address> {
     admin
 }
 
+/// Sets the global paused flag in instance storage.
+///
+/// This helper also extends the paused key TTL.
+///
+/// # Returns
+/// This helper does not return a value.
+///
+/// # Errors
+/// This helper does not return errors.
 pub fn set_paused(env: &Env, paused: bool) {
     env.storage().instance().set(&DataKey::Paused, &paused);
     extend_pause_key_ttl(env);
 }
 
+/// Returns whether the contract is currently paused.
+///
+/// If the paused key exists, this helper extends its TTL.
+///
+/// # Returns
+/// - `true` if paused is set to `true`.
+/// - `false` if paused is unset or set to `false`.
+///
+/// # Errors
+/// This helper does not return errors.
 pub fn is_paused(env: &Env) -> bool {
     let paused = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
     if env.storage().instance().has(&DataKey::Paused) {
@@ -144,12 +191,35 @@ pub fn is_paused(env: &Env) -> bool {
     paused
 }
 
+/// Sets whether a given token is allowed for future stream creation.
+///
+/// Tokens are allowed by default when there is no entry for the token. When
+/// `allowed = false`, the function writes a deny entry that makes the token
+/// “blocked” for future stream creation.
+///
+/// # Returns
+/// This helper does not return a value.
+///
+/// # Errors
+/// This helper does not return errors.
 pub fn set_token_allowed(env: &Env, token: &Address, allowed: bool) {
     env.storage()
         .persistent()
         .set(&DataKey::TokenAllowed(token.clone()), &allowed);
 }
 
+/// Returns whether a given token is blocked.
+///
+/// This is the logical negation of `set_token_allowed(..., allowed = true)`.
+/// If no allow entry exists, the token is treated as allowed (therefore not
+/// blocked).
+///
+/// # Returns
+/// - `true` if the token is explicitly blocked.
+/// - `false` if explicitly allowed or unset.
+///
+/// # Errors
+/// This helper does not return errors.
 pub fn is_token_blocked(env: &Env, token: &Address) -> bool {
     match env
         .storage()
@@ -161,14 +231,33 @@ pub fn is_token_blocked(env: &Env, token: &Address) -> bool {
     }
 }
 
+/// Returns the next stream id and increments the stored counter.
+///
+/// Stream ids start at `1` when the counter is unset. This helper extends the
+/// TTL of the stream id counter key.
+///
+/// # Returns
+/// The stream id that should be assigned to the next created stream.
+///
+/// # Errors
+/// This helper does not return errors.
 pub fn next_stream_id(env: &Env) -> u64 {
     let storage = env.storage().instance();
-    let id = storage.get(&DataKey::NextStreamId).unwrap_or(1u64);
-    storage.set(&DataKey::NextStreamId, &(id + 1));
+    let id = storage.get(&DataKey::StreamCount).unwrap_or(1u64);
+    storage.set(&DataKey::StreamCount, &(id + 1));
     extend_next_stream_id_ttl(env);
     id
 }
 
+/// Writes a stream record into persistent storage.
+///
+/// This helper also extends the TTL for the corresponding per-stream entry.
+///
+/// # Returns
+/// This helper does not return a value.
+///
+/// # Errors
+/// This helper does not return errors.
 pub fn set_stream(env: &Env, stream_id: u64, stream: &Stream) {
     env.storage()
         .persistent()
@@ -176,6 +265,17 @@ pub fn set_stream(env: &Env, stream_id: u64, stream: &Stream) {
     extend_stream_ttl(env, stream_id);
 }
 
+/// Reads a stream record from persistent storage.
+///
+/// If the stream exists, this helper extends the TTL for the corresponding
+/// per-stream entry.
+///
+/// # Returns
+/// - `Some(Stream)` if the stream exists.
+/// - `None` otherwise.
+///
+/// # Errors
+/// This helper does not return errors.
 pub fn get_stream(env: &Env, stream_id: u64) -> Option<Stream> {
     let stream = env.storage().persistent().get(&DataKey::Stream(stream_id));
     if stream.is_some() {
@@ -183,3 +283,4 @@ pub fn get_stream(env: &Env, stream_id: u64) -> Option<Stream> {
     }
     stream
 }
+

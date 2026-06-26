@@ -168,7 +168,7 @@ export async function POST(request: Request) {
     return createErrorResponse("INVALID_TOKEN", `Invalid token format: ${msg}`, 422);
   }
 
-  const allowlistResult = checkTokenAllowed(normalisedToken);
+  const allowlistResult = await checkTokenAllowed(normalisedToken);
   if (!allowlistResult.accepted) {
     logger.warn("Stream creation rejected: token not in allowlist", { token: normalisedToken });
     return createErrorResponse("TOKEN_NOT_ALLOWED", allowlistResult.reason, 422);

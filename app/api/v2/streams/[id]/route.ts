@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/app/lib/db";
-import { toV2Stream } from "@/app/lib/api-version";
+import { toV2Stream, dbStreamToV1 } from "@/app/lib/api-version";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -39,6 +39,8 @@ export async function GET(request: Request, { params }: Context) {
 
   const response = NextResponse.json({
     data: toV2Stream(stream),
+  return NextResponse.json({
+    data: toV2Stream(dbStreamToV1(stream)),
     links: { self: `/api/v2/streams/${id}` },
   });
 

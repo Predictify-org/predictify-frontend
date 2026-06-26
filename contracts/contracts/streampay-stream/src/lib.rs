@@ -2,10 +2,11 @@
 
 mod error;
 mod events;
+mod release;
 mod storage;
 
 pub use error::Error;
-use soroban_sdk::{contract, contractimpl, token, Address, Env};
+use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 pub use storage::{Stream, StreamStatus};
 
 #[contract]
@@ -31,6 +32,86 @@ impl Contract {
         admin.require_auth();
         storage::set_admin(&env, &admin);
         storage::set_paused(&env, false);
+        Ok(())
+    }
+
+    /// Atomic initialisation + token allowlist.
+    ///
+    /// Performs the work of `initialize` and then marks each
+    /// address in `tokens` as `allowed = true` in the per-token
+    /// allowlist, all within a single transaction.
+    ///
+    /// Use this from deployment scripts so that the admin and the
+    /// initial allowlist are committed together: either the whole
+    /// configuration lands atomically or nothing does. Because
+    /// Soroban rolls back all storage writes on failure, calling
+    /// this on a contract that is already initialised (or with a
+    /// caller that fails auth) leaves zero partial state.
+    ///
+    /// Tokens are allowed by default; explicitly writing
+    /// `allowed = true` here is idempotent for tokens that are
+    /// already allowed and has no effect on tokens that are
+    /// subsequently blocked via `set_token_allowed`.
+    ///
+    /// # Arguments
+    ///
+    /// * `admin`  - The privileged address authorised to call
+    ///   admin entrypoints (`set_paused`, `set_admin`,
+    ///   `set_token_allowed`).
+    /// * `tokens` - The list of token contract addresses to
+    ///   register in the allowlist. May be empty if the contract
+    ///   intends to stream the native asset or add tokens lazily
+    ///   via `set_token_allowed` later.
+    ///
+    /// # Errors
+    ///
+    /// - `Error::InvalidState` if the contract has already been
+    ///   initialised. The allowlist is *not* partially written.
+    ///
+    /// # Auth
+    ///
+    /// Requires authorisation from `admin`. Auth is consumed
+    /// before any state mutation so that an auth failure cannot
+    /// leave the contract half-configured.
+    ///
+    /// # See also
+    ///
+    /// - `initialize` - the legacy two-step path; still supported
+    ///   for backward compatibility.
+    /// - `set_token_allowed` - the per-token toggle used after
+    ///   initialisation.
+    pub fn init_with_token_allowlist(
+        env: Env,
+        admin: Address,
+        tokens: soroban_sdk::Vec<Address>,
+    ) -> Result<(), Error> {
+        // Guard against double initialisation. We check *before* any
+        // writes so that a previously-initialised contract cannot have
+        // its allowlist silently mutated.
+        if storage::has_admin(&env) {
+            return Err(Error::InvalidState);
+        }
+
+        // Authorise the caller up-front. Soroban rolls back all
+        // storage writes on auth failure, but collecting auth first
+        // makes the atomicity guarantee obvious to reviewers and
+        // mirrors the pattern used by `initialize`.
+        admin.require_auth();
+
+        // From this point on the transaction either commits all
+        // writes or none of them - the host aborts and reverts on
+        // any panic, so any failure below (none expected under
+        // normal conditions) leaves the contract uninitialised.
+        storage::set_admin(&env, &admin);
+        storage::set_paused(&env, false);
+
+        // Iterate the allowlist. `Vec::iter` returns an iterator
+        // over the on-chain vector; each `set_token_allowed` call
+        // writes a single persistent-storage entry.
+        for token in tokens.iter() {
+            storage::set_token_allowed(&env, &token, true);
+        }
+
         Ok(())
     }
 
@@ -420,6 +501,25 @@ impl Contract {
 
         Ok(())
     }
+
+    /// Upgrades the contract to a new WASM binary.
+    ///
+    /// This function is admin-only and allows for updating the contract's
+    /// code while preserving its state. It emits an `upgraded` event upon
+    /// successful execution.
+    ///
+    /// # Errors
+    /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
+    /// - [`Error::NotFound`] if the contract has not been initialised.
+    ///
+    /// # Auth
+    /// Requires authorisation from `admin`.
+    pub fn upgrade(env: Env, admin: Address, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        env.deployer().update_current_contract_wasm(new_wasm_hash.clone());
+        events::upgraded(&env, new_wasm_hash);
+        Ok(())
+    }
 }
 
 fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
@@ -427,27 +527,11 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
 }
 
 fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
-    }
-    if now < stream.start_time {
-        return 0;
-    }
-
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    release::vested_amount(stream, env.ledger().timestamp())
+    release::withdrawable(stream, now)
 }
 
 fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.start_time == 0 {
-        return 0;
-    }
-    let now = env.ledger().timestamp();
-    if now < stream.start_time {
-        return 0;
-    }
-    let elapsed = min(now, stream.end_time) - stream.start_time;
-    (stream.total_amount * elapsed as i128) / stream.duration as i128
+    release::vested_amount(stream, env.ledger().timestamp())
 }
 
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
@@ -475,3 +559,32 @@ mod test;
 
 #[cfg(test)]
 mod prop_test;
+
+#[cfg(test)]
+mod upgrade_test {
+    use super::*;
+    use soroban_sdk::{testutils::Events, vec, BytesN, IntoVal};
+
+    #[test]
+    fn test_upgrade() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let contract_id = env.register_contract(None, Contract);
+        let client = ContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+
+        let new_wasm_hash = env.deployer().upload_contract_wasm(soroban_sdk::contractimpl::wasmi::Module::default());
+
+        client.upgrade(&admin, &new_wasm_hash);
+
+        let expected_events = vec![
+            &env,
+            (contract_id.clone(), ("StreamPay", "upgraded").into_val(&env), new_wasm_hash.into_val(&env)),
+        ];
+
+        assert_eq!(env.events().all().last(), Some(expected_events.last().unwrap()));
+    }
+}
