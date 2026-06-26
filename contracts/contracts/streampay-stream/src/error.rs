@@ -39,4 +39,6 @@ pub enum Error {
     AlreadySettled = 8,
     /// 9: Token is not allowed for streaming.
     TokenNotAllowed = 9,
+    /// 10: Arithmetic overflow in amount calculation.
+    Overflow = 10,
 }
