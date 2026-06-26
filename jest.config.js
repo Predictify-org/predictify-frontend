@@ -17,4 +17,13 @@ const config = {
   ],
 };
 
-module.exports = createJestConfig(config);
+module.exports = async () => {
+  const makeConfig = createJestConfig(config);
+  const resolvedConfig = await makeConfig();
+  resolvedConfig.moduleNameMapper = {
+    ...resolvedConfig.moduleNameMapper,
+    "^@/(.*)$": "<rootDir>/$1",
+    "^\\./app/(.*)$": "<rootDir>/app/$1",
+  };
+  return resolvedConfig;
+};

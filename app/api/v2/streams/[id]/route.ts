@@ -9,17 +9,43 @@ function errorResponse(code: string, message: string, status: number) {
 }
 
 /** GET /api/v2/streams/:id — single stream in v2 shape. */
-export async function GET(_request: Request, { params }: Context) {
+export async function GET(request: Request, { params }: Context) {
   const { streamRepository } = getStore();
   const { id } = await params;
   const stream = streamRepository.streams.get(id);
   if (!stream) {
     return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
-  return NextResponse.json({
+
+  // Generate a weak ETag based on the stream's updatedAt timestamp
+  // Weak ETags are prefixed with W/ and allow downstream gzip compression
+  const etag = `W/"${stream.updatedAt}"`;
+
+  // Parse and match the If-None-Match request header
+  const ifNoneMatch = request.headers.get("if-none-match");
+  if (ifNoneMatch) {
+    const clientEtags = ifNoneMatch.split(",").map((t) => t.trim());
+    if (clientEtags.includes(etag) || clientEtags.includes("*")) {
+      // Short-circuit returning 304 Not Modified
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          etag,
+          "cache-control": "public, max-age=0, must-revalidate",
+        },
+      });
+    }
+  }
+
+  const response = NextResponse.json({
     data: toV2Stream(stream),
     links: { self: `/api/v2/streams/${id}` },
   });
+
+  // Attach ETag and Cache-Control headers to the 200 OK response
+  response.headers.set("etag", etag);
+  response.headers.set("cache-control", "public, max-age=0, must-revalidate");
+  return response;
 }
 
 /** DELETE /api/v2/streams/:id */
