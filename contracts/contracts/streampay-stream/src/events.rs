@@ -19,7 +19,7 @@
 //! Failed calls (returning Err) emit no events.
 //! `settled` is emitted in addition to `withdrawn` when a withdrawal fully drains the stream.
 
-use soroban_sdk::{symbol_short, Address, Env};
+use soroban_sdk::{symbol_short, Address, BytesN, Env};
 
 /// Emits the `stream::created` event after `create_stream` has escrowed
 /// `total_amount` from `sender`. Indexers observe this as the canonical
@@ -92,5 +92,14 @@ pub fn resumed(env: &Env, stream_id: u64, sender: &Address, end_time: u64, times
     env.events().publish(
         (symbol_short!("stream"), symbol_short!("resumed")),
         (stream_id, sender.clone(), end_time, timestamp),
+    );
+}
+
+/// Emits the `stream::upgraded` event after a successful `upgrade`, carrying
+/// the new WASM hash so indexers can track contract code versions.
+pub fn upgraded(env: &Env, new_wasm_hash: BytesN<32>) {
+    env.events().publish(
+        (symbol_short!("StreamPay"), symbol_short!("upgraded")),
+        new_wasm_hash,
     );
 }
