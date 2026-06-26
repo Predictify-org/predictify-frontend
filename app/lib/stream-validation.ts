@@ -10,6 +10,7 @@
  */
 
 import { isValidStellarPublicKey } from "@/app/lib/wallet-link";
+import { z } from "zod";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -49,6 +50,32 @@ export interface CreateStreamBody {
   schedule: string;
   token?: string;
 }
+
+/**
+ * Zod schema for validating the request body for `PATCH /api/v2/streams/[id]`.
+ *
+ * - `description`: Optional, up to 280 characters.
+ * - `webhook_url`: Optional, must be a valid URL.
+ * - `tags`: Optional, array of up to 10 strings, each 1-50 characters.
+ *
+ * The schema is `strict`, meaning any unknown fields will be rejected.
+ */
+export const patchStreamSchema = z
+  .object({
+    description: z.string().min(1, "Description cannot be empty.").max(280).optional(),
+    webhook_url: z.string().url("Must be a valid URL.").optional(),
+    tags: z
+      .array(
+        z
+          .string()
+          .min(1, "Tag cannot be empty.")
+          .max(50, "Tag cannot exceed 50 characters."),
+      )
+      .max(10, "Cannot have more than 10 tags.")
+      .optional(),
+  })
+  .strict("Unknown fields are not allowed.");
+
 
 // ── Validator ──────────────────────────────────────────────────────────────
 
@@ -149,4 +176,26 @@ export function validateCreateStreamBody(
   }
 
   return errors;
+}
+
+/**
+ * Validates the request body for PATCH /api/v2/streams/[id] using Zod.
+ *
+ * @param body The raw request body.
+ * @returns An array of `ValidationError`. An empty array means success.
+ */
+export function validatePatchStreamBody(
+  body: unknown,
+): ValidationError[] {
+  const result = patchStreamSchema.safeParse(body);
+
+  if (result.success) {
+    return [];
+  }
+
+  return result.error.issues.map((issue) => ({
+    field: issue.path.join(".") || "body",
+    code: issue.code.toUpperCase(),
+    message: issue.message,
+  }));
 }
