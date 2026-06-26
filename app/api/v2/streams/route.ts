@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { db, encodeCursor, decodeCursor, idempotencyToken } from "@/app/lib/db";
 import { toV2Stream } from "@/app/lib/api-version";
 
+const IDEMPOTENCY_TTL_MS = 86_400_000; // 24 hours
+
+interface IdempotencyEntry {
+  body: string;
+  response: unknown;
+  expiresAt: number;
+}
+
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
@@ -46,6 +54,12 @@ export async function GET(request: Request) {
  *   - Response body uses `allowed_actions`, `created_at`, `updated_at`
  *     instead of `nextAction`, `createdAt`, `updatedAt`.
  *   - `settlement` is always present (null when not yet settled).
+ *
+ * Idempotency:
+ *   - Supports Idempotency-Key header for safe retries.
+ *   - Same key + identical body returns the cached 201 response.
+ *   - Same key + different body returns 409 Conflict.
+ *   - Entries expire after 24 hours (IDEMPOTENCY_TTL_MS).
  */
 export async function POST(request: Request) {
   const idempotencyKey = request.headers.get("Idempotency-Key");
@@ -53,15 +67,30 @@ export async function POST(request: Request) {
     ? idempotencyToken("v2.streams.create", idempotencyKey)
     : null;
 
-  if (token && db.idempotency.has(token)) {
-    return NextResponse.json(db.idempotency.get(token), { status: 201 });
-  }
-
   let body: Record<string, unknown>;
+  let bodyText: string;
   try {
-    body = await request.json();
+    bodyText = await request.text();
+    body = JSON.parse(bodyText);
   } catch {
     return errorResponse("INVALID_REQUEST", "Request body must be valid JSON", 400);
+  }
+
+  if (token) {
+    const existing = db.idempotency.get(token) as IdempotencyEntry | undefined;
+    if (existing) {
+      if (Date.now() > existing.expiresAt) {
+        db.idempotency.delete(token);
+      } else if (existing.body === bodyText) {
+        return NextResponse.json(existing.response, { status: 201 });
+      } else {
+        return errorResponse(
+          "IDEMPOTENCY_CONFLICT",
+          "Idempotency key already used for a different request body.",
+          409,
+        );
+      }
+    }
   }
 
   const { recipient, rate, schedule } = body as {
@@ -98,7 +127,13 @@ export async function POST(request: Request) {
     links: { self: `/api/v2/streams/${id}` },
   };
 
-  if (token) db.idempotency.set(token, payload);
+  if (token) {
+    db.idempotency.set(token, {
+      body: bodyText,
+      response: payload,
+      expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
+    });
+  }
 
   return NextResponse.json(payload, { status: 201 });
 }
