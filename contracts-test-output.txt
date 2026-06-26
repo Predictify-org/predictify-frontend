@@ -1,0 +1,95 @@
+
+> streampay-frontend@0.1.0 test
+> node scripts/run-from-realpath.mjs jest contracts
+
+FAIL app/api/v2/streams/__tests__/contracts/streams.contract.test.ts
+  Pact contract verifier — /api/v2/streams
+    streampay-frontend → streampay-api-v2
+      ✕ a request for an active stream (12 ms)
+      ✕ a valid stream creation request (2 ms)
+      ✓ a stream creation request with missing fields (1 ms)
+      ✕ a request for an ended stream (2 ms)
+      ✓ a request for the authenticated user stream list (1 ms)
+      ✓ a request for streams when user has none (1 ms)
+      ✓ a request without auth token (2 ms)
+      ✕ a request for a paused stream (1 ms)
+
+  ● Pact contract verifier — /api/v2/streams › streampay-frontend → streampay-api-v2 › a request for an active stream
+
+    expect(received).toHaveProperty(path)
+
+    Expected path: "id"
+    Received path: []
+
+    Received value: {"streams": []}
+
+      66 |             // Top-level keys must all be present
+      67 |             for (const key of Object.keys(expected)) {
+    > 68 |               expect(body).toHaveProperty(key);
+         |                            ^
+      69 |             }
+      70 |
+      71 |             // Error responses: code and message must match exactly
+
+      at Object.toHaveProperty (app/api/v2/streams/__tests__/contracts/streams.contract.test.ts:68:28)
+
+  ● Pact contract verifier — /api/v2/streams › streampay-frontend → streampay-api-v2 › a valid stream creation request
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      57 |
+      58 |           // ── Status code ──────────────────────────────────────────────────
+    > 59 |           expect(response.status).toBe(interaction.response.status);
+         |                                   ^
+      60 |
+      61 |           // ── Body shape ───────────────────────────────────────────────────
+      62 |           if (interaction.response.body !== undefined) {
+
+      at Object.toBe (app/api/v2/streams/__tests__/contracts/streams.contract.test.ts:59:35)
+
+  ● Pact contract verifier — /api/v2/streams › streampay-frontend → streampay-api-v2 › a request for an ended stream
+
+    expect(received).toHaveProperty(path)
+
+    Expected path: "id"
+    Received path: []
+
+    Received value: {"streams": []}
+
+      66 |             // Top-level keys must all be present
+      67 |             for (const key of Object.keys(expected)) {
+    > 68 |               expect(body).toHaveProperty(key);
+         |                            ^
+      69 |             }
+      70 |
+      71 |             // Error responses: code and message must match exactly
+
+      at Object.toHaveProperty (app/api/v2/streams/__tests__/contracts/streams.contract.test.ts:68:28)
+
+  ● Pact contract verifier — /api/v2/streams › streampay-frontend → streampay-api-v2 › a request for a paused stream
+
+    expect(received).toHaveProperty(path)
+
+    Expected path: "id"
+    Received path: []
+
+    Received value: {"streams": []}
+
+      66 |             // Top-level keys must all be present
+      67 |             for (const key of Object.keys(expected)) {
+    > 68 |               expect(body).toHaveProperty(key);
+         |                            ^
+      69 |             }
+      70 |
+      71 |             // Error responses: code and message must match exactly
+
+      at Object.toHaveProperty (app/api/v2/streams/__tests__/contracts/streams.contract.test.ts:68:28)
+
+Test Suites: 1 failed, 1 total
+Tests:       4 failed, 4 passed, 8 total
+Snapshots:   0 total
+Time:        0.612 s
+Ran all test suites matching /contracts/i.
