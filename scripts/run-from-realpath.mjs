@@ -14,22 +14,31 @@ if (!command) {
 const canonicalCwd = realpathSync.native(process.cwd());
 process.chdir(canonicalCwd);
 
-const localBins = {
-  eslint: path.join(canonicalCwd, "node_modules", "eslint", "bin", "eslint.js"),
-  jest: path.join(canonicalCwd, "node_modules", "jest", "bin", "jest.js"),
-  next: path.join(canonicalCwd, "node_modules", "next", "dist", "bin", "next"),
-};
+/**
+ * Resolve the entrypoint for a locally-installed package binary.
+ * This is more robust than hardcoding paths, which can vary.
+ * @param {string} packageName The name of the npm package.
+ * @returns {string} The resolved path to the executable.
+ */
+function resolveBin(packageName) {
+  const packageJsonPath = require.resolve(`${packageName}/package.json`);
+  const packageJson = require(packageJsonPath);
+  const binPath = packageJson.bin[packageName] || packageJson.bin;
+  return path.join(path.dirname(packageJsonPath), binPath);
+}
+
+const localBins = { eslint: resolveBin('eslint'), jest: resolveBin('jest'), next: resolveBin('next') };
 
 const result = localBins[command]
   ? spawnSync(process.execPath, [localBins[command], ...args], {
-      cwd: canonicalCwd,
-      stdio: "inherit",
-    })
+    cwd: canonicalCwd,
+    stdio: "inherit",
+  })
   : spawnSync(command, args, {
-      cwd: canonicalCwd,
-      stdio: "inherit",
-      shell: process.platform === "win32",
-    });
+    cwd: canonicalCwd,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
 
 if (result.error) {
   throw result.error;
