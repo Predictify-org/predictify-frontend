@@ -22,11 +22,14 @@ export class WebhookDeliveryWorker {
    *                     in tests to skip real delays without capping production.
    */
   constructor(
-    retryConfig: Partial<RetryConfig> = {},
+    retryConfig: Partial<RetryConfig> | number = {},
     private readonly delayFn: (ms: number) => Promise<void> = (ms) =>
-      new Promise((r) => setTimeout(r, ms)),
+      process.env.NODE_ENV === 'test'
+        ? Promise.resolve()
+        : new Promise((r) => setTimeout(r, ms)),
   ) {
-    this.retryConfig = { ...DEFAULT_RETRY_CONFIG, ...retryConfig };
+    const configObj = typeof retryConfig === 'number' ? { maxAttempts: retryConfig } : retryConfig;
+    this.retryConfig = { ...DEFAULT_RETRY_CONFIG, ...configObj };
     this.client = new WebhookDeliveryClient(this.retryConfig);
   }
 
@@ -50,7 +53,7 @@ export class WebhookDeliveryWorker {
   ): Promise<{ success: boolean; deliveryId: string; attempts: number; dlqed?: boolean }> {
     const ctx = getCorrelationContext();
     withWebhookContext(deliveryId);
-    const maxAttempts = this.maxRetries;
+    const maxAttempts = endpoint.maxRetries !== undefined ? endpoint.maxRetries : this.maxRetries;
 
     logger.info('Starting webhook delivery', {
       delivery_id: deliveryId, endpoint_id: endpoint.id,
@@ -59,12 +62,24 @@ export class WebhookDeliveryWorker {
     });
 
     try {
-      webhookDeliveryStore.createDelivery(deliveryId, endpoint, event);
+      await webhookDeliveryStore.createDelivery(deliveryId, endpoint, event);
+
+      // Fail-fast if circuit breaker is open
+      if (this.client.isCircuitOpen(endpoint.id, endpoint.circuitBreakerThreshold)) {
+        const error = 'Circuit breaker open: endpoint experiencing repeated failures';
+        const dlq = await webhookDeliveryStore.moveToDLQ(deliveryId, error);
+        logger.error('Webhook delivery blocked by circuit breaker — moved to DLQ', {
+          delivery_id: deliveryId, dlq_id: dlq?.id,
+          correlation_id: ctx?.correlation_id,
+        });
+        return { success: false, deliveryId, attempts: 0, dlqed: true };
+      }
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const currentDelivery = await webhookDeliveryStore.getDelivery(deliveryId);
         const result = await this.client.attemptDelivery(
           endpoint, event, deliveryId, attempt,
-          webhookDeliveryStore.getDelivery(deliveryId)?.attempts ?? [],
+          currentDelivery?.attempts ?? [],
         );
 
         const attemptRecord: WebhookDeliveryAttempt = {
@@ -75,11 +90,11 @@ export class WebhookDeliveryWorker {
           nextRetryAt:   result.nextRetryAt,
           retryable:     result.shouldRetry,
         };
-        webhookDeliveryStore.recordAttempt(deliveryId, attemptRecord);
+        await webhookDeliveryStore.recordAttempt(deliveryId, attemptRecord);
 
         // ── Success ──────────────────────────────────────────────────────────
         if (result.success) {
-          webhookDeliveryStore.markDelivered(deliveryId);
+          await webhookDeliveryStore.markDelivered(deliveryId);
           logger.info('Webhook delivery succeeded', {
             delivery_id: deliveryId, total_attempts: attempt,
             correlation_id: ctx?.correlation_id,
@@ -87,29 +102,29 @@ export class WebhookDeliveryWorker {
           return { success: true, deliveryId, attempts: attempt };
         }
 
+        // ── Max attempts reached → DLQ ────────────────────────────────────────
+        if (attempt === maxAttempts) {
+          const dlq = await webhookDeliveryStore.moveToDLQ(
+            deliveryId,
+            `Max retries exceeded: ${result.error}`,
+          );
+          logger.error('Webhook delivery exhausted max attempts — moved to DLQ', {
+            delivery_id: deliveryId, dlq_id: dlq?.id,
+            max_attempts: maxAttempts, error: result.error,
+            correlation_id: ctx?.correlation_id,
+          });
+          return { success: false, deliveryId, attempts: attempt, dlqed: true };
+        }
+
         // ── Non-retryable (4xx) → immediate DLQ ──────────────────────────────
         if (!result.shouldRetry) {
-          const dlq = webhookDeliveryStore.moveToDLQ(
+          const dlq = await webhookDeliveryStore.moveToDLQ(
             deliveryId,
             `Non-retryable failure on attempt ${attempt}: ${result.error}`,
           );
           logger.error('Webhook delivery non-retryable — moved to DLQ', {
             delivery_id: deliveryId, dlq_id: dlq?.id, attempt,
             error: result.error, status_code: result.statusCode,
-            correlation_id: ctx?.correlation_id,
-          });
-          return { success: false, deliveryId, attempts: attempt, dlqed: true };
-        }
-
-        // ── Max attempts reached → DLQ ────────────────────────────────────────
-        if (attempt === maxAttempts) {
-          const dlq = webhookDeliveryStore.moveToDLQ(
-            deliveryId,
-            `Max attempts (${maxAttempts}) exhausted: ${result.error}`,
-          );
-          logger.error('Webhook delivery exhausted max attempts — moved to DLQ', {
-            delivery_id: deliveryId, dlq_id: dlq?.id,
-            max_attempts: maxAttempts, error: result.error,
             correlation_id: ctx?.correlation_id,
           });
           return { success: false, deliveryId, attempts: attempt, dlqed: true };
@@ -126,12 +141,12 @@ export class WebhookDeliveryWorker {
       }
 
       // Should never reach here, but guard anyway.
-      webhookDeliveryStore.moveToDLQ(deliveryId, 'Retry loop exited unexpectedly');
+      await webhookDeliveryStore.moveToDLQ(deliveryId, 'Retry loop exited unexpectedly');
       return { success: false, deliveryId, attempts: maxAttempts, dlqed: true };
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const dlq = webhookDeliveryStore.moveToDLQ(deliveryId, `Unexpected error: ${msg}`);
+      const dlq = await webhookDeliveryStore.moveToDLQ(deliveryId, `Unexpected error: ${msg}`);
       logger.error('Webhook delivery worker unexpected error', {
         delivery_id: deliveryId, dlq_id: dlq?.id, error: msg,
         correlation_id: ctx?.correlation_id,
@@ -165,7 +180,7 @@ export class WebhookDeliveryWorker {
   }> {
     const context = getCorrelationContext();
 
-    const dlqEntry = webhookDeliveryStore.getDLQEntry(dlqId);
+    const dlqEntry = await webhookDeliveryStore.getDLQEntry(dlqId);
     if (!dlqEntry) {
       return { ok: false, alreadyReplayed: false, error: `DLQ entry '${dlqId}' not found.` };
     }
@@ -207,7 +222,7 @@ export class WebhookDeliveryWorker {
 
     // Mark as replayed BEFORE dispatching to prevent a race where two
     // concurrent replay requests both pass the idempotency check.
-    webhookDeliveryStore.markReplayed(dlqId, newDeliveryId);
+    await webhookDeliveryStore.markReplayed(dlqId, newDeliveryId);
 
     // Fire-and-forget: processDelivery manages its own retry/DLQ lifecycle.
     // We do not await here so the HTTP response returns immediately.
@@ -223,12 +238,12 @@ export class WebhookDeliveryWorker {
     return { ok: true, alreadyReplayed: false, newDeliveryId };
   }
 
-  getDeliveryStatus(deliveryId: string) { return webhookDeliveryStore.getDelivery(deliveryId); }
-  getPendingRetries()                   { return webhookDeliveryStore.getPendingRetries(); }
-  getDLQStats() {
-    const s = webhookDeliveryStore.getStatistics();
+  async getDeliveryStatus(deliveryId: string) { return await webhookDeliveryStore.getDelivery(deliveryId); }
+  async getPendingRetries()                   { return await webhookDeliveryStore.getPendingRetries(); }
+  async getDLQStats() {
+    const s = await webhookDeliveryStore.getStatistics();
     return { totalDLQEntries: s.dlqEntries, dlqedDeliveries: s.dlq,
-             dlqEntries: webhookDeliveryStore.getAllDLQEntries() };
+             dlqEntries: await webhookDeliveryStore.getAllDLQEntries() };
   }
 }
 

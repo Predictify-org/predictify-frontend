@@ -18,18 +18,18 @@ import { logger, withCorrelationContext } from '@/app/lib/logger';
 describe('Webhook Delivery Integration Tests', () => {
   let worker: WebhookDeliveryWorker;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     withCorrelationContext({
       correlation_id: 'integration-test-123',
       request_id: 'req-int-123',
     });
     worker = new WebhookDeliveryWorker(5);
-    webhookDeliveryStore.clear();
+    await webhookDeliveryStore.clear();
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    webhookDeliveryStore.clear();
+  afterEach(async () => {
+    await webhookDeliveryStore.clear();
   });
 
   describe('Flaky Receiver Scenarios', () => {
@@ -68,7 +68,7 @@ describe('Webhook Delivery Integration Tests', () => {
       expect(result.success).toBe(true);
       expect(result.attempts).toBe(3);
 
-      const delivery = webhookDeliveryStore.getDelivery('delivery-flaky-1');
+      const delivery = await webhookDeliveryStore.getDelivery('delivery-flaky-1');
       expect(delivery?.status).toBe('delivered');
       expect(delivery?.attempts[0].statusCode).toBe(503);
       expect(delivery?.attempts[1].statusCode).toBe(503);
@@ -105,7 +105,7 @@ describe('Webhook Delivery Integration Tests', () => {
       expect(result.success).toBe(true);
       expect(elapsed).toBeGreaterThan(100);
 
-      const delivery = webhookDeliveryStore.getDelivery('delivery-slow-1');
+      const delivery = await webhookDeliveryStore.getDelivery('delivery-slow-1');
       expect(delivery?.status).toBe('delivered');
     });
 
@@ -124,9 +124,19 @@ describe('Webhook Delivery Integration Tests', () => {
       };
 
       vi.stubGlobal('fetch', vi.fn(async (url, options) => {
-        // Simulate hanging by not returning until after timeout
-        return new Promise(() => {
-          // Never resolves - simulates hanging connection
+        return new Promise((resolve, reject) => {
+          if (options?.signal) {
+            options.signal.addEventListener('abort', () => {
+              const err = new Error('The user aborted a request.');
+              err.name = 'AbortError';
+              reject(err);
+            });
+            if (options.signal.aborted) {
+              const err = new Error('The user aborted a request.');
+              err.name = 'AbortError';
+              reject(err);
+            }
+          }
         });
       }) as any);
 
@@ -136,7 +146,7 @@ describe('Webhook Delivery Integration Tests', () => {
       expect(result.success).toBe(false);
       expect(result.dlqed).toBe(true);
 
-      const delivery = webhookDeliveryStore.getDelivery('delivery-hanging-1');
+      const delivery = await webhookDeliveryStore.getDelivery('delivery-hanging-1');
       expect(delivery?.status).toBe('dlq');
       expect(delivery?.attempts.length).toBe(2);
     });
@@ -172,7 +182,7 @@ describe('Webhook Delivery Integration Tests', () => {
       expect(result.success).toBe(true);
       expect(result.attempts).toBe(5);
 
-      const delivery = webhookDeliveryStore.getDelivery('delivery-varying-1');
+      const delivery = await webhookDeliveryStore.getDelivery('delivery-varying-1');
       expect(delivery?.attempts.map(a => a.statusCode)).toEqual([429, 503, 500, 429, 200]);
     });
 
@@ -201,7 +211,7 @@ describe('Webhook Delivery Integration Tests', () => {
       expect(result.dlqed).toBe(true);
       expect(result.attempts).toBe(1); // Should fail immediately on 404
 
-      const delivery = webhookDeliveryStore.getDelivery('delivery-notfound-1');
+      const delivery = await webhookDeliveryStore.getDelivery('delivery-notfound-1');
       expect(delivery?.status).toBe('dlq');
       expect(delivery?.attempts.length).toBe(1);
     });
@@ -267,21 +277,32 @@ describe('Webhook Delivery Integration Tests', () => {
 
       const signatures = new Set<string>();
 
-      vi.stubGlobal('fetch', vi.fn(async (url: string, options: any) => {
-        const sig = options.headers['X-StreamPay-Signature'];
-        signatures.add(sig);
-        // Fail first attempt to force retry
-        return signatures.size === 1
-          ? { status: 503, statusText: 'Service Unavailable' }
-          : { status: 200, statusText: 'OK' };
-      }) as any);
+      let mockTime = 1600000000000;
+      const originalNow = Date.now;
+      Date.now = jest.fn(() => {
+        mockTime += 1000;
+        return mockTime;
+      });
 
-      const result = await worker.processDelivery(endpoint, event, 'delivery-sig-1');
+      try {
+        vi.stubGlobal('fetch', vi.fn(async (url: string, options: any) => {
+          const sig = options.headers['X-StreamPay-Signature'];
+          signatures.add(sig);
+          // Fail first attempt to force retry
+          return signatures.size === 1
+            ? { status: 503, statusText: 'Service Unavailable' }
+            : { status: 200, statusText: 'OK' };
+        }) as any);
 
-      expect(result.success).toBe(true);
+        const result = await worker.processDelivery(endpoint, event, 'delivery-sig-1');
 
-      // Signatures should differ due to timestamp in signature
-      expect(signatures.size).toBeGreaterThanOrEqual(1);
+        expect(result.success).toBe(true);
+
+        // Signatures should differ due to timestamp in signature
+        expect(signatures.size).toBe(2);
+      } finally {
+        Date.now = originalNow;
+      }
     });
   });
 
@@ -327,7 +348,7 @@ describe('Webhook Delivery Integration Tests', () => {
       expect(result.success).toBe(false);
       expect(result.dlqed).toBe(true);
 
-      const delivery = webhookDeliveryStore.getDelivery('delivery-circuit-final');
+      const delivery = await webhookDeliveryStore.getDelivery('delivery-circuit-final');
       expect(delivery?.attempts.length).toBe(0); // No attempts made
     });
   });
@@ -357,7 +378,7 @@ describe('Webhook Delivery Integration Tests', () => {
       expect(result.success).toBe(false);
       expect(result.dlqed).toBe(true);
 
-      const dlqStats = worker.getDLQStats();
+      const dlqStats = await worker.getDLQStats();
       expect(dlqStats.totalDLQEntries).toBe(1);
 
       const dlqEntry = dlqStats.dlqEntries[0];
@@ -393,7 +414,7 @@ describe('Webhook Delivery Integration Tests', () => {
 
       await worker.processDelivery(endpoint, event, 'delivery-stats-1');
 
-      const delivery = webhookDeliveryStore.getDelivery('delivery-stats-1');
+      const delivery = await webhookDeliveryStore.getDelivery('delivery-stats-1');
       expect(delivery?.attempts.length).toBe(3);
       expect(delivery?.attempts[0].attemptNumber).toBe(1);
       expect(delivery?.attempts[1].attemptNumber).toBe(2);
@@ -451,10 +472,73 @@ describe('Webhook Delivery Integration Tests', () => {
       expect(result2.success).toBe(false);
       expect(result2.dlqed).toBe(true);
 
-      const stats = webhookDeliveryStore.getStatistics();
+      const stats = await webhookDeliveryStore.getStatistics();
       expect(stats.delivered).toBe(1);
       expect(stats.dlq).toBe(1);
       expect(stats.totalAttempts).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Real PostgreSQL Concurrency Integration Tests', () => {
+    let pgStore: any = null;
+    const dbUrl = process.env.DATABASE_URL;
+
+    beforeAll(async () => {
+      if (dbUrl) {
+        pgStore = new WebhookDeliveryStore();
+        try {
+          await pgStore.clear();
+        } catch (err) {
+          console.warn('PostgreSQL connection test failed. Database URL might be invalid or DB unreachable:', err);
+          pgStore = null;
+        }
+      }
+    });
+
+    afterAll(async () => {
+      if (pgStore) {
+        await pgStore.clear();
+        await pgStore.close();
+      }
+    });
+
+    it('should claim disjoint sets of deliveries concurrently when using SKIP LOCKED', async () => {
+      if (!pgStore) {
+        console.warn('Real PostgreSQL is not available (DATABASE_URL not set). Skipping real-PG concurrency integration test.');
+        return;
+      }
+
+      const endpoint = { id: 'ep-pg', url: 'http://foo.bar', maxRetries: 3 };
+      const event = { id: 'evt-pg', eventType: 'test', streamId: 's-1', data: {}, timestamp: new Date().toISOString() };
+
+      // Seed 5 pending deliveries
+      await pgStore.createDelivery('dlv-pg-1', endpoint, event);
+      await pgStore.createDelivery('dlv-pg-2', endpoint, event);
+      await pgStore.createDelivery('dlv-pg-3', endpoint, event);
+      await pgStore.createDelivery('dlv-pg-4', endpoint, event);
+      await pgStore.createDelivery('dlv-pg-5', endpoint, event);
+
+      // Perform two concurrent claimDeliveries(2) calls.
+      // Under FOR UPDATE SKIP LOCKED, they must return disjoint sets (no overlap)
+      // and together claim 4 rows.
+      const [claimed1, claimed2] = await Promise.all([
+        pgStore.claimDeliveries(2),
+        pgStore.claimDeliveries(2)
+      ]);
+
+      expect(claimed1.length).toBe(2);
+      expect(claimed2.length).toBe(2);
+
+      // Verify disjointness
+      const ids1 = claimed1.map((c: any) => c.deliveryId);
+      const ids2 = claimed2.map((c: any) => c.deliveryId);
+
+      const intersection = ids1.filter((id: string) => ids2.includes(id));
+      expect(intersection.length).toBe(0);
+
+      // Verify total claimed in database is 4 and their status is 'processing'
+      const allStats = await pgStore.getStatistics();
+      expect(allStats.pending).toBe(1); // 5 - 4 = 1 pending left
     });
   });
 

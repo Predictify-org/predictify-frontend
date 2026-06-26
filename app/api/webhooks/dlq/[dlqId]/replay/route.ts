@@ -93,7 +93,7 @@ export async function POST(
     }
 
     // ── Existence check ──────────────────────────────────────────────────────
-    const dlqEntry = webhookDeliveryStore.getDLQEntry(dlqId);
+    const dlqEntry = await webhookDeliveryStore.getDLQEntry(dlqId);
     if (!dlqEntry) {
       logger.warn("DLQ replay rejected: entry not found", {
         dlq_id:         dlqId,

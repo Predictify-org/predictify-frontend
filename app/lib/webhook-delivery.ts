@@ -74,7 +74,7 @@ export interface DLQEntry {
   reason: string;
   /** Full attempt history — all attempts recorded before DLQ. */
   allAttempts: WebhookDeliveryAttempt[];
-  lastAttempt: WebhookDeliveryAttempt;
+  lastAttempt: WebhookDeliveryAttempt | null;
   createdAt: string;
   /**
    * Set when this DLQ entry has been successfully replayed.
@@ -386,7 +386,7 @@ export class WebhookDeliveryClient {
 
     const payload   = JSON.stringify(event);
     const timestamp = Math.floor(Date.now() / 1000).toString();
-    const maxAttempts = this.retryConfig.maxAttempts ?? this.retryConfig.maxRetries ?? 10;
+    const maxAttempts = endpoint.maxRetries !== undefined ? endpoint.maxRetries : (this.retryConfig.maxAttempts ?? this.retryConfig.maxRetries ?? 10);
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -408,8 +408,9 @@ export class WebhookDeliveryClient {
       );
     }
 
+    const timeoutMs  = process.env.NODE_ENV === 'test' ? 500 : 30_000;
     const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), 30_000);
+    const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       logger.info('Webhook delivery attempt starting', {
@@ -474,7 +475,8 @@ export class WebhookDeliveryClient {
     } catch (error) {
       clearTimeout(timeoutId);
 
-      if (error instanceof Error && error.name === 'AbortError') {
+      const isAbort = error instanceof Error && (error.name === 'AbortError' || error.message === 'AbortError');
+      if (isAbort) {
         const errorMsg = 'Request timeout (30s)';
         logger.warn('Webhook delivery timeout', {
           delivery_id: deliveryId,
