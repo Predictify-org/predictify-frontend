@@ -1,5 +1,24 @@
 # Implementation Placeholder
 
+## Status: Implemented
+
+The recovery pages from `error-pages-spec.md` now ship in the app:
+
+- `app/not-found.tsx` — global `404` (broken-link / navigation-drift posture).
+- `app/error.tsx` — client error boundary covering the generic `5xx` state and
+  the Stellar/Horizon **outage** variant (auto-selected when the thrown error
+  mentions Stellar/Horizon/Soroban/RPC/network keywords). Primary action calls
+  `reset()` ("Try again"); `error.digest` is surfaced as a support reference.
+- `app/components/ErrorRecovery.tsx` — shared presentational layout (skip link,
+  brand header, single `main` landmark, recovery panel, helper note). Tested in
+  `ErrorRecovery.test.tsx`.
+- `app/globals.css` — `.error-page*` styles using theme tokens, per-variant
+  accents (`#7C8BFF` 404, `--warning` 5xx, `#2DD4BF` outage), and a mobile
+  variant responsive down to 320px (24px gutters, stacked full-width actions).
+
+Recovery actions are native `<a>`/`<button>` elements, so they are keyboard
+operable; the skip link becomes visible on focus.
+
 ## Future Issue Stub
 
 Title suggestion:

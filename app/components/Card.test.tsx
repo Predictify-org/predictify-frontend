@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render } from "@testing-library/react";
+const { screen, fireEvent } = require("@testing-library/react") as any;
 import "@testing-library/jest-dom";
 import { Card } from "./Card";
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/app/lib/db";
-import { toV2Stream } from "@/app/lib/api-version";
+import { getStore } from "@/app/lib/db";
+import { toV2Stream, dbStreamToV1 } from "@/app/lib/api-version";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -10,21 +10,23 @@ function errorResponse(code: string, message: string, status: number) {
 
 /** GET /api/v2/streams/:id — single stream in v2 shape. */
 export async function GET(_request: Request, { params }: Context) {
+  const { streamRepository } = getStore();
   const { id } = await params;
-  const stream = db.streams.get(id);
+  const stream = streamRepository.streams.get(id);
   if (!stream) {
     return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
   return NextResponse.json({
-    data: toV2Stream(stream),
+    data: toV2Stream(dbStreamToV1(stream)),
     links: { self: `/api/v2/streams/${id}` },
   });
 }
 
 /** DELETE /api/v2/streams/:id */
 export async function DELETE(_request: Request, { params }: Context) {
+  const { streamRepository } = getStore();
   const { id } = await params;
-  const stream = db.streams.get(id);
+  const stream = streamRepository.streams.get(id);
   if (!stream) {
     return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
@@ -35,6 +37,6 @@ export async function DELETE(_request: Request, { params }: Context) {
       409,
     );
   }
-  db.streams.delete(id);
+  streamRepository.streams.delete(id);
   return new NextResponse(null, { status: 204 });
 }

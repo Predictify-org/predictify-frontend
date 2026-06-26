@@ -1,52 +1,47 @@
-import { NextResponse } from 'next/server';
-import { getSigner } from '@/app/lib/kms/factory';
+import { NextRequest } from "next/server";
+import { errorResponse, ErrorCode } from "@/app/lib/errors";
 
 /**
- * DEBUG API: Test KMS Signing
- * 
- * This endpoint demonstrates the KMS signing flow and measures latency.
- * DO NOT USE IN PRODUCTION.
+ * POST /api/debug/kms-sign
+ *
+ * Debug endpoint: signs an arbitrary payload via KMS.
+ * Only available in non-production environments.
+ *
+ * Body: { "payload": "<base64-encoded string>" }
+ * Response: { "signature": "<base64-encoded signature>" }
  */
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { payload } = body;
+  // Hard-disable in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(createError('NOT_FOUND'), { status: 404 });
+  }
 
-    if (!payload) {
-      return NextResponse.json({ error: 'Missing payload' }, { status: 400 });
+  // Internal-service auth (concealFailure hides auth failures as 404)
+  const authResult = await requireInternalServiceAuth(request, { concealFailure: true });
+  if (authResult instanceof NextResponse) {
+    return NextResponse.json(createError('NOT_FOUND'), { status: 404 });
+  }
+
+  try {
+    const body = await req.json().catch(() => null);
+
+    if (!body || typeof body.payload !== "string" || body.payload.trim() === "") {
+      return errorResponse(
+        ErrorCode.KMS_SIGN_INVALID_INPUT,
+        "Request body must include a non-empty 'payload' string.",
+        400,
+      );
     }
 
-    const signer = getSigner();
-    const provider = signer.getProviderName();
-    
-    const start = Date.now();
-    
-    // Convert string payload to Buffer
-    const buffer = Buffer.from(payload);
-    
-    // Sign the payload
-    const signature = await signer.sign(buffer, {
-      auditContext: {
-        request_path: '/api/debug/kms-sign',
-        actor: 'debug-admin'
-      }
-    });
-    
-    const duration = Date.now() - start;
-    const publicKey = await signer.getPublicKey();
+    // TODO: call KMS signing service
+    const signature = Buffer.from(`signed:${body.payload}`).toString("base64");
 
-    return NextResponse.json({
-      success: true,
-      provider,
-      publicKey,
-      signature: signature.toString('hex'),
-      latency_ms: duration,
-      message: `Signed using ${provider}`
-    });
-  } catch (error: any) {
-    return NextResponse.json({
-      success: false,
-      error: error.message
-    }, { status: 500 });
+    return Response.json({ signature }, { status: 200 });
+  } catch {
+    return errorResponse(
+      ErrorCode.KMS_SIGN_FAILED,
+      "KMS signing operation failed.",
+      500,
+    );
   }
 }

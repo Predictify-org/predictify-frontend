@@ -1,27 +1,24 @@
 import { NextResponse } from "next/server";
-import { db } from "@/app/lib/db";
-import { getCorrelationContext } from "@/app/lib/logger";
+import {
+  checkIdempotency,
+  computeFingerprint,
+  db,
+  idempotencyToken,
+  setIdempotency,
+  withLock,
+} from "@/app/lib/db";
+import { getCorrelationContext, logger } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
-import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
-import { getLimitForRoute } from "@/app/lib/rate-limit-config";
-import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
 
 type Context = { params: Promise<{ id: string }> };
 
-function errorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message } }, { status });
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
 }
 
 function getHeader(request: Request, name: string): string | null {
   return request.headers?.get?.(name) ?? null;
-}
-
-function getRequestUrl(request: Request, fallbackPath: string): URL {
-  try {
-    return request.url ? new URL(request.url) : new URL(`http://localhost${fallbackPath}`);
-  } catch {
-    return new URL(`http://localhost${fallbackPath}`);
-  }
 }
 
 export async function POST(
@@ -29,48 +26,86 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const url = getRequestUrl(request, `/api/streams/${id}/start`);
-  const limitType = getLimitForRoute("POST", url.pathname);
-  const identity = getClientIdentity(request);
-  const result = await checkRateLimit(identity, limitType);
 
-  if (!result.allowed) {
-    recordThrottle(url.pathname, limitType, identity.type, identity.displayValue);
-    return rateLimitResponse(result.retryAfter!);
-  }
-  recordRequest(url.pathname);
+  const idempotencyKey = getHeader(request, "Idempotency-Key");
+  const token = idempotencyKey
+    ? idempotencyToken(`streams.start.${id}`, idempotencyKey)
+    : null;
 
-  const stream = db.streams.get(id);
-  if (!stream) {
-    return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
-  }
+  const fingerprint = computeFingerprint("POST", `/api/streams/${id}/start`, null);
 
-  const actorAddress = getHeader(request, "Actor-Wallet-Address");
-  const policyResult = actorAddress ? checkStreamOrgPolicy(id, actorAddress, "start") : null;
-  if (policyResult) {
-    if (!policyResult.allowed) {
-      return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
-    }
-    if (policyResult.requiresApproval) {
-      return createErrorResponse(
-        "APPROVAL_REQUIRED",
-        "This action requires multi-sig approval. Please initiate an approval request.",
-        409
-      );
+  if (token) {
+    const cached = checkIdempotency(db.idempotency, token, fingerprint);
+    if (cached) {
+      if (!cached.ok) {
+        return NextResponse.json(
+          { error: { code: "IDEMPOTENCY_CONFLICT", message: "Idempotency key has been used with a different request." } },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json(cached.body, { status: cached.status });
     }
   }
 
-  stream.status = result.nextStatus;
-  stream.nextAction = "pause";
-  stream.updatedAt = new Date().toISOString();
-  db.streams.set(id, stream);
+  return withLock(id, async () => {
+    if (token) {
+      const cached = checkIdempotency(db.idempotency, token, fingerprint);
+      if (cached) {
+        if (!cached.ok) {
+          return NextResponse.json(
+            { error: { code: "IDEMPOTENCY_CONFLICT", message: "Idempotency key has been used with a different request." } },
+            { status: 409 },
+          );
+        }
+        return NextResponse.json(cached.body, { status: cached.status });
+      }
+    }
 
-  const updatedStream = {
-    ...stream,
-    nextAction: "pause" as const,
-    status: "active" as const,
-    updatedAt: new Date().toISOString(),
-  };
-  db.streams.set(id, updatedStream);
-  return NextResponse.json({ data: updatedStream });
+    const stream = db.streams.get(id);
+    if (!stream) {
+      return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+    }
+
+    if (stream.status !== "draft") {
+      return createErrorResponse("INVALID_STREAM_STATE", "Only draft streams can be started", 409);
+    }
+
+    const actorAddress = getHeader(request, "Actor-Wallet-Address");
+    const policyResult = actorAddress
+      ? checkStreamOrgPolicy(id, actorAddress, "start")
+      : null;
+    if (policyResult) {
+      if (!policyResult.allowed) {
+        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+      }
+      if (policyResult.requiresApproval) {
+        return createErrorResponse(
+          "APPROVAL_REQUIRED",
+          "This action requires multi-sig approval. Please initiate an approval request.",
+          409
+        );
+      }
+    }
+
+    const updatedStream = {
+      ...stream,
+      nextAction: "pause" as const,
+      status: "active" as const,
+      updatedAt: new Date().toISOString(),
+    };
+    db.streams.set(id, updatedStream);
+
+    const payload = { data: updatedStream };
+    if (token) {
+      setIdempotency(db.idempotency, token, fingerprint, 200, payload);
+    }
+
+    logger.info("Stream started successfully", {
+      streamId: id,
+      action: "start",
+      status: "success",
+    });
+
+    return NextResponse.json(payload);
+  });
 }

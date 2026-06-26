@@ -12,8 +12,9 @@ import "@testing-library/jest-dom";
 // Set required environment variables for testing
 process.env.STELLAR_NETWORK = process.env.STELLAR_NETWORK || "testnet";
 process.env.JWT_SECRET = process.env.JWT_SECRET || "streampay-dev-secret-do-not-use-in-prod";
-process.env.NODE_ENV = process.env.NODE_ENV || "test";
+(process.env as any).NODE_ENV = process.env.NODE_ENV || "test";
 process.env.SERVICE_NAME = process.env.SERVICE_NAME || "streampay-frontend-test";
+process.env.ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || "http://localhost:3000";
 
 // Security validation for test environment
 if (process.env.STELLAR_NETWORK !== "testnet") {

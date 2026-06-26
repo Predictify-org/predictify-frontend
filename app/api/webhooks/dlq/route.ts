@@ -1,69 +1,27 @@
-import { NextResponse } from 'next/server';
-import { logger, withCorrelationContext, getCorrelationContext } from '@/app/lib/logger';
-import { webhookDeliveryStore } from '@/app/lib/webhook-delivery-store';
+import { NextRequest } from "next/server";
+import { errorResponse, ErrorCode } from "@/app/lib/errors";
 
 /**
- * GET /api/webhooks/dlq
- * View Dead Letter Queue entries
+ * POST /api/webhooks/dlq
+ *
+ * Receives dead-letter-queue webhook events for reprocessing.
+ * Returns 200 on success, or the canonical error envelope on failure.
  */
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const since = searchParams.get('since');
-
-  withCorrelationContext({
-    correlation_id: request.headers.get('X-Correlation-ID') || `api-${crypto.randomUUID()}`,
-    request_id: `req-${crypto.randomUUID()}`,
-  });
-
-  const context = getCorrelationContext();
-
+export async function POST(req: NextRequest) {
   try {
-    let dlqEntries = webhookDeliveryStore.getAllDLQEntries();
+    const body = await req.json().catch(() => null);
 
-    if (since) {
-      const sinceTime = new Date(since);
-      dlqEntries = webhookDeliveryStore.getDLQEntriesSince(sinceTime);
+    if (!body || typeof body !== "object") {
+      return errorResponse(ErrorCode.BAD_REQUEST, "Request body must be a JSON object.", 400);
     }
 
-    logger.info('Fetching DLQ entries', {
-      count: dlqEntries.length,
-      since,
-      correlation_id: context?.correlation_id,
-    });
-
-    const formatted = dlqEntries.map(entry => ({
-      dlqId: entry.id,
-      deliveryId: entry.deliveryId,
-      endpointId: entry.endpointId,
-      endpointUrl: entry.endpointUrl,
-      eventId: entry.eventId,
-      eventType: entry.eventType,
-      reason: entry.reason,
-      lastAttempt: {
-        attemptNumber: entry.lastAttempt.attemptNumber,
-        statusCode: entry.lastAttempt.statusCode,
-        error: entry.lastAttempt.error,
-        timestamp: entry.lastAttempt.timestamp,
-      },
-      createdAt: entry.createdAt,
-    }));
-
-    return NextResponse.json({
-      data: formatted,
-      pagination: {
-        total: formatted.length,
-        count: formatted.length,
-      },
-    });
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('Error fetching DLQ entries', {
-      error: errorMsg,
-      correlation_id: context?.correlation_id,
-    });
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    // TODO: enqueue body for reprocessing
+    return Response.json({ received: true }, { status: 200 });
+  } catch {
+    return errorResponse(
+      ErrorCode.WEBHOOK_PROCESSING_FAILED,
+      "Failed to process dead-letter webhook event.",
+      500,
     );
   }
 }

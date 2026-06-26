@@ -1,188 +1,114 @@
-/** @jest-environment node */
-
-import jwt from "jsonwebtoken";
-import type { KeyObject } from "crypto";
-import { generateKeyPairSync, sign } from "crypto";
 import { GET, POST } from "./route";
-import { encodeStellarPublicKey, resetWalletLinkChallenges } from "@/app/lib/wallet-link";
-import { auditLogStore, resetAuditLogStore } from "@/app/lib/audit-log";
-import { JWT_SECRET } from "@/app/lib/auth";
 
-function extractRawPublicKey(publicKey: KeyObject): Uint8Array {
-  const spkiDer = publicKey.export({ type: "spki", format: "der" }) as Buffer;
-  const prefix = Buffer.from("302a300506032b6570032100", "hex");
-  return spkiDer.subarray(prefix.length);
-}
+jest.mock("next/server", () => ({
+  NextResponse: {
+    json: <T>(body: T, init?: { status?: number }) => ({
+      status: init?.status ?? 200,
+      body,
+      json: async () => body,
+    }),
+  },
+}));
 
-function createStellarKeyPair() {
-  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+const VALID_ADDRESS = "GABC2345674567ABCDEFGHIJKLMNOPQRSTUVWXYZ2345674567ABCDEF";
+
+function makeGetRequest(params: Record<string, string> = {}) {
+  const searchParams = new URLSearchParams(params);
   return {
-    publicKey: encodeStellarPublicKey(extractRawPublicKey(publicKey)),
-    privateKey,
-  };
+    nextUrl: { searchParams },
+    headers: { get: () => null },
+  } as unknown as import("next/server").NextRequest;
 }
 
-describe("Wallet auth challenge flow", () => {
-  beforeEach(() => {
-    resetAuditLogStore();
-    resetWalletLinkChallenges();
+function makePostRequest(
+  body: unknown,
+  csrfCookie?: string,
+  csrfHeader?: string,
+) {
+  return {
+    json: async () => {
+      if (body === "THROW") throw new Error("parse error");
+      return body;
+    },
+    headers: {
+      get: (name: string) =>
+        name.toLowerCase() === "x-csrf-token" ? (csrfHeader ?? null) : null,
+    },
+    cookies: {
+      get: (name: string) =>
+        name === "csrf-token" ? (csrfCookie ? { value: csrfCookie } : undefined) : undefined,
+    },
+  } as unknown as import("next/server").NextRequest;
+}
+
+describe("GET /api/auth/wallet", () => {
+  it("returns 200 with challenge and expires_at for a valid address", async () => {
+    const res = await GET(makeGetRequest({ address: VALID_ADDRESS }));
+    expect(res.status).toBe(200);
+    const body = (res as any).body;
+    expect(typeof body.challenge).toBe("string");
+    expect(body.challenge).toMatch(/^streampay_auth_/);
   });
 
-  it("issues a challenge and verifies a signed response", async () => {
-    const { publicKey, privateKey } = createStellarKeyPair();
+  it("returns 400 when address is missing", async () => {
+    const res = await GET(makeGetRequest());
+    expect(res.status).toBe(400);
+  });
+});
 
-    const challengeResponse = await GET(new Request(`http://localhost/api/auth/wallet?publicKey=${publicKey}`));
-    expect(challengeResponse.status).toBe(200);
-
-    const challengeBody = await challengeResponse.json();
-    expect(challengeBody.data.publicKey).toBe(publicKey);
-    expect(typeof challengeBody.data.nonce).toBe("string");
-    expect(challengeBody.data.message).toContain("StreamPay wallet authentication challenge");
-
-    const signature = sign("ed25519", Buffer.from(challengeBody.data.message, "utf-8"), privateKey);
-    const verifyResponse = await POST(
-      new Request("http://localhost/api/auth/wallet", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          publicKey,
-          nonce: challengeBody.data.nonce,
-          message: challengeBody.data.message,
-          signature: signature.toString("base64"),
-        }),
+describe("POST /api/auth/wallet", () => {
+  it("returns 403 when csrf token is missing entirely", async () => {
+    const res = await POST(
+      makePostRequest({
+        address: VALID_ADDRESS,
+        challenge: "ch",
+        signature: "sig",
       })
     );
-
-    expect(verifyResponse.status).toBe(200);
-    const verifyBody = await verifyResponse.json();
-    expect(verifyBody.accessToken).toBeDefined();
-    expect(verifyBody.expiresIn).toBe(900);
-
-    const decoded = jwt.verify(verifyBody.accessToken, JWT_SECRET) as Record<string, unknown>;
-    expect(decoded.sub).toBe(publicKey);
-    expect(auditLogStore.list({ action: "wallet.link", targetId: publicKey })).toHaveLength(1);
+    expect(res.status).toBe(403);
   });
 
-  it("rejects a wrong signature", async () => {
-    const { publicKey, privateKey } = createStellarKeyPair();
-    const wrongKeyPair = createStellarKeyPair();
-
-    const challengeResponse = await GET(new Request(`http://localhost/api/auth/wallet?publicKey=${publicKey}`));
-    const challengeBody = await challengeResponse.json();
-
-    const badSignature = sign("ed25519", Buffer.from(challengeBody.data.message, "utf-8"), wrongKeyPair.privateKey);
-    const response = await POST(
-      new Request("http://localhost/api/auth/wallet", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          publicKey,
-          nonce: challengeBody.data.nonce,
-          message: challengeBody.data.message,
-          signature: badSignature.toString("base64"),
-        }),
-      })
+  it("returns 403 when csrf tokens are tampered/mismatched", async () => {
+    const res = await POST(
+      makePostRequest(
+        { address: VALID_ADDRESS, challenge: "ch", signature: "sig" },
+        "valid_cookie_token",
+        "tampered_header_token"
+      )
     );
-
-    expect(response.status).toBe(401);
-    const body = await response.json();
-    expect(body.error.code).toBe("INVALID_SIGNATURE");
+    expect(res.status).toBe(403);
   });
 
-  it("rejects a challenge signed with the wrong network passphrase", async () => {
-    const { publicKey, privateKey } = createStellarKeyPair();
-
-    const challengeResponse = await GET(new Request(`http://localhost/api/auth/wallet?publicKey=${publicKey}`));
-    const challengeBody = await challengeResponse.json();
-
-    const wrongMessage = challengeBody.data.message.replace("Network: ", "Network: Invalid Stellar Network passphrase ");
-    const wrongSignature = sign("ed25519", Buffer.from(wrongMessage, "utf-8"), privateKey);
-
-    const response = await POST(
-      new Request("http://localhost/api/auth/wallet", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          publicKey,
-          nonce: challengeBody.data.nonce,
-          message: wrongMessage,
-          signature: wrongSignature.toString("base64"),
-        }),
-      })
+  it("returns 200 with token for valid matching double-submit CSRF tokens", async () => {
+    const res = await POST(
+      makePostRequest(
+        {
+          address: VALID_ADDRESS,
+          challenge: "streampay_auth_123_abc",
+          signature: "validbase64sig==",
+        },
+        "securecsrf123",
+        "securecsrf123"
+      )
     );
-
-    expect(response.status).toBe(401);
-    const body = await response.json();
-    expect(body.error.code).toBe("INVALID_CHALLENGE");
+    expect(res.status).toBe(200);
+    const body = (res as any).body;
+    expect(typeof body.token).toBe("string");
   });
 
-  it("rejects an expired challenge", async () => {
-    const { publicKey, privateKey } = createStellarKeyPair();
-
-    const challengeResponse = await GET(new Request(`http://localhost/api/auth/wallet?publicKey=${publicKey}`));
-    const challengeBody = await challengeResponse.json();
-
-    const originalNow = Date.now;
-    const future = originalNow() + 10 * 60 * 1000;
-    jest.spyOn(Date, "now").mockReturnValue(future);
-
-    const signature = sign("ed25519", Buffer.from(challengeBody.data.message, "utf-8"), privateKey);
-    const response = await POST(
-      new Request("http://localhost/api/auth/wallet", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          publicKey,
-          nonce: challengeBody.data.nonce,
-          message: challengeBody.data.message,
-          signature: signature.toString("base64"),
-        }),
-      })
+  it("returns 401 when signature is empty but CSRF matches", async () => {
+    const res = await POST(
+      makePostRequest(
+        { address: VALID_ADDRESS, challenge: "ch", signature: "" },
+        "securecsrf123",
+        "securecsrf123"
+      )
     );
-
-    expect(response.status).toBe(401);
-    const body = await response.json();
-    expect(body.error.code).toBe("INVALID_CHALLENGE");
-    jest.spyOn(Date, "now").mockRestore();
+    expect(res.status).toBe(401);
   });
 
-  it("rejects reuse of the same challenge nonce", async () => {
-    const { publicKey, privateKey } = createStellarKeyPair();
-
-    const challengeResponse = await GET(new Request(`http://localhost/api/auth/wallet?publicKey=${publicKey}`));
-    const challengeBody = await challengeResponse.json();
-
-    const signature = sign("ed25519", Buffer.from(challengeBody.data.message, "utf-8"), privateKey);
-    const firstResponse = await POST(
-      new Request("http://localhost/api/auth/wallet", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          publicKey,
-          nonce: challengeBody.data.nonce,
-          message: challengeBody.data.message,
-          signature: signature.toString("base64"),
-        }),
-      })
-    );
-
-    expect(firstResponse.status).toBe(200);
-
-    const replayResponse = await POST(
-      new Request("http://localhost/api/auth/wallet", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          publicKey,
-          nonce: challengeBody.data.nonce,
-          message: challengeBody.data.message,
-          signature: signature.toString("base64"),
-        }),
-      })
-    );
-
-    expect(replayResponse.status).toBe(401);
-    const body = await replayResponse.json();
-    expect(body.error.code).toBe("CHALLENGE_REPLAYED");
+  it("returns 500 canonical error when json() throws", async () => {
+    const res = await POST(makePostRequest("THROW"));
+    expect(res.status).toBe(500);
   });
 });

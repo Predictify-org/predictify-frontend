@@ -5,14 +5,25 @@
  * authority for org-based AuthZ. It has no knowledge of stream business logic
  * (stream-events.ts) and no React / Next.js dependencies.
  *
+ * ## Mandatory RBAC (issue #226)
+ * All privileged stream lifecycle actions (start, pause, stop, settle,
+ * withdraw) MUST call `requireStreamActor` before any business logic.
+ *
+ * The old pattern of "skip policy when Actor-Wallet-Address is absent" is
+ * replaced by a hard 403 for missing actor identity. The actor is sourced
+ * from the verified JWT (preferred) with the raw header as fallback for
+ * internal/service callers that do not carry a JWT.
+ *
  * Call order in API routes:
- *   1. checkOrgPolicy()  ← this module
- *   2. business logic (db.ts / stream-events.ts) ← only if (1) returns allowed
+ *   1. requireStreamActor()  ← resolves & validates actor identity
+ *   2. enforceStreamRbac()   ← checks org policy; returns 403/409 on deny
+ *   3. business logic        ← only reached when (1) and (2) pass
  *
  * Future hook: replace `OrgRecord` source with on-chain signer registry
  * without changing this file's public interface.
  */
 
+import { NextResponse } from "next/server";
 import {
   OrgRecord,
   OrgRole,
@@ -22,6 +33,7 @@ import {
   ApprovalStatus,
 } from "./org-types";
 import { orgDb } from "./org-db";
+import { tryAuthenticateRequest } from "./auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,6 +77,57 @@ const TWO_STEP_ACTIONS = new Set<OrgAction>(["settle", "stop"]);
 /** Approval TTL in milliseconds (24 h) */
 const APPROVAL_TTL_MS = 24 * 60 * 60 * 1000;
 
+// ─── Actor resolution ─────────────────────────────────────────────────────────
+
+/**
+ * Resolve the actor wallet address for a privileged stream action.
+ *
+ * Priority:
+ *   1. Verified JWT `sub` claim (most trusted — cryptographically signed).
+ *   2. `Actor-Wallet-Address` header (fallback for internal/service callers).
+ *
+ * Returns `null` when neither source provides an identity. Callers MUST
+ * treat `null` as a hard 403 — never skip RBAC for missing actor.
+ */
+export function resolveActorAddress(request: Request): string | null {
+  // 1. JWT (preferred)
+  const jwtActor = tryAuthenticateRequest(request);
+  if (jwtActor?.walletAddress) return jwtActor.walletAddress;
+
+  // 2. Raw header fallback (internal service callers)
+  const header = request.headers?.get?.("Actor-Wallet-Address") ?? null;
+  return header?.trim() || null;
+}
+
+/**
+ * Resolve the actor and return a 403 NextResponse if no identity is found.
+ *
+ * Use this at the top of every privileged route handler:
+ *
+ *   const actorResult = requireStreamActor(request);
+ *   if (actorResult instanceof NextResponse) return actorResult;
+ *   const actorAddress = actorResult;
+ */
+export function requireStreamActor(
+  request: Request,
+): string | NextResponse {
+  const actor = resolveActorAddress(request);
+  if (!actor) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "ACTOR_REQUIRED",
+          message:
+            "A verified actor identity is required for this action. " +
+            "Provide a valid Bearer JWT or Actor-Wallet-Address header.",
+        },
+      },
+      { status: 403 },
+    );
+  }
+  return actor;
+}
+
 // ─── Core policy check ────────────────────────────────────────────────────────
 
 /**
@@ -72,6 +135,21 @@ const APPROVAL_TTL_MS = 24 * 60 * 60 * 1000;
  * stream owned by `org`.
  *
  * Does NOT mutate any state. Call this before any business logic.
+ *
+ * Role → action matrix (from DEFAULT_STREAM_POLICY in org-types.ts):
+ * ┌──────────┬───────┬────────┬─────────┬────────┐
+ * │ Action   │ owner │ pauser │ settler │ viewer │
+ * ├──────────┼───────┼────────┼─────────┼────────┤
+ * │ start    │  ✅   │  ✅    │         │        │
+ * │ pause    │  ✅   │  ✅    │         │        │
+ * │ resume   │  ✅   │  ✅    │         │        │
+ * │ settle   │  ✅   │        │  ✅     │        │
+ * │ stop     │  ✅   │        │         │        │
+ * │ withdraw │  ✅   │        │  ✅     │        │
+ * └──────────┴───────┴────────┴─────────┴────────┘
+ * viewer cannot perform any action.
+ * settler cannot start/pause/stop.
+ * pauser cannot settle/withdraw.
  */
 export function checkOrgPolicy(
   org: OrgRecord,
@@ -124,6 +202,64 @@ export function checkStreamOrgPolicy(
   if (!org) return null; // stale reference — treat as individually owned
 
   return checkOrgPolicy(org, actorWalletAddress, action);
+}
+
+/**
+ * Mandatory RBAC enforcement for stream lifecycle routes.
+ *
+ * Combines actor resolution + org policy check into a single call.
+ * Returns a NextResponse error on any denial, or `null` on success.
+ *
+ * Usage in route handlers:
+ *
+ *   const rbacError = enforceStreamRbac(request, streamId, "settle");
+ *   if (rbacError) return rbacError;
+ *
+ * Behaviour:
+ * - Missing actor identity → 403 ACTOR_REQUIRED
+ * - Stream not org-owned   → null (pass-through; individually owned streams
+ *                            are governed by the sender/recipient check in
+ *                            the route itself)
+ * - Org policy denied      → 403 with policy code
+ * - Approval required      → 409 APPROVAL_REQUIRED
+ */
+export function enforceStreamRbac(
+  request: Request,
+  streamId: string,
+  action: OrgAction,
+): NextResponse | null {
+  // 1. Resolve actor — hard 403 if missing
+  const actorResult = requireStreamActor(request);
+  if (actorResult instanceof NextResponse) return actorResult;
+  const actorAddress = actorResult;
+
+  // 2. Org policy check
+  const policyResult = checkStreamOrgPolicy(streamId, actorAddress, action);
+
+  // Stream is not org-owned — no org-level restriction applies.
+  if (policyResult === null) return null;
+
+  if (!policyResult.allowed) {
+    return NextResponse.json(
+      { error: { code: policyResult.code, message: policyResult.message } },
+      { status: policyResult.httpStatus },
+    );
+  }
+
+  if (policyResult.requiresApproval) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "APPROVAL_REQUIRED",
+          message:
+            "This action requires multi-sig approval. Please initiate an approval request.",
+        },
+      },
+      { status: 409 },
+    );
+  }
+
+  return null; // ✅ allowed
 }
 
 // ─── Approval workflow ────────────────────────────────────────────────────────
@@ -258,3 +394,4 @@ export function castApproval(
   orgDb.approvals.set(approvalId, updated);
   return { ok: true, approval: updated, thresholdMet };
 }
+

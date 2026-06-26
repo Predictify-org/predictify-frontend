@@ -80,7 +80,7 @@ async function createErrorFromResponse(
     if (errObj.error && typeof errObj.error === 'object') {
       const nestedError = errObj.error as Record<string, unknown>;
       if (nestedError.code && nestedError.message && nestedError.request_id) {
-        return normalizeError(
+        return normalizeBackendError(
           {
             error: {
               code: nestedError.code as string,
@@ -89,6 +89,7 @@ async function createErrorFromResponse(
               details: nestedError.details as Record<string, unknown> | undefined,
             },
           },
+          response.status,
           { ...options, requestId: requestId || (nestedError.request_id as string) }
         );
       }
@@ -96,7 +97,7 @@ async function createErrorFromResponse(
     
     // Handle plain error objects
     if (errObj.code && errObj.message) {
-      return normalizeError(
+      return normalizeBackendError(
         {
           error: {
             code: errObj.code as string,
@@ -105,6 +106,7 @@ async function createErrorFromResponse(
             details: errObj.details as Record<string, unknown> | undefined,
           },
         },
+        response.status,
         { ...options, requestId }
       );
     }
@@ -166,21 +168,30 @@ async function fetchWithTimeout(
   timeoutMs: number
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    const id = setTimeout(() => {
+      controller.abort();
+      // User-facing fallback wording: prefer plain English over the
+      // raw "Request timeout" when this message surfaces in toasts.
+      reject(new Error(`Request timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    (controller as any).timeoutId = id;
+  });
+
   try {
-    const response = await fetch(url, {
+    const fetchPromise = fetch(url, {
       ...options,
       signal: controller.signal,
     });
-    clearTimeout(timeoutId);
+
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    const id = (controller as any).timeoutId;
+    if (id) clearTimeout(id);
     return response;
   } catch (error) {
-    clearTimeout(timeoutId);
-    
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timeout');
-    }
+    const id = (controller as any).timeoutId;
+    if (id) clearTimeout(id);
     throw error;
   }
 }
@@ -232,6 +243,11 @@ export async function fetchWithIdempotency<T = unknown>(
   if (!headers.has('Accept')) {
     headers.set('Accept', 'application/json');
   }
+
+  // Add x-request-id header
+  if (!headers.has('x-request-id')) {
+    headers.set('x-request-id', `req-${crypto.randomUUID()}`);
+  }
   
   let lastError: StreamPayError | undefined;
   
@@ -241,7 +257,7 @@ export async function fetchWithIdempotency<T = unknown>(
       // Execute request with timeout
       const response = await fetchWithTimeout(
         url,
-        { ...options, headers },
+        { ...options, method, headers },
         opts.timeoutMs
       );
       
@@ -418,5 +434,5 @@ export async function del<T = unknown>(
 }
 
 // Re-export types for convenience
-export type { StreamPayError, ApiClientOptions };
+export type { StreamPayError };
 export { isNetworkError };

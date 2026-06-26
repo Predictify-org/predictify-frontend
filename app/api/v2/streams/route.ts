@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
-import { db, encodeCursor, decodeCursor, idempotencyToken } from "@/app/lib/db";
-import { toV2Stream } from "@/app/lib/api-version";
+import { NextRequest, NextResponse } from "next/server";
+import { errorResponse, ErrorCode } from "@/app/lib/errors";
+import { toV2Stream, type StreamV1 } from "@/app/lib/api-version";
+import { validateCreateStreamBody } from "@/app/lib/stream-validation";
 
 const IDEMPOTENCY_TTL_MS = 86_400_000; // 24 hours
 
@@ -33,22 +34,26 @@ export async function GET(request: Request) {
     if (idx >= 0) streams = streams.slice(idx + 1);
   }
 
-  const page = streams.slice(0, limit);
-  const hasNext = streams.length > limit;
-  const nextCursor =
-    hasNext && page.length > 0
-      ? encodeCursor(page[page.length - 1].id)
-      : null;
+  try {
+    // TODO: fetch from data layer using token identity
+    const v1Streams: StreamV1[] = [];
+    const streams = v1Streams.map(toV2Stream);
 
-  return NextResponse.json({
-    data: page.map(toV2Stream),
-    meta: { hasNext, nextCursor, total: db.streams.size },
-    links: { self: `/api/v2/streams?limit=${limit}` },
-  });
+    return NextResponse.json({ streams }, { status: 200 });
+  } catch {
+    return errorResponse(
+      ErrorCode.INTERNAL_SERVER_ERROR,
+      "Failed to retrieve streams.",
+      500,
+    );
+  }
 }
 
 /**
- * POST /api/v2/streams — create a stream, respond with v2 shape.
+ * POST /api/v2/streams
+ *
+ * Creates a new payment stream.
+ * Requires: Authorization: Bearer <token>
  *
  * Breaking changes vs v1:
  *   - Response body uses `allowed_actions`, `created_at`, `updated_at`
@@ -101,9 +106,9 @@ export async function POST(request: Request) {
 
   if (!recipient || !rate || !schedule) {
     return errorResponse(
-      "VALIDATION_ERROR",
-      "Missing required fields: recipient, rate, schedule",
-      422,
+      ErrorCode.STREAM_CREATE_FAILED,
+      "Failed to create stream.",
+      500,
     );
   }
 

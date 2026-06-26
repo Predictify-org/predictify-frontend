@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { getStore } from "./db";
 import { transition } from "./state-machine";
 import { StreamAction, ApiError } from "@/app/types/openapi";
 
@@ -8,7 +8,8 @@ export type ServiceResult<T> =
 
 export class StreamService {
   static async applyAction(streamId: string, action: StreamAction, idempotencyKey?: string): Promise<ServiceResult<any>> {
-    const stream = db.streams.get(streamId);
+    const { idempotencyStore, streamRepository } = getStore();
+    const stream = streamRepository.streams.get(streamId);
     if (!stream) {
       return { 
         ok: false, 
@@ -18,8 +19,8 @@ export class StreamService {
     }
 
     // Idempotency check (simplified for mock)
-    if (idempotencyKey && db.idempotency.has(idempotencyKey)) {
-      return { ok: true, data: db.idempotency.get(idempotencyKey) };
+    if (idempotencyKey && idempotencyStore.has(idempotencyKey)) {
+      return { ok: true, data: idempotencyStore.get(idempotencyKey) };
     }
 
     const result = transition(stream.status, action);
@@ -41,18 +42,20 @@ export class StreamService {
     if (stream.status === "ended") stream.nextAction = "withdraw";
     if (stream.status === "withdrawn") stream.nextAction = undefined;
 
-    db.streams.set(streamId, stream);
+    streamRepository.streams.set(streamId, stream);
 
     if (idempotencyKey) {
-      db.idempotency.set(idempotencyKey, stream);
+      idempotencyStore.set(idempotencyKey, stream);
     }
 
     // Emit event for real-time updates
     const { eventBus } = require("./event-bus");
     eventBus.emitStreamUpdated(streamId, stream);
-    if (stream.status === "settled" || stream.status === "ended") {
+    if ((stream.status as string) === "settled" || stream.status === "ended") {
       eventBus.emitSettleFinished(streamId, stream);
     }
+
+
 
     return { ok: true, data: stream };
   }

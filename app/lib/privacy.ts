@@ -1,5 +1,17 @@
+export function redact(data: any): any {
+  if (typeof data !== 'object' || data === null) return data;
+  const redacted = { ...data };
+  const keysToRedact = ['signature', 'publicKey', 'secret', 'password', 'token', 'email'];
+  for (const key in redacted) {
+    if (keysToRedact.includes(key.toLowerCase())) {
+      redacted[key] = '[REDACTED]';
+    } else if (typeof redacted[key] === 'object') {
+      redacted[key] = redact(redacted[key]);
+    }
+  }
+  return redacted;
 import { Stream, User } from "@/app/types/openapi";
-import { db } from "./db";
+import { getStore } from "./db";
 
 /**
  * Retention period: 7 years in milliseconds.
@@ -46,20 +58,21 @@ export function isPastRetention(createdAt: string): boolean {
  * Legal/Audit requirement: Keep stream aggregates (IDs, amounts, status) for 7 years.
  */
 export async function processDeletionRequest(walletAddress: string): Promise<{ requestId: string; status: string }> {
+  const { streamRepository } = getStore();
   // 1. Scrub PII from all streams associated with this user
   // In a real DB, we'd query by user_id. Here we check recipient and email.
-  const user = db.users.get(walletAddress);
+  const user = streamRepository.users.get(walletAddress);
   const userEmail = user?.email;
   const userName = user?.display_name;
 
-  for (const [id, stream] of db.streams.entries()) {
+  for (const [id, stream] of streamRepository.streams.entries()) {
     const isAssociated = 
       stream.email === userEmail || 
       (userName && stream.recipient.includes(userName)) ||
       stream.recipient.includes(walletAddress);
 
     if (isAssociated) {
-      db.streams.set(id, {
+      streamRepository.streams.set(id, {
         ...stream,
         email: undefined,
         label: undefined,
@@ -71,7 +84,7 @@ export async function processDeletionRequest(walletAddress: string): Promise<{ r
   }
 
   // 2. Delete user record
-  db.users.delete(walletAddress);
+  streamRepository.users.delete(walletAddress);
 
   return {
     requestId: `dsr-${Math.random().toString(36).slice(2, 11)}`,

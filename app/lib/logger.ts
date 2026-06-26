@@ -1,3 +1,14 @@
+export const logger = {
+  info: (message: string, context?: Record<string, any>) => {
+    console.log(JSON.stringify({ level: 'info', message, ...context, timestamp: new Date().toISOString() }));
+  },
+  warn: (message: string, context?: Record<string, any>) => {
+    console.warn(JSON.stringify({ level: 'warn', message, ...context, timestamp: new Date().toISOString() }));
+  },
+  error: (message: string, context?: Record<string, any>) => {
+    console.error(JSON.stringify({ level: 'error', message, ...context, timestamp: new Date().toISOString() }));
+  },
+};
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { isSecret, redactSecrets } from './config';
 
@@ -63,8 +74,11 @@ export function getCorrelationContext(): CorrelationContext | undefined {
 // Set correlation context for a async operation
 export function withCorrelationContext<T>(
   context: CorrelationContext,
-  callback: () => Promise<T>
-): Promise<T> {
+  callback?: () => Promise<T>
+): Promise<T> | void {
+  if (!callback) {
+    return correlationContext.enterWith(context);
+  }
   return correlationContext.run(context, callback);
 }
 

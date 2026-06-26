@@ -10,6 +10,7 @@
     "lint": "node scripts/run-from-realpath.mjs eslint .",
     "test": "node scripts/run-from-realpath.mjs jest",
     "test:e2e": "node scripts/run-from-realpath.mjs jest --runInBand --testPathPattern=e2e\\.test\\.ts$",
+    "test:e2e:coverage": "node scripts/run-from-realpath.mjs jest --runInBand --testPathPattern=stream-lifecycle.e2e --coverage --collectCoverageFrom='app/api/streams/**/*.ts' --forceExit",
     "reconcile": "node scripts/run-from-realpath.mjs ts-node scripts/reconcile-streams.ts"
   },
   "dependencies": {
@@ -18,13 +19,14 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "reacts-cli": "^1.0.2",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.5.12",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
-    "@types/jest": "^29.5.12",
+    "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.0.0",
     "@types/react": "^18.3.0",
@@ -36,6 +38,8 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "jsonwebtoken": "^9.0.0",
+    "styled-jsx": "^5.1.7",
+    "ts-jest": "^29.4.11",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.0",
     "uuid": "^10.0.0"

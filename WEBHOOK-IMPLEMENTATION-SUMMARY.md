@@ -128,6 +128,13 @@ signature = HMAC-SHA256(secret, signableContent)
 X-StreamPay-Signature: t=1700000000,id=dlv_abc123,v1=hex...
 ```
 
+During secret rotation, StreamPay can include both the active and previous
+secret signatures in the same header so in-flight deliveries continue to verify:
+
+```
+X-StreamPay-Signature: t=1700000000,id=dlv_abc123,v1=active_hex...,v1=previous_hex...
+```
+
 **Per-Attempt**: Each retry has a different signature due to timestamp change
 - Attempt 1: `t=1700000000,id=dlv_123,v1=abc123...`
 - Attempt 2: `t=1700000062,id=dlv_123,v1=def456...` ← Different sig, same delivery ID
@@ -136,9 +143,15 @@ X-StreamPay-Signature: t=1700000000,id=dlv_abc123,v1=hex...
 
 **Customers must verify**:
 1. ✅ Signature matches (constant-time comparison)
-2. ✅ Timestamp freshness (within 5 minutes)
+2. ✅ Timestamp freshness (within ±5 minutes of receiver time)
 3. ✅ Delivery ID in header matches request
-4. ✅ Payload wasn't tampered
+4. ✅ Nonce/event ID has not already been processed
+5. ✅ Payload wasn't tampered
+
+Receivers should compute `HMAC-SHA256(secret, "${timestamp}.${deliveryId}.${rawBody}")`
+using the exact raw JSON body received over HTTP. During rotation, accept a
+signature produced by either the current endpoint secret or the immediately
+previous secret, then remove the previous secret after the rotation window ends.
 
 ---
 
@@ -180,6 +193,7 @@ Every webhook request includes:
 X-StreamPay-Delivery-Id: dlv_abc123              # Idempotency key
 X-StreamPay-Event-Id: evt_xyz789                 # Event identifier
 X-StreamPay-Event-Type: stream.settled           # Event type
+X-StreamPay-Nonce: evt_xyz789:dlv_abc123:3       # Replay guard
 X-StreamPay-Timestamp: 1700000000                # Unix timestamp
 X-StreamPay-Attempt: 3                           # Attempt number
 X-StreamPay-Signature: t=...,id=...,v1=...      # HMAC signature

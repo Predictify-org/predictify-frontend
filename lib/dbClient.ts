@@ -10,7 +10,7 @@ export const dbClient = {
    */
   async getStreams(limit: number, offset: number): Promise<DbStream[]> {
     // Mock data
-    const mockStreams: DbStream[] = [
+    const streamsList: DbStream[] = [
       {
         id: "stream_1",
         recipient_address: "GDVLR...123",
@@ -29,7 +29,15 @@ export const dbClient = {
       }
     ];
 
-    return mockStreams.slice(offset, offset + limit);
+    return streamsList.slice(offset, offset + limit);
+  },
+
+  /**
+   * Fetch a single stream by ID.
+   */
+  async getStreamById(id: string): Promise<DbStream | null> {
+    const streams = await this.getStreams(10000, 0);
+    return streams.find(s => s.id === id) || null;
   },
 
   async updateLastRunStatus(status: string, timestamp: number) {

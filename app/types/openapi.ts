@@ -1,5 +1,5 @@
-export type StreamStatus = "draft" | "active" | "paused" | "ended" | "withdrawn";
-export type StreamAction = "start" | "pause" | "stop" | "settle" | "withdraw";
+export type StreamStatus = "draft" | "active" | "paused" | "ended" | "withdrawn" | "cancelled";
+export type StreamAction = "start" | "pause" | "stop" | "settle" | "withdraw" | "cancel";
 export type WithdrawalState = "pending" | "succeeded" | "failed";
 
 export interface WithdrawalStatus {
@@ -11,6 +11,34 @@ export interface WithdrawalStatus {
   confirmedTxHash?: string;
   horizonCursor?: string;
   failureCode?: string;
+}
+
+/**
+ * Describes the refund split produced by cancel_stream.
+ *
+ * Invariant (escrow-conservation):
+ *   recipientPayout + senderRefund === totalAmount - alreadyReleased
+ *
+ * All amounts are i128 raw units — no per-decimal logic here.
+ * The contract escrow is fully drained after cancellation (no dust).
+ */
+export interface CancellationSplit {
+  /** Raw units paid to the recipient (vested but not yet released). */
+  recipientPayout: string;
+  /** Raw units refunded to the sender (unvested remainder). */
+  senderRefund: string;
+  /** Total escrowed amount at the time of cancellation (raw units). */
+  totalAmount: string;
+  /** Amount already released before cancellation (raw units). */
+  alreadyReleased: string;
+  /** SEP-41 token address used for both legs of the split. */
+  token: string;
+  /** On-chain tx hash for the recipient payout leg. */
+  recipientTxHash: string;
+  /** On-chain tx hash for the sender refund leg (omitted when refund is zero). */
+  senderTxHash?: string;
+  /** ISO-8601 timestamp of the cancellation. */
+  cancelledAt: string;
 }
 
 export interface Stream {
@@ -28,6 +56,31 @@ export interface Stream {
   updatedAt: string;
   settlementTxHash?: string;
   withdrawal?: WithdrawalStatus;
+  /**
+   * SEP-41 token address for this stream's escrow.
+   * "XLM" = native lumens; "CODE:ISSUER" = any Stellar Classic asset.
+   * Amounts are always i128 raw units. Defaults to "XLM".
+   */
+  token: string;
+  /**
+   * Present only on cancelled streams. Contains the full refund-split
+   * breakdown so callers can verify the escrow-conservation invariant.
+   */
+  cancellation?: CancellationSplit;
+  /**
+   * Wallet address of the stream sender (payer). Required for the refund leg
+   * of cancel_stream. Stored at creation time.
+   */
+  senderAddress?: string;
+  /**
+   * Vested amount at the time of the last on-chain update (raw i128 units).
+   * Tracks how much the recipient has earned so far.
+   */
+  vestedAmount?: string;
+  /**
+   * Amount already released to the recipient before this operation (raw i128 units).
+   */
+  releasedAmount?: string;
 }
 
 export interface User {
@@ -86,6 +139,7 @@ export type ExportJobStatus = "pending" | "ready" | "failed" | "expired";
 
 export interface ExportJob {
   id: string;
+  ownerId: string;
   requestedAt: string;
   status: ExportJobStatus;
   signedUrl?: string;
