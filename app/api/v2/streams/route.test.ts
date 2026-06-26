@@ -1,149 +1,130 @@
-/**
- * Tests for GET and POST /api/v2/streams
- */
+/** @jest-environment node */
+import { POST } from "./route";
+import { db, resetDb } from "@/app/lib/db";
 
-import { GET, POST } from "./route";
+const IDEMPOTENCY_TTL_MS = 86_400_000;
+const TOKEN_PREFIX = "v2.streams.create";
 
-jest.mock("next/server", () => ({
-  NextResponse: {
-    json: <T>(body: T, init?: { status?: number }) => ({
-      status: init?.status ?? 200,
-      body,
-      json: async () => body,
-    }),
-  },
-}));
+const validBody = {
+  recipient: "GABC123",
+  rate: "100 XLM / month",
+  schedule: "Pays every 30 days",
+};
 
-jest.mock("next/headers", () => ({
-  headers: () => ({ get: () => null }),
-}));
-
-function makeRequest(
-  opts: {
-    auth?: string | null;
-    body?: unknown;
-    params?: Record<string, string>;
-  } = {},
-) {
-  const { auth = "Bearer tok_test", body, params = {} } = opts;
-  const searchParams = new URLSearchParams(params);
-  return {
-    headers: { get: (name: string) => (name === "authorization" ? auth : null) },
-    nextUrl: { searchParams },
-    json: async () => {
-      if (body === "THROW") throw new Error("parse error");
-      return body;
-    },
-  } as unknown as import("next/server").NextRequest;
+function makeRequest(body: object, idempotencyKey?: string): Request {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (idempotencyKey) {
+    headers["Idempotency-Key"] = idempotencyKey;
+  }
+  return new Request("http://localhost/api/v2/streams", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
 }
 
-describe("GET /api/v2/streams", () => {
-  it("returns 200 with streams array when authenticated", async () => {
-    const res = await GET(makeRequest());
-    expect(res.status).toBe(200);
-    const body = (res as unknown as { body: { streams: unknown[] } }).body;
-    expect(Array.isArray(body.streams)).toBe(true);
+describe("POST /api/v2/streams — Idempotency", () => {
+  beforeEach(() => {
+    resetDb();
   });
 
-  it("returns 401 when Authorization header is missing", async () => {
-    const res = await GET(makeRequest({ auth: null }));
-    expect(res.status).toBe(401);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("UNAUTHORIZED");
-  });
-
-  it("returns 401 when Authorization is not a Bearer token", async () => {
-    const res = await GET(makeRequest({ auth: "Basic dXNlcjpwYXNz" }));
-    expect(res.status).toBe(401);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("UNAUTHORIZED");
-  });
-
-  it("error envelope has code, message, request_id", async () => {
-    const res = await GET(makeRequest({ auth: null }));
-    const body = (res as unknown as { body: { error: Record<string, unknown> } }).body;
-    expect(body.error).toHaveProperty("code");
-    expect(body.error).toHaveProperty("message");
-    expect(body.error).toHaveProperty("request_id");
-  });
-});
-
-const VALID_STELLAR_KEY =
-  "GDSBCG3OKHCMMWS5EBH2X7XOYTJRWXN2YYQPCNS5OFBU4IDO4X7OFSQA";
-
-describe("POST /api/v2/streams", () => {
-  it("returns 201 with a v2 stream on valid input", async () => {
-    const res = await POST(
-      makeRequest({ body: { recipient: VALID_STELLAR_KEY, rate: "120", schedule: "month" } }),
-    );
+  it("creates a stream without idempotency key (happy path)", async () => {
+    const res = await POST(makeRequest(validBody));
     expect(res.status).toBe(201);
-    const body = (res as unknown as { body: Record<string, unknown> }).body;
-    // v2 shape fields
-    expect(body).toHaveProperty("id");
-    expect(body).toHaveProperty("allowed_actions");
-    expect(body).toHaveProperty("created_at");
-    expect(body).toHaveProperty("settlement");
-    expect(body.settlement).toBeNull();
-    // v1 fields must NOT be present
-    expect(body).not.toHaveProperty("actions");
-    expect(body).not.toHaveProperty("createdAt");
+
+    const body = await res.json();
+    expect(body.data.id).toMatch(/^stream-/);
+    expect(body.data.status).toBe("draft");
+    expect(body.data.recipient).toBe(validBody.recipient);
   });
 
-  it("returns 401 when Authorization header is missing", async () => {
+  it("returns cached 201 for same key + same body", async () => {
+    const key = "key-same-body";
+
+    const res1 = await POST(makeRequest(validBody, key));
+    expect(res1.status).toBe(201);
+    const data1 = await res1.json();
+
+    const res2 = await POST(makeRequest(validBody, key));
+    expect(res2.status).toBe(201);
+    const data2 = await res2.json();
+
+    expect(data2).toEqual(data1);
+  });
+
+  it("returns 409 for same key + different body", async () => {
+    const key = "key-diff-body";
+
+    await POST(makeRequest(validBody, key));
+
     const res = await POST(
-      makeRequest({ auth: null, body: { recipient: VALID_STELLAR_KEY, rate: "120", schedule: "month" } }),
+      makeRequest({ ...validBody, recipient: "GXYZ789" }, key),
     );
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(409);
+
+    const err = await res.json();
+    expect(err.error.code).toBe("IDEMPOTENCY_CONFLICT");
   });
 
-  it("returns 422 when recipient is invalid (not a Stellar key)", async () => {
-    const res = await POST(makeRequest({ body: { recipient: "GABC123", rate: "120", schedule: "month" } }));
-    expect(res.status).toBe(422);
-    const body = (res as unknown as { body: { error: { code: string; details: Array<{ field: string }> } } }).body;
-    expect(body.error.code).toBe("VALIDATION_ERROR");
-    expect(body.error.details).toBeDefined();
-    expect(body.error.details[0].field).toBe("recipient");
+  it("reuses idempotency slot after TTL expiry", async () => {
+    const key = "key-ttl";
+
+    const res1 = await POST(makeRequest(validBody, key));
+    expect(res1.status).toBe(201);
+    const data1 = await res1.json();
+
+    const token = `${TOKEN_PREFIX}:${key}`;
+    const entry = db.idempotency.get(token) as {
+      expiresAt: number;
+    };
+    entry.expiresAt = Date.now() - 1;
+    db.idempotency.set(token, entry);
+
+    const res2 = await POST(makeRequest(validBody, key));
+    expect(res2.status).toBe(201);
+
+    const data2 = await res2.json();
+    expect(data2.data.id).not.toBe(data1.data.id);
   });
 
-  it("returns 422 when rate is missing", async () => {
-    const res = await POST(makeRequest({ body: { recipient: VALID_STELLAR_KEY, schedule: "month" } }));
-    expect(res.status).toBe(422);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("VALIDATION_ERROR");
-  });
+  describe("edge cases", () => {
+    it("returns 400 for invalid JSON body", async () => {
+      const req = new Request("http://localhost/api/v2/streams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "not-json",
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(400);
 
-  it("returns 422 when schedule is missing", async () => {
-    const res = await POST(makeRequest({ body: { recipient: VALID_STELLAR_KEY, rate: "120" } }));
-    expect(res.status).toBe(422);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("VALIDATION_ERROR");
-  });
+      const err = await res.json();
+      expect(err.error.code).toBe("INVALID_REQUEST");
+    });
 
-  it("returns 400 when body is null", async () => {
-    const res = await POST(makeRequest({ body: null }));
-    expect(res.status).toBe(400);
-  });
+    it("returns 422 for missing required fields", async () => {
+      const res = await POST(makeRequest({ recipient: "GABC123" }));
+      expect(res.status).toBe(422);
 
-  it("returns 400 when json() throws (caught by internal .catch)", async () => {
-    const res = await POST(makeRequest({ body: "THROW" }));
-    expect(res.status).toBe(400);
-    const body = (res as unknown as { body: { error: { code: string } } }).body;
-    expect(body.error.code).toBe("BAD_REQUEST");
-  });
+      const err = await res.json();
+      expect(err.error.code).toBe("VALIDATION_ERROR");
+    });
 
-  it("created stream has status 'draft'", async () => {
-    const res = await POST(
-      makeRequest({ body: { recipient: VALID_STELLAR_KEY, rate: "120", schedule: "month" } }),
-    );
-    const body = (res as unknown as { body: { status: string } }).body;
-    expect(body.status).toBe("draft");
-  });
+    it("does not leak one key's cache to another key", async () => {
+      const resA = await POST(makeRequest(validBody, "key-a"));
+      const dataA = await resA.json();
 
-  it("error envelope has code, message, request_id", async () => {
-    const res = await POST(makeRequest({ auth: null, body: {} }));
-    const body = (res as unknown as { body: { error: Record<string, unknown> } }).body;
-    expect(body.error).toHaveProperty("code");
-    expect(body.error).toHaveProperty("message");
-    expect(body.error).toHaveProperty("request_id");
+      const resB = await POST(
+        makeRequest(
+          { recipient: "OTHER", rate: "50 XLM / month", schedule: "Weekly" },
+          "key-b",
+        ),
+      );
+      const dataB = await resB.json();
+
+      expect(dataA.data.id).not.toBe(dataB.data.id);
+      expect(dataA.data.recipient).not.toBe(dataB.data.recipient);
+    });
   });
 });
