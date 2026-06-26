@@ -7,6 +7,7 @@ Linear payment streams on Stellar/Soroban.
 | Entrypoint | Mutating | Required Authorizer | Description |
 | :--- | :--- | :--- | :--- |
 | `initialize` | Yes | `admin` | Initialises the contract with an admin and pause state. |
+| `init_with_token_allowlist` | Yes | `admin` | Atomic deployment-time initialisation + per-token allowlist; equivalent to `initialize` followed by one `set_token_allowed(allowed = true)` per token, committed in a single transaction. |
 | `set_paused` | Yes | `admin` | Sets the global emergency pause flag. |
 | `set_admin` | Yes | `admin` | Transfers the admin role to a new address. |
 | `set_token_allowed` | Yes | `admin` | Allows or blocks a token for future stream creation. |

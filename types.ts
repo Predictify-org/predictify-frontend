@@ -24,6 +24,8 @@ export interface MetricSnapshot {
   oldestPendingJobSeconds?: number;
   /** Rolling p95 latency for settlement transactions. */
   p95SettlementLatencySeconds?: number;
+  /** Stream cancellations in the observation window. */
+  streamCancels?: number;
 }
 
 /**
@@ -41,6 +43,8 @@ export interface AnomalyThresholds {
   submissionFailureThreshold?: number;
   /** Maximum DLQ depth before the depth-exceeded alert fires. */
   maxDlqDepth?: number;
+  /** Maximum stream cancels per minute before a burst alert fires. */
+  cancelBurstLimit?: number;
 }
 
 /**
@@ -53,7 +57,12 @@ export interface AnomalyAlert {
   /** Tenant the alert applies to. */
   tenantId: string;
   /** Which rule produced this alert. */
-  ruleName: "STREAM_CREATION_BURST" | "SETTLE_RATE_SPIKE" | "HIGH_SUBMISSION_FAILURE_RATE" | "DLQ_DEPTH_EXCEEDED";
+  ruleName:
+    | "STREAM_CREATION_BURST"
+    | "SETTLE_RATE_SPIKE"
+    | "HIGH_SUBMISSION_FAILURE_RATE"
+    | "DLQ_DEPTH_EXCEEDED"
+    | "STREAM_CANCEL_BURST";
   /** Value observed for the rule's metric. */
   observedValue: number;
   /** Threshold the observed value exceeded. */

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/app/lib/db";
-import { toV2Stream } from "@/app/lib/api-version";
+import { toV2Stream, dbStreamToV1 } from "@/app/lib/api-version";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params }: Context) {
     return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
   }
   return NextResponse.json({
-    data: toV2Stream(stream),
+    data: toV2Stream(dbStreamToV1(stream)),
     links: { self: `/api/v2/streams/${id}` },
   });
 }
