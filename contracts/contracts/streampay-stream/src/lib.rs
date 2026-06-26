@@ -318,9 +318,10 @@ impl Contract {
     ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::Overflow`] if the vested-amount computation overflows.
     pub fn withdrawable(env: Env, stream_id: u64) -> Result<i128, Error> {
         let stream = get_existing_stream(&env, stream_id)?;
-        Ok(withdrawable_amount(env.ledger().timestamp(), &stream))
+        withdrawable_amount(env.ledger().timestamp(), &stream)
     }
 
     /// Returns the stream balance (vested amount) at a given ledger timestamp.
@@ -336,9 +337,10 @@ impl Contract {
     /// # Returns
     ///
     /// The vested amount as an i128, always in the range `[0, total_amount]`.
+    /// Returns `Err(Error::Overflow)` if arithmetic overflows on extreme inputs.
     pub fn stream_balance(env: Env, stream_id: u64) -> Result<i128, Error> {
         let stream = get_existing_stream(&env, stream_id)?;
-        Ok(stream_balance_amount(&env, &stream))
+        stream_balance_amount(&env, &stream)
     }
 
     /// Withdraws accrued escrow to the recipient.
@@ -361,7 +363,7 @@ impl Contract {
         }
 
         let now = env.ledger().timestamp();
-        let available = withdrawable_amount(now, &stream);
+        let available = withdrawable_amount(now, &stream)?;
         if amount > available {
             return Err(Error::OverWithdraw);
         }
@@ -526,11 +528,11 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
     storage::get_stream(env, stream_id).ok_or(Error::NotFound)
 }
 
-fn withdrawable_amount(now: u64, stream: &Stream) -> i128 {
+fn withdrawable_amount(now: u64, stream: &Stream) -> Result<i128, Error> {
     release::withdrawable(stream, now)
 }
 
-fn stream_balance_amount(env: &Env, stream: &Stream) -> i128 {
+fn stream_balance_amount(env: &Env, stream: &Stream) -> Result<i128, Error> {
     release::vested_amount(stream, env.ledger().timestamp())
 }
 
