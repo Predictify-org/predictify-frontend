@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Clock, ShieldAlert, Flag, XCircle } from 'lucide-react';
+import { AlertTriangle, Clock, ShieldAlert, Flag, XCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import type { ModerationState } from '@/types/moderation';
@@ -12,6 +12,7 @@ const STATE_ICONS: Record<ModerationState, React.ElementType> = {
   restricted: ShieldAlert,
   flagged: Flag,
   removed: XCircle,
+  resolving: Loader2,
 };
 
 interface ModerationBannerProps {

@@ -1,5 +1,5 @@
 // Moderation state vocabulary — extensible for future states
-export type ModerationState = 'under_review' | 'paused' | 'restricted' | 'flagged' | 'removed';
+export type ModerationState = 'under_review' | 'paused' | 'restricted' | 'flagged' | 'removed' | 'resolving';
 
 export interface ModerationConfig {
   label: string;
