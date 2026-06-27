@@ -12,6 +12,7 @@ import { Timestamp } from "../../components/Timestamp";
 import { fetchWithIdempotency } from "../../../lib/apiClient";
 import { isStreamPayError, normalizeError } from "../../lib/errors";
 import type { StreamPayError } from "../../lib/errors";
+import { exportStreamVestingAsIcs } from "../../utils/ics";
 
 type StreamDetailClientProps = {
   stream: Stream;
@@ -127,6 +128,22 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
     if (!error?.retry.retryable) return;
     handleDismissError();
     await handleAction();
+  };
+
+  const handleExportIcs = () => {
+    try {
+      exportStreamVestingAsIcs(
+        stream.id,
+        stream.rate,
+        stream.createdAt,
+        stream.status,
+        stream.token,
+        stream.label
+      );
+    } catch (err) {
+      console.error('Failed to export ICS:', err);
+      alert('Failed to export vesting calendar. Please check the stream rate format.');
+    }
   };
 
   const handleAction = async () => {
@@ -338,16 +355,15 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
               <Link href={`/streams/${stream.id}/receipt`} className="button button--secondary detail-action-btn">
                 Print Stream Receipt
               </Link>
-              {actionSummary.destructiveAction && stream.status !== "withdrawn" && (
-                <button
-                  className="button button--danger detail-action-btn"
-                  disabled={isProcessing || isIncidentMode}
-                  onClick={() => setIsDestructiveOpen(true)}
-                  type="button"
-                >
-                  {actionSummary.destructiveAction === "cancel" ? "Cancel Stream" : "Withdraw Funds"}
-                </button>
-              )}
+              
+              <button
+                className="button button--secondary detail-action-btn"
+                type="button"
+                onClick={handleExportIcs}
+                aria-label="Export vesting calendar as ICS file"
+              >
+                Export Calendar (.ics)
+              </button>
             </div>
             {actionSummary.destructiveAction === "cancel" && (
               <p className="detail-action-note">
