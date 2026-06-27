@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/drawer"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Kbd } from "@/components/ui/kbd"
 
 export function BetConfirmPattern() {
   const [open, setOpen] = React.useState(false)
@@ -50,37 +52,32 @@ export function BetConfirmPattern() {
         <DialogTrigger asChild>
           <Button variant="default" className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc]">Place Prediction (Desktop)</Button>
         </DialogTrigger>
-        <DialogContent className={isSuccess ? "sm:max-w-xl bg-background border-border p-0" : "sm:max-w-md bg-[#0f1930] text-[#dee5ff] border-[#40485d]"}>
-          {!isSuccess ? (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-xl font-headline font-bold text-white">Confirm Prediction</DialogTitle>
-                <DialogDescription className="text-[#a3aac4]">
-                  Review your position before confirming. Once confirmed, the stake will be locked in the smart contract.
-                </DialogDescription>
-              </DialogHeader>
-              <BetForm />
-              <DialogFooter className="sm:justify-end gap-2 mt-4 flex-row">
-                <Button variant="ghost" onClick={() => setOpen(false)} className="text-[#a3aac4] hover:text-white">
-                  Cancel
-                </Button>
-                <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc]" onClick={handleConfirm}>
-                  Confirm Prediction
-                </Button>
-              </DialogFooter>
-            </>
-          ) : (
-            <div className="w-full">
-              <Receipt 
-                receiptId="TXN-98237498234-XYZ"
-                amount="$100.00"
-                partyA="0x1234...5678 (You)"
-                partyB="Predictify Market Pool"
-                timestamp={new Date().toISOString()}
-                type="Bet Placement"
-              />
-            </div>
-          )}
+        <DialogContent className="sm:max-w-md bg-[#0f1930] text-[#dee5ff] border-[#40485d]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-headline font-bold text-white">Confirm Prediction</DialogTitle>
+            <DialogDescription className="text-[#a3aac4]">
+              Review your position before confirming. Once confirmed, the stake will be locked in the smart contract.
+            </DialogDescription>
+          </DialogHeader>
+          <BetForm />
+          <DialogFooter className="sm:justify-end gap-2 mt-4 flex-row">
+            <Button variant="ghost" onClick={() => setOpen(false)} className="text-[#a3aac4] hover:text-white">
+              Cancel
+            </Button>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc]" onClick={() => setOpen(false)}>
+                    Confirm Prediction
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="flex items-center gap-2">
+                  <span className="text-xs">Press</span>
+                  <Kbd shortcut="confirmBet" actionLabel="to confirm" />
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     )
