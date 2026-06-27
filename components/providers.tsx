@@ -23,7 +23,7 @@ export function Providers({ children }: ProvidersProps) {
         enableSystem
         disableTransitionOnChange
       >
-        <WalletProvider>{children}</WalletProvider>
+        <PrivacyProvider><WalletProvider>{children}</WalletProvider></PrivacyProvider>
         <Toaster />
       </ThemeProvider>
     </ErrorBoundary>
