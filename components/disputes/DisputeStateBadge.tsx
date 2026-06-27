@@ -1,5 +1,5 @@
 import { CheckCircle2, CircleDot, MinusCircle, Square, Vote } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { DisputeState } from '@/types/disputes';
 

@@ -39,9 +39,15 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
   };
   const badge = (
     <Badge
+      role="status"
+      aria-label={isResolving ? `Market status: ${config.label}. Resolving now.` : `Market status: ${config.label}`}
       variant={variantMap[state]}
       size="md"
-      className={cn(config.badgeClass, className)}
+      className={cn(
+        config.badgeClass,
+        isResolving && 'animate-status-live-pulse',
+        className
+      )}
     >
       <Icon className="h-3 w-3 mr-1" aria-hidden="true" />
       {config.label}
