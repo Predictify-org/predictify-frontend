@@ -10,7 +10,7 @@ import type {
   AuditMetadataValue,
 } from "@/app/types/audit";
 
-export const AUDIT_LOG_RETENTION_DAYS = 365 * 7;
+export const AUDIT_LOG_RETENTION_DAYS = 30;
 
 const VALID_ROLES = new Set<AuditActorRole>([
   "user",
@@ -85,6 +85,7 @@ function redactTargetAccount(account: string | undefined): string | null {
 
 export class AppendOnlyAuditLogStore {
   private readonly entries: AuditEntry[] = [];
+  private readonly archivedEntries: AuditEntry[] = [];
 
   append(input: AuditEntryInput): AuditEntry {
     const lastEntry = this.entries[this.entries.length - 1];
@@ -198,14 +199,45 @@ export class AppendOnlyAuditLogStore {
     }));
   }
 
+  archiveExpiredEntries(referenceTimestamp: string | Date = new Date().toISOString()): AuditEntry[] {
+    const cutoff = new Date(referenceTimestamp).getTime();
+    const expiredEntries = this.entries.filter((entry) => new Date(entry.retentionUntil).getTime() <= cutoff);
+
+    if (expiredEntries.length === 0) {
+      return [];
+    }
+
+    const remainingEntries = this.entries.filter((entry) => new Date(entry.retentionUntil).getTime() > cutoff);
+
+    this.entries.splice(0, this.entries.length, ...remainingEntries);
+    this.archivedEntries.push(...expiredEntries.map((entry) => deepFreeze(cloneValue(entry))));
+
+    return expiredEntries.map((entry) => cloneValue(entry));
+  }
+
+  restoreArchivedEntries(): AuditEntry[] {
+    if (this.archivedEntries.length === 0) {
+      return [];
+    }
+
+    const restored = this.archivedEntries.splice(0, this.archivedEntries.length).map((entry) => cloneValue(entry));
+    this.entries.splice(0, 0, ...restored);
+    return restored;
+  }
+
+  getArchivedEntries(): AuditEntry[] {
+    return this.archivedEntries.map((entry) => cloneValue(entry));
+  }
+
   count(): number {
     return this.entries.length;
   }
 
   assertIntegrity(): boolean {
+    const chain = [...this.archivedEntries, ...this.entries];
     let previousHash: string | null = null;
 
-    for (const entry of this.entries) {
+    for (const entry of chain) {
       const recalculatedHash = hashValue({
         action: entry.action,
         actor: entry.actor,
@@ -243,6 +275,7 @@ export class AppendOnlyAuditLogStore {
 
   reset(seedEntries: AuditEntryInput[] = defaultSeedAuditEntries) {
     this.entries.splice(0, this.entries.length);
+    this.archivedEntries.splice(0, this.archivedEntries.length);
     for (const entry of seedEntries) {
       this.append(entry);
     }

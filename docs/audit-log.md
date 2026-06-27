@@ -20,8 +20,10 @@ Each entry records:
 
 ## Retention
 
-- Default retention: **2555 days** (7 years)
+- Default retention: **30 days**
+- Expired entries are archived to cold storage by the daily retention job before they are removed from the active append-only store.
 - The API returns `retentionDays` for JSON reads and `x-audit-retention-days` for NDJSON exports.
+- The store exposes `archiveExpiredEntries()` and `restoreArchivedEntries()` so archived records can be restored without changing the existing hash-chain values.
 
 ## Access matrix
 
