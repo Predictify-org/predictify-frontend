@@ -37,6 +37,10 @@ function toJsonSafe(value: unknown): unknown {
   return value;
 }
 
+function getCorrelationId(request: Request, body: { correlationId?: string }) {
+  return body.correlationId ?? request.headers.get("x-correlation-id") ?? "nightly-reconciliation";
+}
+
 export async function POST(request: Request) {
   const { streamRepository } = getStore();
   const identity = await requireInternalServiceAuth(request, {
@@ -48,17 +52,19 @@ export async function POST(request: Request) {
     return identity;
   }
 
-  let body: { dryRun?: boolean; streamId?: string } = {};
+  let body: { dryRun?: boolean; correlationId?: string; streamId?: string } = {};
   try {
     const rawBody = await request.clone().text();
     if (rawBody.length > 0) {
-      body = JSON.parse(rawBody) as { dryRun?: boolean; streamId?: string };
+      body = JSON.parse(rawBody) as { dryRun?: boolean; correlationId?: string; streamId?: string };
     }
   } catch {
     return createErrorResponse("INVALID_REQUEST", "Request body must be valid JSON.", 400);
   }
 
-  // Load and map all database streams from getStore() and the mock DB client.
+  const correlationId = getCorrelationId(request, body);
+  console.info(`[RECONCILIATION][nightly] correlation_id=${correlationId} started by=${identity.serviceName}`);
+
   const dbStreamsList: DbStream[] = [];
 
   try {
@@ -73,27 +79,28 @@ export async function POST(request: Request) {
       }).getStreams(100, 0);
       dbStreamsList.push(...legacyStreams);
     } catch {
-      // Ignore and rely on the repository-backed streams.
+      // Ignore and fall back to repository-backed streams.
     }
   }
 
-  // Add store repository streams
   const repoStreams = Array.from(streamRepository.streams.values());
-  for (const s of repoStreams) {
-    if (!dbStreamsList.some((x) => x.id === s.id)) {
+  for (const stream of repoStreams) {
+    if (!dbStreamsList.some((x) => x.id === stream.id)) {
       dbStreamsList.push({
-        id: s.id,
-        recipient_address: s.recipient || "unknown",
-        total_amount: s.vestedAmount || "1000000000",
-        released_amount: s.releasedAmount || "0",
-        status: s.status.toUpperCase(),
+        id: stream.id,
+        recipient_address: stream.recipient || "unknown",
+        total_amount: stream.vestedAmount || "1000000000",
+        released_amount: stream.releasedAmount || "0",
+        status: stream.status.toUpperCase(),
         last_sync_ledger: 0,
       });
     }
   }
 
-  if (body.streamId) {
-    const streamFallback = await onChainClient.fetchStream(body.streamId);
+  const targetStreamId = body.streamId;
+
+  if (targetStreamId) {
+    const streamFallback = await onChainClient.fetchStream(targetStreamId);
     if (streamFallback && !dbStreamsList.some((x) => x.id === streamFallback.id)) {
       dbStreamsList.push({
         id: streamFallback.id,
@@ -120,75 +127,36 @@ export async function POST(request: Request) {
     }
   }
 
-  const streamExists = body.streamId
-    ? dbStreamsList.some((x) => x.id === body.streamId)
-    : false;
+  const streamExists = targetStreamId ? dbStreamsList.some((x) => x.id === targetStreamId) : true;
 
-  if (body.streamId && !streamExists) {
-    return createErrorResponse("STREAM_NOT_FOUND", `Stream '${body.streamId}' not found.`, 404);
+  if (targetStreamId && !streamExists) {
+    return createErrorResponse("STREAM_NOT_FOUND", `Stream '${targetStreamId}' not found.`, 404);
   }
 
-  const streams = body.streamId
-    ? (streamRepository.streams.has(body.streamId) ? [streamRepository.streams.get(body.streamId)!] : [])
-    : Array.from(streamRepository.streams.values());
-
-  const summary = streams.reduce(
-    (accumulator, stream) => {
-      accumulator.totalStreams += 1;
-      if (stream.status === "active") {
-        accumulator.activeStreams += 1;
-      }
-      if (stream.status === "ended") {
-        accumulator.endedStreams += 1;
-      }
-      if (stream.withdrawal?.state === "failed") {
-        accumulator.failedWithdrawals += 1;
-      }
-      return accumulator;
-    },
-    {
-      activeStreams: 0,
-      endedStreams: 0,
-      failedWithdrawals: 0,
-      totalStreams: 0,
-    }
-  );
-
-  // Execute actual reconciliation comparing DB and on-chain
   const reconciliationService = new ReconciliationService({
     tolerance: BigInt(process.env.RECONCILE_TOLERANCE || "0"),
   });
 
   const report = await reconciliationService.runReconciliation({
-    streamId: body.streamId,
-    dryRun: body.dryRun ?? false,
+    streamId: targetStreamId,
+    dryRun: body.dryRun ?? true,
     dbStreams: dbStreamsList,
   });
 
-  const discrepancies = report.mismatches.map((m) => ({
-    streamId: m.streamId,
-    field: m.field,
-    dbValue: typeof m.dbValue === "bigint" ? m.dbValue.toString() : m.dbValue,
-    onChainValue: typeof m.onChainValue === "bigint" ? m.onChainValue.toString() : m.onChainValue,
-  }));
-
-  const status = body.dryRun === false && report.status === "MISMATCH_FOUND" ? "SUCCESS" : report.status;
+  if (report.mismatches.length > 0) {
+    console.warn(`[RECONCILIATION][nightly] correlation_id=${correlationId} mismatches=${report.mismatches.length}`);
+  }
 
   return NextResponse.json(
     {
       data: {
         acceptedAt: new Date().toISOString(),
-        dryRun: body.dryRun ?? false,
+        mode: "nightly",
+        dryRun: body.dryRun ?? true,
+        correlationId,
         requestedBy: identity.serviceName,
-        scope: body.streamId ?? "all-streams",
-        summary,
-        discrepancies,
-        report: {
-          status,
-          totalStreamsChecked: report.totalStreamsChecked,
-          mismatches: report.mismatches.length,
-          errors: report.errors.length,
-        },
+        scope: targetStreamId ?? "all-streams",
+        report: toJsonSafe(report),
       },
       meta: {
         auth: {
