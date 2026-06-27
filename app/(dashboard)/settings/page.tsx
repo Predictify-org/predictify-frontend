@@ -121,7 +121,7 @@ export default function SettingsPage() {
   const [oracleDelayAlerts, setOracleDelayAlerts] = useState(true)
   const [priceMovementAlerts, setPriceMovementAlerts] = useState(false)
   const [weeklyDigest, setWeeklyDigest] = useState(true)
-  const [publicActivity, setPublicActivity] = useState(false)
+  const { hideBalances, setHideBalances } = usePrivacy();
   const [walletAlias, setWalletAlias] = useState(true)
   const [copyWarning, setCopyWarning] = useState(true)
 
@@ -390,12 +390,13 @@ export default function SettingsPage() {
 
               <div className="space-y-1">
                 <PreferenceSwitch
-                  id="public-activity"
-                  label="Show public activity on profile"
-                  description="Off by default so recent trades, votes, and claim actions are not exposed automatically."
-                  checked={publicActivity}
-                  onCheckedChange={setPublicActivity}
+                  id="hide-balances"
+                  label="Hide sensitive amounts"
+                  description="Mask balances and amounts throughout the app for privacy."
+                  checked={hideBalances}
+                  onCheckedChange={setHideBalances}
                 />
+
                 <PreferenceSwitch
                   id="wallet-alias"
                   label="Use wallet alias instead of full address"
@@ -501,6 +502,7 @@ function PreferenceSwitch({
   )
 }
 
+import { usePrivacy } from '@/context/PrivacyContext';
 function PreferenceSelect({
   id,
   label,
