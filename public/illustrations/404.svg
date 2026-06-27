@@ -1,0 +1,31 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .float { animation: float 5s ease-in-out infinite; transform-origin: center; }
+    .pulse { animation: pulse 3s ease-in-out infinite; transform-origin: center; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-16px); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: .45; transform: scale(1); }
+      50% { opacity: .8; transform: scale(1.06); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .float, .pulse { animation: none; }
+    }
+  </style>
+  <rect width="640" height="420" rx="28" fill="#FAFAFA"/>
+  <path d="M95 300C143 246 194 245 248 276C298 305 337 300 382 263C438 217 512 225 558 286V350H95V300Z" fill="#F4F4F5"/>
+  <path class="pulse" d="M455 91C455 120.823 430.823 145 401 145C371.177 145 347 120.823 347 91C347 61.1766 371.177 37 401 37C430.823 37 455 61.1766 455 91Z" fill="#E4E4E7"/>
+  <g class="float">
+    <path d="M194 156C194 128.386 216.386 106 244 106H391C418.614 106 441 128.386 441 156V251C441 278.614 418.614 301 391 301H244C216.386 301 194 278.614 194 251V156Z" fill="white" stroke="#18181B" stroke-width="8"/>
+    <path d="M251 189C251 179.611 258.611 172 268 172C277.389 172 285 179.611 285 189C285 198.389 277.389 206 268 206C258.611 206 251 198.389 251 189Z" fill="#18181B"/>
+    <path d="M350 189C350 179.611 357.611 172 367 172C376.389 172 384 179.611 384 189C384 198.389 376.389 206 367 206C357.611 206 350 198.389 350 189Z" fill="#18181B"/>
+    <path d="M281 241C301.5 223 333.5 223 354 241" stroke="#18181B" stroke-width="8" stroke-linecap="round"/>
+    <path d="M318 106V73" stroke="#18181B" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="318" cy="60" r="14" fill="#18181B"/>
+  </g>
+  <path d="M126 353H517" stroke="#18181B" stroke-width="8" stroke-linecap="round"/>
+  <path d="M111 250L82 221M82 221L111 192M82 221H151" stroke="#71717A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M528 192L557 221M557 221L528 250M557 221H488" stroke="#71717A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
