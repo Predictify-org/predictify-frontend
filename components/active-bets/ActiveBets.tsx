@@ -28,18 +28,22 @@ const ActiveBetCardSkeleton = () => (
 
 // Empty state component
 const EmptyState = ({ onAddBet }: { onAddBet?: () => void }) => (
-  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-    <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-      <Plus className="w-8 h-8 text-muted-foreground" />
+  <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-card/20 backdrop-blur-sm border border-border/50 rounded-2xl">
+    <div className="w-24 h-24 mb-6 relative">
+      <img
+        src="/assets/empty-states/dashboard/active-bets.svg"
+        alt="No active bets"
+        className="w-full h-full object-contain ml-auto mr-auto"
+      />
     </div>
-    <h3 className="text-lg font-semibold text-foreground mb-2">No Active Bets</h3>
-    <p className="text-muted-foreground mb-4 max-w-sm">
-      You don't have any active bets at the moment. Start by placing your first bet!
+    <h3 className="text-xl font-bold text-foreground mb-2">No Active Bets</h3>
+    <p className="text-muted-foreground mb-6 max-w-sm">
+      You haven't placed any bets yet. Explore live markets and start predicting today!
     </p>
     {onAddBet && (
-      <Button onClick={onAddBet} className="bg-primary hover:bg-primary/90">
+      <Button onClick={onAddBet} className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
         <Plus className="w-4 h-4 mr-2" />
-        Add Bet
+        Explore Markets
       </Button>
     )}
   </div>

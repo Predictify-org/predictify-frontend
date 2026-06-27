@@ -5,6 +5,8 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
+export type StatEmptyVariant = 'volume' | 'predictions' | 'win-rate' | 'leaderboard';
+
 interface StatCardProps {
   stat?: Stat;
   index: number;
@@ -15,23 +17,63 @@ interface StatCardProps {
    * - "error": shows an error alert with a retry button.
    */
   status?: "loading" | "empty" | "error";
+  /** The variant of empty state to show, which determines illustration and copy */
+  emptyVariant?: StatEmptyVariant;
   /** Callback invoked when the retry button is clicked in error state */
   onRetry?: () => void;
 }
 
-export function StatCard({ stat, index, status, onRetry }: StatCardProps) {
+const EMPTY_CONFIGS: Record<StatEmptyVariant, { illustration: string; title: string; description: string; cta: string; href: string }> = {
+  volume: {
+    illustration: "/assets/empty-states/dashboard/volume.svg",
+    title: "No Volume",
+    description: "Start trading to see activity.",
+    cta: "Explore Markets",
+    href: "/events"
+  },
+  predictions: {
+    illustration: "/assets/empty-states/dashboard/predictions.svg",
+    title: "No Predictions",
+    description: "Make your first prediction.",
+    cta: "View Markets",
+    href: "/events"
+  },
+  "win-rate": {
+    illustration: "/assets/empty-states/dashboard/win-rate.svg",
+    title: "0% Win Rate",
+    description: "Win bets to see your rate.",
+    cta: "Place a Bet",
+    href: "/events"
+  },
+  leaderboard: {
+    illustration: "/assets/empty-states/dashboard/leaderboard.svg",
+    title: "Unranked",
+    description: "Compete to climb the ranks.",
+    cta: "Leaderboard",
+    href: "/leaderboard"
+  }
+};
+
+export function StatCard({ stat, index, status, emptyVariant = 'volume', onRetry }: StatCardProps) {
   if (status === "loading") {
-    return <Skeleton className="h-32 w-full rounded-xl" />;
+    return <Skeleton className="h-44 w-full rounded-xl" />;
   }
 
   if (status === "empty") {
+    const config = EMPTY_CONFIGS[emptyVariant];
     return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-lg font-medium mb-2">No data available.</p>
-        <p className="text-sm text-muted-foreground mb-4">Create events to generate statistics.</p>
-        <Button asChild>
-          <Link href="/events/new">Create New Event</Link>
+      <div className="flex flex-col items-center justify-center p-6 text-center bg-slate-900/40 backdrop-blur-sm border border-slate-800 rounded-2xl group transition-all duration-300 hover:border-cyan-500/30">
+        <div className="relative w-16 h-16 mb-3">
+          <img
+            src={config.illustration}
+            alt={config.title}
+            className="w-full h-full object-contain filter group-hover:scale-110 transition-transform duration-300"
+          />
+        </div>
+        <p className="text-base font-semibold text-slate-100 mb-1">{config.title}</p>
+        <p className="text-xs text-slate-400 mb-4">{config.description}</p>
+        <Button asChild size="sm" variant="outline" className="h-8 text-xs border-cyan-500/30 hover:bg-cyan-500/10 hover:text-cyan-400">
+          <Link href={config.href}>{config.cta}</Link>
         </Button>
       </div>
     );
