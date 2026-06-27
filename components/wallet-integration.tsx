@@ -1,6 +1,7 @@
 "use client"
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ArticleMeta } from './help/article-meta';
 
 interface Issue {
   id: number;
@@ -15,6 +16,28 @@ interface OpenIssuesState {
 export default function WalletIntegration() {
   const [isMainOpen, setIsMainOpen] = useState<boolean>(true);
   const [openIssues, setOpenIssues] = useState<OpenIssuesState>({});
+
+  const contentText = useMemo(() => {
+    const text = "Wallet Integration If you're experiencing issues with transactions, here's what you can do: ";
+    const issuesText = [
+      { 
+        id: 1, 
+        title: 'Check Transaction Status',
+        content: 'Verify your transaction status on the blockchain explorer. Look for confirmation numbers and ensure the transaction has been properly processed. If pending for too long, you may need to speed up the transaction with a higher gas fee.'
+      },
+      { 
+        id: 2, 
+        title: 'Insufficient Gas/Network Fees',
+        content: 'Make sure you have enough native tokens (ETH, MATIC, BNB, etc.) in your wallet to cover gas fees. Transaction failures often occur due to insufficient gas. Always keep extra tokens for network fees beyond your transaction amount.'
+      },
+      { 
+        id: 3, 
+        title: 'Network Congestion',
+        content: 'During high network activity, transactions may take longer or require higher gas fees. Consider waiting for off-peak hours or increasing your gas limit. Check network status on blockchain explorers for real-time congestion data.'
+      }
+    ].map(i => i.title + " " + i.content).join(" ");
+    return text + issuesText;
+  }, []);
 
   const issues: Issue[] = [
     { 
@@ -54,6 +77,7 @@ export default function WalletIntegration() {
             {isMainOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
           </button>
         </div>
+        <ArticleMeta content={contentText} lastReviewed="2023-11-05" />
 
         {/* Collapsible Content */}
         <div className={`transition-all duration-300 ease-in-out ${isMainOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
