@@ -23,6 +23,9 @@ import {
 } from '@/components/ui/select';
 import { Search, Filter, ChevronDown, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import { customToast } from '@/components/ui/custom-toast';
+import { useClaimShare } from '@/context/ClaimShareContext';
+import { Trophy } from 'lucide-react';
 
 // Mock data for events table (matching the image layout)
 const eventsData = [
@@ -150,6 +153,24 @@ export default function BetsPage() {
     });
   };
 
+  const { openShareSheet } = useClaimShare();
+
+  const handleMockClaim = () => {
+    const market = eventsData[0]; // Arsenal vs Liverpool
+    customToast.success('Winnings Claimed Successfully!', {
+      description: `You've successfully claimed 450.00 USDC for your prediction on "${market.title}".`,
+      onShare: () => {
+        openShareSheet({
+          marketTitle: market.title,
+          claimAmount: "450.00",
+          marketId: market.id,
+          tokenSymbol: "USDC"
+        });
+      }
+    });
+  };
+
+
   const handleLearnMore = () => {
     toast.info('Opening Documentation', {
       description: 'Learn how to create and manage your bets effectively.',
@@ -208,6 +229,15 @@ export default function BetsPage() {
               onClick={() => setActiveTab('past')}
             >
               Past Events
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleMockClaim}
+              className="bg-purple-600 hover:bg-purple-500 text-white border-none shadow-lg shadow-purple-500/20"
+            >
+              <Trophy className="w-4 h-4 mr-2" />
+              Mock Claim
             </Button>
           </div>
         </div>

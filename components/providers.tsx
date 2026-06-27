@@ -12,6 +12,8 @@ interface ProvidersProps {
   children: ReactNode;
 }
 
+import { ClaimShareProvider } from "@/context/ClaimShareContext";
+
 /**
  * Client-side providers wrapper
  * Includes ErrorBoundary, ThemeProvider, WalletProvider, and Toaster
@@ -23,18 +25,23 @@ export function Providers({ children }: ProvidersProps) {
     <ErrorBoundary>
       <ThemeProvider
         attribute="class"
-        defaultTheme="system"
+        defaultTheme="dark"
         enableSystem
         disableTransitionOnChange
       >
         <PrivacyProvider>
-          <WalletProvider>{children}</WalletProvider>
+          <WalletProvider>
+            <ClaimShareProvider>
+              {children}
+            </ClaimShareProvider>
+          </WalletProvider>
         </PrivacyProvider>
         <Toaster />
       </ThemeProvider>
     </ErrorBoundary>
   );
 }
+
 
 
 

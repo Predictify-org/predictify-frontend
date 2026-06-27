@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { toast as sonnerToast } from 'sonner';
-import { CheckCircle, Info, AlertTriangle, XCircle, X } from 'lucide-react';
+import { CheckCircle, Info, AlertTriangle, XCircle, X, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Custom toast variants that match the app theme
 export const customToast = {
-  success: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void } }) => {
+  success: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void }; onShare?: () => void }) => {
     return sonnerToast.custom((t) => (
       <CustomToastContent
         id={t}
@@ -15,6 +15,7 @@ export const customToast = {
         message={message}
         description={options?.description}
         action={options?.action}
+        onShare={options?.onShare}
       />
     ));
   },
@@ -62,9 +63,9 @@ interface CustomToastContentProps {
   message: string;
   description?: string;
   action?: {
-    label: string;
     onClick: () => void;
   };
+  onShare?: () => void;
 }
 
 const CustomToastContent: React.FC<CustomToastContentProps> = ({
@@ -73,6 +74,7 @@ const CustomToastContent: React.FC<CustomToastContentProps> = ({
   message,
   description,
   action,
+  onShare,
 }) => {
   const icons = {
     success: CheckCircle,
@@ -147,6 +149,21 @@ const CustomToastContent: React.FC<CustomToastContentProps> = ({
             )}
           >
             {action.label}
+          </button>
+        )}
+
+        {onShare && (
+          <button
+            onClick={() => {
+              onShare();
+              sonnerToast.dismiss(id);
+            }}
+            className={cn(
+              'mt-2 px-3 py-1.5 rounded-lg text-xs font-medium border border-purple-500/30 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 transition-colors flex items-center gap-1.5'
+            )}
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            Share Result
           </button>
         )}
       </div>
