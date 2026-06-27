@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import { Activity, Calendar, CheckCircle, DollarSign, HelpCircle, TrendingUp, Users, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -6,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { StatCard } from "@/components/cards/stat-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
+import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStrip"
 import { useEffect, useState } from "react"
 
 interface Stat {
@@ -234,6 +237,7 @@ export default function DashboardPage() {
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           {renderCards()}
+          <RecommendationsStrip />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
               <CardHeader>

@@ -157,6 +157,7 @@ relevant groups for this overview:
 | Events | [`components/events`](../components/events) | Events domain UI: `events-section.tsx`, `events-table.tsx`, `events-table-skeleton.tsx`, `events-toolbar.tsx`, `pagination.tsx`, `virtualized-events-list.tsx`. These read from `useEventsStore`. |
 | Disputes | [`components/disputes`](../components/disputes) | Dispute UI: `DisputePanel.tsx`, `DisputeStateBadge.tsx`, plus `shared/`, `states/`, and a local `mock-data.ts`. |
 | Navbar | [`components/navbar`](../components/navbar) | Navigation and wallet entry points: `Navbar.tsx`, `MarketingNavbar.tsx`, `NavItem.tsx`, `MobileDrawer.tsx`, `SearchInput.tsx`, `NetworkSwitcher.tsx`, `ConnectWalletAction.tsx`, `WalletMenu.tsx`. |
+| Dashboard | [`components/dashboard`](../components/dashboard) | `RecommendationsStrip.tsx`, the "Markets you might like" discovery strip on `app/(dashboard)/dashboard/page.tsx`. Heuristic lives in [`lib/recommendations.ts`](../lib/recommendations.ts); see [RECOMMENDATIONS.md](./RECOMMENDATIONS.md). |
 
 Convention: primitives in `components/ui` are presentational and own appearance;
 domain folders (`events`, `disputes`, `navbar`) compose those primitives and read
@@ -166,4 +167,6 @@ from the state layer.
 
 - [API.md](./API.md) for environment configuration, the events/transactions data
   shapes, and exactly where real API calls should be introduced.
+- [RECOMMENDATIONS.md](./RECOMMENDATIONS.md) for the dashboard recommendation
+  strip's heuristic and its empty-state behavior.
 - [README.md](./README.md) for the full documentation index.
