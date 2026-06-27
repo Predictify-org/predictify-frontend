@@ -14,6 +14,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import { mockUser as user, mockNavbarState as navbarState } from "./navbar.mock";
 import { WhatsNewDrawer } from "@/components/changelog/WhatsNewDrawer";
+import { getNetworkTint } from "@/lib/network-tint";
+import { useEffect } from "react";
 
 const NAV_ITEMS = [
   { name: "Markets", href: "/markets", icon: "trending_up" },
@@ -24,9 +26,20 @@ const NAV_ITEMS = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const [network, setNetwork] = useState(navbarState.networkName);
+  const [network, setNetwork] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("predictify_network") || navbarState.networkName;
+    }
+    return navbarState.networkName;
+  });
   const { theme, setTheme } = useTheme();
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("predictify_network", network);
+  }, [network]);
+
+  const activeTint = getNetworkTint(network);
   const { connected, isLoading } = useWalletContext();
 
   const toggleTheme = () => {
@@ -51,9 +64,13 @@ export function Navbar() {
                     href={item.href}
                     className={`text-sm transition-all duration-300 font-medium ${
                       isActive
-                        ? "text-cyan-400 border-b-2 border-cyan-400 pb-1"
+                        ? "pb-1"
                         : "text-slate-400 hover:text-slate-200"
                     }`}
+                    style={isActive ? { 
+                      color: activeTint.tint,
+                      borderBottom: `2px solid ${activeTint.tint}`
+                    } : {}}
                   >
                     {item.name}
                   </Link>
@@ -82,7 +99,7 @@ export function Navbar() {
                 Loading...
               </button>
             ) : connected ? (
-              <WalletMenu />
+              <WalletMenu network={network} />
             ) : (
               <button 
                 onClick={() => setIsWalletModalOpen(true)}
@@ -142,9 +159,13 @@ export function Navbar() {
               aria-current={isActive ? "page" : undefined}
               className={
                 isActive
-                  ? "flex flex-col items-center justify-center bg-cyan-500/20 text-cyan-300 rounded-xl px-3 min-h-[44px] min-w-[44px] py-1 transition-all"
+                  ? "flex flex-col items-center justify-center rounded-xl px-3 min-h-[44px] min-w-[44px] py-1 transition-all"
                   : "flex flex-col items-center justify-center text-slate-500 hover:text-cyan-200 min-h-[44px] min-w-[44px] py-1 transition-all"
               }
+              style={isActive ? {
+                backgroundColor: activeTint.bg,
+                color: activeTint.tint
+              } : {}}
             >
               <span
                 aria-hidden="true"
