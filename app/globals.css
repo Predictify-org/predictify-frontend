@@ -947,6 +947,91 @@ a:hover {
   font-style: italic;
 }
 
+/* Note text */
+.receipt-note-text {
+  background: #f9fafb;
+  border-left: 3px solid #3b82f6;
+  border-radius: 0.25rem;
+  color: #1f2937;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  padding: 0.75rem 1rem;
+  white-space: pre-wrap;
+}
+
+/* Note builder UI */
+.receipt-note-builder {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.receipt-note-builder__label {
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.receipt-note-builder__textarea {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  color: #111827;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  min-height: 5rem;
+  padding: 0.75rem;
+  resize: vertical;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.receipt-note-builder__textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  outline: none;
+}
+
+.receipt-note-builder__textarea::placeholder {
+  color: #9ca3af;
+}
+
+.receipt-note-builder__helper {
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+.receipt-note-builder__actions {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.receipt-share-btn {
+  align-items: center;
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  color: #374151;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.receipt-share-btn:hover {
+  border-color: #6b7280;
+  color: #111827;
+}
+
+.receipt-share-btn--copied {
+  border-color: #22c55e;
+  color: #15803d;
+}
+
 /* Footer */
 .receipt-footer {
   display: grid;
@@ -1067,6 +1152,13 @@ a:hover {
   .receipt-footer__timestamp,
   .receipt-support-id {
     color: #444444 !important;
+  }
+
+  .receipt-note-text {
+    background: transparent !important;
+    border-left-color: #666666 !important;
+    color: #000000 !important;
+    padding-left: 0.75rem !important;
   }
 
   /* Keep everything on one page; allow section breaks only at dividers */

@@ -1,3 +1,7 @@
+/**
+ * @jest-environment jsdom
+ */
+
 import { render } from "@testing-library/react";
 const { fireEvent, screen, waitFor } = require("@testing-library/react") as any;
 import { useState } from "react";
