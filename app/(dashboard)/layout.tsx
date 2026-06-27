@@ -2,9 +2,11 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Navbar } from "@/components/navbar/Navbar";
-import { MobileBottomTabs } from "@/components/navbar/MobileBottomTabs";
+import { Breadcrumbs } from "@/components/navbar/Breadcrumbs";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
+import { getBreadcrumbsForPath } from "@/lib/breadcrumbs";
 
 export default function DashboardLayout({
   children,
@@ -16,6 +18,8 @@ export default function DashboardLayout({
   const [isConnected, setIsConnected] = useState(false);
   const [walletName, setWalletName] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const pathname = usePathname();
+  const breadcrumbItems = getBreadcrumbsForPath(pathname);
 
   useEffect(() => {
     setIsMounted(true);
@@ -49,7 +53,12 @@ export default function DashboardLayout({
       <Navbar />
 
       {/* Main Content */}
-      <main className="flex-1 pb-[calc(6rem+var(--safe-pb))] md:pb-12 pt-20">
+      <main className="flex-1 pb-24 md:pb-12 pt-20">
+        {breadcrumbItems.length > 0 && (
+          <div className="px-6 pt-4">
+            <Breadcrumbs items={breadcrumbItems} />
+          </div>
+        )}
         <div className="">{children}</div>
       </main>
     <MobileBottomTabs />
