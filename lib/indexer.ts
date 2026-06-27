@@ -7,7 +7,7 @@ export interface IndexedEvent {
   data: any;
 }
 
-export interface IndexerConfig {
+export interface LegacyIndexerConfig {
   overlapWindow: number;
   hashWindowSize: number;
 }
@@ -32,7 +32,7 @@ export class Indexer {
   };
 
   constructor(
-    private config: IndexerConfig,
+    private config: LegacyIndexerConfig,
     private fetcher: EventFetcher,
     private storage: { saveEvent: (e: IndexedEvent) => Promise<void>; deleteEventsFromLedger: (l: number) => Promise<void> }
   ) {}

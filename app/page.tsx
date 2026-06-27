@@ -44,7 +44,7 @@ export default function Home() {
         </a>
         <a href="#stream-actions" className="button button--secondary">
           {homeCopy.secondaryCta}
-        </button>
+        </a>
       </div>
 
       <section

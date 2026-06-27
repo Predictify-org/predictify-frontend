@@ -1,5 +1,5 @@
 import type { StreamPayError, ErrorNormalizationOptions } from '@/app/lib/errors/types';
-import { normalizeError, isNetworkError, createError } from '@/app/lib/errors/mapper';
+import { normalizeError, normalizeBackendError, isNetworkError, createError } from '@/app/lib/errors/mapper';
 import { getUserMessage } from '@/app/lib/errors/codes';
 
 // Request ID header for correlation

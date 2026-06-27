@@ -68,7 +68,7 @@ describe('Stream Invariants (Property-based)', () => {
               fc.integer({ min: 0, max: 1e12 }),
               fc.integer({ min: 0, max: 1e12 })
             ),
-            { maxLength: 10
+            { maxLength: 10 }
           )
         }),
         ({ totalAmount, startTime, duration, now, pausedRanges }) => {
@@ -101,7 +101,7 @@ describe('Stream Invariants (Property-based)', () => {
               fc.integer({ min: 0, max: 1e12 }),
               fc.integer({ min: 0, max: 1e12 })
             ),
-            { maxLength: 10
+            { maxLength: 10 }
           )
         }),
         ({ totalAmount, startTime, duration, now1, now2, pausedRanges }) => {
