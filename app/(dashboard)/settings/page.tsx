@@ -29,6 +29,7 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { useDensity, densityTokens, type Density } from "@/hooks/useDensity"
+import { useSoundEnabled } from "@/hooks/useSoundEnabled"
 import { cn } from "@/lib/utils"
 
 type TimeFormat = "local-12h" | "local-24h" | "utc"
@@ -118,6 +119,7 @@ export default function SettingsPage() {
   const { hideBalances, setHideBalances } = usePrivacy();
   const [walletAlias, setWalletAlias] = useState(true)
   const [copyWarning, setCopyWarning] = useState(true)
+  const { soundEnabled, setSoundEnabled } = useSoundEnabled()
 
   const selectedDensity = useMemo(
     () => densityOptions.find((option) => option.value === density),
@@ -138,6 +140,9 @@ export default function SettingsPage() {
     <form className="mx-auto flex w-full max-w-6xl flex-col gap-6" onSubmit={handleSave}>
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {saveState === "saved" ? "Settings saved" : ""}
+      </div>
+      <div aria-live="polite" aria-atomic="true" className="sr-only" key={String(soundEnabled)}>
+        {soundEnabled ? "Sound effects on" : "Sound effects off"}
       </div>
 
       <Tabs defaultValue="preferences" className="w-full">
@@ -286,6 +291,13 @@ export default function SettingsPage() {
                       description="Turns down decorative animation for calmer scanning and lower visual fatigue."
                       checked={reduceMotion}
                       onCheckedChange={setReduceMotion}
+                    />
+                    <PreferenceSwitch
+                      id="sound-effects"
+                      label="Sound effects"
+                      description="Play subtle sounds when predictions are placed or winnings are claimed. Off by default."
+                      checked={soundEnabled}
+                      onCheckedChange={setSoundEnabled}
                     />
                     <PreferenceSwitch
                       id="show-wallet-badge"

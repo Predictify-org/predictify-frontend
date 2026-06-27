@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Kbd } from "@/components/ui/kbd"
+import { playSound } from "@/lib/audio/play-sound"
 
 export function BetConfirmPattern() {
   const [open, setOpen] = React.useState(false)
@@ -42,8 +43,8 @@ export function BetConfirmPattern() {
   }
 
   const handleConfirm = () => {
-    // Simulate transaction delay
     setIsSuccess(true)
+    playSound("confirm")
   }
 
   if (isDesktop) {
