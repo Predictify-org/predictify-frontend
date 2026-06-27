@@ -2,76 +2,70 @@
 import * as React from 'react';
 
 /**
- * Custom hook to animate a number count-up.
- * Uses requestAnimationFrame and IntersectionObserver.
- * @param endValue - The final value to count up to.
- * @param startValue - The starting value (default 0).
- * @param duration - The duration of the animation in milliseconds (default 2000).
- * @returns An array containing the ref and the current animated value.
+ * Animates a numeric value with requestAnimationFrame while respecting reduced-motion settings.
+ * The animation uses the current rendered value as the start point for subsequent updates.
  */
 export const useCountUp = (
   endValue: number,
   startValue: number = 0,
-  duration: number = 2000
-): [React.RefObject<HTMLDivElement>, number] => {
-  const [currentValue, setCurrentValue] = React.useState(startValue);
-  const ref = React.useRef<HTMLDivElement>(null);
-  const animationRef = React.useRef<number>(0);
-  const hasAnimated = React.useRef<boolean>(false);
+  duration: number = 400
+): number => {
+  const [currentValue, setCurrentValue] = React.useState(endValue);
+  const animationRef = React.useRef<number | null>(null);
+  const currentValueRef = React.useRef(endValue);
 
   React.useEffect(() => {
-    // Check for reduced motion preference
-    const prefersReducedMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)'
-    ).matches;
-
-    // If reduced motion is preferred, just set the final value instantly
-    if (prefersReducedMotion) {
+    if (typeof window === 'undefined') {
       setCurrentValue(endValue);
+      currentValueRef.current = endValue;
       return;
     }
 
-    const element = ref.current;
-    if (!element) return;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion || duration <= 0) {
+      setCurrentValue(endValue);
+      currentValueRef.current = endValue;
+      return;
+    }
 
-    // IntersectionObserver to start animation when element is visible
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated.current) {
-          hasAnimated.current = true;
-          let startTime: number | null = null;
+    const start = currentValueRef.current;
+    const delta = endValue - start;
 
-          const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
-            const step = (timestamp: number) => {
-              if (!startTime) startTime = timestamp;
-              const progress = timestamp - startTime;
-              const linear = Math.min(progress / duration, 1); // 0 to 1
-              const eased = easeOutQuint(linear);
+    if (delta === 0) {
+      setCurrentValue(endValue);
+      currentValueRef.current = endValue;
+      return;
+    }
 
-              const nextValue = startValue + (endValue - startValue) * eased;
-              setCurrentValue(nextValue);
+    let startTime: number | null = null;
+    const step = (timestamp: number) => {
+      if (startTime === null) {
+        startTime = timestamp;
+      }
 
-              if (linear < 1) {
-                animationRef.current = requestAnimationFrame(step);
-              }
-            };
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const nextValue = start + delta * eased;
 
-          animationRef.current = requestAnimationFrame(step);
-        }
-      },
-      { threshold: 0.5 } // Trigger when 50% of the element is visible
-    );
+      currentValueRef.current = nextValue;
+      setCurrentValue(nextValue);
 
-    observer.observe(element);
-
-    // Cleanup function
-    return () => {
-      observer.unobserve(element);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+      if (progress < 1) {
+        animationRef.current = window.requestAnimationFrame(step);
+      } else {
+        currentValueRef.current = endValue;
+        setCurrentValue(endValue);
       }
     };
-  }, [endValue, startValue, duration]);
 
-  return [ref, currentValue];
+    animationRef.current = window.requestAnimationFrame(step);
+
+    return () => {
+      if (animationRef.current !== null) {
+        window.cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [duration, endValue]);
+
+  return currentValue;
 };
