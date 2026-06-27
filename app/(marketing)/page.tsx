@@ -1,3 +1,4 @@
+"use client"
 /**
  * MarketingRoute - Main landing page for the marketing site.
  *
@@ -18,14 +19,18 @@ import { AnimatedBackground } from "@/components/ui/animated-background";
 import Navbar from "./_components/navbar";
 import KpiStrip from "./_sections/kpi-strip";
 import { CTA } from "./_sections/cta";
+import { useParallax } from "@/hooks/use-parallax";
 
 export default function MarketingRoute() {
+  const orbRef1 = useParallax({ depth: -20 });
+  const orbRef2 = useParallax({ depth: 15 });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#5B21B6] via-[#6B21A8] to-[#7C3AED] relative overflow-hidden">
-      {/* Gradient Orbs */}
+      {/* Gradient Orbs with Parallax */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-0 top-0 h-[600px] w-[600px] rounded-full bg-[#C397EB33] blur-[120px]" />
-        <div className="absolute bottom-0 right-0 h-[600px] w-[600px] rounded-full bg-[#4F46E533] blur-[120px]" />
+        <div ref={orbRef1} className="absolute left-0 top-0 h-[600px] w-[600px] rounded-full bg-[#C397EB33] blur-[120px]" />
+        <div ref={orbRef2} className="absolute bottom-0 right-0 h-[600px] w-[600px] rounded-full bg-[#4F46E533] blur-[120px]" />
       </div>
       <AnimatedBackground />
       <Navbar />
@@ -39,3 +44,4 @@ export default function MarketingRoute() {
     </div>
   );
 }
+
