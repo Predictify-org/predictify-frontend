@@ -1,14 +1,58 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Archive, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+
+export type EmptyStateVariant = "predictions" | "disputes" | "payouts" | "system";
+
+interface VariantConfig {
+  illustration: string;
+  headline: string;
+  description: string;
+  ctaLabel: string;
+  ctaHref: string;
+}
+
+const EMPTY_STATE_VARIANTS = {
+  predictions: {
+    illustration: "/assets/empty-states/timeline/predictions.svg",
+    headline: "No predictions yet",
+    description: "Start predicting on events to see your activity here.",
+    ctaLabel: "Start predicting",
+    ctaHref: "/events",
+  },
+  disputes: {
+    illustration: "/assets/empty-states/timeline/disputes.svg",
+    headline: "No disputes filed",
+    description: "File a dispute on resolved events to see your activity here.",
+    ctaLabel: "View events",
+    ctaHref: "/disputes",
+  },
+  payouts: {
+    illustration: "/assets/empty-states/timeline/payouts.svg",
+    headline: "No payouts recorded",
+    description: "Claim your winnings to see payout activity here.",
+    ctaLabel: "View finances",
+    ctaHref: "/finances",
+  },
+  system: {
+    illustration: "/assets/empty-states/timeline/system.svg",
+    headline: "No activities yet",
+    description: "Start making predictions and trading to see your activities here.",
+    ctaLabel: "Get started",
+    ctaHref: "/dashboard",
+  },
+} satisfies Record<EmptyStateVariant, VariantConfig>;
 
 interface ActivityTimelineEmptyProps {
   className?: string;
   title?: string;
   description?: string;
+  variant?: EmptyStateVariant;
 }
 
 /**
@@ -17,9 +61,12 @@ interface ActivityTimelineEmptyProps {
  */
 export function ActivityTimelineEmpty({
   className,
-  title = "No Activities Yet",
+  title,
   description,
+  variant = "system",
 }: ActivityTimelineEmptyProps) {
+  const config = EMPTY_STATE_VARIANTS[variant];
+
   return (
     <div
       className={cn(
@@ -27,23 +74,28 @@ export function ActivityTimelineEmpty({
         className
       )}
     >
-      {/* Empty State Icon */}
-      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-        <Archive className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
+      {/* Empty State Illustration */}
+      <div className="w-24 h-24 sm:w-32 sm:h-32 mb-4 text-gray-400">
+        <Image
+          src={config.illustration}
+          alt={config.headline}
+          width={128}
+          height={128}
+          className="w-full h-full"
+        />
       </div>
 
       {/* Empty State Text */}
       <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
-        {title}
+        {title || config.headline}
       </h3>
       <p className="text-sm sm:text-base text-gray-600 max-w-sm">
-        {description ||
-          "Your activity timeline is empty. Start making predictions and trading to see your activities here."}
+        {description || config.description}
       </p>
 
       {/* Call to Action */}
-      <Button className="mt-6" variant="default">
-        Get Started
+      <Button asChild className="mt-6">
+        <Link href={config.ctaHref}>{config.ctaLabel}</Link>
       </Button>
     </div>
   );

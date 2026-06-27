@@ -17,8 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronDown, AlertCircle } from "lucide-react";
 import { ActivityTimelineItem } from "./activity-timeline-item";
-import { ActivityTimelineEmpty } from "./activity-timeline-empty";
-import { ActivityTimelineError } from "./activity-timeline-error";
+import { ActivityTimelineEmpty, ActivityTimelineError, EmptyStateVariant } from "./activity-timeline-empty";
 
 interface ActivityTimelineProps {
   className?: string;
@@ -32,6 +31,8 @@ interface ActivityTimelineProps {
   pageSize?: number;
   /** Callback when user clicks "load more" */
   onLoadMore?: () => void;
+  /** Variant for empty state display */
+  emptyStateVariant?: EmptyStateVariant;
 }
 
 /**
@@ -59,6 +60,7 @@ export function ActivityTimeline({
   error = null,
   pageSize = 6,
   onLoadMore,
+  emptyStateVariant,
 }: ActivityTimelineProps) {
   const [groupedActivities, setGroupedActivities] = useState<GroupedActivity[]>(
     []
@@ -144,7 +146,7 @@ export function ActivityTimeline({
 
   // Empty state
   if (activityData.length === 0) {
-    return <ActivityTimelineEmpty className={className} />;
+    return <ActivityTimelineEmpty className={className} variant={emptyStateVariant} />;
   }
 
   return (

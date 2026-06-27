@@ -28,7 +28,44 @@ describe("ActivityTimeline Component", () => {
     it("should render empty state when no activities", () => {
       render(<ActivityTimeline activities={[]} />);
       expect(screen.getByText(/no activities yet/i)).toBeInTheDocument();
-      expect(screen.getByText(/activity timeline is empty/i)).toBeInTheDocument();
+      expect(screen.getByText(/start making predictions/i)).toBeInTheDocument();
+    });
+
+    it("should render predictions empty state variant", () => {
+      render(<ActivityTimeline activities={[]} emptyStateVariant="predictions" />);
+      expect(screen.getByText(/no predictions yet/i)).toBeInTheDocument();
+      expect(screen.getByText(/start predicting/i)).toBeInTheDocument();
+      const link = screen.getByRole("link", { name: /start predicting/i });
+      expect(link).toHaveAttribute("href", "/events");
+    });
+
+    it("should render disputes empty state variant", () => {
+      render(<ActivityTimeline activities={[]} emptyStateVariant="disputes" />);
+      expect(screen.getByText(/no disputes filed/i)).toBeInTheDocument();
+      expect(screen.getByText(/view events/i)).toBeInTheDocument();
+      const link = screen.getByRole("link", { name: /view events/i });
+      expect(link).toHaveAttribute("href", "/disputes");
+    });
+
+    it("should render payouts empty state variant", () => {
+      render(<ActivityTimeline activities={[]} emptyStateVariant="payouts" />);
+      expect(screen.getByText(/no payouts recorded/i)).toBeInTheDocument();
+      expect(screen.getByText(/view finances/i)).toBeInTheDocument();
+      const link = screen.getByRole("link", { name: /view finances/i });
+      expect(link).toHaveAttribute("href", "/finances");
+    });
+
+    it("should render system empty state variant by default", () => {
+      render(<ActivityTimeline activities={[]} />);
+      expect(screen.getByText(/no activities yet/i)).toBeInTheDocument();
+      expect(screen.getByText(/get started/i)).toBeInTheDocument();
+      const link = screen.getByRole("link", { name: /get started/i });
+      expect(link).toHaveAttribute("href", "/dashboard");
+    });
+
+    it("should render system empty state variant for unknown variant", () => {
+      render(<ActivityTimeline activities={[]} emptyStateVariant={"unknown" as any} />);
+      expect(screen.getByText(/no activities yet/i)).toBeInTheDocument();
     });
 
     it("should render loading state when isLoading is true", () => {
