@@ -643,45 +643,7 @@ fn next_stream_id(env: &Env) -> u64 {
     match env.storage().persistent().get(&DataKey::NextStreamId) {
         Some(id) => id,
         None => 1,
-    /// Pauses an active stream, freezing accrual while preserving vested funds.
-    ///
-    /// Only the stream sender may call this. On pause, status is set to Paused
-    /// and pause_time is recorded. Vested amount remains withdrawable but does
-    /// not increase while paused.
-    pub fn pause(env: Env, stream_id: u64) -> Result<Stream, Error> {
-        let mut stream = get_existing_stream(&env, stream_id)?;
-        stream.sender.require_auth();
-
-        if stream.status != StreamStatus::Active {
-            return Err(Error::InvalidState);
-        }
-
-        let now = env.ledger().timestamp();
-
-        stream.last_update = now;
-        stream.status = StreamStatus::Paused;
-        stream.pause_time = now;
-
-        storage::set_stream(&env, stream_id, &stream);
-        
-        // Emit admin_action event for pause
-        events::admin_action(
-            &env,
-            stream_id,
-            &stream.sender,
-            soroban_sdk::symbol_short!("pause"),
-            now,
-        );
-
-        Ok(stream)
     }
-
-/// Fetches a stream by ID, returning [`Error::NotFound`] if absent.
-fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
-    env.storage()
-        .persistent()
-        .get(&DataKey::Stream(stream_id))
-        .ok_or(Error::NotFound)
 }
 
 /// Computes the token amount accrued and not yet withdrawn for `stream`.
