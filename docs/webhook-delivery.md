@@ -195,6 +195,17 @@ To prevent cascading failures when an endpoint is permanently unavailable, Strea
 - Allows failed endpoints to recover without retry spam
 - Improves resource efficiency
 
+## Durable webhook subscription store
+
+StreamPay also supports a durable subscription store for managing webhook endpoints outside of process memory. The store validates URLs and event types at the boundary, persists subscriptions with a PostgreSQL-oriented schema, and exposes create/list/get/update/delete operations for downstream services.
+
+### Contract
+
+- `url` must be a valid absolute HTTP(S) URL.
+- `eventTypes` must contain at least one non-empty entry.
+- `status` is normalized to `active` or `inactive`.
+- The backing store writes rows to `webhook_subscriptions` so a restart does not drop registrations.
+
 ## Dead Letter Queue (DLQ)
 
 When a webhook exhausts all retries (10 attempts over ~18 minutes), it moves to the DLQ.
