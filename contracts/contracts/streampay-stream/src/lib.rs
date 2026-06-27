@@ -674,43 +674,7 @@ fn next_stream_id(env: &Env) -> u64 {
         );
 
         Ok(stream)
-    }#618 Add NatSpec-style /// docs to every public entrypoint
-Repo Avatar
-Streampay-Org/StreamPay-Frontend
-Description
-This is a smart-contract issue for the GrantFox campaign. This is a smart-contract issue for the GrantFox campaign. Doc every public fn with semantics and errors.
-
-Requirements and Context
-Implement per the description
-Add focused tests
-Document any API changes
-Run the standard verification for this domain
-Must be secure, tested, and documented
-Should be efficient and easy to review
-Suggested Execution
-Fork the repo and create a branch
-git checkout -b task/natspec-docs
-Implement changes
-contracts/contracts/streampay-stream/src/lib.rs
-Test and commit
-Run the repo's standard test suite and lint
-Cover edge cases; include output in the PR
-Example commit message
-
-feat: add natspec-style /// docs to every public entrypoint
-Acceptance Criteria
- Implementation matches design
- Tests pass for the domain
- Code review approved
- Docs updated
-Guidelines
-Minimum 95% test coverage with cargo test
-require_auth on every state-changing entrypoint
-Overflow-safe math; no unwrap() in production paths
-Clear NatSpec-style /// rustdoc
-Timeframe: 96 hours
-
-
+    }
 
 /// Fetches a stream by ID, returning [`Error::NotFound`] if absent.
 fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
