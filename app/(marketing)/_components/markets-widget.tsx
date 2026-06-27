@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, TrendingUp, Globe, BarChart3, CheckCircle2, Coins } from "lucide-react";
+import LanguageBadge from "@/components/LanguageBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { sampleMarkets, winNotifications, type Market } from "@/content/markets.sample";
