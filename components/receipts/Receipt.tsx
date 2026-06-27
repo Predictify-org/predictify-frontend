@@ -32,31 +32,31 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
       <div className="space-y-4 mb-8">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-sm text-muted-foreground uppercase tracking-wider">Date</p>
-            <p className="font-medium">{new Date(timestamp).toLocaleString()}</p>
+            <p className="text-label text-muted-foreground uppercase tracking-wider">Date</p>
+            <p className="text-body-md font-medium">{new Date(timestamp).toLocaleString()}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground uppercase tracking-wider">Amount</p>
-            <p className="font-medium text-lg">{amount}</p>
+            <p className="text-label text-muted-foreground uppercase tracking-wider">Amount</p>
+            <p className="text-stat-md font-bold">{amount}</p>
           </div>
         </div>
         
         <div className="grid grid-cols-2 gap-4 border-t pt-4">
           <div>
-            <p className="text-sm text-muted-foreground uppercase tracking-wider">Primary Party</p>
-            <p className="font-medium truncate">{partyA}</p>
+            <p className="text-label text-muted-foreground uppercase tracking-wider">Primary Party</p>
+            <p className="text-body-md font-medium truncate">{partyA}</p>
           </div>
           {partyB && (
             <div>
-              <p className="text-sm text-muted-foreground uppercase tracking-wider">Counterparty</p>
-              <p className="font-medium truncate">{partyB}</p>
+              <p className="text-label text-muted-foreground uppercase tracking-wider">Counterparty</p>
+              <p className="text-body-md font-medium truncate">{partyB}</p>
             </div>
           )}
         </div>
       </div>
       
       <div className="mt-8 pt-4 border-t border-dashed text-center">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           This document serves as an official receipt for the {type.toLowerCase()} transaction.
         </p>
       </div>
