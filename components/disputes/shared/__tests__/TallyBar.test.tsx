@@ -1,6 +1,22 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { TallyBar } from '../TallyBar';
 import { TallySide } from '@/types/disputes';
+
+const matchMediaMock = jest.fn();
+
+beforeEach(() => {
+  matchMediaMock.mockImplementation((query: string) => ({
+    matches: query === '(prefers-reduced-motion: reduce)' ? false : false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  }));
+  window.matchMedia = matchMediaMock as typeof window.matchMedia;
+});
 
 const makeSide = (label: string, amount: number, percentage: number): TallySide => ({
   label,
@@ -89,6 +105,60 @@ describe('TallyBar', () => {
       expect(label).toMatch(/60\.0/);
       expect(label).toMatch(/No/);
       expect(label).toMatch(/40\.0/);
+    });
+
+    it('renders a polite live region that announces updated totals', async () => {
+      const tally: [TallySide, TallySide] = [makeSide('Yes', 500, 60), makeSide('No', 333, 40)];
+      const { rerender } = render(<TallyBar tally={tally} showAmounts />);
+
+      rerender(<TallyBar tally={[makeSide('Yes', 700, 70), makeSide('No', 300, 30)]} showAmounts />);
+
+      await waitFor(() => {
+        const liveRegion = screen.getByText(/Yes: 70\.0 percent, 700 tokens/);
+        expect(liveRegion).toHaveAttribute('aria-live', 'polite');
+      });
+    });
+
+    it('uses the finalized values immediately when reduced motion is preferred', () => {
+      matchMediaMock.mockImplementation((query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      }));
+
+      const tally: [TallySide, TallySide] = [makeSide('Yes', 500, 60), makeSide('No', 333, 40)];
+      render(<TallyBar tally={tally} showAmounts />);
+
+      expect(screen.getByText('60.0%')).toBeInTheDocument();
+      expect(screen.getByText('500 tokens')).toBeInTheDocument();
+    });
+
+    it('supports negative deltas without breaking the bar', async () => {
+      const tally: [TallySide, TallySide] = [makeSide('Yes', 500, 60), makeSide('No', 333, 40)];
+      const { rerender } = render(<TallyBar tally={tally} showAmounts />);
+
+      rerender(<TallyBar tally={[makeSide('Yes', 300, 30), makeSide('No', 700, 70)]} showAmounts />);
+
+      await waitFor(() => {
+        expect(screen.getByText('30.0%')).toBeInTheDocument();
+        expect(screen.getByText('70.0%')).toBeInTheDocument();
+      });
+    });
+
+    it('handles a zero baseline by rendering a stable 50/50 split', async () => {
+      const tally: [TallySide, TallySide] = [makeSide('Yes', 0, 0), makeSide('No', 0, 0)];
+      const { rerender } = render(<TallyBar tally={tally} showAmounts />);
+
+      rerender(<TallyBar tally={[makeSide('Yes', 0, 0), makeSide('No', 0, 0)]} showAmounts />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText('50.0%')).toHaveLength(2);
+      });
     });
 
     it('includes token amounts in the aria-label when showAmounts is true', () => {

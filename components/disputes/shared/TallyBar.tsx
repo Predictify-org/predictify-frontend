@@ -1,6 +1,9 @@
+import * as React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Check, X } from 'lucide-react';
 import { TallySide } from '@/types/disputes';
 import { cn } from '@/lib/utils';
+import { useCountUp } from '@/hooks/use-count-up';
 
 interface TallyBarProps {
   tally: [TallySide, TallySide];
@@ -16,12 +19,37 @@ function normalise(a: number, b: number): [number, number] {
 export function TallyBar({ tally, showAmounts = false }: TallyBarProps) {
   const [left, right] = tally;
   const [leftPct, rightPct] = normalise(left.percentage, right.percentage);
+  const reducedMotion = useReducedMotion();
+  const animatedLeftPct = useCountUp(leftPct, 0, 400);
+  const animatedRightPct = useCountUp(rightPct, 0, 400);
+  const animatedLeftAmount = useCountUp(left.amount, 0, 400);
+  const animatedRightAmount = useCountUp(right.amount, 0, 400);
+  const [liveMessage, setLiveMessage] = React.useState('');
+  const lastAnnouncedMessage = React.useRef('');
+  const hasMountedRef = React.useRef(false);
 
-  // Accessible summary of the whole bar.
+  const leftPctLabel = `${animatedLeftPct.toFixed(1)}%`;
+  const rightPctLabel = `${animatedRightPct.toFixed(1)}%`;
+  const leftAmountLabel = `${Math.round(animatedLeftAmount).toLocaleString()} tokens`;
+  const rightAmountLabel = `${Math.round(animatedRightAmount).toLocaleString()} tokens`;
+
   const ariaSummary = showAmounts
-    ? `${left.label}: ${leftPct.toFixed(1)} percent, ${left.amount.toLocaleString()} tokens. ` +
-      `${right.label}: ${rightPct.toFixed(1)} percent, ${right.amount.toLocaleString()} tokens.`
-    : `${left.label}: ${leftPct.toFixed(1)} percent. ${right.label}: ${rightPct.toFixed(1)} percent.`;
+    ? `${left.label}: ${animatedLeftPct.toFixed(1)} percent, ${leftAmountLabel}. ` +
+      `${right.label}: ${animatedRightPct.toFixed(1)} percent, ${rightAmountLabel}.`
+    : `${left.label}: ${animatedLeftPct.toFixed(1)} percent. ${right.label}: ${animatedRightPct.toFixed(1)} percent.`;
+
+  React.useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      lastAnnouncedMessage.current = ariaSummary;
+      return;
+    }
+
+    if (ariaSummary && ariaSummary !== lastAnnouncedMessage.current) {
+      setLiveMessage(ariaSummary);
+      lastAnnouncedMessage.current = ariaSummary;
+    }
+  }, [ariaSummary]);
 
   return (
     <div className="w-full space-y-1">
@@ -32,8 +60,8 @@ export function TallyBar({ tally, showAmounts = false }: TallyBarProps) {
 
       {showAmounts && (
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{left.amount.toLocaleString()} tokens</span>
-          <span>{right.amount.toLocaleString()} tokens</span>
+          <span>{leftAmountLabel}</span>
+          <span>{rightAmountLabel}</span>
         </div>
       )}
 
@@ -42,31 +70,39 @@ export function TallyBar({ tally, showAmounts = false }: TallyBarProps) {
         role="img"
         aria-label={ariaSummary}
       >
-        <div
+        <motion.div
           className={cn(
-            'bg-chart-1 transition-all duration-300 flex items-center justify-center',
+            'bg-chart-1 flex items-center justify-center',
             'text-[10px] font-medium text-white'
           )}
-          style={{ width: `${leftPct}%` }}
-          aria-label={`${left.label}: ${leftPct.toFixed(1)}%`}
+          style={{ width: `${animatedLeftPct}%` }}
+          animate={{ width: `${animatedLeftPct}%` }}
+          transition={{ type: 'spring', damping: 26, stiffness: 240, duration: reducedMotion ? 0 : undefined }}
+          aria-label={`${left.label}: ${animatedLeftPct.toFixed(1)}%`}
         >
           <Check className="h-2.5 w-2.5" aria-hidden="true" />
-        </div>
-        <div
+        </motion.div>
+        <motion.div
           className={cn(
-            'bg-chart-2 transition-all duration-300 flex items-center justify-center',
+            'bg-chart-2 flex items-center justify-center',
             'text-[10px] font-medium text-white'
           )}
-          style={{ width: `${rightPct}%` }}
-          aria-label={`${right.label}: ${rightPct.toFixed(1)}%`}
+          style={{ width: `${animatedRightPct}%` }}
+          animate={{ width: `${animatedRightPct}%` }}
+          transition={{ type: 'spring', damping: 26, stiffness: 240, duration: reducedMotion ? 0 : undefined }}
+          aria-label={`${right.label}: ${animatedRightPct.toFixed(1)}%`}
         >
           <X className="h-2.5 w-2.5" aria-hidden="true" />
-        </div>
+        </motion.div>
       </div>
 
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{leftPct.toFixed(1)}%</span>
-        <span>{rightPct.toFixed(1)}%</span>
+        <span>{leftPctLabel}</span>
+        <span>{rightPctLabel}</span>
+      </div>
+
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {liveMessage}
       </div>
     </div>
   );
