@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { StreamReceipt } from "../../../components/StreamReceipt";
+import { ReceiptBuilder } from "../../../components/ReceiptBuilder";
 import type { Stream } from "../../../types/openapi";
 
 // Placeholder streams that match the mock data used across the app.
@@ -65,7 +65,7 @@ export default async function StreamReceiptPage({ params }: Props) {
     process.env.STELLAR_NETWORK === "mainnet" ? "mainnet" : "testnet";
 
   return (
-    <StreamReceipt
+    <ReceiptBuilder
       generatedAt={new Date().toISOString()}
       network={network}
       stream={stream}

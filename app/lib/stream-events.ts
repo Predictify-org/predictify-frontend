@@ -46,6 +46,17 @@ export type StreamRecord = {
   id: string;
   /** Unix timestamp (ms) of the last settlement tick. */
   lastSettlementAt: number;
+  /**
+   * ISO-8601 UTC timestamp set the moment the stream transitions to `paused`.
+   *
+   * - Set by:     `applyEvent("pause")` when the transition succeeds.
+   * - Cleared by: `applyEvent("start")` when resuming from `paused`.
+   * - Undefined on newly created, active, ended, or withdrawn streams.
+   *
+   * Maps to the Soroban contract's `paused_at` storage field
+   * (GrantFox campaign, issue #pause-entrypoint).
+   */
+  pausedAt?: number;
   /** Current lifecycle status. */
   status: StreamStatus;
   /** Owning tenant identifier — used for cross-tenant access control. */
@@ -68,7 +79,9 @@ const VALID_COMMAND_TYPES = new Set<string>([
  * @property type             - The command to execute.
  * @property actorTenantId    - Tenant ID of the caller; must match stream.tenantId.
  * @property idempotencyKey   - Optional deduplication key; same key returns cached result.
- * @property at               - Timestamp override for `settle_tick` (defaults to Date.now()).
+ * @property at               - Timestamp override (Unix ms). Used as the reference time
+ *                              for `settle_tick` (lastSettlementAt) and for `pause`
+ *                              (pausedAt). Defaults to Date.now().
  * @property settleAmount     - Amount to move from escrow → available on `settle_tick`.
  * @property processingDelayMs - Artificial delay for testing concurrency (ms).
  */
@@ -147,6 +160,7 @@ function cloneStream(stream: StreamRecord): StreamRecord {
     ...stream,
     availableBalance: BigInt(stream.availableBalance),
     escrowBalance: BigInt(stream.escrowBalance),
+    // pausedAt is a plain number (or undefined) — spread handles it correctly
   };
 }
 
@@ -445,6 +459,17 @@ export class InMemoryStreamStore {
         const actionResult = transition(stream.status, command.type as StreamAction);
         if (actionResult.ok) {
           stream.status = actionResult.nextStatus;
+
+          // ── pause/resume timestamp accounting ────────────────────────────
+          // Set pausedAt when the stream enters paused; clear it on resume.
+          // Uses the command's `at` override when provided (enables deterministic
+          // tests), otherwise falls back to wall-clock time.
+          if (command.type === "pause" && stream.status === "paused") {
+            stream.pausedAt = command.at ?? Date.now();
+          } else if (command.type === "start" && stream.status === "active") {
+            stream.pausedAt = undefined;
+          }
+
           result = { ok: true, stream: cloneStream(stream) };
         } else {
           result = streamError(409, actionResult.code, actionResult.error);

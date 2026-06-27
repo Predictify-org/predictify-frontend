@@ -66,13 +66,23 @@ export async function POST(
       return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
 
-    if (stream.status !== "draft") {
-      return createErrorResponse("INVALID_STREAM_STATE", "Only draft streams can be started", 409);
+    // Allow both draft→active (initial start) and paused→active (resume).
+    // Any other status is an illegal transition.
+    if (stream.status !== "draft" && stream.status !== "paused") {
+      return createErrorResponse(
+        "INVALID_STREAM_STATE",
+        `Cannot start a stream in '${stream.status}' status. Stream must be draft or paused.`,
+        409,
+      );
     }
 
+    const isResume = stream.status === "paused";
+
     const actorAddress = getHeader(request, "Actor-Wallet-Address");
+    // Use "start" for initial activation; "resume" maps to "start" in the org policy
+    const orgAction = "start" as const;
     const policyResult = actorAddress
-      ? checkStreamOrgPolicy(id, actorAddress, "start")
+      ? checkStreamOrgPolicy(id, actorAddress, orgAction)
       : null;
     if (policyResult) {
       if (!policyResult.allowed) {
@@ -90,6 +100,10 @@ export async function POST(
     const updatedStream = {
       ...stream,
       nextAction: "pause" as const,
+      // Clear pausedAt when resuming — the field only tracks when the stream
+      // entered paused state and is meaningless once it is active again.
+      // Cleared here to prevent stale timestamps appearing in API responses.
+      pausedAt: undefined as string | undefined,
       status: "active" as const,
       updatedAt: new Date().toISOString(),
     };
@@ -100,9 +114,9 @@ export async function POST(
       setIdempotency(db.idempotency, token, fingerprint, 200, payload);
     }
 
-    logger.info("Stream started successfully", {
+    logger.info(isResume ? "Stream resumed successfully" : "Stream started successfully", {
       streamId: id,
-      action: "start",
+      action: isResume ? "resume" : "start",
       status: "success",
     });
 

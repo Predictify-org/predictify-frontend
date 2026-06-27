@@ -10,27 +10,29 @@
  *   - is_paused()               — public view
  *   - set_admin(new_admin)      — gated by current admin auth; cannot zero the admin
  *
+ * ## Upgrade Timelock (Two-step)
+ *
+ * Implements a two-step upgrade process with 48h timelock:
+ *   1. schedule_upgrade(upgrade_data) — admin only, starts the timer
+ *   2. execute_upgrade()              — admin only, after timelock expires
+ *   3. cancel_upgrade()               — admin only, cancels a pending upgrade
+ *
  * ## Contract errors (mapped to HTTP)
  *   - Unauthorized    → 403  (non-admin attempted a privileged op)
  *   - ContractPaused  → 503  (global pause is active)
- *
- * ## What is blocked when paused
- *   - create_stream  (POST /api/streams)
- *   - withdraw       (POST /api/streams/:id/withdraw)
- *
- * ## What remains allowed when paused
- *   - cancel_stream  — recipients must always be able to cancel to recover vested funds
- *   - settle         — settlement of already-active streams is allowed to prevent fund lock
- *   - read endpoints — GET routes are never blocked
- *
- * ## Admin bootstrap
- * The admin address is seeded from the STREAMPAY_ADMIN_ADDRESS env var at
- * module load. In development, a placeholder is used with a warning.
- * In production, the env var is required (fail-fast).
+ *   - TimelockActive  → 400  (upgrade is scheduled but not ready)
+ *   - NoUpgradeScheduled → 400 (no upgrade to cancel or execute)
+ *   - TimelockNotExpired → 400 (trying to execute too early)
  */
 
 import { NextResponse } from "next/server";
 import { tryAuthenticateRequest } from "./auth";
+import crypto from "crypto";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const TIMELOCK_HOURS = 48;
+const TIMELOCK_MS = TIMELOCK_HOURS * 60 * 60 * 1000;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,6 +45,23 @@ export interface AdminState {
   pausedAt: string | null;
   /** ISO-8601 timestamp of the last admin rotation. */
   adminRotatedAt: string | null;
+  /** Pending upgrade (if any). */
+  pendingUpgrade: PendingUpgrade | null;
+}
+
+export interface PendingUpgrade {
+  /** Unique identifier for this upgrade. */
+  id: string;
+  /** Opaque upgrade data (e.g., new code hash, config). */
+  data: string;
+  /** ISO-8601 timestamp when the upgrade was scheduled. */
+  scheduledAt: string;
+  /** ISO-8601 timestamp when the upgrade becomes executable. */
+  executableAt: string;
+  /** ISO-8601 timestamp when the upgrade was executed (if any). */
+  executedAt: string | null;
+  /** ISO-8601 timestamp when the upgrade was cancelled (if any). */
+  cancelledAt: string | null;
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -76,6 +95,7 @@ const _state: AdminState = {
   paused:         false,
   pausedAt:       null,
   adminRotatedAt: null,
+  pendingUpgrade: null,
 };
 
 // ── Public view ───────────────────────────────────────────────────────────────
@@ -195,6 +215,171 @@ export function setAdmin(
   return { ..._state };
 }
 
+// ── Upgrade Timelock Functions ───────────────────────────────────────────────
+
+/**
+ * Schedule an upgrade with a 48h timelock.
+ *
+ * Gated by admin auth. Only one upgrade can be scheduled at a time.
+ *
+ * @param request    Incoming HTTP request (used to verify admin identity).
+ * @param data       Opaque upgrade data (e.g., new code hash, config).
+ * @returns          Updated AdminState or a NextResponse error.
+ */
+export function scheduleUpgrade(
+  request: Request,
+  data: string,
+): AdminState | NextResponse {
+  const authResult = requireAdmin(request);
+  if (authResult instanceof NextResponse) return authResult;
+
+  if (!data || data.trim().length === 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "InvalidRequest",
+          message: "Upgrade data must not be empty.",
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  if (_state.pendingUpgrade && !_state.pendingUpgrade.cancelledAt && !_state.pendingUpgrade.executedAt) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "UpgradeAlreadyScheduled",
+          message: "An upgrade is already scheduled. Cancel it first before scheduling a new one.",
+        },
+      },
+      { status: 409 },
+    );
+  }
+
+  const now = new Date();
+  const scheduledAt = now.toISOString();
+  const executableAt = new Date(now.getTime() + TIMELOCK_MS).toISOString();
+
+  _state.pendingUpgrade = {
+    id: `upgrade-${crypto.randomUUID()}`,
+    data: data.trim(),
+    scheduledAt,
+    executableAt,
+    executedAt: null,
+    cancelledAt: null,
+  };
+
+  return { ..._state };
+}
+
+/**
+ * Cancel a pending upgrade.
+ *
+ * Gated by admin auth. Only cancels a pending, non-executed upgrade.
+ *
+ * @param request    Incoming HTTP request (used to verify admin identity).
+ * @returns          Updated AdminState or a NextResponse error.
+ */
+export function cancelUpgrade(
+  request: Request,
+): AdminState | NextResponse {
+  const authResult = requireAdmin(request);
+  if (authResult instanceof NextResponse) return authResult;
+
+  if (!_state.pendingUpgrade || _state.pendingUpgrade.cancelledAt || _state.pendingUpgrade.executedAt) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "NoUpgradeScheduled",
+          message: "There is no pending upgrade to cancel.",
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  _state.pendingUpgrade = {
+    ..._state.pendingUpgrade,
+    cancelledAt: new Date().toISOString(),
+  };
+
+  return { ..._state };
+}
+
+/**
+ * Execute a scheduled upgrade after the timelock expires.
+ *
+ * Gated by admin auth. Only executes a scheduled upgrade that is ready.
+ *
+ * @param request    Incoming HTTP request (used to verify admin identity).
+ * @returns          Updated AdminState or a NextResponse error.
+ */
+export function executeUpgrade(
+  request: Request,
+): AdminState | NextResponse {
+  const authResult = requireAdmin(request);
+  if (authResult instanceof NextResponse) return authResult;
+
+  if (!_state.pendingUpgrade) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "NoUpgradeScheduled",
+          message: "There is no pending upgrade to execute.",
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  if (_state.pendingUpgrade.cancelledAt) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "UpgradeCancelled",
+          message: "This upgrade has been cancelled.",
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  if (_state.pendingUpgrade.executedAt) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "UpgradeAlreadyExecuted",
+          message: "This upgrade has already been executed.",
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  const now = new Date();
+  const executableAt = new Date(_state.pendingUpgrade.executableAt);
+
+  if (now < executableAt) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "TimelockNotExpired",
+          message: `Upgrade timelock not expired. It will be executable at ${executableAt.toISOString()}.`,
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  _state.pendingUpgrade = {
+    ..._state.pendingUpgrade,
+    executedAt: new Date().toISOString(),
+  };
+
+  return { ..._state };
+}
+
 // ── Circuit-breaker guard ─────────────────────────────────────────────────────
 
 /**
@@ -231,4 +416,5 @@ export function _resetAdminStateForTesting(adminAddress = DEV_ADMIN_PLACEHOLDER)
   _state.paused         = false;
   _state.pausedAt       = null;
   _state.adminRotatedAt = null;
+  _state.pendingUpgrade = null;
 }

@@ -1,3 +1,49 @@
+/**
+ * POST /api/streams/:id/pause
+ *
+ * Pause entrypoint — halts individual stream accrual and records the
+ * pause timestamp (`pausedAt`) on the stream record.
+ *
+ * ## State transition
+ *   active → paused
+ *
+ * ## Fields written on success
+ * | Field       | Value                                      |
+ * |-------------|--------------------------------------------|
+ * | `status`    | `"paused"`                                 |
+ * | `nextAction`| `"stop"`                                   |
+ * | `pausedAt`  | ISO-8601 UTC timestamp of this request.    |
+ * | `updatedAt` | ISO-8601 UTC timestamp of this request.    |
+ *
+ * `pausedAt` maps to the Soroban contract's `paused_at` storage field on
+ * the stream escrow account (GrantFox campaign, issue #pause-entrypoint).
+ * The settlement catch-up job uses this value to compute accrued-but-
+ * unsettled ticks between `pausedAt` and the subsequent resume.
+ *
+ * ## Fields cleared on resume
+ * `pausedAt` is set to `undefined` when `POST /api/streams/:id/start`
+ * successfully resumes the stream from `paused` status.
+ *
+ * ## Auth
+ * Org-owned streams require an `Actor-Wallet-Address` header carrying a
+ * wallet address with a role that has `canPause` permission (owner or pauser
+ * in the default policy). Individually owned streams skip the RBAC check.
+ *
+ * ## Idempotency
+ * Supply an `Idempotency-Key` header to make the operation safe to retry.
+ * The same key on the same stream always returns the same cached response.
+ *
+ * ## Error codes
+ * | Status | Code                    | Reason                                   |
+ * |--------|-------------------------|------------------------------------------|
+ * | 404    | `STREAM_NOT_FOUND`      | Stream does not exist.                   |
+ * | 409    | `INVALID_STREAM_STATE`  | Stream is not `active`.                  |
+ * | 403    | `NOT_ORG_MEMBER`        | Actor is not in the owning org.          |
+ * | 403    | `ROLE_INSUFFICIENT`     | Actor's role cannot pause.               |
+ * | 409    | `APPROVAL_REQUIRED`     | Org policy requires multi-sig approval.  |
+ * | 409    | `IDEMPOTENCY_CONFLICT`  | Key reused with a different request.     |
+ */
+
 import { NextResponse } from "next/server";
 import {
   checkIdempotency,
@@ -11,11 +57,12 @@ import { getCorrelationContext, logger } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
 
-type Context = { params: Promise<{ id: string }> };
-
 function createErrorResponse(code: string, message: string, status: number) {
   const context = getCorrelationContext();
-  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
+  return NextResponse.json(
+    { error: { code, message, request_id: context?.request_id } },
+    { status },
+  );
 }
 
 function getHeader(req: Request, name: string): string | null {
@@ -24,7 +71,7 @@ function getHeader(req: Request, name: string): string | null {
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
 
@@ -35,12 +82,18 @@ export async function POST(
 
   const fingerprint = computeFingerprint("POST", `/api/streams/${id}/pause`, null);
 
+  // Pre-lock idempotency check — avoids acquiring the lock for pure replays.
   if (token) {
     const cached = checkIdempotency(db.idempotency, token, fingerprint);
     if (cached) {
       if (!cached.ok) {
         return NextResponse.json(
-          { error: { code: "IDEMPOTENCY_CONFLICT", message: "Idempotency key has been used with a different request." } },
+          {
+            error: {
+              code: "IDEMPOTENCY_CONFLICT",
+              message: "Idempotency key has been used with a different request.",
+            },
+          },
           { status: 409 },
         );
       }
@@ -49,12 +102,19 @@ export async function POST(
   }
 
   return withLock(id, async () => {
+    // Post-lock idempotency check — guards against races between concurrent
+    // requests that both passed the pre-lock check simultaneously.
     if (token) {
       const cached = checkIdempotency(db.idempotency, token, fingerprint);
       if (cached) {
         if (!cached.ok) {
           return NextResponse.json(
-            { error: { code: "IDEMPOTENCY_CONFLICT", message: "Idempotency key has been used with a different request." } },
+            {
+              error: {
+                code: "IDEMPOTENCY_CONFLICT",
+                message: "Idempotency key has been used with a different request.",
+              },
+            },
             { status: 409 },
           );
         }
@@ -62,39 +122,59 @@ export async function POST(
       }
     }
 
-    const stream = db.streams[id];
+    const stream = db.streams.get(id);
     if (!stream) {
       return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
 
+    // ── Org RBAC ──────────────────────────────────────────────────────────
     const actorAddress = getHeader(req, "Actor-Wallet-Address");
     const policyResult = actorAddress
       ? checkStreamOrgPolicy(id, actorAddress, "pause")
       : null;
     if (policyResult) {
       if (!policyResult.allowed) {
-        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+        return createErrorResponse(
+          policyResult.code,
+          policyResult.message,
+          policyResult.httpStatus,
+        );
       }
       if (policyResult.requiresApproval) {
         return createErrorResponse(
           "APPROVAL_REQUIRED",
           "This action requires multi-sig approval. Please initiate an approval request.",
-          409
+          409,
         );
       }
     }
 
+    // ── State guard ───────────────────────────────────────────────────────
     if (stream.status !== "active") {
-      const body = { error: `Cannot pause a stream in '${stream.status}' status` };
-      return NextResponse.json(body, { status: 409 });
+      return createErrorResponse(
+        "INVALID_STREAM_STATE",
+        `Cannot pause a stream in '${stream.status}' status. Stream must be active.`,
+        409,
+      );
     }
 
+    // ── Mutation ──────────────────────────────────────────────────────────
+    const now = new Date().toISOString();
     const before = structuredClone(stream);
+
     const updated = {
       ...stream,
+      /**
+       * pausedAt: ISO-8601 UTC timestamp recorded the moment this stream
+       * enters paused status. Maps to the Soroban contract's `paused_at`
+       * storage field. Cleared by the /start endpoint on resume.
+       */
+      pausedAt: now,
+      nextAction: "stop" as const,
       status: "paused" as const,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     };
+
     db.streams.set(id, updated);
 
     recordPrivilegedStreamAuditEvent({
@@ -107,14 +187,16 @@ export async function POST(
     });
 
     const responseBody = { data: updated };
+
     if (token) {
       setIdempotency(db.idempotency, token, fingerprint, 200, responseBody);
     }
 
     logger.info("Stream paused successfully", {
-      streamId: id,
       action: "pause",
+      pausedAt: now,
       status: "success",
+      streamId: id,
     });
 
     return NextResponse.json(responseBody);
