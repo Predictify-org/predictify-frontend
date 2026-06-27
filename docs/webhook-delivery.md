@@ -577,6 +577,51 @@ Response:
 }
 ```
 
+### Admin Redeliver Endpoint
+
+```
+POST /api/admin/webhooks/redeliver
+Auth: Internal-service HMAC or admin JWT
+
+Request Body:
+{
+  "deliveryId": "del-01HZ9ABCDEF"
+}
+
+Response (200):
+{
+  "data": {
+    "deliveryId": "redeliver-<uuid>",
+    "originalDeliveryId": "del-01HZ9ABCDEF"
+  },
+  "links": {
+    "delivery": "/api/webhooks/deliveries?delivery_id=redeliver-<uuid>"
+  }
+}
+
+Error (404 - delivery not found):
+{
+  "error": {
+    "code": "DELIVERY_NOT_FOUND",
+    "message": "Delivery 'del-id' not found.",
+    "request_id": "req_..."
+  }
+}
+
+Error (400 - no snapshot data):
+{
+  "error": {
+    "code": "DELIVERY_NO_SNAPSHOT",
+    "message": "Delivery 'del-id' does not have full event/endpoint data...",
+    "request_id": "req_..."
+  }
+}
+
+**Idempotency:** Not enforced per call; each request creates a new delivery.
+**Data availability:** Requires deliveries recorded with full event/endpoint snapshots.
+Use the DLQ replay endpoint for older deliveries without snapshots.
+```
+
 ---
 
 ## Related Documentation

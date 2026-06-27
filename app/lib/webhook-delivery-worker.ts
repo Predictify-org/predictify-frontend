@@ -48,6 +48,7 @@ export class WebhookDeliveryWorker {
     endpoint: WebhookEndpoint,
     event: WebhookEvent,
     deliveryId: string,
+    reissuedFrom?: string,
   ): Promise<{ success: boolean; deliveryId: string; attempts: number; dlqed?: boolean }> {
     const ctx = getCorrelationContext();
     withWebhookContext(deliveryId);
@@ -60,7 +61,7 @@ export class WebhookDeliveryWorker {
     });
 
     try {
-      webhookDeliveryStore.createDelivery(deliveryId, endpoint, event);
+      webhookDeliveryStore.createDelivery(deliveryId, endpoint, event, reissuedFrom);
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         const result = await this.client.attemptDelivery(
@@ -313,6 +314,82 @@ export class WebhookDeliveryWorker {
     return { totalDLQEntries: s.dlqEntries, dlqedDeliveries: s.dlq,
              dlqEntries: webhookDeliveryStore.getAllDLQEntries() };
   }
-}
 
-export const webhookDeliveryWorker = new WebhookDeliveryWorker();
+  /**
+   * Reissue a webhook delivery for a given delivery ID.
+   *
+   * Creates a brand-new delivery with the same endpoint and event payload
+   * as the original delivery, then processes it through the standard retry
+   * lifecycle. The original delivery record is left unchanged — its status
+   * and attempt history are preserved for audit purposes.
+   *
+   * **Data availability:** The original delivery must have been created
+   * after the introduction of full event/endpoint snapshots (i.e. the
+   * `event` and `endpoint` fields on `WebhookDeliveryRecord`). Deliveries
+   * created before this change will not have the necessary data and cannot
+   * be reissued. In that case the caller should use the DLQ replay route
+   * (`POST /api/webhooks/dlq/:dlqId/replay`) instead, which works from
+   * DLQ entries that always carry the full payload.
+   *
+   * **Idempotency:** Not enforced at this level — the route handler may
+   * layer its own idempotency key check (e.g. `Idempotency-Key` header).
+   * A single delivery ID may be reissued multiple times; each call creates
+   * a separate new delivery.
+   *
+   * **Auth:** The caller (route handler) is responsible for verifying
+   * admin or internal-service auth before calling this method.
+   *
+   * @param deliveryId  - The ID of the delivery to reissue.
+   * @returns Result object with the new deliveryId and success flag.
+   */
+  async reissueDelivery(deliveryId: string): Promise<{
+    ok: boolean;
+    newDeliveryId?: string;
+    error?: string;
+  }> {
+    const context = getCorrelationContext();
+
+    const record = webhookDeliveryStore.getDelivery(deliveryId);
+    if (!record) {
+      return { ok: false, error: `Delivery '${deliveryId}' not found.` };
+    }
+
+    if (!record.event || !record.endpoint) {
+      return {
+        ok: false,
+        error: `Delivery '${deliveryId}' does not have full event/endpoint data. ` +
+               "Use the DLQ replay endpoint for older deliveries.",
+      };
+    }
+
+    const newDeliveryId = `redeliver-${crypto.randomUUID()}`;
+
+    logger.info("Reissuing webhook delivery", {
+      original_delivery_id: deliveryId,
+      new_delivery_id:      newDeliveryId,
+      endpoint_id:          record.endpoint.id,
+      endpoint_url:         record.endpoint.url,
+      event_id:             record.event.id,
+      event_type:           record.event.eventType,
+      correlation_id:       context?.correlation_id,
+    });
+
+    // Fire-and-forget: processDelivery manages its own retry/DLQ lifecycle.
+    // We do not await here so the HTTP response returns immediately.
+    this.processDelivery(
+      record.endpoint,
+      record.event,
+      newDeliveryId,
+      deliveryId, // reissuedFrom
+    ).catch((err) => {
+      logger.error("Reissued delivery failed unexpectedly", {
+        original_delivery_id: deliveryId,
+        new_delivery_id:      newDeliveryId,
+        error:                err instanceof Error ? err.message : String(err),
+        correlation_id:       context?.correlation_id,
+      });
+    });
+
+    return { ok: true, newDeliveryId };
+  }
+}

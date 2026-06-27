@@ -1562,6 +1562,74 @@
         }
       }
     },
+    "/api/admin/webhooks/redeliver": {
+      "post": {
+        "operationId": "adminRedeliverWebhook",
+        "summary": "Force-redeliver a webhook event",
+        "description": "Creates a new delivery for an existing delivery ID, reusing the original endpoint and event payload.\n\n**Auth:** Internal-service HMAC or admin JWT required.\n\n**Data availability:** The original delivery must have full event/endpoint snapshots (deliveries created after snapshot support shipped).\n\n**Idempotency:** Not enforced at the endpoint level; each call creates a new delivery.",
+        "tags": ["Webhooks", "Admin"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["deliveryId"],
+                "properties": {
+                  "deliveryId": {
+                    "type": "string",
+                    "description": "The delivery ID to reissue.",
+                    "example": "del-01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Redelivery enqueued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": ["deliveryId", "originalDeliveryId"],
+                      "properties": {
+                        "deliveryId": {
+                          "type": "string",
+                          "description": "The ID of the newly created delivery."
+                        },
+                        "originalDeliveryId": {
+                          "type": "string",
+                          "description": "The original delivery ID that was reissued."
+                        }
+                      }
+                    },
+                    "links": {
+                      "type": "object",
+                      "properties": {
+                        "delivery": {
+                          "type": "string",
+                          "description": "URL to query this delivery's status."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400" },
+          "401": { "$ref": "#/components/responses/401" },
+          "404": { "$ref": "#/components/responses/404" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
     "/api/debug/kms-sign": {
       "post": {
         "operationId": "debugKmsSign",
