@@ -7,6 +7,7 @@ import { Navbar } from "@/components/navbar/Navbar";
 import { Breadcrumbs } from "@/components/navbar/Breadcrumbs";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { getBreadcrumbsForPath } from "@/lib/breadcrumbs";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export default function DashboardLayout({
   children,
@@ -59,7 +60,11 @@ export default function DashboardLayout({
             <Breadcrumbs items={breadcrumbItems} />
           </div>
         )}
-        <div className="">{children}</div>
+        <div className="">
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+        </div>
       </main>
     <MobileBottomTabs />
     </div>
