@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React from "react";
+import { Timestamp } from "./Timestamp";
 
 export type ActivityEvent = {
   id: string;
@@ -38,7 +39,7 @@ export const ActivityTimeline = ({ groups }: ActivityTimelineProps) => {
                   <div className="activity-card">
                     <div className="activity-info">
                       <span className="activity-title">{event.title}</span>
-                      <time className="activity-time">{event.timestamp}</time>
+                      <Timestamp className="activity-time" iso={event.timestamp} />
                     </div>
                     {event.link && (
                       <Link href={event.link} className="button button--secondary" style={{ minHeight: "2rem", padding: "0.4rem 0.8rem", fontSize: "0.8125rem" }}>

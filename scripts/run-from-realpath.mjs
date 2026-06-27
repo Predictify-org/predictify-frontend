@@ -1,6 +1,9 @@
 import { spawnSync } from "node:child_process";
 import { realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
+
+const require = createRequire(import.meta.url);
 
 const [command, ...args] = process.argv.slice(2);
 
