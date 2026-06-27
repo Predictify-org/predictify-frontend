@@ -196,6 +196,13 @@ export function VirtualizedEventsList({ className }: VirtualizedEventsListProps)
     router.push(`/events/${event.id}`)
   }
 
+  const handleItemKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, predictionEvent: Event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      handleItemClick(predictionEvent)
+    }
+  }
+
   // Handle back to top
   const handleBackToTop = () => {
     clearScrollPosition(routeKey)
@@ -250,6 +257,8 @@ export function VirtualizedEventsList({ className }: VirtualizedEventsListProps)
 
       <div
         ref={parentRef}
+        role="region"
+        aria-label="Events list"
         className="h-[600px] overflow-auto rounded-lg border-b border-[#540D8D] bg-black text-white"
       >
         <div
@@ -274,10 +283,14 @@ export function VirtualizedEventsList({ className }: VirtualizedEventsListProps)
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
               >
-                <div className="flex items-center gap-4 px-4 md:px-6 py-3 md:py-4 border-b border-[#540D8D] hover:bg-[#540D8D] transition-colors">
+                <div className="flex items-center gap-4 px-4 md:px-6 py-3 md:py-4 border-b border-[#540D8D] hover:bg-[#540D8D] focus-within:bg-[#1a0628] transition-colors">
                   <div 
-                    className="flex-1 cursor-pointer"
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Open event ${event.title}`}
+                    className="flex-1 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#FBF703] focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:bg-[#540D8D]/40"
                     onClick={() => handleItemClick(event)}
+                    onKeyDown={(keyboardEvent) => handleItemKeyDown(keyboardEvent, event)}
                   >
                     <div className="flex items-center gap-4">
                       <div className="min-w-[200px] space-y-1">

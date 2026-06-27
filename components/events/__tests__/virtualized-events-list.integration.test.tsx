@@ -9,6 +9,7 @@ import { VirtualizedEventsList } from "../virtualized-events-list"
 import { useEventsStore } from "@/lib/events-store"
 import { saveScrollPosition, getScrollPosition, clearScrollPosition } from "@/lib/scroll-position-store"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useVirtualizer } from "@tanstack/react-virtual"
 
 // Mock Next.js navigation
 jest.mock("next/navigation", () => ({
@@ -19,9 +20,15 @@ jest.mock("next/navigation", () => ({
 
 // Mock @tanstack/react-virtual
 jest.mock("@tanstack/react-virtual", () => ({
-  useVirtualizer: jest.fn(() => ({
-    getTotalSize: () => 1000,
-    getVirtualItems: () => [],
+  useVirtualizer: jest.fn(({ count = 0 }) => ({
+    getTotalSize: () => count * 80,
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, index) => ({
+        key: `event-${index}`,
+        index,
+        size: 80,
+        start: index * 80,
+      })),
   })),
 }))
 
@@ -43,6 +50,8 @@ describe("VirtualizedEventsList - Integration Tests", () => {
       loading: false,
       hasNextPage: true,
       isFetchingNextPage: false,
+      isDataStale: () => false,
+      loadEvents: jest.fn(),
     })
   })
 
@@ -251,6 +260,49 @@ describe("VirtualizedEventsList - Integration Tests", () => {
 
       expect(screen.queryByRole("status", { hidden: true })).not.toBeInTheDocument()
       expect(screen.getByText("Cached Event")).toBeInTheDocument()
+    })
+  })
+
+  describe("Keyboard Accessibility", () => {
+    it("renders virtualized rows as focusable links with a visible focus ring", () => {
+      ;(useVirtualizer as jest.Mock).mockReturnValue({
+        getTotalSize: () => 80,
+        getVirtualItems: () => [
+          {
+            key: "event-1",
+            index: 0,
+            size: 80,
+            start: 0,
+          },
+        ],
+      })
+
+      useEventsStore.setState({
+        filteredEvents: [
+          {
+            id: "1",
+            title: "Keyboard Navigable Event",
+            txHash: "TXN1",
+            category: "Football" as const,
+            odds: 5.0,
+            startDate: "2025-01-01",
+            endDate: "2025-12-31",
+            status: "ongoing" as const,
+            participants: 100,
+          },
+        ],
+      })
+
+      render(<VirtualizedEventsList />)
+
+      const eventRowLink = screen.getByRole("link", { name: "Open event Keyboard Navigable Event" })
+
+      expect(eventRowLink).toHaveAttribute("tabIndex", "0")
+      expect(eventRowLink).toHaveClass("focus-visible:ring-2")
+
+      fireEvent.keyDown(eventRowLink, { key: "Enter" })
+
+      expect(mockRouter.push).toHaveBeenCalledWith("/events/1")
     })
   })
 

@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export function EventsTableSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="status" aria-label="Loading events">
       <div className="rounded-lg border border-gray-200 overflow-hidden bg-black">
         {/* Responsive table container with horizontal scroll */}
         <div className="overflow-x-auto">
