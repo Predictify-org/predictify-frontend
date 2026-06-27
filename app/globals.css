@@ -245,44 +245,75 @@ body {
 /* ===== PRINT STYLES ===== */
 
 @media print {
+  /* Force light mode variables for print to avoid white text on white paper */
+  :root, .dark {
+    --background: 0 0% 100% !important;
+    --foreground: 0 0% 3.9% !important;
+    --card: 0 0% 100% !important;
+    --card-foreground: 0 0% 3.9% !important;
+    --muted: 0 0% 96.1% !important;
+    --muted-foreground: 0 0% 45.1% !important;
+    --border: 0 0% 89.8% !important;
+    --primary: 0 0% 9% !important;
+    --primary-foreground: 0 0% 98% !important;
+  }
+
   /* Hide UI chrome */
   header, nav, footer, .sidebar, .navbar, .print-hide, button, a.btn {
     display: none !important;
   }
 
-  /* Reset layout for print */
-  body, main {
+  /* Isolate receipt and hide other elements completely */
+  body {
     background: white !important;
-    color: black !important;
     margin: 0 !important;
-    padding: 20mm !important; /* Add padding to body so content isn't on the edge since @page margin is 0 */
+    padding: 0 !important;
+  }
+  
+  body * {
+    visibility: hidden;
+  }
+  
+  .receipt-wrapper, .receipt-wrapper * {
+    visibility: visible;
+  }
+  
+  .receipt-wrapper {
+    position: absolute;
+    left: 0;
+    top: 0;
     width: 100% !important;
+    margin: 0 !important;
+    padding: 40px 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
   }
 
-  /* Ensure the receipt containers fit on one page */
+  /* The receipt card */
   .receipt-container {
     width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 auto !important;
-    padding: 0 !important;
-    border: none !important;
+    max-width: 500px !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 16px !important;
     box-shadow: none !important;
+    background: white !important;
     page-break-inside: avoid;
+    margin: 0 auto !important;
   }
 
   .print-hide-border {
     border-bottom: 2px solid black !important;
   }
 
-  /* Force token typography into generic black text */
+  /* Force exact colors so badges and accents print correctly */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Optimize page layout for A4/Letter and hide default headers/footers */
   @page {
     size: auto;
-    margin: 0mm; /* Setting margin to 0mm hides the browser's default URL, Page Number, and Date */
+    margin: 20mm;
   }
 }
