@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { TallyBar } from '@/components/disputes/shared/TallyBar';
 import type { DisputeData, DisputeState } from '@/types/disputes';
+import { DisputeOutcomeExplainer } from '../DisputeOutcomeExplainer';
 
 interface EndedStateProps {
   data: DisputeData;
@@ -14,11 +15,20 @@ export function EndedState({ data }: EndedStateProps) {
       ? data.tally[0].label
       : data.tally?.[1]?.label);
 
+  const eligibleForAppeal = !!(data.userHasStaked || data.userHasVoted);
+
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        Voting has closed. The outcome is awaiting execution.
-      </p>
+      <div className="flex justify-between items-center">
+        <p className="text-sm text-muted-foreground">
+          Voting has closed. The outcome is awaiting execution.
+        </p>
+        <DisputeOutcomeExplainer data={data} eligibleForAppeal={eligibleForAppeal}>
+          <button className="text-sm text-primary hover:underline font-medium">
+            How was this decided?
+          </button>
+        </DisputeOutcomeExplainer>
+      </div>
 
       {data.tally && <TallyBar tally={data.tally} showAmounts />}
 
