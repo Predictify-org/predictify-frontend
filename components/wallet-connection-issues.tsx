@@ -1,6 +1,7 @@
 "use client";
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ArticleMeta } from './help/article-meta';
 
 interface Step {
   id: number;
@@ -14,6 +15,17 @@ interface OpenStepsState {
 export default function WalletConnectionIssues() {
   const [isMainOpen, setIsMainOpen] = useState<boolean>(true);
   const [openSteps, setOpenSteps] = useState<OpenStepsState>({});
+
+  const contentText = useMemo(() => {
+    const text = "Wallet connection issues Most wallet connection issues can be resolve by the following steps ";
+    const stepsText = [
+      { id: 1, title: 'Check Your Browser' },
+      { id: 2, title: 'Update Wallet Extension' },
+      { id: 3, title: 'Clear Browser Cache' },
+      { id: 4, title: 'Try Incognito Mode' }
+    ].map(s => `Step ${s.id}; ${s.title} Detailed instructions for ${s.title.toLowerCase()} would appear here. Follow these guidelines to resolve your wallet connection issues.`).join(" ");
+    return text + stepsText + " If you still experience issues after trying all these steps, please contact our support team for assistance";
+  }, []);
 
   const steps: Step[] = [
     { id: 1, title: 'Check Your Browser' },
@@ -42,6 +54,7 @@ export default function WalletConnectionIssues() {
             {isMainOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
           </button>
         </div>
+        <ArticleMeta content={contentText} lastReviewed="2024-01-15" />
 
         {/* Collapsible Content */}
         <div className={`transition-all duration-300 ease-in-out ${isMainOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>

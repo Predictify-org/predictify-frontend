@@ -1,7 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent } from "./ui/card";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { ArticleMeta } from "./help/article-meta";
 
 interface FAQItem {
   question: string;
@@ -60,6 +61,10 @@ export default function FAQ() {
   const [openCategory, setOpenCategory] = useState<number | null>(null);
   const [openQuestion, setOpenQuestion] = useState<string | null>(null);
 
+  const contentText = useMemo(() => {
+    return faqData.map(c => c.title + " " + c.items.map(i => i.question + " " + i.answer).join(" ")).join(" ");
+  }, []);
+
   const toggleCategory = (index: number) => {
     setOpenCategory(openCategory === index ? null : index);
     setOpenQuestion(null);
@@ -72,6 +77,12 @@ export default function FAQ() {
 
   return (
     <div className="space-y-4 mx-4">
+      <Card className="w-full max-w-2xl mx-auto bg-white shadow-sm border border-gray-200 overflow-hidden mb-4">
+        <div className="px-6 py-4 bg-white border-b border-gray-200">
+          <h1 className="text-xl font-bold text-gray-900">Frequently Asked Questions</h1>
+        </div>
+        <ArticleMeta content={contentText} lastReviewed="2023-10-24" />
+      </Card>
       {faqData.map((category, categoryIndex) => (
         <Card
           key={categoryIndex}
