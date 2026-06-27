@@ -60,15 +60,15 @@ export async function POST(request: Request) {
       break;
 
     default:
-      return err("VALIDATION_ERROR", `Unknown action '${action}'. Must be 'schedule', 'cancel', or 'execute'.", 422);
+      return err("VALIDATION_ERROR", `Unknown action '${action}'. Must be 'schedule', 'cancel', or 'execute'.`, 422);
   }
 
   if (result instanceof NextResponse) return result;
 
   recordPrivilegedStreamAuditEvent({
     action: auditAction,
-    before: getAdminState(),
-    after: result,
+    before: getAdminState() as unknown as Record<string, unknown>,
+    after: result as unknown as Record<string, unknown>,
     metadata: { action },
     request,
     streamId: "global",

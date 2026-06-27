@@ -87,5 +87,16 @@ export async function POST(
 
       return NextResponse.json(payload);
     });
+
+    
+
+    logger.info("Stream withdrawn successfully", {
+      streamId: id,
+      action: "withdraw",
+      status: "success",
+    });
+
+    return NextResponse.json(payload);
+    });
   });
 }

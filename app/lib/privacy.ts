@@ -1,4 +1,4 @@
-import { Stream, User } from "@/app/types/openapi";
+import { Stream } from "@/app/types/openapi";
 import { getStore } from "./db";
 
 export function redact(data: any): any {

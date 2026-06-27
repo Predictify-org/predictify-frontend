@@ -83,16 +83,17 @@ export function StreamRow({ stream }: StreamRowProps) {
       }, 0);
 
     } catch (err: unknown) {
-      const normalizedError = isStreamPayError(err) 
-        ? err 
-        : formatErrorForDisplay(err as StreamPayError);
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Stream action failed:', err);
+      const streamError = isStreamPayError(err) ? err : null;
+      const display = streamError
+        ? formatErrorForDisplay(streamError)
+        : { message: "Unknown error occurred" };
+
+      if (process.env.NODE_ENV === "development") {
+        console.error("Stream action failed:", err);
       }
-      
-      setError(isStreamPayError(err) ? err : null);
-      setSrAnnouncement(`Stream action failed: ${normalizedError.message || "Unknown error occurred"}.`);
+
+      setError(streamError);
+      setSrAnnouncement(`Stream action failed: ${display.message || "Unknown error occurred"}.`);
     } finally {
       setIsProcessing(false);
     }

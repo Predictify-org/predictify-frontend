@@ -53,6 +53,8 @@ jobs:
         env:
           STELLAR_NETWORK: testnet
           JWT_SECRET: streampay-dev-secret-do-not-use-in-prod
+          STREAMPAY_ADMIN_ADDRESS: GADMIN_DEV_PLACEHOLDER_DO_NOT_USE_IN_PROD
+          WEBHOOK_SECRET: dev-webhook-secret-do-not-use-in-prod-1234567890
           NODE_ENV: production
 
       - name: Run tests

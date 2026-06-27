@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from "next/server";
-import { errorResponse, ErrorCode } from "@/app/lib/errors";
+import { errorResponse, ErrorCode } from "@/app/lib/errors/server";
 import { validateCsrfToken } from "@/app/lib/auth";
 
 /**

@@ -4,6 +4,7 @@
 
 import { render } from "@testing-library/react";
 const { screen } = require("@testing-library/react") as any;
+import Link from "next/link";
 import { ErrorRecovery } from "./ErrorRecovery";
 
 describe("ErrorRecovery", () => {
@@ -13,9 +14,9 @@ describe("ErrorRecovery", () => {
     body: "The link may be old, incomplete, or no longer available.",
     helperNote: "Ask for a fresh link if you followed an old one.",
     primaryAction: (
-      <a className="button button--primary" href="/">
+      <Link className="button button--primary" href="/">
         Go to home
-      </a>
+      </Link>
     ),
     secondaryAction: (
       <a className="button button--secondary" href="/settings">
