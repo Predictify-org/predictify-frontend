@@ -458,6 +458,15 @@ impl Contract {
         stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
+        
+        // Emit admin_action event for pause
+        events::admin_action(
+            &env,
+            stream_id,
+            &stream.sender,
+            soroban_sdk::symbol_short!("pause"),
+            now,
+        );
 
         Ok(stream)
     }
@@ -497,6 +506,15 @@ impl Contract {
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
+        
+        // Emit admin_action event for resume
+        events::admin_action(
+            &env,
+            stream_id,
+            &stream.sender,
+            soroban_sdk::symbol_short!("resume"),
+            now,
+        );
 
         Ok(stream)
     }
@@ -547,8 +565,157 @@ impl Contract {
 
         limits::decrement_sender_stream_count(&env, &stream.sender);
         storage::set_stream(&env, stream_id, &stream);
+        
+        // Emit admin_action event for settle
+        events::admin_action(
+            &env,
+            stream_id,
+            &stream.recipient,
+            soroban_sdk::symbol_short!("settle"),
+            now,
+        );
 
         Ok(())
+    }
+
+    /// Cancels an active or paused stream, returning unstreamed funds to the sender.
+    ///
+    /// Only the stream sender may call this. On cancellation, the stream status is set to
+    /// `Cancelled`, and the unstreamed portion of `total_amount - released_amount` is
+    /// transferred back to the sender. Any amount already released to the recipient is kept.
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::Unauthorized`] if caller is not the stream sender.
+    /// - [`Error::InvalidState`] if the stream is already settled or cancelled.
+    /// - [`Error::Overflow`] if amount calculation overflows.
+    ///
+    /// # Auth
+    /// Requires authorisation from the stream's `sender`.
+    pub fn cancel_stream(env: Env, stream_id: u64) -> Result<Stream, Error> {
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if stream.status == StreamStatus::Settled || stream.status == StreamStatus::Cancelled {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+
+        // Calculate returned amount: unstreamed portion
+        let returned_amount = stream
+            .total_amount
+            .checked_sub(stream.released_amount)
+            .ok_or(Error::Overflow)?;
+
+        // Transfer unstreamed funds back to sender
+        if returned_amount > 0 {
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            token::Client::new(&env, &stream.token).transfer(
+                &env.current_contract_address(),
+                &stream.sender,
+                &returned_amount,
+            );
+        }
+
+        // Update stream state
+        stream.status = StreamStatus::Cancelled;
+        stream.last_update = now;
+
+        limits::decrement_sender_stream_count(&env, &stream.sender);
+        storage::set_stream(&env, stream_id, &stream);
+
+        // Emit cancellation event
+        events::cancelled(
+            &env,
+            stream_id,
+            &stream.sender,
+            returned_amount,
+            stream.released_amount,
+            now,
+        );
+
+        Ok(stream)
+    }
+
+    /// Amends an active or paused stream to change its rate or end time.
+    ///
+    /// Only the stream sender may call this. The new `end_time` must be greater than
+    /// the current timestamp. The new rate and end_time replace the existing values.
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::Unauthorized`] if caller is not the stream sender.
+    /// - [`Error::InvalidState`] if the stream is settled or cancelled.
+    /// - [`Error::InvalidTimeRange`] if `new_end_time <= now`.
+    ///
+    /// # Auth
+    /// Requires authorisation from the stream's `sender`.
+    pub fn amend_stream(
+        env: Env,
+        stream_id: u64,
+        new_rate_per_second: i128,
+        new_end_time: u64,
+    ) -> Result<Stream, Error> {
+        let mut stream = get_existing_stream(&env, stream_id)?;
+        stream.sender.require_auth();
+
+        if stream.status == StreamStatus::Settled || stream.status == StreamStatus::Cancelled {
+            return Err(Error::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+
+        if new_end_time <= now {
+            return Err(Error::InvalidTimeRange);
+        }
+
+        // Store old values for event (0 means unchanged)
+        let old_end_time = stream.end_time;
+        let old_rate = if stream.duration > 0 {
+            stream
+                .total_amount
+                .checked_div(stream.duration as i128)
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
+        // Update stream parameters
+        stream.end_time = new_end_time;
+        stream.last_update = now;
+
+        // Recalculate duration if needed
+        let new_duration = new_end_time
+            .checked_sub(stream.start_time)
+            .ok_or(Error::InvalidTimeRange)?;
+        stream.duration = new_duration;
+
+        storage::set_stream(&env, stream_id, &stream);
+
+        // Emit amendment event
+        // Report the new rate and new end_time; 0 means no change for backward compat
+        let reported_rate = if new_rate_per_second != old_rate {
+            new_rate_per_second
+        } else {
+            0
+        };
+        let reported_end_time = if new_end_time != old_end_time {
+            new_end_time
+        } else {
+            0
+        };
+
+        events::amended(
+            &env,
+            stream_id,
+            &stream.sender,
+            reported_rate,
+            reported_end_time,
+            now,
+        );
+
+        Ok(stream)
     }
 
     /// Upgrades the contract to a new WASM binary.

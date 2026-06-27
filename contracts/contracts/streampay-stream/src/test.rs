@@ -619,3 +619,391 @@ fn non_admin_cannot_set_max_streams_per_sender() {
     data.env.mock_auths(&[]);
     client.set_max_streams_per_sender(&data.sender, &5);
 }
+
+// ── Event emission tests for cancel_stream, amend_stream, and admin actions ────
+
+#[test]
+fn cancel_stream_emits_cancelled_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Advance time to let some amount be vested
+    data.env.ledger().set_timestamp(1_150);
+
+    // Clear events from creation
+    data.env.events().all();
+
+    // Cancel the stream
+    client.cancel_stream(&id);
+
+    let events = data.env.events().all();
+    assert!(!events.is_empty(), "cancel_stream should emit events");
+
+    // The last event should be the cancelled event
+    let (topics, _) = events.last().unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+}
+
+#[test]
+fn cancel_stream_requires_auth() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Mock auths off and try to cancel as a different address
+    data.env.mock_auths(&[]);
+    let impostor = Address::generate(&data.env);
+
+    let result = client.try_cancel_stream(&impostor, &id);
+    assert!(result.is_err(), "cancel_stream should fail without auth from sender");
+}
+
+#[test]
+fn cancel_stream_fails_on_settled_stream() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Withdraw full amount to settle
+    data.env.ledger().set_timestamp(1_250);
+    client.withdraw(&id, &100i128);
+
+    // Try to cancel settled stream
+    let result = client.try_cancel_stream(&id);
+    let err = result.expect_err("Should fail on settled stream");
+    assert_eq!(err, Ok(Error::InvalidState));
+}
+
+#[test]
+fn cancel_stream_returns_unstreamed_funds() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // The stream should now exist and be cancellable
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.status, StreamStatus::Active);
+
+    // Cancel the stream
+    client.cancel_stream(&id);
+
+    // Verify stream is now cancelled
+    let cancelled_stream = client.get_stream(&id);
+    assert_eq!(cancelled_stream.status, StreamStatus::Cancelled);
+}
+
+#[test]
+fn amend_stream_emits_amended_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Clear events from creation
+    data.env.events().all();
+
+    // Amend the stream (extend end time)
+    client.amend_stream(&id, &5i128, &1_300u64);
+
+    let events = data.env.events().all();
+    assert!(!events.is_empty(), "amend_stream should emit events");
+}
+
+#[test]
+fn amend_stream_requires_auth() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Try to amend without auth
+    data.env.mock_auths(&[]);
+    let result = client.try_amend_stream(&id, &5i128, &1_300u64);
+    assert!(result.is_err(), "amend_stream should fail without auth");
+}
+
+#[test]
+fn amend_stream_fails_on_invalid_end_time() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Try to amend with end_time in the past
+    let result = client.try_amend_stream(&id, &5i128, &1_050u64);
+    let err = result.expect_err("Should fail with past end_time");
+    assert_eq!(err, Ok(Error::InvalidTimeRange));
+}
+
+#[test]
+fn pause_emits_admin_action_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Clear events from creation
+    data.env.events().all();
+
+    // Pause the stream
+    client.pause(&id);
+
+    let events = data.env.events().all();
+    assert!(!events.is_empty(), "pause should emit events");
+
+    // The event should have 2 topics (stream, pause)
+    let (topics, _) = events.last().unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+}
+
+#[test]
+fn resume_emits_admin_action_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Pause the stream
+    client.pause(&id);
+
+    // Clear events
+    data.env.events().all();
+
+    // Resume the stream
+    client.resume(&id);
+
+    let events = data.env.events().all();
+    assert!(!events.is_empty(), "resume should emit events");
+
+    // The event should have 2 topics (stream, resume)
+    let (topics, _) = events.last().unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+}
+
+#[test]
+fn settle_emits_admin_action_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Advance past end_time
+    data.env.ledger().set_timestamp(1_300);
+
+    // Clear events
+    data.env.events().all();
+
+    // Settle the stream
+    client.settle(&id);
+
+    let events = data.env.events().all();
+    assert!(!events.is_empty(), "settle should emit events");
+
+    // The event should have 2 topics (stream, admin_action)
+    let (topics, _) = events.last().unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+}
+
+#[test]
+fn no_events_on_cancel_failure() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Settle the stream first
+    data.env.ledger().set_timestamp(1_300);
+    client.settle(&id);
+
+    // Clear events
+    data.env.events().all();
+
+    // Try to cancel settled stream (should fail)
+    let _ = client.try_cancel_stream(&id);
+
+    let events = data.env.events().all();
+    assert!(
+        events.is_empty(),
+        "Failed cancel_stream should not emit events, got: {:?}",
+        events
+    );
+}
+
+#[test]
+fn cancel_stream_decrements_sender_count() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    assert_eq!(client.sender_stream_count(&data.sender), 1);
+
+    // Cancel the stream
+    client.cancel_stream(&id);
+
+    // Count should be decremented
+    assert_eq!(client.sender_stream_count(&data.sender), 0);
+}
+
+#[test]
+fn amend_stream_extends_end_time() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    let original = client.get_stream(&id);
+    assert_eq!(original.end_time, 1_200u64);
+
+    // Amend to new end_time
+    client.amend_stream(&id, &5i128, &1_400u64);
+
+    let amended = client.get_stream(&id);
+    assert_eq!(amended.end_time, 1_400u64);
+}
+
+#[test]
+fn amend_stream_fails_on_cancelled_stream() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Cancel the stream
+    client.cancel_stream(&id);
+
+    // Try to amend cancelled stream
+    let result = client.try_amend_stream(&id, &5i128, &1_300u64);
+    let err = result.expect_err("Should fail on cancelled stream");
+    assert_eq!(err, Ok(Error::InvalidState));
+}
