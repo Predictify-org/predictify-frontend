@@ -10,6 +10,8 @@ import { RecommendationProvenance, type RecommendationSignalKey } from "@/compon
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStrip"
+import { ActiveBets } from "@/components/active-bets/ActiveBets"
+import { ActivityTimeline } from "@/components/activity-timeline"
 import { useEffect, useState } from "react"
 
 interface Stat {
@@ -97,7 +99,8 @@ export default function DashboardPage() {
   }
 
   const renderStatCard = (stat: Stat, idx: number) => {
-    return <StatCard key={idx} stat={stat} index={idx} />
+    const variants: any[] = ['volume', 'predictions', 'win-rate', 'leaderboard'];
+    return <StatCard key={idx} stat={stat} index={idx} emptyVariant={variants[idx % 4]} />
   }
 
   const renderCards = () => {
@@ -112,13 +115,10 @@ export default function DashboardPage() {
         )
       case 'empty':
         return (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium mb-2">No KPI data available.</p>
-            <p className="text-sm text-muted-foreground mb-4">Create events to generate statistics.</p>
-            <Button asChild>
-              <Link href="/events/new">Create New Event</Link>
-            </Button>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {(['volume', 'predictions', 'win-rate', 'leaderboard'] as const).map((variant, idx) => (
+              <StatCard key={idx} index={idx} status="empty" emptyVariant={variant} />
+            ))}
           </div>
         )
       case 'error':
@@ -359,6 +359,11 @@ export default function DashboardPage() {
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           {renderCards()}
+          <ActiveBets 
+            bets={status === 'empty' ? [] : []} 
+            isLoading={status === 'loading'}
+            onAddBet={() => console.log('Add bet')}
+          />
           {renderRecommendationStrip()}
           <RecommendationsStrip />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -375,42 +380,14 @@ export default function DashboardPage() {
             </Card>
             <Card className="col-span-3">
               <CardHeader>
-                <CardTitle>Pending Tasks</CardTitle>
-                <CardDescription>Tasks requiring admin attention</CardDescription>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Your latest actions on Predictify</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <CheckCircle className="h-5 w-5 text-amber-500" />
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">8 events need outcome verification</p>
-                      <p className="text-sm text-muted-foreground">Deadline: Today</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="ml-auto">
-                      Verify
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <HelpCircle className="h-5 w-5 text-red-500" />
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">12 disputes need resolution</p>
-                      <p className="text-sm text-muted-foreground">3 high priority</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="ml-auto">
-                      Resolve
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <TrendingUp className="h-5 w-5 text-green-500" />
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">Monthly financial report ready</p>
-                      <p className="text-sm text-muted-foreground">April 2023</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="ml-auto">
-                      View
-                    </Button>
-                  </div>
-                </div>
+                <ActivityTimeline 
+                  activities={status === 'empty' ? [] : []}
+                  isLoading={status === 'loading'}
+                />
               </CardContent>
             </Card>
           </div>
