@@ -33,6 +33,21 @@ export default function DesignSystemPage() {
         </div>
       </section>
 
+      <section className="space-y-6 p-6 bg-[#192540]/20 border border-[#40485d]/30 rounded-2xl">
+        <div className="space-y-2">
+          <h2 className="text-xl font-headline font-bold text-white">Safe-Area Tokens</h2>
+          <p className="text-sm text-slate-400">
+            iOS safe-area inset tokens for PWA home indicator avoidance. Defined as CSS custom properties in <code className="text-cyan-400">globals.css</code>.
+          </p>
+        </div>
+        <div className="grid gap-3">
+          <TokenRow name="--safe-pb" value="env(safe-area-inset-bottom, 0px)" description="Bottom safe-area inset. Applied to sticky navbars, drawers, and footers." />
+        </div>
+        <div className="text-xs text-slate-500">
+          <span className="font-semibold">Usage:</span> <code className="text-cyan-400">pb-[calc(Xrem+var(--safe-pb))]</code> or <code className="text-cyan-400">pb-safe</code> utility class.
+        </div>
+      </section>
+
       <section className="space-y-6">
         <div className="space-y-2">
           <h2 className="text-2xl font-headline font-bold text-white">Progressive Disclosure</h2>
@@ -115,6 +130,16 @@ export default function DesignSystemPage() {
           </div>
         </section>
       </div>
+    </div>
+  )
+}
+
+function TokenRow({ name, value, description }: { name: string; value: string; description: string }) {
+  return (
+    <div className="flex items-start gap-4 bg-[#0b1327] border border-[#40485d]/30 rounded-xl p-4">
+      <code className="text-sm font-mono text-cyan-400 min-w-[160px] shrink-0">{name}</code>
+      <code className="text-sm font-mono text-amber-300 min-w-[200px] shrink-0">{value}</code>
+      <p className="text-sm text-slate-400">{description}</p>
     </div>
   )
 }
