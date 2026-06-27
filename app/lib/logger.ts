@@ -68,6 +68,11 @@ export function withCorrelationContext<T>(
   return correlationContext.run(context, callback);
 }
 
+// Set correlation context without callback (for sync operations)
+export function setCorrelationContext(context: CorrelationContext): void {
+  correlationContext.enterWith(context);
+}
+
 // Structured log entry interface
 export interface LogEntry {
   level: 'info' | 'warn' | 'error' | 'debug';

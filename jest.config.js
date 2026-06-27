@@ -8,7 +8,7 @@ const config = {
   // Component tests will run in a separate command with jsdom
   testEnvironment: "node",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
-  testMatch: ["**/*.test.ts", "**/*.spec.ts"],
+  testMatch: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
   collectCoverageFrom: [
     "app/**/*.{ts,tsx}",
     "lib/**/*.{ts,tsx}",
@@ -17,4 +17,13 @@ const config = {
   ],
 };
 
-module.exports = createJestConfig(config);
+module.exports = async () => {
+  const makeConfig = createJestConfig(config);
+  const resolvedConfig = await makeConfig();
+  resolvedConfig.moduleNameMapper = {
+    ...resolvedConfig.moduleNameMapper,
+    "^@/(.*)$": "<rootDir>/$1",
+    "^\\./app/(.*)$": "<rootDir>/app/$1",
+  };
+  return resolvedConfig;
+};

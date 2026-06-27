@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+// @ts-nocheck
+const vi = {
+  fn: (impl?: any) => jest.fn(impl),
+  spyOn: (obj: any, prop: string) => jest.spyOn(obj, prop),
+  clearAllMocks: () => jest.clearAllMocks(),
+  stubGlobal: (name: string, value: any) => {
+    (global as any)[name] = value;
+  }
+};
 import { WebhookDeliveryWorker } from '@/app/lib/webhook-delivery-worker';
 import { webhookDeliveryStore } from '@/app/lib/webhook-delivery-store';
 import { WebhookEndpoint, WebhookEvent } from '@/app/lib/webhook-delivery';

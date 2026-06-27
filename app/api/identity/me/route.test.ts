@@ -16,7 +16,7 @@ function requestWithAuthorization(authorization?: string) {
 }
 
 function signToken(payload: Record<string, unknown>, secret = TEST_SECRET) {
-  return jwt.sign(payload, secret, { algorithm: "HS256", expiresIn: "15m" });
+  return jwt.sign({ iss: "streampay", aud: "streampay-api", ...payload }, secret, { algorithm: "HS256", expiresIn: "15m" });
 }
 
 function unsignedToken(payload: Record<string, unknown>) {

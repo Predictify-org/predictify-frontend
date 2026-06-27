@@ -59,6 +59,8 @@ interface OptionalEnvVars {
   ANOMALY_CREATION_THRESHOLD?: string;
   /** Anomaly detection threshold for settlement rate spike */
   ANOMALY_SETTLE_THRESHOLD?: string;
+  /** Anomaly detection threshold for stream cancel burst */
+  ANOMALY_CANCEL_THRESHOLD?: string;
 }
 
 /**
@@ -74,6 +76,7 @@ export interface ValidatedConfig {
   anomalyThresholds: {
     creationBurstLimit: number;
     settleRateLimit: number;
+    cancelBurstLimit: number;
   };
   internalServiceAuth?: {
     currentKeyId: string;
@@ -232,6 +235,11 @@ function validateStellarNetwork(network: StellarNetwork): StellarNetworkProfile 
 
 /**
  * Validate JWT secret
+ *
+ * Security hardening (issue #223):
+ * - Outside development/test: missing or short secret throws immediately
+ *   (fail-fast at boot — no silent fallback to a hardcoded placeholder).
+ * - The dev placeholder is only tolerated in NODE_ENV=development|test.
  */
 function validateJwtSecret(secret: string | undefined): string {
   if (!secret) {
@@ -240,21 +248,24 @@ function validateJwtSecret(secret: string | undefined): string {
     );
   }
   
-  if (secret === 'streampay-dev-secret-do-not-use-in-prod' && process.env.NODE_ENV === 'production') {
+  const env   = process.env.NODE_ENV ?? "development";
+  const isDev = env === "development" || env === "test";
+
+  if (secret === 'streampay-dev-secret-do-not-use-in-prod' && !isDev) {
     throw new ConfigValidationError(
-      'Production environment cannot use default JWT_SECRET. ' +
-      'Set a secure JWT_SECRET environment variable.'
+      'Production environment cannot use default JWT_SECRET'
     );
   }
   
   if (secret.length < 32) {
     throw new ConfigValidationError(
-      'JWT_SECRET must be at least 32 characters for security'
+      'JWT_SECRET must be at least 32 characters'
     );
   }
   
   return secret;
 }
+
 
 function validateInternalServiceAuth(
   env: RequiredEnvVars & OptionalEnvVars
@@ -347,10 +358,12 @@ function validateInternalServiceAuth(
  */
 function validateAnomalyThresholds(
   creationThreshold?: string,
-  settleThreshold?: string
-): { creationBurstLimit: number; settleRateLimit: number } {
+  settleThreshold?: string,
+  cancelThreshold?: string
+): { creationBurstLimit: number; settleRateLimit: number; cancelBurstLimit: number } {
   const creationBurstLimit = creationThreshold ? Number(creationThreshold) : 50;
   const settleRateLimit = settleThreshold ? Number(settleThreshold) : 20;
+  const cancelBurstLimit = cancelThreshold ? Number(cancelThreshold) : 5;
   
   if (isNaN(creationBurstLimit) || creationBurstLimit <= 0) {
     throw new ConfigValidationError(
@@ -364,7 +377,13 @@ function validateAnomalyThresholds(
     );
   }
   
-  return { creationBurstLimit, settleRateLimit };
+  if (isNaN(cancelBurstLimit) || cancelBurstLimit <= 0) {
+    throw new ConfigValidationError(
+      'ANOMALY_CANCEL_THRESHOLD must be a positive number'
+    );
+  }
+  
+  return { creationBurstLimit, settleRateLimit, cancelBurstLimit };
 }
 
 /**
@@ -391,7 +410,8 @@ export function validateConfig(): ValidatedConfig {
   // Validate anomaly thresholds
   const anomalyThresholds = validateAnomalyThresholds(
     env.ANOMALY_CREATION_THRESHOLD,
-    env.ANOMALY_SETTLE_THRESHOLD
+    env.ANOMALY_SETTLE_THRESHOLD,
+    env.ANOMALY_CANCEL_THRESHOLD
   );
 
   const internalServiceAuth = validateInternalServiceAuth(env);

@@ -1,14 +1,14 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { tryAuthenticateRequest, JWT_SECRET } from "@/app/lib/auth";
-import { db } from "@/app/lib/db";
+import { getStore } from "@/app/lib/db";
 
 function createErrorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message, request_id: "mock-request-id" } }, { status });
 }
 
 function createAuditRecord(exportId: string, type: "export.requested" | "export.downloaded" | "export.expired", details?: Record<string, unknown>) {
-  db.exportAudit.push({
+  getStore().exportRepository.audit.push({
     id: crypto.randomUUID(),
     exportId,
     type,
@@ -32,13 +32,14 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { exportRepository } = getStore();
   const actor = tryAuthenticateRequest(request);
   if (!actor) {
     return createErrorResponse("UNAUTHORIZED", "Missing or invalid authorization header", 401);
   }
 
   const { id } = await params;
-  const job = db.exportJobs.get(id);
+  const job = exportRepository.jobs.get(id);
   if (!job) {
     return createErrorResponse("EXPORT_NOT_FOUND", `Export job '${id}' not found.`, 404);
   }
@@ -50,7 +51,7 @@ export async function GET(
 
   const now = new Date();
   if (now > new Date(job.expiresAt)) {
-    db.exportJobs.set(id, { ...job, status: "expired" });
+    exportRepository.jobs.set(id, { ...job, status: "expired" });
     createAuditRecord(id, "export.expired", { expiresAt: job.expiresAt });
     return createErrorResponse("EXPORT_EXPIRED", "This export has expired and is no longer available.", 410);
   }
@@ -72,7 +73,7 @@ export async function GET(
     }
 
     if (now > new Date(expiresParam)) {
-      db.exportJobs.set(id, { ...job, status: "expired" });
+      exportRepository.jobs.set(id, { ...job, status: "expired" });
       createAuditRecord(id, "export.expired", { signedUrlExpiresAt: expiresParam });
       return createErrorResponse("EXPORT_URL_EXPIRED", "Signed URL has expired.", 410);
     }

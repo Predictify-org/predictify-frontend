@@ -21,3 +21,23 @@ lto = true
 [profile.release-with-logs]
 inherits = "release"
 debug-assertions = true
+
+# ── Workspace lint policy ────────────────────────────────────────────────────
+#
+# These lints enforce panic-free contract code across the entire workspace.
+# Rationale: Soroban WASM contracts have no runtime panic handler — a panic
+# traps the WASM execution and halts the transaction with an opaque error.
+# All fallible operations must use Result/Option and propagate errors cleanly.
+#
+# Test modules (#[cfg(test)]) are automatically exempt; Cargo does not apply
+# workspace lints to test compilation units.
+# ─────────────────────────────────────────────────────────────────────────────
+[workspace.lints.rust]
+unwrap_used = "deny"
+expect_used = "deny"
+panic       = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic       = "deny"

@@ -1,0 +1,59 @@
+{
+  "consumer": { "name": "streampay-frontend" },
+  "provider": { "name": "streampay-api-v2" },
+  "interactions": [
+    {
+      "description": "a valid stream creation request",
+      "providerState": "user is authenticated and can create streams",
+      "request": {
+        "method": "POST",
+        "path": "/api/v2/streams",
+        "headers": {
+          "Authorization": "Bearer test-token",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "recipient": "GABC1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234",
+          "rate": "120",
+          "schedule": "month",
+          "token": "XLM"
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": { "Content-Type": "application/json" },
+        "body": {
+          "id": "stream_abc123",
+          "recipient": "GABC1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234",
+          "rate": "120",
+          "status": "draft",
+          "actions": ["start"],
+          "createdAt": "2026-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "description": "a stream creation request with missing fields",
+      "providerState": "user is authenticated",
+      "request": {
+        "method": "POST",
+        "path": "/api/v2/streams",
+        "headers": {
+          "Authorization": "Bearer test-token",
+          "Content-Type": "application/json"
+        },
+        "body": { "recipient": "GABC1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234" }
+      },
+      "response": {
+        "status": 422,
+        "headers": { "Content-Type": "application/json" },
+        "body": {
+          "error": {
+            "code": "VALIDATION_ERROR",
+            "message": "One or more fields are invalid."
+          }
+        }
+      }
+    }
+  ]
+}

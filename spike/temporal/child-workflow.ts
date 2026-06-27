@@ -24,7 +24,7 @@ async function sleep(_ms: number): Promise<void> { /* replaced by SDK */ }
 // In production: import { startChild, CancellationScope } from '@temporalio/workflow'
 async function startChild<T>(
   _workflowFn: (...args: any[]) => Promise<T>,
-  _options: { workflowId: string; args: any[] }
+  _options: { workflowId: string; args: unknown[] }
 ): Promise<{ result: () => Promise<T> }> {
   // Stub: returns a handle whose result() resolves immediately
   return { result: async () => ({ ticks: [] }) as unknown as T };

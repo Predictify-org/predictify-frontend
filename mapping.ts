@@ -21,3 +21,31 @@ export const mapContractToUI = (contractStream: OnChainStream) => {
     status: contractStream.status,
   };
 };
+
+export interface MappedStreamState {
+  id: string;
+  recipientAddress: string;
+  totalAmount: bigint;
+  releasedAmount: bigint;
+  status: string;
+}
+
+export const mapDbStream = (dbStream: any): MappedStreamState => {
+  return {
+    id: dbStream.id,
+    recipientAddress: dbStream.recipient_address,
+    totalAmount: BigInt(dbStream.total_amount),
+    releasedAmount: BigInt(dbStream.released_amount),
+    status: dbStream.status,
+  };
+};
+
+export const mapOnChainStream = (onChainStream: OnChainStream): MappedStreamState => {
+  return {
+    id: onChainStream.id,
+    recipientAddress: onChainStream.recipient_address,
+    totalAmount: onChainStream.total_amount,
+    releasedAmount: onChainStream.released_amount,
+    status: onChainStream.status,
+  };
+};

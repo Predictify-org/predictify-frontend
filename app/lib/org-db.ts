@@ -11,6 +11,7 @@ import {
   ApprovalStatus,
   DEFAULT_STREAM_POLICY,
 } from "./org-types";
+import { normaliseToken } from "./token-allowlist";
 
 // ─── Seeded orgs ─────────────────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ import {
  *   GVIEWER.. → viewer (read-only; cannot mutate streams)
  *
  * policy.requireApprovals = 2 → settle and stop require two distinct approvals.
+ * tokenAllowlist: only XLM and USDC are accepted for org-acme streams.
  */
 const seedOrgs: OrgRecord[] = [
   {
@@ -55,6 +57,11 @@ const seedOrgs: OrgRecord[] = [
       ...DEFAULT_STREAM_POLICY,
       requireApprovals: 2,
     },
+    // org-acme restricts streams to XLM and USDC only
+    tokenAllowlist: [
+      "XLM",
+      normaliseToken("USDC:GBUQWP3BOUZX34AAQJR2U7Q5WAQLEGBXVFNNMLOTEWDTHJCIV6XTRAHW"),
+    ],
     createdAt: "2026-04-01T00:00:00Z",
     updatedAt: "2026-04-01T00:00:00Z",
   },
@@ -72,6 +79,7 @@ const seedOrgs: OrgRecord[] = [
       ...DEFAULT_STREAM_POLICY,
       requireApprovals: 1,
     },
+    // org-beta has no per-org allowlist — inherits global behaviour
     createdAt: "2026-04-05T00:00:00Z",
     updatedAt: "2026-04-05T00:00:00Z",
   },
@@ -126,4 +134,19 @@ export function getActiveApprovalsForStream(streamId: string): PendingApproval[]
   }
 
   return active;
+}
+
+/**
+ * Reset `orgDb` to its seeded state.
+ * Intended for use in tests only — restores the three maps to their initial
+ * values so test cases are fully isolated.
+ */
+export function _resetOrgDbForTesting(): void {
+  orgDb.orgs.clear();
+  for (const org of seedOrgs) {
+    orgDb.orgs.set(org.id, { ...org, tokenAllowlist: org.tokenAllowlist ? [...org.tokenAllowlist] : undefined });
+  }
+  orgDb.streamOwnership.clear();
+  orgDb.streamOwnership.set("stream-ada", "org-acme");
+  orgDb.approvals.clear();
 }

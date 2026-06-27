@@ -13,6 +13,7 @@ function createStream(overrides: Partial<Stream> = {}): Stream {
     createdAt: "2026-04-15T08:00:00Z",
     updatedAt: "2026-04-27T20:00:00Z",
     settlementTxHash: "tx-123",
+    token: "XLM",
     ...overrides,
   };
 }
@@ -59,13 +60,23 @@ describe("evaluateWithdrawalState", () => {
       },
     });
 
-    const fetcher = jest.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        _embedded: { records: [{ hash: "tx-123", successful: true }] },
-        _links: { next: { href: "https://horizon-testnet.stellar.org?page=1&cursor=abc123" } },
-      }),
-    }));
+    const fetcher = jest.fn(async (url: string) => {
+      if (url.includes("ledgers")) {
+        return {
+          ok: true,
+          json: async () => ({
+            _embedded: { records: [{ sequence: 103 }] },
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          _embedded: { records: [{ hash: "tx-123", successful: true, ledger: 100 }] },
+          _links: { next: { href: "https://horizon-testnet.stellar.org?page=1&cursor=abc123" } },
+        }),
+      };
+    });
     const result = await evaluateWithdrawalState(
       stream,
       new Date("2026-04-28T08:00:45.000Z"),

@@ -1,4 +1,6 @@
-import { withWebhookContext, logger, getCorrelationContext } from './logger';
+import { withWebhookContext, logger, getCorrelationContext } from "./logger";
+import { WebhookEndpoint, WebhookEvent } from "./webhook-delivery";
+import { webhookOutboxStore } from "./webhook-outbox";
 
 // Mock webhook payload
 export interface WebhookPayload {
@@ -12,7 +14,7 @@ export interface WebhookPayload {
 export interface WebhookDelivery {
   webhookId: string;
   url: string;
-  status: 'success' | 'failed';
+  status: "success" | "failed";
   statusCode?: number;
   attempt: number;
   deliveredAt: string;
@@ -23,102 +25,52 @@ export interface WebhookDelivery {
  */
 export class MockWebhookService {
   /**
-   * Emit a webhook event
+   * Emit a webhook event via the transactional outbox
    */
   async emitWebhook(params: {
-    url: string;
-    payload: WebhookPayload;
-  }): Promise<WebhookDelivery> {
+    endpoint: WebhookEndpoint;
+    event: WebhookEvent;
+  }): Promise<string> {
     const context = getCorrelationContext();
-    
-    const webhookId = `webhook-${crypto.randomUUID().slice(0, 8)}`;
-    
-    // Add webhook context to correlation
-    withWebhookContext(webhookId);
+    const { endpoint, event } = params;
 
-    logger.info('Webhook emission started', {
-      webhook_id: webhookId,
-      url: params.url,
-      event_type: params.payload.eventType,
-      stream_id: params.payload.streamId,
+    withWebhookContext(event.id);
+
+    logger.info("Adding webhook event to outbox", {
+      endpoint_id: endpoint.id,
+      endpoint_url: endpoint.url,
+      event_id: event.id,
+      event_type: event.eventType,
       correlation_id: context?.correlation_id,
     });
 
-    // Simulate HTTP request
-    await this.simulateDelay(150);
+    const outboxEntry = webhookOutboxStore.addToOutbox(endpoint, event);
 
-    // Simulate successful delivery
-    const delivery: WebhookDelivery = {
-      webhookId,
-      url: params.url,
-      status: 'success',
-      statusCode: 200,
-      attempt: 1,
-      deliveredAt: new Date().toISOString(),
-    };
-
-    logger.info('Webhook delivered successfully', {
-      webhook_id: webhookId,
-      url: params.url,
-      status_code: 200,
-      stream_id: params.payload.streamId,
+    logger.info("Webhook event added to outbox successfully", {
+      outbox_id: outboxEntry.id,
       correlation_id: context?.correlation_id,
     });
 
-    return delivery;
+    return outboxEntry.id;
   }
 
   /**
-   * Emit a webhook with failure simulation
+   * Emit a webhook with failure simulation (kept for backwards compatibility)
    */
   async emitWebhookWithFailure(params: {
-    url: string;
-    payload: WebhookPayload;
-  }): Promise<WebhookDelivery> {
-    const context = getCorrelationContext();
-    
-    const webhookId = `webhook-${crypto.randomUUID().slice(0, 8)}`;
-    withWebhookContext(webhookId);
-
-    logger.info('Webhook emission started', {
-      webhook_id: webhookId,
-      url: params.url,
-      event_type: params.payload.eventType,
-      stream_id: params.payload.streamId,
-      correlation_id: context?.correlation_id,
-    });
-
-    await this.simulateDelay(150);
-
-    // Simulate failed delivery
-    const delivery: WebhookDelivery = {
-      webhookId,
-      url: params.url,
-      status: 'failed',
-      statusCode: 503,
-      attempt: 1,
-      deliveredAt: new Date().toISOString(),
-    };
-
-    logger.error('Webhook delivery failed', {
-      webhook_id: webhookId,
-      url: params.url,
-      status_code: 503,
-      stream_id: params.payload.streamId,
-      correlation_id: context?.correlation_id,
-      error: 'Service unavailable',
-    });
-
-    return delivery;
+    endpoint: WebhookEndpoint;
+    event: WebhookEvent;
+  }): Promise<string> {
+    return this.emitWebhook(params);
   }
 
   /**
-   * Strip internal headers before sending to external webhook
+   * Strip internal headers before sending to external webhook (kept for backwards compatibility)
    */
   private stripInternalHeaders(headers: Headers): Headers {
     const safeHeaders = new Headers();
-    const internalHeaders = ['x-internal-auth', 'x-service-token', 'x-correlation-id-internal'];
-    
+    const internalHeaders = ["x-internal-auth", "x-service-token", "x-correlation-id-internal"];
+
     headers.forEach((value, key) => {
       if (!internalHeaders.includes(key.toLowerCase())) {
         safeHeaders.set(key, value);
@@ -129,7 +81,7 @@ export class MockWebhookService {
   }
 
   private async simulateDelay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 

@@ -1,4 +1,9 @@
-import { render, screen } from "@testing-library/react";
+/**
+ * @jest-environment jsdom
+ */
+
+import { render } from "@testing-library/react";
+const { screen } = require("@testing-library/react") as any;
 import { StreamsPageContent } from "./StreamsPageContent";
 
 describe("StreamsPageContent", () => {

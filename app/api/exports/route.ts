@@ -1,7 +1,7 @@
 import { createHmac } from "crypto";
 import { NextResponse } from "next/server";
 import { tryAuthenticateRequest, JWT_SECRET } from "@/app/lib/auth";
-import { db, ExportJob, ExportJobStatus } from "@/app/lib/db";
+import { ExportJob, getStore } from "@/app/lib/db";
 
 const EXPORT_RETENTION_DAYS = 7;
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
@@ -12,7 +12,7 @@ function createErrorResponse(code: string, message: string, status: number) {
 }
 
 function createAuditRecord(exportId: string, type: "export.requested" | "export.downloaded" | "export.expired", details?: Record<string, unknown>) {
-  db.exportAudit.push({
+  getStore().exportRepository.audit.push({
     id: crypto.randomUUID(),
     exportId,
     type,
@@ -35,15 +35,16 @@ function createSignedUrl(jobId: string, expiresAt: string): string {
 }
 
 async function generateExportArtifact(jobId: string) {
-  const job = db.exportJobs.get(jobId);
+  const { exportRepository, streamRepository } = getStore();
+  const job = exportRepository.jobs.get(jobId);
   if (!job) return;
 
   // Scope streams and activity to the job owner
-  const streams = Array.from(db.streams.values())
+  const streams = Array.from(streamRepository.streams.values())
     .filter((s) => (s as { ownerId?: string }).ownerId === job.ownerId)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
-  const events = Array.from(db.activity.values())
+  const events = Array.from(streamRepository.activity.values())
     .filter((e) => (e as { ownerId?: string }).ownerId === job.ownerId)
     .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
@@ -68,7 +69,7 @@ async function generateExportArtifact(jobId: string) {
   const signedUrlExpiresAt = new Date(Date.now() + SIGNED_URL_TTL_SECONDS * 1000).toISOString();
   const signedUrl = createSignedUrl(jobId, signedUrlExpiresAt);
 
-  db.exportJobs.set(jobId, {
+  exportRepository.jobs.set(jobId, {
     ...job,
     status: "ready",
     signedUrl,
@@ -80,26 +81,28 @@ async function generateExportArtifact(jobId: string) {
 }
 
 function scheduleExportJob(jobId: string) {
-  if (db.exportProcessing.has(jobId)) return;
+  const { exportRepository } = getStore();
+  if (exportRepository.processing.has(jobId)) return;
 
   const jobPromise = new Promise<void>((resolve) => {
     setTimeout(async () => {
       try {
         await generateExportArtifact(jobId);
       } catch {
-        const job = db.exportJobs.get(jobId);
-        if (job) db.exportJobs.set(jobId, { ...job, status: "failed" });
+        const failedJob = exportRepository.jobs.get(jobId);
+        if (failedJob) exportRepository.jobs.set(jobId, { ...failedJob, status: "failed" });
       } finally {
-        db.exportProcessing.delete(jobId);
+        exportRepository.processing.delete(jobId);
         resolve();
       }
     }, EXPORT_PROCESS_DELAY_MS);
   });
 
-  db.exportProcessing.set(jobId, jobPromise);
+  exportRepository.processing.set(jobId, jobPromise);
 }
 
 export async function POST(request: Request) {
+  const { exportRepository } = getStore();
   const actor = tryAuthenticateRequest(request);
   if (!actor) {
     return createErrorResponse("UNAUTHORIZED", "Missing or invalid authorization header", 401);
@@ -119,7 +122,7 @@ export async function POST(request: Request) {
     rows: 0,
   };
 
-  db.exportJobs.set(id, job);
+  exportRepository.jobs.set(id, job);
   createAuditRecord(id, "export.requested", { requestedAt, retentionDays: EXPORT_RETENTION_DAYS });
   scheduleExportJob(id);
 

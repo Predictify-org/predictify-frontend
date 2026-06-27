@@ -18,6 +18,8 @@ import { POST as createStream } from "@/app/api/streams/route";
 import { GET as getStream } from "@/app/api/streams/[id]/route";
 import { V1_SUNSET_DATE, V1_DEPRECATION_DATE } from "@/app/lib/api-version";
 
+const VALID_STELLAR_KEY = "GDSBCG3OKHCMMWS5EBH2X7XOYTJRWXN2YYQPCNS5OFBU4IDO4X7OFSQA";
+
 type RouteContext = { params: Promise<{ id: string }> };
 
 function ctx(id: string): RouteContext {
@@ -39,7 +41,7 @@ beforeEach(() => resetDb());
 describe("v1 contract: POST /api/streams response shape", () => {
   it("returns 201 with data and links", async () => {
     const res = await createStream(
-      postRequest({ recipient: "GABC123", rate: "50 XLM/month", schedule: "30 days" }),
+      postRequest({ recipient: VALID_STELLAR_KEY, rate: "50", schedule: "month" }),
     );
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -49,7 +51,7 @@ describe("v1 contract: POST /api/streams response shape", () => {
 
   it("data contains nextAction as a string (not allowed_actions)", async () => {
     const res = await createStream(
-      postRequest({ recipient: "GABC123", rate: "50 XLM/month", schedule: "30 days" }),
+      postRequest({ recipient: VALID_STELLAR_KEY, rate: "50", schedule: "month" }),
     );
     const { data } = await res.json();
     // v1 contract: nextAction is a plain string
@@ -59,7 +61,7 @@ describe("v1 contract: POST /api/streams response shape", () => {
 
   it("data uses camelCase date fields (createdAt, updatedAt)", async () => {
     const res = await createStream(
-      postRequest({ recipient: "GABC123", rate: "50 XLM/month", schedule: "30 days" }),
+      postRequest({ recipient: VALID_STELLAR_KEY, rate: "50", schedule: "month" }),
     );
     const { data } = await res.json();
     // v1 contract: camelCase dates
@@ -71,7 +73,7 @@ describe("v1 contract: POST /api/streams response shape", () => {
 
   it("data.status is 'draft' for a newly created stream", async () => {
     const res = await createStream(
-      postRequest({ recipient: "GABC123", rate: "50 XLM/month", schedule: "30 days" }),
+      postRequest({ recipient: VALID_STELLAR_KEY, rate: "50", schedule: "month" }),
     );
     const { data } = await res.json();
     expect(data.status).toBe("draft");
@@ -80,7 +82,7 @@ describe("v1 contract: POST /api/streams response shape", () => {
   it("idempotent: second call with same key returns the same body", async () => {
     const req = () =>
       postRequest(
-        { recipient: "GABC123", rate: "50 XLM/month", schedule: "30 days" },
+        { recipient: VALID_STELLAR_KEY, rate: "50", schedule: "month" },
         { "Idempotency-Key": "idem-contract-1" },
       );
 
@@ -89,11 +91,24 @@ describe("v1 contract: POST /api/streams response shape", () => {
     expect(second).toEqual(first);
   });
 
-  it("returns 422 VALIDATION_ERROR when required fields are missing", async () => {
+  it("returns 422 VALIDATION_ERROR when required fields are missing or invalid", async () => {
+    // Missing rate and schedule
     const res = await createStream(postRequest({ recipient: "GABC123" }));
     expect(res.status).toBe(422);
     const body = await res.json();
     expect(body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("returns 422 with field-level details when recipient is invalid", async () => {
+    const res = await createStream(
+      postRequest({ recipient: "not-a-valid-key", rate: "50", schedule: "month" }),
+    );
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+    expect(body.error.details).toBeDefined();
+    expect(body.error.details.length).toBeGreaterThan(0);
+    expect(body.error.details[0].field).toBe("recipient");
   });
 });
 
@@ -102,7 +117,7 @@ describe("v1 contract: POST /api/streams response shape", () => {
 describe("v1 contract: GET /api/streams/:id response shape", () => {
   async function seedStream() {
     const res = await createStream(
-      postRequest({ recipient: "GTEST", rate: "10 XLM/day", schedule: "daily" }),
+      postRequest({ recipient: VALID_STELLAR_KEY, rate: "10", schedule: "day" }),
     );
     const { data } = await res.json();
     return data.id as string;
