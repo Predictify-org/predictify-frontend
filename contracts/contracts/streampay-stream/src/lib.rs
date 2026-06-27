@@ -402,7 +402,9 @@ impl Contract {
             return Err(Error::InvalidTimeRange);
         }
 
-        let duration = end_time - start_time;
+        let duration = end_time
+            .checked_sub(start_time)
+            .ok_or(Error::InvalidTimeRange)?;
         let id = storage::next_stream_id(&env);
         let contract_address = env.current_contract_address();
 
@@ -610,7 +612,10 @@ impl Contract {
             return Err(Error::OverWithdraw);
         }
 
-        stream.released_amount += amount;
+        stream.released_amount = stream
+            .released_amount
+            .checked_add(amount)
+            .ok_or(Error::Overflow)?;
         stream.last_update = now;
 
         if stream.released_amount == stream.total_amount {
@@ -635,14 +640,6 @@ impl Contract {
         Ok(amount)
     }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
-
-/// Returns the next stream ID to assign, defaulting to `1` if the counter has
-/// not been written yet.
-fn next_stream_id(env: &Env) -> u64 {
-    match env.storage().persistent().get(&DataKey::NextStreamId) {
-        Some(id) => id,
-        None => 1,
     /// Pauses an active stream, freezing accrual while preserving vested funds.
     ///
     /// Only the stream sender may call this. On pause, status is set to Paused
@@ -674,72 +671,8 @@ fn next_stream_id(env: &Env) -> u64 {
         );
 
         Ok(stream)
-    }#618 Add NatSpec-style /// docs to every public entrypoint
-Repo Avatar
-Streampay-Org/StreamPay-Frontend
-Description
-This is a smart-contract issue for the GrantFox campaign. This is a smart-contract issue for the GrantFox campaign. Doc every public fn with semantics and errors.
+    }
 
-Requirements and Context
-Implement per the description
-Add focused tests
-Document any API changes
-Run the standard verification for this domain
-Must be secure, tested, and documented
-Should be efficient and easy to review
-Suggested Execution
-Fork the repo and create a branch
-git checkout -b task/natspec-docs
-Implement changes
-contracts/contracts/streampay-stream/src/lib.rs
-Test and commit
-Run the repo's standard test suite and lint
-Cover edge cases; include output in the PR
-Example commit message
-
-feat: add natspec-style /// docs to every public entrypoint
-Acceptance Criteria
- Implementation matches design
- Tests pass for the domain
- Code review approved
- Docs updated
-Guidelines
-Minimum 95% test coverage with cargo test
-require_auth on every state-changing entrypoint
-Overflow-safe math; no unwrap() in production paths
-Clear NatSpec-style /// rustdoc
-Timeframe: 96 hours
-
-
-
-/// Fetches a stream by ID, returning [`Error::NotFound`] if absent.
-fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
-    env.storage()
-        .persistent()
-        .get(&DataKey::Stream(stream_id))
-        .ok_or(Error::NotFound)
-}
-
-/// Computes the token amount accrued and not yet withdrawn for `stream`.
-///
-/// Formula (integer arithmetic, truncates toward zero — always floors):
-/// ```text
-/// elapsed = min(now, end_time) − start_time
-/// accrued = (total_amount × elapsed) / duration
-/// result  = accrued − released_amount
-/// ```
-///
-/// The `min` cap ensures accrual never exceeds `total_amount` after
-/// `end_time`. Because integer division truncates, dust (the remainder of
-/// `total_amount % duration`) is withheld until `elapsed == duration`, at
-/// which point `accrued == total_amount` exactly — no tokens are permanently
-/// lost. Rounding always favours the sender (recipient receives slightly less
-/// mid-stream, never more).
-///
-/// Returns `0` for any non-`Active` stream or when `start_time == 0`.
-fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
     /// Resumes a paused stream, extending end_time to preserve unstreamed time.
     ///
     /// Only the stream sender may call this. On resume, the end_time is extended
@@ -818,7 +751,10 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
             return Err(Error::InvalidState);
         }
 
-        let payout_amount = stream.total_amount - stream.released_amount;
+        let payout_amount = stream
+            .total_amount
+            .checked_sub(stream.released_amount)
+            .ok_or(Error::Overflow)?;
         if payout_amount > 0 {
             #[allow(clippy::needless_borrows_for_generic_args)]
             token::Client::new(&env, &stream.token).transfer(
@@ -939,17 +875,6 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
             return Err(Error::InvalidTimeRange);
         }
 
-        // Store old values for event (0 means unchanged)
-        let old_end_time = stream.end_time;
-        let old_rate = if stream.duration > 0 {
-            stream
-                .total_amount
-                .checked_div(stream.duration as i128)
-                .unwrap_or(0)
-        } else {
-            0
-        };
-
         // Update stream parameters
         stream.end_time = new_end_time;
         stream.last_update = now;
@@ -962,25 +887,12 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
 
         storage::set_stream(&env, stream_id, &stream);
 
-        // Emit amendment event
-        // Report the new rate and new end_time; 0 means no change for backward compat
-        let reported_rate = if new_rate_per_second != old_rate {
-            new_rate_per_second
-        } else {
-            0
-        };
-        let reported_end_time = if new_end_time != old_end_time {
-            new_end_time
-        } else {
-            0
-        };
-
         events::amended(
             &env,
             stream_id,
             &stream.sender,
-            reported_rate,
-            reported_end_time,
+            new_rate_per_second,
+            new_end_time,
             now,
         );
 
@@ -1036,20 +948,6 @@ fn require_not_paused(env: &Env) -> Result<(), Error> {
     }
 
     Ok(())
-}
-
-/// Returns `true` when the token has been explicitly blocked by the admin.
-///
-/// A missing entry (token never mentioned) is treated as *allowed*.
-fn is_token_blocked(env: &Env, token: &Address) -> bool {
-    match env
-        .storage()
-        .persistent()
-        .get::<DataKey, bool>(&DataKey::TokenAllowed(token.clone()))
-    {
-        Some(allowed) => !allowed,
-        None => false,
-    }
 }
 
 #[cfg(test)]
