@@ -38,8 +38,6 @@ export async function GET(request: Request, { params }: Context) {
   }
 
   const response = NextResponse.json({
-    data: toV2Stream(stream),
-  return NextResponse.json({
     data: toV2Stream(dbStreamToV1(stream)),
     links: { self: `/api/v2/streams/${id}` },
   });

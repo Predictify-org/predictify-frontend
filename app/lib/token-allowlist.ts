@@ -207,8 +207,8 @@ export async function checkTokenAllowed(
 
   // Check token result cache
   const cachedResult = _checkResultCache.get(normalised);
-  if (!isCacheExpired(cachedResult)) {
-    return cachedResult!.data;
+  if (cachedResult && !isCacheExpired(cachedResult)) {
+    return cachedResult.data;
   }
 
   // Check if another request is already performing the check (single-flight)

@@ -28,55 +28,64 @@ export async function POST(
   return withIdempotency(request, "withdraw", withdrawStore, async () => {
     return withLock(id, async () => {
       const stream = db.streams.get(id);
-    if (!stream) {
-      return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
-    }
-
-    const policyResult = actorAddress
-      ? checkStreamOrgPolicy(id, actorAddress, "withdraw")
-      : null;
-    if (policyResult) {
-      if (!policyResult.allowed) {
-        return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+      if (!stream) {
+        return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
       }
-      if (policyResult.requiresApproval) {
-        return createErrorResponse(
-          "APPROVAL_REQUIRED",
-          "This action requires multi-sig approval. Please initiate an approval request.",
-          409
-        );
+
+      const policyResult = actorAddress
+        ? checkStreamOrgPolicy(id, actorAddress, "withdraw")
+        : null;
+      if (policyResult) {
+        if (!policyResult.allowed) {
+          return createErrorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+        }
+        if (policyResult.requiresApproval) {
+          return createErrorResponse(
+            "APPROVAL_REQUIRED",
+            "This action requires multi-sig approval. Please initiate an approval request.",
+            409
+          );
+        }
       }
-    }
 
-    if (stream.status !== "ended") {
-      if (stream.status === "withdrawn") {
-        const payload = { data: stream, withdrawal: stream.withdrawal };
-        return NextResponse.json(payload);
+      if (stream.status !== "ended") {
+        if (stream.status === "withdrawn") {
+          const payload = { data: stream, withdrawal: stream.withdrawal };
+          return NextResponse.json(payload);
+        }
+        return createErrorResponse("INVALID_STREAM_STATE", "Only ended streams can be withdrawn from", 409);
       }
-      return createErrorResponse("INVALID_STREAM_STATE", "Only ended streams can be withdrawn from", 409);
-    }
 
-    const before = structuredClone(stream);
-    const { alert, stream: updated } = await evaluateWithdrawalState(stream, new Date(), fetch);
-    db.streams.set(id, updated);
+      const before = structuredClone(stream);
+      const { alert, stream: updated } = await evaluateWithdrawalState(stream, new Date(), fetch);
+      db.streams.set(id, updated);
 
-    const payload = {
-      alert,
-      data: updated,
-      withdrawal: updated.withdrawal,
-    };
+      const payload = {
+        alert,
+        data: updated,
+        withdrawal: updated.withdrawal,
+      };
 
-    recordPrivilegedStreamAuditEvent({
-      action: "stream.withdraw",
-      after: updated as any,
-      before: before as any,
-      metadata: {
-        resultingStatus: updated.status,
-        withdrawalState: updated.withdrawal?.state ?? null,
-      },
-      request,
-      streamId: id,
-      targetAccount: updated.recipient,
+      recordPrivilegedStreamAuditEvent({
+        action: "stream.withdraw",
+        after: updated as any,
+        before: before as any,
+        metadata: {
+          resultingStatus: updated.status,
+          withdrawalState: updated.withdrawal?.state ?? null,
+        },
+        request,
+        streamId: id,
+        targetAccount: updated.recipient,
+      });
+
+      logger.info("Stream withdrawn successfully", {
+        streamId: id,
+        action: "withdraw",
+        status: "success",
+      });
+
+      return NextResponse.json(payload);
     });
 
     
@@ -88,5 +97,6 @@ export async function POST(
     });
 
     return NextResponse.json(payload);
+    });
   });
 }

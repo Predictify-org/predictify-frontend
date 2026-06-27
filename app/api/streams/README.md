@@ -1,3 +1,37 @@
+## Streams API
+
+### Endpoints
+
+#### GET /api/streams/:id/events (SSE)
+Server-Sent Events endpoint for live stream deltas.
+
+**Authentication:** JWT Bearer token required  
+**Headers:**
+- `Authorization: Bearer <JWT token>`
+- `x-tenant-id: <tenant-id>` (required)
+- `x-correlation-id: <correlation-id>` (optional, for tracing)
+
+**Response:**
+- `Content-Type: text/event-stream`
+- `Cache-Control: no-cache, no-transform`
+- `Connection: keep-alive`
+
+**Events:**
+- `stream:updated` - Emitted when stream state changes
+- `settle:finished` - Emitted when settlement completes
+
+**Protocol:**
+- Server sends `: keep-alive` comments every 30s to keep connection alive
+- Client must handle reconnection on disconnect
+- Users can only subscribe to streams they own (recipient) or if they have admin role
+
+**Error Responses:**
+- `401 UNAUTHORIZED` - Missing or invalid JWT token
+- `400 MISSING_TENANT` - Missing x-tenant-id header
+- `422 VALIDATION_ERROR` - Invalid stream ID format
+- `404 NOT_FOUND` - Stream does not exist
+- `403 FORBIDDEN` - User does not have permission to subscribe
+
 ## Running E2E Tests and Coverage
 
 ```bash

@@ -12,6 +12,7 @@ shape is documented in the [README](../README.md#error-envelope).
 | `UNAUTHORIZED`         | 401  | no        | Missing or invalid bearer token. |
 | `FORBIDDEN`            | 403  | no        | Authenticated but lacks permission. |
 | `NOT_FOUND`            | 404  | no        | Resource does not exist (or not visible to you). |
+| `ORG_NOT_FOUND`        | 404  | no        | Organization id does not exist. |
 | `REQUEST_TIMEOUT`      | 408  | yes       | Upstream did not respond in time. |
 | `CONFLICT`             | 409  | no        | Idempotency-key replay with a different body. |
 | `UNPROCESSABLE_ENTITY` | 422  | no        | Semantic validation failed (e.g. negative amount). |

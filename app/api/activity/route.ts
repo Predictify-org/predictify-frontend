@@ -91,6 +91,5 @@ export async function GET(request: Request) {
       meta: { hasNext, nextCursor, total: totalFiltered },
       links: { self: `/api/activity?limit=${limit}` },
     });
-  }
-  );
+  });
 }

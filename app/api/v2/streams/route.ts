@@ -1,15 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, ErrorCode } from "@/app/lib/errors";
-import { toV2Stream, type StreamV1 } from "@/app/lib/api-version";
-import { validateCreateStreamBody } from "@/app/lib/stream-validation";
-
-const IDEMPOTENCY_TTL_MS = 86_400_000; // 24 hours
-
-interface IdempotencyEntry {
-  body: string;
-  response: unknown;
-  expiresAt: number;
-}
+import { NextResponse } from "next/server";
+import { db, encodeCursor, decodeCursor, idempotencyToken, getStore } from "@/app/lib/db";
+import { toV2Stream, dbStreamToV1 } from "@/app/lib/api-version";
+import type { Stream } from "@/app/types/openapi";
 
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -22,7 +14,8 @@ export async function GET(request: Request) {
   const status = searchParams.get("status");
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 100);
 
-  let streams = Array.from(db.streams.values()).sort((a, b) =>
+  const { streamRepository } = getStore();
+  let streams = Array.from(streamRepository.streams.values() as Iterable<Stream>).sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
 
@@ -34,37 +27,22 @@ export async function GET(request: Request) {
     if (idx >= 0) streams = streams.slice(idx + 1);
   }
 
-  try {
-    // TODO: fetch from data layer using token identity
-    const v1Streams: StreamV1[] = [];
-    const streams = v1Streams.map(toV2Stream);
+  const page = streams.slice(0, limit);
+  const hasNext = streams.length > limit;
+  const nextCursor =
+    hasNext && page.length > 0
+      ? encodeCursor(page[page.length - 1].id)
+      : null;
 
-    return NextResponse.json({ streams }, { status: 200 });
-  } catch {
-    return errorResponse(
-      ErrorCode.INTERNAL_SERVER_ERROR,
-      "Failed to retrieve streams.",
-      500,
-    );
-  }
+  return NextResponse.json({
+    data: page.map((stream) => toV2Stream(dbStreamToV1(stream))),
+    meta: { hasNext, nextCursor, total: streamRepository.streams.size },
+    links: { self: `/api/v2/streams?limit=${limit}` },
+  });
 }
 
 /**
- * POST /api/v2/streams
- *
- * Creates a new payment stream.
- * Requires: Authorization: Bearer <token>
- *
- * Breaking changes vs v1:
- *   - Response body uses `allowed_actions`, `created_at`, `updated_at`
- *     instead of `nextAction`, `createdAt`, `updatedAt`.
- *   - `settlement` is always present (null when not yet settled).
- *
- * Idempotency:
- *   - Supports Idempotency-Key header for safe retries.
- *   - Same key + identical body returns the cached 201 response.
- *   - Same key + different body returns 409 Conflict.
- *   - Entries expire after 24 hours (IDEMPOTENCY_TTL_MS).
+ * POST /api/v2/streams — create a stream, respond with v2 shape.
  */
 export async function POST(request: Request) {
   const idempotencyKey = request.headers.get("Idempotency-Key");
@@ -72,30 +50,15 @@ export async function POST(request: Request) {
     ? idempotencyToken("v2.streams.create", idempotencyKey)
     : null;
 
-  let body: Record<string, unknown>;
-  let bodyText: string;
-  try {
-    bodyText = await request.text();
-    body = JSON.parse(bodyText);
-  } catch {
-    return errorResponse("INVALID_REQUEST", "Request body must be valid JSON", 400);
+  if (token && db.idempotency.has(token)) {
+    return NextResponse.json(db.idempotency.get(token), { status: 201 });
   }
 
-  if (token) {
-    const existing = db.idempotency.get(token) as IdempotencyEntry | undefined;
-    if (existing) {
-      if (Date.now() > existing.expiresAt) {
-        db.idempotency.delete(token);
-      } else if (existing.body === bodyText) {
-        return NextResponse.json(existing.response, { status: 201 });
-      } else {
-        return errorResponse(
-          "IDEMPOTENCY_CONFLICT",
-          "Idempotency key already used for a different request body.",
-          409,
-        );
-      }
-    }
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return errorResponse("INVALID_REQUEST", "Request body must be valid JSON", 400);
   }
 
   const { recipient, rate, schedule } = body as {
@@ -106,39 +69,34 @@ export async function POST(request: Request) {
 
   if (!recipient || !rate || !schedule) {
     return errorResponse(
-      ErrorCode.STREAM_CREATE_FAILED,
-      "Failed to create stream.",
-      500,
+      "VALIDATION_ERROR",
+      "Missing required fields: recipient, rate, schedule",
+      422,
     );
   }
 
   const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
-  const newStream = {
+  const newStream: Stream = {
     id,
     recipient: String(recipient),
     rate: String(rate),
     schedule: String(schedule),
-    status: "draft" as const,
-    nextAction: "start" as const,
+    status: "draft",
+    nextAction: "start",
     createdAt: now,
     updatedAt: now,
+    token: "XLM",
   };
 
   db.streams.set(id, newStream);
 
   const payload = {
-    data: toV2Stream(newStream),
+    data: toV2Stream(dbStreamToV1(newStream)),
     links: { self: `/api/v2/streams/${id}` },
   };
 
-  if (token) {
-    db.idempotency.set(token, {
-      body: bodyText,
-      response: payload,
-      expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
-    });
-  }
+  if (token) db.idempotency.set(token, payload);
 
   return NextResponse.json(payload, { status: 201 });
 }

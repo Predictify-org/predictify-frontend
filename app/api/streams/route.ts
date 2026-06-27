@@ -16,7 +16,7 @@ import { checkTokenAllowed, checkTokenAllowedForOrg, normaliseToken } from "@/ap
 import { validateCreateStreamBody } from "@/app/lib/stream-validation";
 import { orgDb } from "@/app/lib/org-db";
 
-export function errorResponse(code: string, message: string, status: number) {
+function errorResponse(code: string, message: string, status: number) {
   return createErrorResponse(code, message, status);
 }
 
@@ -154,9 +154,9 @@ export async function POST(request: Request) {
   }
 
   const { rate, recipient, schedule, token: rawToken } = body as {
-    rate?: string;
-    recipient?: string;
-    schedule?: string;
+    rate: string;
+    recipient: string;
+    schedule: string;
     token?: string;
     orgId?: string;
   };

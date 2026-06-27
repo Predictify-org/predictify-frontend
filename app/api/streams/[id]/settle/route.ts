@@ -30,78 +30,71 @@ export async function POST(
   return withIdempotency(request, "settle", settleStore, async () => {
     return withLock(id, async () => {
       const stream = db.streams.get(id);
-    if (!stream) {
-      return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
-    }
-
-    const actorAddress = getHeader(request, "Actor-Wallet-Address");
-    const policyResult = actorAddress
-      ? checkStreamOrgPolicy(id, actorAddress, "settle")
-      : null;
-    if (policyResult) {
-      if (!policyResult.allowed) {
-        return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+      if (!stream) {
+        return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
       }
-      if (policyResult.requiresApproval) {
-        return errorResponse(
-          "APPROVAL_REQUIRED",
-          "This action requires multi-sig approval. Please initiate an approval request.",
-          409
-        );
+
+      const actorAddress = getHeader(request, "Actor-Wallet-Address");
+      const policyResult = actorAddress
+        ? checkStreamOrgPolicy(id, actorAddress, "settle")
+        : null;
+      if (policyResult) {
+        if (!policyResult.allowed) {
+          return errorResponse(policyResult.code, policyResult.message, policyResult.httpStatus);
+        }
+        if (policyResult.requiresApproval) {
+          return errorResponse(
+            "APPROVAL_REQUIRED",
+            "This action requires multi-sig approval. Please initiate an approval request.",
+            409
+          );
+        }
       }
-    }
 
-    if (stream.status !== "active" && stream.status !== "paused") {
-      return errorResponse("INVALID_STREAM_STATE", "Only active or paused streams can be settled", 409);
-    }
+      if (stream.status !== "active" && stream.status !== "paused") {
+        return errorResponse("INVALID_STREAM_STATE", "Only active or paused streams can be settled", 409);
+      }
 
-    const before = structuredClone(stream);
-    const txHash = `fake-tx-${crypto.randomUUID().slice(0, 8)}`;
-    const now = new Date().toISOString();
-    const updatedStream = {
-      ...stream,
-      nextAction: "withdraw" as const,
-      settlementTxHash: txHash,
-      status: "ended" as const,
-      updatedAt: now,
-      withdrawal: {
-        attempts: 0,
-        lastCheckedAt: now,
-        requestedAt: now,
+      const before = structuredClone(stream);
+      const txHash = `fake-tx-${crypto.randomUUID().slice(0, 8)}`;
+      const now = new Date().toISOString();
+      const updatedStream = {
+        ...stream,
+        nextAction: "withdraw" as const,
         settlementTxHash: txHash,
-        state: "pending" as const,
-      },
-    };
-    db.streams.set(id, updatedStream);
-
-    try {
-      const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
-
+        status: "ended" as const,
+        updatedAt: now,
+        withdrawal: {
+          attempts: 0,
+          lastCheckedAt: now,
+          requestedAt: now,
+          settlementTxHash: txHash,
+          state: "pending" as const,
+        },
+      };
       db.streams.set(id, updatedStream);
 
-      recordPrivilegedStreamAuditEvent({
-        action: "stream.settle",
-        after: updatedStream as any,
-        before: before as any,
-        metadata: {
-          settlementTxHash: settlement.txHash,
-        },
-        request,
-        streamId: id,
-        targetAccount: updatedStream.recipient,
-      });
+      try {
+        const settlement = await getStellarSettlementClient().settleStream({ streamId: id });
 
-      const payload = { data: { ...updatedStream, settlement } };
+        db.streams.set(id, updatedStream);
 
-      logger.info("Stream settled successfully", {
-        streamId: id,
-        action: "settle",
-        status: "success",
-      });
+        recordPrivilegedStreamAuditEvent({
+          action: "stream.settle",
+          after: updatedStream as any,
+          before: before as any,
+          metadata: {
+            settlementTxHash: settlement.txHash,
+          },
+          request,
+          streamId: id,
+          targetAccount: updatedStream.recipient,
+        });
 
       return NextResponse.json(payload);
     } catch {
       return errorResponse("SETTLEMENT_FAILED", "Failed to settle stream on Stellar/Soroban", 502);
     }
+    });
   });
 }
