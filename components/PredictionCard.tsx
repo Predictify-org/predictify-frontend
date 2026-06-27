@@ -3,6 +3,7 @@ import React from 'react';
 import { Prediction, PredictionStatus } from '../types/predictions';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, XCircle, Clock, Activity } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 interface PredictionCardProps {
   prediction: Prediction;
@@ -19,6 +20,7 @@ const statusMap: Record<PredictionStatus, { icon: React.ElementType; label: stri
 const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
   const { title, description, stakeAmount, stakeToken, odds, potentialWinnings, winningsToken, eventDate, resolvedDate, status } = prediction;
   const { icon: Icon, className, label } = statusMap[status];
+  const [isOddsExpanded, setIsOddsExpanded] = React.useState(false);
 
   return (
     <button className="w-full text-left bg-card p-4 rounded-xl shadow-lg hover:bg-muted/50 transition duration-200 cursor-pointer border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
@@ -40,10 +42,23 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
         </div>
 
         {/* Odds */}
-        <div>
-          <p className="text-muted-foreground">Odds</p>
-          <p className="text-card-foreground font-medium">{odds.toFixed(1)}x</p>
-        </div>
+        <Collapsible open={isOddsExpanded} onOpenChange={setIsOddsExpanded}>
+          <CollapsibleTrigger asChild>
+            <button
+              className="flex w-full items-center justify-between p-2 rounded hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-expanded={isOddsExpanded}
+              aria-controls="odds-breakdown"
+            >
+              <p className="text-muted-foreground">Odds</p>
+              <p className="text-card-foreground font-medium">{odds.toFixed(1)}x</p>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent id="odds-breakdown" className="mt-2 text-sm text-muted-foreground">
+            <p>Implied probability: {(1 / odds * 100).toFixed(1)}%</p>
+            <p>Last move: N/A</p>
+            <p>24h volume: N/A</p>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Potential Winnings */}
         <div>
