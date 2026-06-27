@@ -1,8 +1,23 @@
 import React from "react"
-import { render, screen, within } from "@testing-library/react"
+import { render, screen, within, fireEvent, act } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { EventsTable } from "../events-table"
 import type { Event } from "@/types/events"
+
+// Mock window.matchMedia (not available in jsdom)
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: jest.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+})
 
 // ── Stable time helpers so progress bars render deterministically ──────────
 jest.mock("@/lib/events-store", () => ({
@@ -11,6 +26,11 @@ jest.mock("@/lib/events-store", () => ({
   ),
   formatTimeRemaining: jest.fn(() => "30d 0h"),
   getTimeRemainingColor: jest.fn(() => "green"),
+}))
+
+jest.mock("@/lib/compare-store", () => ({
+  useCompareStore: jest.fn(() => ({ selectedIds: [], toggle: jest.fn() })),
+  MAX_COMPARE: 2,
 }))
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
@@ -193,5 +213,95 @@ describe("EventsTable — accessibility", () => {
       render(<EventsTable />)
       expect(screen.getByText(/no events found/i)).toBeInTheDocument()
     })
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe("EventsTable — HoverTooltip on event title", () => {
+  beforeEach(() => {
+    const { useEventsStore } = require("@/lib/events-store")
+    useEventsStore.mockImplementation((selector?: (s: ReturnType<typeof mockStoreState>) => unknown) =>
+      selector ? selector(mockStoreState()) : mockStoreState()
+    )
+  })
+
+  it("event title cell has cursor-help indicating tooltip availability", () => {
+    render(<EventsTable />)
+    const titleEl = screen.getByText("Will Team A win the championship?")
+    // Traverse up to the wrapper div that has cursor-help
+    const wrapper = titleEl.closest(".cursor-help")
+    expect(wrapper).toBeInTheDocument()
+  })
+
+  it("tooltip is not visible before hover", () => {
+    render(<EventsTable />)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+  })
+
+  it("tooltip appears with key event data on mouseenter after delay", async () => {
+    jest.useFakeTimers()
+    render(<EventsTable />)
+    const titleEl = screen.getByText("Will Team A win the championship?")
+    const triggerSpan = titleEl.closest("span[aria-describedby]") as HTMLElement
+    expect(triggerSpan).toBeInTheDocument()
+
+    fireEvent.mouseEnter(triggerSpan)
+    // Tooltip should not be visible before delay
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+
+    // Advance past the 300ms hoverDelay
+    act(() => { jest.advanceTimersByTime(350) })
+
+    const tooltip = screen.getByRole("tooltip")
+    expect(tooltip).toBeInTheDocument()
+    expect(tooltip).toHaveTextContent(/Category/i)
+    expect(tooltip).toHaveTextContent(/Football/i)
+    expect(tooltip).toHaveTextContent(/Participants/i)
+
+    jest.useRealTimers()
+  })
+
+  it("tooltip disappears on mouseleave", () => {
+    jest.useFakeTimers()
+    render(<EventsTable />)
+    const titleEl = screen.getByText("Will Team A win the championship?")
+    const triggerSpan = titleEl.closest("span[aria-describedby]") as HTMLElement
+
+    fireEvent.mouseEnter(triggerSpan)
+    act(() => { jest.advanceTimersByTime(350) })
+    expect(screen.getByRole("tooltip")).toBeInTheDocument()
+
+    fireEvent.mouseLeave(triggerSpan)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+
+    jest.useRealTimers()
+  })
+
+  it("tooltip is linked via aria-describedby for accessibility", () => {
+    jest.useFakeTimers()
+    render(<EventsTable />)
+    const titleEl = screen.getByText("Will Team A win the championship?")
+    const triggerSpan = titleEl.closest("span[aria-describedby]") as HTMLElement
+
+    fireEvent.mouseEnter(triggerSpan)
+    act(() => { jest.advanceTimersByTime(350) })
+
+    const tooltip = screen.getByRole("tooltip")
+    const tooltipId = tooltip.getAttribute("id")
+    expect(triggerSpan.getAttribute("aria-describedby")).toBe(tooltipId)
+
+    jest.useRealTimers()
+  })
+
+  it("tooltip appears on focus (keyboard navigation)", () => {
+    render(<EventsTable />)
+    const titleEl = screen.getByText("Will Team A win the championship?")
+    const triggerSpan = titleEl.closest("span[aria-describedby]") as HTMLElement
+
+    fireEvent.focus(triggerSpan)
+    expect(screen.getByRole("tooltip")).toBeInTheDocument()
+
+    fireEvent.blur(triggerSpan)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
   })
 })
