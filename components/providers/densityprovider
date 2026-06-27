@@ -1,0 +1,43 @@
+"use client";
+
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { Density, densityTokens, loadDensity, saveDensity } from "@/hooks/useDensity";
+
+interface DensityContextType {
+  density: Density;
+  setDensity: (density: Density) => void;
+  tokens: (typeof densityTokens)[Density];
+}
+
+const DensityContext = createContext<DensityContextType | undefined>(undefined);
+
+export function useDensityContext() {
+  const ctx = useContext(DensityContext);
+  if (!ctx) throw new Error("useDensityContext must be used within DensityProvider");
+  return ctx;
+}
+
+export function DensityProvider({ children, initialDensity }: { children: React.ReactNode; initialDensity?: Density }) {
+  const [density, setDensityState] = useState<Density>(initialDensity ?? "cozy");
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    if (!initialDensity) {
+      setDensityState(loadDensity());
+    }
+    setIsHydrated(true);
+  }, [initialDensity]);
+
+  const setDensity = (value: Density) => {
+    setDensityState(value);
+    saveDensity(value);
+  };
+
+  if (!isHydrated && !initialDensity) return <>{children}</>;
+
+  return (
+    <DensityContext.Provider value={{ density, setDensity, tokens: densityTokens[density] }}>
+      {children}
+    </DensityContext.Provider>
+  );
+}
