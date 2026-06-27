@@ -1,3 +1,20 @@
+//! # StreamPay Stream Contract
+//!
+//! Soroban smart contract that manages linear payment streams on Stellar.
+//! Each stream locks a fixed token amount in escrow and releases it linearly
+//! to a recipient over a configurable duration.
+//!
+//! ## Lifecycle
+//!
+//! ```text
+//! Draft ──start_stream──► Active ──withdraw (full)──► Settled
+//! ```
+//!
+//! ## Administrative controls
+//!
+//! A single admin address (set at [`Contract::initialize`]) may:
+//! - Toggle the global emergency pause ([`Contract::set_paused`]).
+//! - Allow or block individual token contracts ([`Contract::set_token_allowed`]).
 #![no_std]
 
 mod error;
@@ -10,13 +27,95 @@ pub use error::Error;
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 pub use storage::{Stream, StreamStatus};
 
+/// The StreamPay contract entry point registered with the Soroban host.
 #[contract]
 pub struct Contract;
+
+/// Lifecycle state of a payment stream.
+///
+/// Transitions allowed by the current public API:
+/// ```text
+/// Draft ──start_stream──► Active ──withdraw (full)──► Settled
+/// ```
+/// `Paused`, `Ended`, and `Cancelled` are reserved for future entry points.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum StreamStatus {
+    /// Created and funded but not yet activated; accrual has not started.
+    Draft,
+    /// Tokens are flowing linearly to the recipient.
+    Active,
+    /// Reserved — stream-level pause not yet implemented.
+    Paused,
+    /// All `total_amount` tokens have been released to the recipient.
+    Settled,
+    /// Reserved — natural expiry entry point not yet implemented.
+    Ended,
+    /// Reserved — sender-initiated cancellation not yet implemented.
+    Cancelled,
+}
+
+/// On-chain record for a single payment stream.
+///
+/// All token amounts are in the token's base unit (stroops for XLM-based
+/// assets). All timestamps are Unix seconds as reported by the ledger.
+#[derive(Clone, Debug)]
+#[contracttype]
+pub struct Stream {
+    /// Unique monotonic identifier assigned at creation. Starts at 1.
+    pub id: u64,
+    /// Address that created the stream and escrowed `total_amount`.
+    pub sender: Address,
+    /// Address that receives streamed tokens via [`Contract::withdraw`].
+    pub recipient: Address,
+    /// Stellar asset contract address being streamed.
+    pub token: Address,
+    /// Total tokens (base units) locked in escrow at creation. Always > 0.
+    pub total_amount: i128,
+    /// Tokens already transferred to `recipient`. Monotonically non-decreasing.
+    /// Invariant: `released_amount <= total_amount`.
+    pub released_amount: i128,
+    /// Ledger timestamp when accrual begins. Zero for `Draft` streams.
+    pub start_time: u64,
+    /// Ledger timestamp when accrual ends (`start_time + duration`).
+    /// Zero for `Draft` streams.
+    pub end_time: u64,
+    /// Stream length in seconds. Set at creation; never changes.
+    pub duration: u64,
+    /// Ledger timestamp of the last state-mutating operation on this stream.
+    pub last_update: u64,
+    /// Current lifecycle status.
+    pub status: StreamStatus,
+}
+
+/// Ledger storage keys used internally by this contract.
+///
+/// Not exposed to callers; listed here for auditability.
+#[derive(Clone)]
+#[contracttype]
+enum DataKey {
+    /// The privileged admin [`Address`].
+    Admin,
+    /// Global emergency pause flag (`bool`).
+    Paused,
+    /// Monotonic counter; value is the **next** stream ID to assign.
+    NextStreamId,
+    /// Per-stream record keyed by numeric ID.
+    Stream(u64),
+    /// Per-token allowlist entry. Absent or `true` → allowed; `false` → blocked.
+    TokenAllowed(Address),
+}
 
 #[contractimpl]
 impl Contract {
     /// One-time contract initialisation.
     ///
+    /// Records `admin` as the privileged address for [`Contract::set_paused`]
+    /// and [`Contract::set_token_allowed`]. Sets the global pause flag to
+    /// `false`.
+    ///
+    /// # Parameters
+    /// - `admin` — Address that will have admin privileges over this contract.
     /// Records `admin` as the privileged address for `set_paused` and
     /// `set_token_allowed`. Sets the global pause flag to `false`.
     ///
@@ -36,6 +135,19 @@ impl Contract {
         Ok(())
     }
 
+    /// Sets the global emergency pause flag.
+    ///
+    /// When `paused` is `true`, [`Contract::create_stream`],
+    /// [`Contract::start_stream`], and [`Contract::withdraw`] all return
+    /// [`Error::ContractPaused`]. Read-only calls ([`Contract::get_stream`],
+    /// [`Contract::withdrawable`]) are unaffected.
+    ///
+    /// # Parameters
+    /// - `admin`  — Must match the admin set at initialisation.
+    /// - `paused` — `true` to pause; `false` to unpause.
+    ///
+    /// # Errors
+    /// - [`Error::Unauthorized`] if `admin` does not match the initialised admin.
     /// Atomic initialisation + token allowlist.
     ///
     /// Performs the work of `initialize` and then marks each
@@ -153,6 +265,13 @@ impl Contract {
     /// `allowed = false` blocks the token; `allowed = true` re-enables it.
     /// Existing streams using a subsequently blocked token are unaffected.
     ///
+    /// # Parameters
+    /// - `admin`   — Must match the admin set at initialisation.
+    /// - `token`   — Stellar asset contract address to configure.
+    /// - `allowed` — `true` to allow; `false` to block.
+    ///
+    /// # Errors
+    /// - [`Error::Unauthorized`] if `admin` does not match the initialised admin.
     /// # Errors
     /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
     /// - [`Error::NotFound`] if the contract has not been initialised.
@@ -170,6 +289,8 @@ impl Contract {
         Ok(())
     }
 
+    /// Creates a funded stream and escrows `total_amount` from `sender`.
+    ///
     /// Sets the maximum number of active streams a single sender may have.
     ///
     /// When a sender reaches this limit, `create_stream` returns
@@ -204,6 +325,18 @@ impl Contract {
     /// If `draft = false` the stream is `Active` immediately with
     /// `start_time = now` and `end_time = now + duration`.
     /// If `draft = true` the stream is `Draft`; `start_time`, `end_time`, and
+    /// `last_update` are all zero until [`Contract::start_stream`] is called.
+    ///
+    /// # Parameters
+    /// - `sender`       — Address funding the stream; `total_amount` is pulled from here.
+    /// - `recipient`    — Address that will receive streamed tokens.
+    /// - `token`        — Stellar asset contract address to stream.
+    /// - `total_amount` — Total tokens (base units) to lock in escrow. Must be > 0.
+    /// - `duration`     — Stream length in seconds. Must be > 0.
+    /// - `draft`        — `true` → create in `Draft` state; `false` → activate immediately.
+    ///
+    /// # Returns
+    /// The numeric ID of the newly created stream.
     /// `last_update` are all zero until `start_stream` is called.
     ///
     /// Returns the new stream's numeric ID.
@@ -312,6 +445,22 @@ impl Contract {
     /// Sets `status = Active`, `start_time = now`, `last_update = now`, and
     /// `end_time = now + duration`. No token transfer occurs.
     ///
+    /// # Parameters
+    /// - `stream_id` — Numeric ID of the stream to activate.
+    ///
+    /// # Returns
+    /// The updated [`Stream`] record after activation.
+    ///
+    /// # Errors
+    /// - [`Error::ContractPaused`] if the global pause flag is set.
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::InvalidState`] if the stream is not in `Draft` status.
+    /// - [`Error::InvalidTimeRange`] if `now + duration` overflows `u64`.
+    ///
+    ///
+    /// Sets `status = Active`, `start_time = now`, `last_update = now`, and
+    /// `end_time = now + duration`. No token transfer occurs.
+    ///
     /// # Errors
     /// - [`Error::ContractPaused`] if the global pause flag is set.
     /// - [`Error::NotFound`] if `stream_id` does not exist.
@@ -351,6 +500,14 @@ impl Contract {
 
     /// Returns the stored stream record for `stream_id`.
     ///
+    /// This is a read-only call and is never blocked by the pause flag.
+    ///
+    /// # Parameters
+    /// - `stream_id` — Numeric ID of the stream to look up.
+    ///
+    /// # Returns
+    /// The [`Stream`] record stored on-chain.
+    ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
     pub fn get_stream(env: Env, stream_id: u64) -> Result<Stream, Error> {
@@ -358,6 +515,21 @@ impl Contract {
     }
 
     /// Returns the token amount currently accrued and available for withdrawal.
+    ///
+    /// Delegates to the internal [`withdrawable_amount`] helper.
+    /// Returns `0` for `Draft` streams (accrual has not started) and for any
+    /// stream in a non-`Active` state.
+    ///
+    /// This is a read-only call and is never blocked by the pause flag.
+    ///
+    /// # Parameters
+    /// - `stream_id` — Numeric ID of the stream to query.
+    ///
+    /// # Returns
+    /// Token amount (base units) available to withdraw right now.
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
     ///
     /// Delegates to [`withdrawable_amount`]. Returns `0` for `Draft` streams.
     ///
@@ -388,7 +560,32 @@ impl Contract {
         release::vested_amount(&stream, env.ledger().timestamp())
     }
 
-    /// Withdraws accrued escrow to the recipient.
+    /// Withdraws `amount` of accrued tokens to the stream's `recipient`.
+    ///
+    /// **Token transfer**: `amount` is transferred from the contract address to
+    /// `recipient`. If this brings `released_amount` to `total_amount` the
+    /// stream transitions to [`StreamStatus::Settled`].
+    ///
+    /// # Parameters
+    /// - `stream_id` — Numeric ID of the stream to withdraw from.
+    /// - `amount`    — Token amount (base units) to withdraw. Must be > 0 and
+    ///   ≤ the currently accrued withdrawable balance.
+    ///
+    /// # Returns
+    /// The `amount` that was withdrawn on success.
+    ///
+    /// # Errors
+    /// - [`Error::ContractPaused`] if the global pause flag is set.
+    /// - [`Error::InvalidAmount`] if `amount <= 0`.
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::AlreadySettled`] if the stream is already `Settled`.
+    /// - [`Error::InvalidState`] if the stream is not `Active` (e.g. `Draft`
+    ///   or `Cancelled`).
+    /// - [`Error::OverWithdraw`] if `amount` exceeds the currently accrued
+    ///   withdrawable balance.
+    ///
+    /// # Auth
+    /// Requires authorisation from the stream's `recipient`.
     pub fn withdraw(env: Env, stream_id: u64, amount: i128) -> Result<i128, Error> {
         require_not_paused(&env)?;
         if amount <= 0 {
@@ -438,6 +635,14 @@ impl Contract {
         Ok(amount)
     }
 
+// ── Private helpers ───────────────────────────────────────────────────────────
+
+/// Returns the next stream ID to assign, defaulting to `1` if the counter has
+/// not been written yet.
+fn next_stream_id(env: &Env) -> u64 {
+    match env.storage().persistent().get(&DataKey::NextStreamId) {
+        Some(id) => id,
+        None => 1,
     /// Pauses an active stream, freezing accrual while preserving vested funds.
     ///
     /// Only the stream sender may call this. On pause, status is set to Paused
@@ -469,8 +674,72 @@ impl Contract {
         );
 
         Ok(stream)
-    }
+    }#618 Add NatSpec-style /// docs to every public entrypoint
+Repo Avatar
+Streampay-Org/StreamPay-Frontend
+Description
+This is a smart-contract issue for the GrantFox campaign. This is a smart-contract issue for the GrantFox campaign. Doc every public fn with semantics and errors.
 
+Requirements and Context
+Implement per the description
+Add focused tests
+Document any API changes
+Run the standard verification for this domain
+Must be secure, tested, and documented
+Should be efficient and easy to review
+Suggested Execution
+Fork the repo and create a branch
+git checkout -b task/natspec-docs
+Implement changes
+contracts/contracts/streampay-stream/src/lib.rs
+Test and commit
+Run the repo's standard test suite and lint
+Cover edge cases; include output in the PR
+Example commit message
+
+feat: add natspec-style /// docs to every public entrypoint
+Acceptance Criteria
+ Implementation matches design
+ Tests pass for the domain
+ Code review approved
+ Docs updated
+Guidelines
+Minimum 95% test coverage with cargo test
+require_auth on every state-changing entrypoint
+Overflow-safe math; no unwrap() in production paths
+Clear NatSpec-style /// rustdoc
+Timeframe: 96 hours
+
+
+
+/// Fetches a stream by ID, returning [`Error::NotFound`] if absent.
+fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::Stream(stream_id))
+        .ok_or(Error::NotFound)
+}
+
+/// Computes the token amount accrued and not yet withdrawn for `stream`.
+///
+/// Formula (integer arithmetic, truncates toward zero — always floors):
+/// ```text
+/// elapsed = min(now, end_time) − start_time
+/// accrued = (total_amount × elapsed) / duration
+/// result  = accrued − released_amount
+/// ```
+///
+/// The `min` cap ensures accrual never exceeds `total_amount` after
+/// `end_time`. Because integer division truncates, dust (the remainder of
+/// `total_amount % duration`) is withheld until `elapsed == duration`, at
+/// which point `accrued == total_amount` exactly — no tokens are permanently
+/// lost. Rounding always favours the sender (recipient receives slightly less
+/// mid-stream, never more).
+///
+/// Returns `0` for any non-`Active` stream or when `start_time == 0`.
+fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
+    if stream.status != StreamStatus::Active || stream.start_time == 0 {
+        return 0;
     /// Resumes a paused stream, extending end_time to preserve unstreamed time.
     ///
     /// Only the stream sender may call this. On resume, the end_time is extended
@@ -743,6 +1012,11 @@ fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
     storage::get_stream(env, stream_id).ok_or(Error::NotFound)
 }
 
+/// Verifies `caller` is the stored admin and requires their authorisation.
+///
+/// # Errors
+/// - [`Error::NotFound`] if the contract has not been initialised.
+/// - [`Error::Unauthorized`] if `caller` differs from the stored admin.
 fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
     caller.require_auth();
 
@@ -755,12 +1029,27 @@ fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
     Ok(())
 }
 
+/// Returns [`Error::ContractPaused`] when the global pause flag is `true`.
 fn require_not_paused(env: &Env) -> Result<(), Error> {
     if storage::is_paused(env) {
         return Err(Error::ContractPaused);
     }
 
     Ok(())
+}
+
+/// Returns `true` when the token has been explicitly blocked by the admin.
+///
+/// A missing entry (token never mentioned) is treated as *allowed*.
+fn is_token_blocked(env: &Env, token: &Address) -> bool {
+    match env
+        .storage()
+        .persistent()
+        .get::<DataKey, bool>(&DataKey::TokenAllowed(token.clone()))
+    {
+        Some(allowed) => !allowed,
+        None => false,
+    }
 }
 
 #[cfg(test)]
