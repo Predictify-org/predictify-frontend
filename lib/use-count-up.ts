@@ -41,18 +41,20 @@ export const useCountUp = (
           hasAnimated.current = true;
           let startTime: number | null = null;
 
-          const step = (timestamp: number) => {
-            if (!startTime) startTime = timestamp;
-            const progress = timestamp - startTime;
-            const percentage = Math.min(progress / duration, 1); // 0 to 1
+          const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
+            const step = (timestamp: number) => {
+              if (!startTime) startTime = timestamp;
+              const progress = timestamp - startTime;
+              const linear = Math.min(progress / duration, 1); // 0 to 1
+              const eased = easeOutQuint(linear);
 
-            const nextValue = startValue + (endValue - startValue) * percentage;
-            setCurrentValue(nextValue);
+              const nextValue = startValue + (endValue - startValue) * eased;
+              setCurrentValue(nextValue);
 
-            if (percentage < 1) {
-              animationRef.current = requestAnimationFrame(step);
-            }
-          };
+              if (linear < 1) {
+                animationRef.current = requestAnimationFrame(step);
+              }
+            };
 
           animationRef.current = requestAnimationFrame(step);
         }
