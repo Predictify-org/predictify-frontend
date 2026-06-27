@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { errorResponse, ErrorCode } from "@/app/lib/errors";
+import { errorResponse, ErrorCode } from "@/app/lib/errors/server";
 
 /**
  * POST /api/webhooks/dlq

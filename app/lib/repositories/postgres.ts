@@ -103,6 +103,27 @@ create table webhook_subscriptions (
 
 create index webhook_subscriptions_status_idx on webhook_subscriptions (status, updated_at desc);
 create index webhook_subscriptions_event_types_gin_idx on webhook_subscriptions using gin (event_types);
+-- Transactional outbox for webhook events
+create table webhook_outbox (
+  id text primary key,
+  endpoint_id text not null,
+  endpoint_url text not null,
+  endpoint_secret text null,
+  endpoint_max_retries integer not null default 10,
+  event_id text not null,
+  event_type text not null,
+  stream_id text not null,
+  event_payload jsonb not null,
+  status text not null default 'pending', -- pending, processing, delivered, failed, dlq
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  attempts integer not null default 0,
+  next_attempt_at timestamptz null,
+  last_error text null
+);
+
+create index webhook_outbox_status_next_attempt_at_idx
+  on webhook_outbox (status, next_attempt_at) where status in ('pending', 'processing');
 
 -- Lock semantics should use pg_advisory_xact_lock(hashtext(stream_id))
 -- or an equivalent row-level lease table so cross-instance settles and

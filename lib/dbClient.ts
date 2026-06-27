@@ -42,26 +42,56 @@ export const dbClient = {
   /**
    * Fetch a page of streams from the database for a specific tenant.
    */
-  async getStreams(tenantId: string, limit: number, offset: number): Promise<DbStream[]> {
-    const streamsList = mockDbData[tenantId] || [];
+  async getStreams(...args: [string | number, number?, number?]): Promise<DbStream[]> {
+    let tenantId = "default";
+    let limit = 100;
+    let offset = 0;
+
+    if (args.length === 3) {
+      [tenantId, limit, offset] = args as [string, number, number];
+    } else if (args.length === 2) {
+      [limit, offset] = args as [number, number];
+    } else if (args.length === 1) {
+      [limit] = args as [number];
+    }
+
+    const streamsList = mockDbData[tenantId as keyof typeof mockDbData] || [];
     return streamsList.slice(offset, offset + limit);
   },
 
   /**
    * Fetch a single stream by ID for a specific tenant.
    */
-  async getStreamById(tenantId: string, id: string): Promise<DbStream | null> {
+  async getStreamById(...args: [string | number, string?]): Promise<DbStream | null> {
+    let tenantId = "default";
+    let id = "";
+
+    if (args.length === 2) {
+      [tenantId, id] = args as [string, string];
+    } else {
+      [id] = args as [string];
+    }
+
     const streams = await this.getStreams(tenantId, 10000, 0);
-    return streams.find(s => s.id === id) || null;
+    return streams.find((stream) => stream.id === id) || null;
   },
 
   /**
    * Update the last run status for a specific tenant.
    * In a real DB, this would write to a tenant-specific table or a table with a tenant_id column.
    */
-  async updateLastRunStatus(tenantId: string, status: string, timestamp: number) {
-    // In this mock, we just log it to show it's being called per tenant.
-    console.log(`[DB] [${tenantId}] Updated last run status to ${status} at ${new Date(timestamp).toISOString()}`);
+  async updateLastRunStatus(...args: [string | number, string | number, number?]) {
+    let tenantId = "default";
+    let status = "UNKNOWN";
+    let timestamp = Date.now();
+
+    if (args.length === 3) {
+      [tenantId, status, timestamp] = args as [string, string, number];
+    } else if (args.length === 2) {
+      [status, timestamp] = args as [string, number];
+    }
+
+    console.log(`[DB] Updated last run status to ${status}`);
   }
 };
 

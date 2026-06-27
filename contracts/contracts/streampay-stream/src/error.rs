@@ -41,4 +41,6 @@ pub enum Error {
     TokenNotAllowed = 9,
     /// 10: Arithmetic overflow in amount calculation.
     Overflow = 10,
+    /// 11: Sender has exceeded the maximum number of active streams.
+    StreamLimitExceeded = 11,
 }

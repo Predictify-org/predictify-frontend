@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 //! Property-based tests for the StreamPay contract.
 //!
 //! The property suite in this module was previously broken by an

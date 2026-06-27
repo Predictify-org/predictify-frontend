@@ -8,6 +8,11 @@ API versioning follows the policy in [README.md#api-versioning](README.md#api-ve
 
 ## [Unreleased]
 
+### Fixed
+- `GET /api/orgs/:orgId/members` and `POST /api/orgs/:orgId/members` now return
+  `404 ORG_NOT_FOUND` when the organization does not exist, instead of an
+  unhandled `500` caused by accessing an undefined legacy store.
+
 ## [2.0.0] — 2026-04-28
 
 ### Added

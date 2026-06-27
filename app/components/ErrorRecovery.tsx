@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 type ErrorVariant = "not-found" | "server" | "outage";
 
@@ -77,9 +78,9 @@ export function ErrorRecovery({
         Skip to StreamPay home
       </a>
       <header className="error-page__brand">
-        <a className="error-page__brand-link" href="/">
+        <Link className="error-page__brand-link" href="/">
           StreamPay
-        </a>
+        </Link>
       </header>
       <main className="error-page__main" id="error-recovery">
         <section
