@@ -20,6 +20,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Clock, DollarSign, Users, BarChart2, Loader2 } from "lucide-react";
 import { formatDistanceToNowStrict, parseISO, isValid } from "date-fns";
+import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+  DrawerClose,
+} from "@/components/ui/drawer";
 
 interface EventOption {
   id: string;
@@ -98,6 +108,8 @@ export default function EventDetailsPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = typeof params?.id === "string" ? params.id : undefined;
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [eventData, setEventData] = useState<EventData>(() => ({
     ...initialMockEventData,
@@ -202,6 +214,7 @@ export default function EventDetailsPage() {
 
       setBetAmount("");
       setSelectedOption(null);
+      setDrawerOpen(false);
     } catch (apiError) {
       console.error("Error during bet submission simulation:", apiError);
       setError("An unexpected error occurred while placing your bet.");
@@ -218,8 +231,244 @@ export default function EventDetailsPage() {
   const potentialPayout =
     currentOdds && betAmount ? parseFloat(betAmount || "0") * currentOdds : 0;
 
+  const overviewTab = (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <CardTitle>Event Status</CardTitle>
+            <MechanicHelp content={oracleDelayHelp} />
+          </div>
+          <CardDescription>
+            Markets may stay in resolving while oracle confirmations arrive after the betting window closes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-muted-foreground">Closes</p>
+              <p
+                className={`font-medium ${
+                  isEventClosed ? "text-red-600" : ""
+                }`}
+              >
+                {timeLeft}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-muted-foreground">Total Pool</p>
+              <p className="font-medium">
+                $
+                {eventData.totalPool.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-muted-foreground">Participants</p>
+              <p className="font-medium">
+                {eventData.participants.toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Prediction Options & Odds</CardTitle>
+          <CardDescription>
+            Select an outcome and place your prediction.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup
+            value={selectedOption ?? undefined}
+            onValueChange={(value) => {
+              setSelectedOption(value);
+              setError(null);
+              setSubmitSuccessMessage(null);
+            }}
+            className="space-y-3"
+            disabled={isEventClosed || isSubmittingBet}
+          >
+            {eventData.options.map((option) => (
+              <Label
+                key={option.id}
+                htmlFor={option.id}
+                className={`flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer ${
+                  selectedOption === option.id
+                    ? "border-primary bg-primary/10 ring-1 ring-primary"
+                    : ""
+                } ${
+                  isEventClosed || isSubmittingBet
+                    ? "opacity-60 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem
+                    value={option.id}
+                    id={option.id}
+                    disabled={isEventClosed || isSubmittingBet}
+                  />
+                  <span>{option.text}</span>
+                </div>
+                <Badge variant="secondary">
+                  Odds: {eventData.odds[option.id]?.toFixed(1) ?? "N/A"}x
+                </Badge>
+              </Label>
+            ))}
+          </RadioGroup>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const activityTab = (
+    <Card>
+      <CardContent className="py-12 text-center text-muted-foreground">
+        Activity for this market will appear here.
+      </CardContent>
+    </Card>
+  );
+
+  const resolutionTab = (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart2 className="h-5 w-5" /> Historical Data
+          </CardTitle>
+          <CardDescription>
+            Past outcomes for similar events.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {eventData.historicalData && eventData.historicalData.length > 0 ? (
+            <ul className="space-y-2 text-sm">
+              {eventData.historicalData.map((data, index) => (
+                <li
+                  key={`${data.year}-${data.winner}-${index}`}
+                  className="flex justify-between items-center border-b pb-1 last:border-b-0"
+                >
+                  <span>
+                    {data.year}:{" "}
+                    <span className="font-medium">{data.winner}</span>
+                  </span>
+                  <span className="text-muted-foreground">
+                    Pool: ${data.pool.toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No historical data available for this event type.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Market Rules</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            {eventData.description}
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const betFormContent = (
+    <form onSubmit={handleBetSubmit}>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="bet-amount">Bet Amount ($)</Label>
+            <MechanicHelp content={platformFeesHelp} />
+          </div>
+          <Input
+            id="bet-amount"
+            type="number"
+            placeholder="e.g., 10.00"
+            value={betAmount}
+            onChange={(e) => {
+              setBetAmount(e.target.value);
+              setError(null);
+              setSubmitSuccessMessage(null);
+            }}
+            min="0.01"
+            step="0.01"
+            required
+            disabled={
+              isEventClosed || isSubmittingBet || !selectedOption
+            }
+            aria-describedby="payout-info error-info success-info"
+          />
+        </div>
+        {selectedOption && currentOdds !== undefined && (
+          <p id="payout-info" className="text-sm text-muted-foreground">
+            Potential Payout: $
+            {potentialPayout.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+            {betAmount
+              ? ` (at ${currentOdds.toFixed(1)}x odds)`
+              : " (enter amount)"}
+          </p>
+        )}
+        {error && (
+          <p id="error-info" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
+        {submitSuccessMessage && (
+          <p id="success-info" className="text-sm text-green-600">
+            {submitSuccessMessage}
+          </p>
+        )}
+      </CardContent>
+      <CardFooter>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={
+            isEventClosed ||
+            isSubmittingBet ||
+            !selectedOption ||
+            !betAmount ||
+            !!error
+          }
+        >
+          {isSubmittingBet ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Placing Bet...
+            </>
+          ) : (
+            "Place Bet"
+          )}
+        </Button>
+      </CardFooter>
+    </form>
+  );
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-8 max-w-4xl pb-32 md:pb-8">
+      {/* Above the fold: title, status, key signals */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
           <h1 className="text-3xl font-bold tracking-tight">
@@ -233,310 +482,48 @@ export default function EventDetailsPage() {
       <Separator className="my-6" />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Main content area with tabs */}
         <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle>Event Status</CardTitle>
-                <MechanicHelp content={oracleDelayHelp} />
-              </div>
-              <CardDescription>
-                Markets may stay in resolving while oracle confirmations arrive after the betting window closes.
-              </CardDescription>
-            </CardHeader>
-            {/* <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-muted-foreground">Closes</p>
-                  <p
-                    className={`font-medium ${
-                      isEventClosed ? "text-red-600" : ""
-                    }`}
-                  >
-                    {timeLeft}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-muted-foreground">Total Pool</p>
-                  <p className="font-medium">
-                    $
-                    {eventData.totalPool.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-muted-foreground">Participants</p>
-                  <p className="font-medium">
-                    {eventData.participants.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent> */}
+          <MarketDetailTabs
+            overview={overviewTab}
+            activity={activityTab}
+            resolution={resolutionTab}
+          />
+        </div>
 
-            <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-muted-foreground">Closes</p>
-                  <p
-                    className={`font-medium ${
-                      isEventClosed ? "text-red-600" : ""
-                    }`}
-                  >
-                    {timeLeft}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-muted-foreground">Total Pool</p>
-                  <p className="font-medium">
-                    $
-                    {eventData.totalPool.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-muted-foreground">Participants</p>
-                  <p className="font-medium">
-                    {eventData.participants.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* <Card>
-            <CardHeader>
-              <CardTitle>Prediction Options & Odds</CardTitle>
-              <CardDescription>
-                Select an outcome and place your prediction.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup
-                value={selectedOption ?? undefined}
-                onValueChange={(value) => {
-                  setSelectedOption(value);
-                  setError(null);
-                  setSubmitSuccessMessage(null);
-                }}
-                className="space-y-3"
-                disabled={isEventClosed || isSubmittingBet}
-              >
-                {eventData.options.map((option) => (
-                  <Label
-                    key={option.id}
-                    htmlFor={option.id}
-                    className={`flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer ${
-                      selectedOption === option.id
-                        ? "border-primary bg-primary/10 ring-1 ring-primary"
-                        : ""
-                    } ${
-                      isEventClosed || isSubmittingBet
-                        ? "opacity-60 cursor-not-allowed"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <RadioGroupItem
-                        value={option.id}
-                        id={option.id}
-                        disabled={isEventClosed || isSubmittingBet}
-                      />
-                      <span>{option.text}</span>
-                    </div>
-                    <Badge variant="secondary">
-                      Odds: {eventData.odds[option.id]?.toFixed(1) ?? "N/A"}x
-                    </Badge>
-                  </Label>
-                ))}
-              </RadioGroup>
-            </CardContent>
-          </Card> */}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Prediction Options & Odds</CardTitle>
-              <CardDescription>
-                Select an outcome and place your prediction.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup
-                value={selectedOption ?? undefined}
-                onValueChange={(value) => {
-                  setSelectedOption(value);
-                  setError(null);
-                  setSubmitSuccessMessage(null);
-                }}
-                className="space-y-3"
-                disabled={isEventClosed || isSubmittingBet}
-              >
-                {eventData.options.map((option) => (
-                  <Label
-                    key={option.id}
-                    htmlFor={option.id}
-                    className={`flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer ${
-                      selectedOption === option.id
-                        ? "border-primary bg-primary/10 ring-1 ring-primary"
-                        : ""
-                    } ${
-                      isEventClosed || isSubmittingBet
-                        ? "opacity-60 cursor-not-allowed"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <RadioGroupItem
-                        value={option.id}
-                        id={option.id}
-                        disabled={isEventClosed || isSubmittingBet}
-                      />
-                      <span>{option.text}</span>
-                    </div>
-                    <Badge variant="secondary">
-                      Odds: {eventData.odds[option.id]?.toFixed(1) ?? "N/A"}x
-                    </Badge>
-                  </Label>
-                ))}
-              </RadioGroup>
-            </CardContent>
-          </Card>
-
-          {eventData.historicalData && (
+        {/* Sticky action panel (desktop) */}
+        <div className="hidden md:block md:col-span-1">
+          <div className="sticky top-24">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart2 className="h-5 w-5" /> Historical Data
-                </CardTitle>
-                <CardDescription>
-                  Past outcomes for similar events.
-                </CardDescription>
+                <CardTitle>Place Your Prediction</CardTitle>
               </CardHeader>
-              <CardContent>
-                {eventData.historicalData.length > 0 ? (
-                  <ul className="space-y-2 text-sm">
-                    {eventData.historicalData.map((data, index) => (
-                      <li
-                        key={`${data.year}-${data.winner}-${index}`}
-                        className="flex justify-between items-center border-b pb-1 last:border-b-0"
-                      >
-                        <span>
-                          {data.year}:{" "}
-                          <span className="font-medium">{data.winner}</span>
-                        </span>
-                        <span className="text-muted-foreground">
-                          Pool: ${data.pool.toLocaleString()}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No historical data available for this event type.
-                  </p>
-                )}
-              </CardContent>
+              {betFormContent}
             </Card>
-          )}
-        </div>
-
-        <div className="md:col-span-1 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Place Your Prediction</CardTitle>
-            </CardHeader>
-            <form onSubmit={handleBetSubmit}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="bet-amount">Bet Amount ($)</Label>
-                    <MechanicHelp content={platformFeesHelp} />
-                  </div>
-                  <Input
-                    id="bet-amount"
-                    type="number"
-                    placeholder="e.g., 10.00"
-                    value={betAmount}
-                    onChange={(e) => {
-                      setBetAmount(e.target.value);
-                      setError(null);
-                      setSubmitSuccessMessage(null);
-                    }}
-                    min="0.01"
-                    step="0.01"
-                    required
-                    disabled={
-                      isEventClosed || isSubmittingBet || !selectedOption
-                    }
-                    aria-describedby="payout-info error-info success-info"
-                  />
-                </div>
-                {selectedOption && currentOdds !== undefined && (
-                  <p id="payout-info" className="text-sm text-muted-foreground">
-                    Potential Payout: $
-                    {potentialPayout.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                    {betAmount
-                      ? ` (at ${currentOdds.toFixed(1)}x odds)`
-                      : " (enter amount)"}
-                  </p>
-                )}
-                {error && (
-                  <p id="error-info" className="text-sm text-red-600">
-                    {error}
-                  </p>
-                )}
-                {submitSuccessMessage && (
-                  <p id="success-info" className="text-sm text-green-600">
-                    {submitSuccessMessage}
-                  </p>
-                )}
-              </CardContent>
-              <CardFooter>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={
-                    isEventClosed ||
-                    isSubmittingBet ||
-                    !selectedOption ||
-                    !betAmount ||
-                    !!error
-                  }
-                >
-                  {isSubmittingBet ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Placing Bet...
-                    </>
-                  ) : (
-                    "Place Bet"
-                  )}
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
+          </div>
         </div>
       </div>
+
+      {/* Mobile bottom sticky bar */}
+      {!isDesktop && (
+        <div className="fixed bottom-0 inset-x-0 z-40 border-t bg-background p-4">
+          <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+            <DrawerTrigger asChild>
+              <Button className="w-full" disabled={isEventClosed}>
+                {isEventClosed ? "Betting Closed" : "Place Bet"}
+              </Button>
+            </DrawerTrigger>
+            <DrawerContent>
+              <DrawerHeader>
+                <DrawerTitle>Place Your Prediction</DrawerTitle>
+              </DrawerHeader>
+              <div className="px-4 pb-4">
+                {betFormContent}
+              </div>
+            </DrawerContent>
+          </Drawer>
+        </div>
+      )}
     </div>
   );
 }
