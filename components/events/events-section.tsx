@@ -15,6 +15,9 @@ import { EventsToolbar } from "./events-toolbar"
 import { EventsTable } from "./events-table"
 import { EventsPagination } from "./pagination"
 import { useEventsStore, getEventCounts } from "@/lib/events-store"
+/* Compare feature */
+import { CompareOverlay } from "@/components/market/CompareOverlay"
+import { CompareSelectionChip } from "@/components/market/CompareSelectionChip"
 
 interface EventsSectionProps {
   className?: string
@@ -38,6 +41,10 @@ export function EventsSection({ className }: EventsSectionProps) {
 
   return (
     <div className={cn("w-full max-w-7xl mx-auto p-4 space-y-6", className)}>
+      {/* Compare overlay dialog (portal-rendered) */}
+      <CompareOverlay />
+      {/* Floating selection chip */}
+      <CompareSelectionChip />
       {/* MODIFIED: Added Create Event button alongside the title */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

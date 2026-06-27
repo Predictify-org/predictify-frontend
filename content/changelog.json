@@ -1,0 +1,46 @@
+[
+  {
+    "id": "2026-06-20-a11y-pass",
+    "version": "2026.6.3",
+    "date": "2026-06-20",
+    "title": "Clearer navigation and event status for screen readers",
+    "description": "Navbar controls now announce their purpose, the mobile menu can't trap keyboard focus, and event status no longer relies on color alone.",
+    "highlights": [
+      "Every navbar icon button has a descriptive label",
+      "Mobile drawer focus trap hardened for keyboard users",
+      "Event status badges pair an icon with their color"
+    ]
+  },
+  {
+    "id": "2026-06-02-dispute-tally",
+    "version": "2026.6.2",
+    "date": "2026-06-02",
+    "title": "Accessible dispute countdowns and vote tallies",
+    "description": "Dispute resolution timers and vote tallies are now readable by screen readers and distinguishable without relying on color.",
+    "highlights": [
+      "Live countdown announces time remaining to assistive tech",
+      "Colorblind-safe patterns on the vote tally bar"
+    ]
+  },
+  {
+    "id": "2026-06-02-dashboard-states",
+    "version": "2026.6.1",
+    "date": "2026-06-02",
+    "title": "Dashboard KPI cards handle loading and errors gracefully",
+    "description": "KPI cards and tabs on the dashboard now show proper loading skeletons, empty states, and retry options instead of blank space.",
+    "highlights": [
+      "Skeleton loading state for KPI cards and tabs",
+      "Empty and error states with a retry action"
+    ]
+  },
+  {
+    "id": "2026-05-29-prediction-card-tokens",
+    "version": "2026.5.4",
+    "date": "2026-05-29",
+    "title": "Prediction card visuals moved to design tokens",
+    "description": "Prediction cards and their status badges now use the shared design-token palette, improving contrast and theme consistency.",
+    "highlights": [
+      "Status badges meet WCAG AA contrast in light and dark mode"
+    ]
+  }
+]

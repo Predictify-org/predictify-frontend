@@ -53,6 +53,7 @@ export function HowItWorks() {
   return (
     <section
       id="how-it-works"
+      data-marketing-cursor-section
       className="relative py-20 sm:py-24 px-6 lg:px-8 lg:py-40 backdrop-blur-[12px] "
       aria-labelledby="how-it-works-heading"
     >
@@ -97,10 +98,11 @@ export function HowItWorks() {
 
         <div className="flex justify-center">
           <button
+            data-magnet
             onClick={handleCTAClick}
             className="px-12 py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900"
           >
-            Start Your First Prediction
+            <span className="magnetic-inner">Start Your First Prediction</span>
           </button>
         </div>
       </div>

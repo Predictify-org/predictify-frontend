@@ -26,6 +26,7 @@ export function CTA() {
   return (
     <section
       id="cta"
+      data-marketing-cursor-section
       className="relative overflow-hidden py-16 sm:py-20 lg:py-24"
     >
 
@@ -44,6 +45,7 @@ export function CTA() {
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row sm:gap-6">
             <ConnectWalletButton
+              data-magnet
               isConnected={isConnected}
               walletName={walletName}
               walletAddress={walletAddress}
@@ -51,9 +53,10 @@ export function CTA() {
               onOpenModal={() => setIsWalletModalOpen(true)}
             />
             <button
+              data-magnet
               className="inline-flex w-full items-center justify-center rounded-lg border-2 border-white/30 bg-white/10 px-8 py-3.5 font-medium text-white backdrop-blur-sm transition-all duration-200 hover:border-white/50 hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/30 active:bg-white/15 sm:w-auto"
             >
-              Learn More
+              <span className="magnetic-inner">Learn More</span>
             </button>
           </div>
         </div>

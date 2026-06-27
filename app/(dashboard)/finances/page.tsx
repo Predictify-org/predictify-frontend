@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { usePrivacy } from '@/context/PrivacyContext';
+import { maskAmount } from '@/utils/maskAmount';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { MechanicHelp } from "@/components/patterns/MechanicHelp"
@@ -71,6 +73,7 @@ const financialData = {
 }
 
 export default function FinancesPage() {
+  const { hideBalances } = usePrivacy();
   const [date, setDate] = useState({
     from: new Date(2023, 3, 1),
     to: new Date(2023, 3, 30),
@@ -126,7 +129,7 @@ export default function FinancesPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${financialData.totalFees.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{hideBalances ? maskAmount(financialData.totalFees) : financialData.totalFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <TrendingUp className="mr-1 h-3.5 w-3.5 text-green-500" />
               <span className="text-green-500">{financialData.feeGrowth}%</span>
@@ -140,7 +143,7 @@ export default function FinancesPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${financialData.monthlyFees.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{hideBalances ? maskAmount(financialData.monthlyFees) : financialData.monthlyFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <ArrowUpRight className="mr-1 h-3.5 w-3.5 text-green-500" />
               <span>April 2023</span>
@@ -153,7 +156,7 @@ export default function FinancesPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${financialData.weeklyFees.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{hideBalances ? maskAmount(financialData.weeklyFees) : financialData.weeklyFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <ArrowDownRight className="mr-1 h-3.5 w-3.5 text-red-500" />
               <span className="text-red-500">3.2%</span>
@@ -167,7 +170,7 @@ export default function FinancesPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${financialData.dailyFees.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{hideBalances ? maskAmount(financialData.dailyFees) : financialData.dailyFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <TrendingUp className="mr-1 h-3.5 w-3.5 text-green-500" />
               <span className="text-green-500">8.4%</span>
@@ -231,7 +234,7 @@ export default function FinancesPage() {
                       <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
                       <TableCell className="font-medium">{transaction.eventTitle}</TableCell>
                       <TableCell>{transaction.type === "platform_fee" ? "Platform Fee" : transaction.type}</TableCell>
-                      <TableCell className="text-right">${transaction.amount.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{hideBalances ? maskAmount(transaction.amount) : transaction.amount.toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

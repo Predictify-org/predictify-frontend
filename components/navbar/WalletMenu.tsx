@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +15,9 @@ import { useWallet } from "@/hooks/useWallet.hook";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { Copy as CopyIcon, RefreshCcw, LogOut as LogOutIcon } from "lucide-react";
 import ArrowDownIcon from "../icons/ArrowDown";
+import { Switch } from "@/components/ui/switch";
+import { usePrivacy } from "@/context/PrivacyContext";
+import { maskAmount } from "@/utils/maskAmount";
 
 function truncateMiddle(address: string, visible = 4) {
   if (address.length <= visible * 2) return address;
@@ -25,10 +28,10 @@ export function WalletMenu() {
   const { address, connected, isLoading } = useWalletContext();
   const { disconnectWallet } = useWallet();
   const [isOpen, setIsOpen] = React.useState(false);
+  const { hideBalances, setHideBalances } = usePrivacy();
 
-  const display = connected && address ? truncateMiddle(address) : "Connect wallet";
+  const display = connected && address ? (hideBalances ? maskAmount(address) : truncateMiddle(address)) : "Connect wallet";
 
-  // Show loading state while wallet context is initializing
   if (isLoading) {
     return (
       <Button
@@ -87,16 +90,15 @@ export function WalletMenu() {
             <RefreshCcw className="mr-2 h-4 w-4" />
             Switch
           </DropdownMenuItem>
-          <DropdownMenuItem
-            role="menuitem"
-            onClick={() => {
-              void disconnectWallet();
-            }}
-            className="cursor-pointer"
-            aria-label="Disconnect wallet"
-          >
+          <DropdownMenuItem role="menuitem" onClick={() => { void disconnectWallet(); }} className="cursor-pointer" aria-label="Disconnect wallet">
             <LogOutIcon className="mr-2 h-4 w-4" />
             Disconnect
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <label className="flex items-center justify-between w-full px-2 py-1">
+              <span className="text-sm">Hide balances</span>
+              <Switch checked={hideBalances} onCheckedChange={setHideBalances} />
+            </label>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -104,5 +106,3 @@ export function WalletMenu() {
     </>
   );
 }
-
-

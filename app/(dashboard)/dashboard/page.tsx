@@ -9,6 +9,7 @@ import { StatCard } from "@/components/cards/stat-card"
 import { RecommendationProvenance, type RecommendationSignalKey } from "@/components/cards/recommendation-provenance"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
+import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStrip"
 import { useEffect, useState } from "react"
 
 interface Stat {
@@ -359,6 +360,7 @@ export default function DashboardPage() {
         <TabsContent value="overview" className="space-y-4">
           {renderCards()}
           {renderRecommendationStrip()}
+          <RecommendationsStrip />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
               <CardHeader>
