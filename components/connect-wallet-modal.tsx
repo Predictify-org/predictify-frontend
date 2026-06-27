@@ -1,10 +1,12 @@
 "use client";
 
 import { useWallet } from "@/hooks/useWallet.hook";
-import { AlertCircle, Check, Copy, LogOut } from "lucide-react";
+import { recordLastUsedWallet, getLastUsedWalletId } from "@/app/state/walletPrefs";
+import { AlertCircle, Check, Clock, Copy, LogOut } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Button } from "../components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +14,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../components/ui/dialog";
+} from "@/components/ui/dialog";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface WalletOption {
   id: string;
@@ -20,40 +24,45 @@ interface WalletOption {
   icon: string;
 }
 
-interface ConnectWalletModalProps {
+export interface ConnectWalletModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onWalletConnect?: (name: string, address: string) => void;
   onWalletDisconnect?: () => void;
 }
 
+// ─── Static data ──────────────────────────────────────────────────────────────
+
 const walletOptions: WalletOption[] = [
-  {
-    id: "freighter",
-    name: "Freighter",
-    icon: "/images/freighter.png",
-  },
-  {
-    id: "lobstr",
-    name: "LOBSTR",
-    icon: "/images/lobstr.png",
-  },
-  {
-    id: "xbull",
-    name: "XBULL",
-    icon: "/images/xbull.svg",
-  },
-  {
-    id: "albedo",
-    name: "Albedo",
-    icon: "/images/albedo.png",
-  },
-  {
-    id: "rabet",
-    name: "Rabet",
-    icon: "/images/rabet.webp",
-  },
+  { id: "freighter", name: "Freighter", icon: "/images/freighter.png" },
+  { id: "lobstr",    name: "LOBSTR",    icon: "/images/lobstr.png"    },
+  { id: "xbull",     name: "XBULL",     icon: "/images/xbull.svg"     },
+  { id: "albedo",    name: "Albedo",    icon: "/images/albedo.png"    },
+  { id: "rabet",     name: "Rabet",     icon: "/images/rabet.webp"    },
 ];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+/**
+ * Small "Last used" badge rendered next to the most recently used wallet.
+ * Uses design-token colours so it respects light/dark mode automatically.
+ */
+function LastUsedBadge() {
+  return (
+    <Badge
+      variant="secondary"
+      className="ml-auto flex items-center gap-1 text-xs font-medium"
+      aria-label="Last used wallet"
+      data-testid="last-used-badge"
+    >
+      {/* Clock icon communicates "recent" without relying on colour alone (WCAG 1.4.1) */}
+      <Clock className="h-3 w-3" aria-hidden="true" />
+      Last used
+    </Badge>
+  );
+}
+
+// ─── Main modal ───────────────────────────────────────────────────────────────
 
 export function ConnectWalletModal({
   isOpen,
@@ -68,19 +77,31 @@ export function ConnectWalletModal({
     walletAddress,
     walletName,
   } = useWallet();
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [connectingWalletId, setConnectingWalletId] = useState<string | null>(
-    null
-  );
-  const [copied, setCopied] = useState(false);
 
-  // Clean up connection error and connecting wallet id when modal is closed
+  const [connectionError, setConnectionError]     = useState<string | null>(null);
+  const [connectingWalletId, setConnectingWalletId] = useState<string | null>(null);
+  const [copied, setCopied]                       = useState(false);
+
+  /**
+   * Read the last-used ID from localStorage on mount (client-only).
+   * Initialised to `null` to avoid hydration mismatches on SSR.
+   */
+  const [lastUsedId, setLastUsedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Only runs on the client, so safe to read localStorage here.
+    setLastUsedId(getLastUsedWalletId());
+  }, []);
+
+  // Clean up transient UI state whenever the modal is closed.
   useEffect(() => {
     if (!isOpen) {
       setConnectionError(null);
       setConnectingWalletId(null);
     }
   }, [isOpen]);
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleWalletConnect = async (wallet: WalletOption) => {
     if (connectingWalletId) return;
@@ -89,20 +110,20 @@ export function ConnectWalletModal({
     try {
       const result = await connectWallet(wallet.id);
       if (result.success) {
-        // Now call the onWalletConnect callback with the updated wallet info
-        if (onWalletConnect) {
-          if (result.address) {
-            onWalletConnect(wallet.name, result.address);
-          } else {
-            console.error("Wallet address is undefined.");
-          }
+        // Persist the last-used wallet so the badge appears next time.
+        recordLastUsedWallet(wallet.id);
+        setLastUsedId(wallet.id);
+
+        if (onWalletConnect && result.address) {
+          onWalletConnect(wallet.name, result.address);
         }
         onOpenChange(false);
       } else {
-        console.error("Error connecting wallet:", result.error);
+        setConnectionError(result.error ?? "Error connecting wallet");
       }
-    } catch (error) {
-      console.error("Unexpected error:", error);
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      setConnectionError("Unexpected error connecting the wallet");
     } finally {
       setConnectingWalletId(null);
     }
@@ -111,19 +132,11 @@ export function ConnectWalletModal({
   const handleDisconnect = async () => {
     const result = await disconnectWallet();
     if (!result.success) {
-      setConnectionError(
-        result.error || "Unexpected error connecting the wallet"
-      );
+      setConnectionError(result.error ?? "Unexpected error disconnecting the wallet");
     } else {
-      if (onWalletDisconnect) {
-        onWalletDisconnect();
-      }
-      onOpenChange(false); // Close the modal after disconnecting
+      onWalletDisconnect?.();
+      onOpenChange(false);
     }
-  };
-
-  const truncateAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   const copyAddress = () => {
@@ -134,27 +147,37 @@ export function ConnectWalletModal({
     }
   };
 
+  const truncateAddress = (address: string) =>
+    `${address.slice(0, 6)}...${address.slice(-4)}`;
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md rounded-lg">
         <DialogHeader>
           <DialogTitle className="font-bold">
-            {isConnected ? `Wallet Connected` : `Connect Your Wallet`}
+            {isConnected ? "Wallet Connected" : "Connect Your Wallet"}
           </DialogTitle>
           <DialogDescription>
             {isConnected
-              ? `Your wallet is successfully connected.`
-              : `Choose a wallet to enable secure transactions on SRust`}
+              ? "Your wallet is successfully connected."
+              : "Choose a wallet to enable secure transactions on SRust"}
           </DialogDescription>
         </DialogHeader>
 
+        {/* ── Error banner ───────────────────────────────────────────────── */}
         {connectionError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-md flex items-center gap-2 mb-4">
-            <AlertCircle className="h-4 w-4" />
+          <div
+            role="alert"
+            className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-md flex items-center gap-2 mb-4 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400"
+          >
+            <AlertCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
             <p className="text-sm">{connectionError}</p>
           </div>
         )}
 
+        {/* ── Connected address card ─────────────────────────────────────── */}
         {isConnected && (
           <div className="bg-muted p-3 rounded-md mb-4">
             <div className="flex justify-between items-center">
@@ -162,17 +185,18 @@ export function ConnectWalletModal({
                 <p className="text-sm font-medium">{walletName}</p>
                 <div className="flex items-center gap-1">
                   <p className="text-xs text-muted-foreground">
-                    {truncateAddress(walletAddress || "")}
+                    {truncateAddress(walletAddress ?? "")}
                   </p>
                   <button
                     type="button"
                     onClick={copyAddress}
+                    aria-label={copied ? "Address copied" : "Copy wallet address"}
                     className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 p-0"
                   >
                     {copied ? (
-                      <Check className="h-3 w-3" />
+                      <Check className="h-3 w-3" aria-hidden="true" />
                     ) : (
-                      <Copy className="h-3 w-3" />
+                      <Copy className="h-3 w-3" aria-hidden="true" />
                     )}
                   </button>
                 </div>
@@ -181,38 +205,66 @@ export function ConnectWalletModal({
           </div>
         )}
 
+        {/* ── Wallet list ────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-3 py-4">
-          {walletOptions.map((wallet) => (
-            <Button
-              key={wallet.id}
-              variant="outline"
-              onClick={() => handleWalletConnect(wallet)}
-              disabled={!!connectingWalletId || isConnected}
-              className={`flex items-center justify-start cursor-pointer gap-3 w-full p-4 h-auto hover:bg-muted transition-colors ${
-                isConnected && walletName === wallet.name
-                  ? "border-primary"
-                  : ""
-              }`}
-            >
-              <div className="w-10 h-10 relative rounded-lg overflow-hidden">
-                <Image
-                  src={wallet.icon || "/images/placeholder.png"}
-                  alt={`${wallet.name} logo`}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <span className="font-bold">{wallet.name}</span>
-              {connectingWalletId === wallet.id && (
-                <span className="ml-auto">Connecting...</span>
-              )}
-              {isConnected && walletName === wallet.name && (
-                <span className="ml-auto text-primary text-sm">Connected</span>
-              )}
-            </Button>
-          ))}
+          {walletOptions.map((wallet) => {
+            const isLastUsed   = lastUsedId === wallet.id;
+            const isCurrentlyConnected = isConnected && walletName === wallet.name;
+
+            return (
+              <Button
+                key={wallet.id}
+                variant="outline"
+                onClick={() => handleWalletConnect(wallet)}
+                disabled={!!connectingWalletId || isConnected}
+                aria-label={
+                  isLastUsed
+                    ? `Connect ${wallet.name} (last used)`
+                    : `Connect ${wallet.name}`
+                }
+                className={`flex items-center justify-start cursor-pointer gap-3 w-full p-4 h-auto hover:bg-muted transition-colors ${
+                  isCurrentlyConnected ? "border-primary" : ""
+                }`}
+              >
+                {/* Provider logo */}
+                <div className="w-10 h-10 relative rounded-lg overflow-hidden flex-shrink-0">
+                  <Image
+                    src={wallet.icon || "/images/placeholder.png"}
+                    alt={`${wallet.name} logo`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+
+                {/* Provider name */}
+                <span className="font-bold">{wallet.name}</span>
+
+                {/* Right-side indicators — only one is shown at a time */}
+                {connectingWalletId === wallet.id && (
+                  <span className="ml-auto text-sm text-muted-foreground" aria-live="polite">
+                    Connecting…
+                  </span>
+                )}
+
+                {isCurrentlyConnected && connectingWalletId !== wallet.id && (
+                  <span className="ml-auto text-primary text-sm">Connected</span>
+                )}
+
+                {/*
+                 * "Last used" badge:
+                 *   - Only shown when the modal is in "choose a wallet" mode
+                 *     (not already connected) to avoid visual clutter.
+                 *   - Hidden while a connection attempt is in progress.
+                 */}
+                {isLastUsed && !isConnected && connectingWalletId !== wallet.id && (
+                  <LastUsedBadge />
+                )}
+              </Button>
+            );
+          })}
         </div>
 
+        {/* ── Disconnect footer ──────────────────────────────────────────── */}
         {isConnected && (
           <DialogFooter>
             <Button
@@ -220,7 +272,7 @@ export function ConnectWalletModal({
               onClick={handleDisconnect}
               className="text-destructive cursor-pointer hover:text-destructive hover:bg-destructive/10"
             >
-              <LogOut className="h-4 w-4 mr-2" />
+              <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
               Disconnect
             </Button>
           </DialogFooter>
