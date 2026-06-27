@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import type { Stream } from "../types/openapi";
+import { CopyAddress } from "./CopyAddress";
 
 type StreamReceiptProps = {
   stream: Stream;
@@ -11,58 +11,8 @@ type StreamReceiptProps = {
   hideToolbar?: boolean;
 };
 
-function truncateAddress(address: string, chars = 6): string {
-  if (address.length <= chars * 2 + 3) return address;
-  return `${address.slice(0, chars)}...${address.slice(-chars)}`;
-}
-
 function formatUtc(iso: string): string {
   return new Date(iso).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
-}
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <button
-      aria-label="Copy to clipboard"
-      className="receipt-copy-btn no-print"
-      onClick={handleCopy}
-      type="button"
-    >
-      {copied ? "Copied" : "Copy"}
-    </button>
-  );
-}
-
-function StellarAddress({ address }: { address: string }) {
-  return (
-    <span className="receipt-address-wrap">
-      <span aria-hidden="true" className="no-print">
-        {truncateAddress(address)}
-      </span>
-      <span className="print-only">{address}</span>
-      <CopyButton value={address} />
-    </span>
-  );
-}
-
-function TxHash({ hash }: { hash: string }) {
-  return (
-    <span className="receipt-address-wrap">
-      <span aria-hidden="true" className="no-print">
-        {truncateAddress(hash, 8)}
-      </span>
-      <span className="print-only">{hash}</span>
-      <CopyButton value={hash} />
-    </span>
-  );
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -148,7 +98,7 @@ export function StreamReceipt({
             <div>
               <dt>Stellar Address</dt>
               <dd>
-                <StellarAddress address={stream.recipient} />
+                <CopyAddress value={stream.recipient} />
               </dd>
             </div>
             {stream.email && (
@@ -202,7 +152,7 @@ export function StreamReceipt({
                   <div>
                     <dt>Settlement TX</dt>
                     <dd>
-                      <TxHash hash={stream.settlementTxHash} />
+                      <CopyAddress value={stream.settlementTxHash} truncateChars={8} />
                     </dd>
                   </div>
                 )}
@@ -220,7 +170,7 @@ export function StreamReceipt({
                       <div>
                         <dt>Confirmed TX</dt>
                         <dd>
-                          <TxHash hash={stream.withdrawal.confirmedTxHash} />
+                          <CopyAddress value={stream.withdrawal.confirmedTxHash} truncateChars={8} />
                         </dd>
                       </div>
                     )}
