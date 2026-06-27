@@ -393,3 +393,6 @@ export class WebhookDeliveryWorker {
     return { ok: true, newDeliveryId };
   }
 }
+
+// Singleton instance used by API routes.
+export const webhookDeliveryWorker = new WebhookDeliveryWorker();
