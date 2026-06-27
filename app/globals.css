@@ -240,4 +240,10 @@ body {
   .animate-bounce {
     animation: none;
   }
+
+  /* tailwindcss-animate's enter/exit utilities, used by Sheet/Dialog (e.g. WhatsNewDrawer) */
+  .animate-in,
+  .animate-out {
+    animation: none !important;
+  }
 }
