@@ -162,10 +162,7 @@ body {
 }
 
 /* ─── Accessibility ───────────────────────────────────────────────────────── */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+@import './styles/focus.css' layer(focus);
 
 button {
   font: inherit;
