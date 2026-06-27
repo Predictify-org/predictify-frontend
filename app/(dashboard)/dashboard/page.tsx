@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import { Activity, Calendar, CheckCircle, DollarSign, HelpCircle, TrendingUp, Users, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
