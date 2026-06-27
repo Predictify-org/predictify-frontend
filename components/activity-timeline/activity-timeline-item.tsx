@@ -3,11 +3,11 @@
 import React from "react";
 import { ActivityEvent, ACTIVITY_EVENT_ICONS } from "@/types/activity";
 import {
-  formatActivityTimestamp,
   formatActivityTime,
 } from "@/lib/activity-timeline";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { MarketStatusBadge } from "@/components/moderation/MarketStatusBadge";
+import { Timestamp } from "@/components/ui/Timestamp";
 import { cn } from "@/lib/utils";
 
 interface ActivityTimelineItemProps {
@@ -81,9 +81,7 @@ export function ActivityTimelineItem({
                     <span className="font-medium text-gray-900 whitespace-nowrap">
                       {formatActivityTime(new Date(event.timestamp))}
                     </span>
-                    <span className="text-gray-500" title={new Date(event.timestamp).toISOString()}>
-                      {formatActivityTimestamp(new Date(event.timestamp))}
-                    </span>
+                    <Timestamp date={event.timestamp} className="text-gray-500" />
                   </div>
                 </div>
 

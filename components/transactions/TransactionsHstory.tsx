@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowDown, ArrowUp, RefreshCw, X } from 'lucide-react';
 import { TransactionFilters } from '@/lib/types';
 import { allTransactions } from '@/lib/mock-data';
+import { Timestamp } from '@/components/ui/Timestamp';
 
 
 export default function TransactionHistory() {
@@ -299,7 +300,9 @@ export default function TransactionHistory() {
                                 <tbody>
                                     {filteredTransactions.map((transaction, index) => (
                                         <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                                            <td className="h-[94px] max-h-[91px]py-8 px-8 text-sm text-gray-500">{transaction.date}</td>
+                                            <td className="h-[94px] max-h-[91px]py-8 px-8 text-sm text-gray-500">
+                                                <Timestamp date={transaction.date} />
+                                            </td>
                                             <td className="py-8 px-8">
                                                 <div className="flex items-center gap-2">
                                                     {transaction.icon === 'down' && (
