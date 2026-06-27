@@ -63,12 +63,14 @@ export function getCorrelationContext(): CorrelationContext | undefined {
 // Set correlation context for a async operation
 export function withCorrelationContext<T>(
   context: CorrelationContext,
-  callback?: () => Promise<T>
-): Promise<T> | void {
-  if (!callback) {
-    return correlationContext.enterWith(context);
-  }
+  callback: () => Promise<T>
+): Promise<T> {
   return correlationContext.run(context, callback);
+}
+
+// Set correlation context without callback (for sync operations)
+export function setCorrelationContext(context: CorrelationContext): void {
+  correlationContext.enterWith(context);
 }
 
 // Structured log entry interface

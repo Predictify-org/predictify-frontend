@@ -1,3 +1,5 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { extractCorrelationContext, withCorrelationContext, logger, updateCorrelationContext } from '@/app/lib/logger';
 import { AsyncLocalStorage } from 'async_hooks';
 
 const correlationStorage = new AsyncLocalStorage<{ correlationId: string }>();
@@ -8,8 +10,7 @@ export function getCorrelationContext() {
 
 export function runWithCorrelation<T>(correlationId: string, callback: () => T): T {
   return correlationStorage.run({ correlationId }, callback);
-import { NextRequest, NextResponse } from 'next/server';
-import { extractCorrelationContext, withCorrelationContext, logger, updateCorrelationContext } from '@/app/lib/logger';
+}
 
 // Internal headers that should not be exposed to external clients
 const INTERNAL_HEADERS = [
