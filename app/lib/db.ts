@@ -1,7 +1,6 @@
 import { Stream, ActivityEvent } from "@/app/types/openapi";
 import { Org, Member } from "@/app/types/org";
 
-export const mockDb = {
 export const legacyDb = {
   streams: new Map<string, Stream>([
     [
