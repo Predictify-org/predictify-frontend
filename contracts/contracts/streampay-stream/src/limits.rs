@@ -36,9 +36,11 @@ fn extend_sender_count_ttl(env: &Env, sender: &Address) {
         .sequence()
         .saturating_add(SENDER_COUNT_TTL_MIN_REMAINING);
     let target = ttl_target(env, SENDER_COUNT_TTL_EXTEND_TO);
-    env.storage()
-        .persistent()
-        .extend_ttl(&LimitDataKey::SenderStreamCount(sender.clone()), threshold, target);
+    env.storage().persistent().extend_ttl(
+        &LimitDataKey::SenderStreamCount(sender.clone()),
+        threshold,
+        target,
+    );
 }
 
 pub fn get_max_streams_per_sender(env: &Env) -> u64 {

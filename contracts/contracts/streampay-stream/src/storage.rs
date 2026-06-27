@@ -77,9 +77,14 @@ fn extend_persistent_ttl(env: &Env, key: &DataKey) {
     // extend_ttl call itself short-circuits when the key's TTL is already
     // above the threshold. We therefore call extend_ttl unconditionally
     // with the minimum remaining TTL as the threshold.
-    let threshold = env.ledger().sequence().saturating_add(STREAM_TTL_MIN_REMAINING);
+    let threshold = env
+        .ledger()
+        .sequence()
+        .saturating_add(STREAM_TTL_MIN_REMAINING);
     let target = ttl_target(env, STREAM_TTL_EXTEND_TO);
-    env.storage().persistent().extend_ttl(key, threshold, target);
+    env.storage()
+        .persistent()
+        .extend_ttl(key, threshold, target);
 }
 
 fn extend_instance_ttl(env: &Env, _key: &DataKey) {
@@ -87,7 +92,10 @@ fn extend_instance_ttl(env: &Env, _key: &DataKey) {
     // to extend_ttl; the host function extends the entire current contract
     // instance. The call short-circuits internally when the instance TTL
     // already exceeds the threshold.
-    let threshold = env.ledger().sequence().saturating_add(INSTANCE_TTL_MIN_REMAINING);
+    let threshold = env
+        .ledger()
+        .sequence()
+        .saturating_add(INSTANCE_TTL_MIN_REMAINING);
     let target = ttl_target(env, INSTANCE_TTL_EXTEND_TO);
     env.storage().instance().extend_ttl(threshold, target);
 }
@@ -184,7 +192,11 @@ pub fn set_paused(env: &Env, paused: bool) {
 /// # Errors
 /// This helper does not return errors.
 pub fn is_paused(env: &Env) -> bool {
-    let paused = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
+    let paused = env
+        .storage()
+        .instance()
+        .get(&DataKey::Paused)
+        .unwrap_or(false);
     if env.storage().instance().has(&DataKey::Paused) {
         extend_pause_key_ttl(env);
     }
@@ -283,4 +295,3 @@ pub fn get_stream(env: &Env, stream_id: u64) -> Option<Stream> {
     }
     stream
 }
-

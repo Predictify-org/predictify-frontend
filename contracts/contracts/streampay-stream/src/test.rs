@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 //! Integration tests for the `initialize` and `init_with_token_allowlist`
 //! entrypoints.
 //!
@@ -216,10 +214,8 @@ fn init_with_token_allowlist_twice_returns_invalid_state() {
     client.init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
 
     // Second call must fail; no second admin, no extra allowlist entries.
-    let result = client.try_init_with_token_allowlist(
-        &data.admin,
-        &to_sdk_vec(&data.env, &data.tokens),
-    );
+    let result =
+        client.try_init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
     let err = result.expect_err("second init_with_token_allowlist should fail");
     assert_eq!(err, Ok(Error::InvalidState));
 }
@@ -233,10 +229,8 @@ fn init_with_token_allowlist_after_initialize_returns_invalid_state() {
 
     client.initialize(&data.admin);
 
-    let result = client.try_init_with_token_allowlist(
-        &data.admin,
-        &to_sdk_vec(&data.env, &data.tokens),
-    );
+    let result =
+        client.try_init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
     let err = result.expect_err("init_with_token_allowlist after initialize should fail");
     assert_eq!(err, Ok(Error::InvalidState));
 }
@@ -306,8 +300,7 @@ fn init_with_token_allowlist_atomicity_leaves_no_partial_state() {
     // the auth-write for the impostor. Admin from the first call
     // still works. We `try_` so the auth failure is contained; the
     // test runner's auth mocks are not poisoned for subsequent calls.
-    let _ = client
-        .try_init_with_token_allowlist(&impostor, &to_sdk_vec(&data.env, &data.tokens));
+    let _ = client.try_init_with_token_allowlist(&impostor, &to_sdk_vec(&data.env, &data.tokens));
 
     // `mock_all_auths` was on at `setup_init` time so `set_paused`
     // still succeeds, proving the original `admin` is intact.

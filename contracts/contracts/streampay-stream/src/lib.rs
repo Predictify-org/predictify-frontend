@@ -180,11 +180,7 @@ impl Contract {
     ///
     /// # Auth
     /// Requires authorisation from `admin`.
-    pub fn set_max_streams_per_sender(
-        env: Env,
-        admin: Address,
-        limit: u64,
-    ) -> Result<(), Error> {
+    pub fn set_max_streams_per_sender(env: Env, admin: Address, limit: u64) -> Result<(), Error> {
         require_admin(&env, &admin)?;
         limits::set_max_streams_per_sender(&env, limit);
         Ok(())
@@ -297,7 +293,15 @@ impl Contract {
 
         storage::set_stream(&env, id, &stream);
         limits::increment_sender_stream_count(&env, &stream.sender);
-        events::created(&env, id, &stream.sender, &stream.recipient, &stream.token, stream.total_amount, now);
+        events::created(
+            &env,
+            id,
+            &stream.sender,
+            &stream.recipient,
+            &stream.token,
+            stream.total_amount,
+            now,
+        );
 
         Ok(id)
     }
@@ -334,7 +338,13 @@ impl Contract {
             .ok_or(Error::InvalidTimeRange)?;
 
         storage::set_stream(&env, stream_id, &stream);
-        events::started(&env, stream_id, stream.start_time, stream.end_time, stream.start_time);
+        events::started(
+            &env,
+            stream_id,
+            stream.start_time,
+            stream.end_time,
+            stream.start_time,
+        );
 
         Ok(stream)
     }
@@ -442,7 +452,7 @@ impl Contract {
         }
 
         let now = env.ledger().timestamp();
-        
+
         stream.last_update = now;
         stream.status = StreamStatus::Paused;
         stream.pause_time = now;
@@ -481,7 +491,7 @@ impl Contract {
             .end_time
             .checked_add(paused_duration)
             .ok_or(Error::InvalidTimeRange)?;
-        
+
         stream.last_update = now;
         stream.status = StreamStatus::Active;
         stream.pause_time = 0;
@@ -555,7 +565,8 @@ impl Contract {
     /// Requires authorisation from `admin`.
     pub fn upgrade(env: Env, admin: Address, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
         require_admin(&env, &admin)?;
-        env.deployer().update_current_contract_wasm(new_wasm_hash.clone());
+        env.deployer()
+            .update_current_contract_wasm(new_wasm_hash.clone());
         events::upgraded(&env, new_wasm_hash);
         Ok(())
     }
