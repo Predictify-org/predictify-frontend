@@ -148,6 +148,15 @@ export function EventsTable({ className }: EventsTableProps) {
   /* NEW: State to track which event is pending delete confirmation */
   const [deleteTarget, setDeleteTarget] = React.useState<Event | null>(null)
 
+  // Track rows that have already animated in
+  const seenIds = React.useRef(new Set<string>())
+  const [animationReady, setAnimationReady] = React.useState(false)
+  const prefersReduced = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false
+
+  React.useEffect(() => {
+    setAnimationReady(true)
+  }, [])
+
   // Calculate paginated events
   const startIndex = (pagination.page - 1) * pagination.pageSize
   const endIndex = startIndex + pagination.pageSize
@@ -238,13 +247,21 @@ export function EventsTable({ className }: EventsTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedEvents.map((event, index) => (
+              {paginatedEvents.map((event, index) => {
+                // Mark row as seen after initial render
+                React.useEffect(() => {
+                  seenIds.current.add(event.id)
+                }, [event.id])
+
+                return (
                 <TableRow
                   key={event.id}
                   className={cn(
                     "hover:bg-[#540D8D] transition-colors border-0",
                     index !== paginatedEvents.length - 1 && "border-b border-[#540D8D]",
+                    animationReady && !prefersReduced && !seenIds.current.has(event.id) && index < 12 && "animate-in fade-in slide-in-from-bottom-2"
                   )}
+                  style={animationReady && !prefersReduced && !seenIds.current.has(event.id) && index < 12 ? { transitionDelay: `${index * 30}ms`, animationFillMode: 'both' } : undefined}
                 >
                   {/* Compare checkbox */}
                   <TableCell className="py-3 md:py-4 px-4 md:px-6 w-10">
