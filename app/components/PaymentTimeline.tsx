@@ -1,6 +1,7 @@
 "use client";
 
 import type { Stream } from "../types/openapi";
+import { Timestamp } from "./Timestamp";
 
 type PaymentTimelineProps = {
   stream: Stream;
@@ -20,14 +21,6 @@ interface TimelineStep {
 function truncateHash(hash: string, chars = 8): string {
   if (hash.length <= chars * 2 + 3) return hash;
   return `${hash.slice(0, chars)}...${hash.slice(-chars)}`;
-}
-
-function formatUtc(iso: string): string {
-  try {
-    return new Date(iso).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
-  } catch {
-    return iso;
-  }
 }
 
 export function PaymentTimeline({ stream }: PaymentTimelineProps) {
@@ -140,9 +133,7 @@ export function PaymentTimeline({ stream }: PaymentTimelineProps) {
                     <span className="sr-only"> ({statusText})</span>
                   </h3>
                   {step.timestamp && (
-                    <time className="timeline-time" dateTime={step.timestamp}>
-                      {formatUtc(step.timestamp)}
-                    </time>
+                    <Timestamp className="timeline-time" iso={step.timestamp} />
                   )}
                 </div>
                 <p className="timeline-item-desc">{step.description}</p>

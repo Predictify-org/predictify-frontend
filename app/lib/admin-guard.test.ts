@@ -11,6 +11,9 @@ import {
   resolveCallerAddress,
   setAdmin,
   setPaused,
+  scheduleUpgrade,
+  cancelUpgrade,
+  executeUpgrade,
 } from "@/app/lib/admin-guard";
 import { JWT_AUDIENCE, JWT_ISSUER, JWT_SECRET, signToken } from "@/app/lib/auth";
 
@@ -312,5 +315,95 @@ describe("checkNotPaused", () => {
     setPaused(makeAuthRequest(ADMIN), true);
     setPaused(makeAuthRequest(ADMIN), false);
     expect(checkNotPaused("create_stream")).toBeNull();
+  });
+});
+
+// ── Upgrade Timelock ─────────────────────────────────────────────────────────
+
+describe("upgrade timelock", () => {
+  describe("scheduleUpgrade", () => {
+    it("admin can schedule an upgrade", () => {
+      const result = scheduleUpgrade(makeAuthRequest(ADMIN), "test-upgrade-data");
+      expect(result).not.toBeInstanceOf(Response);
+      expect((result as { pendingUpgrade: any }).pendingUpgrade).not.toBeNull();
+      expect((result as { pendingUpgrade: any }).pendingUpgrade.data).toBe("test-upgrade-data");
+    });
+
+    it("returns 403 when non-admin tries to schedule", async () => {
+      const result = scheduleUpgrade(makeAuthRequest(OTHER), "test-data");
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(403);
+    });
+
+    it("returns 400 when data is empty", async () => {
+      const result = scheduleUpgrade(makeAuthRequest(ADMIN), "");
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(400);
+    });
+
+    it("returns 409 when an upgrade is already scheduled", async () => {
+      scheduleUpgrade(makeAuthRequest(ADMIN), "first");
+      const result = scheduleUpgrade(makeAuthRequest(ADMIN), "second");
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(409);
+    });
+  });
+
+  describe("cancelUpgrade", () => {
+    it("admin can cancel a pending upgrade", () => {
+      scheduleUpgrade(makeAuthRequest(ADMIN), "test-data");
+      const result = cancelUpgrade(makeAuthRequest(ADMIN));
+      expect(result).not.toBeInstanceOf(Response);
+      expect((result as { pendingUpgrade: any }).pendingUpgrade.cancelledAt).not.toBeNull();
+    });
+
+    it("returns 400 when no upgrade is scheduled", async () => {
+      const result = cancelUpgrade(makeAuthRequest(ADMIN));
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(400);
+    });
+
+    it("returns 403 when non-admin tries to cancel", async () => {
+      scheduleUpgrade(makeAuthRequest(ADMIN), "test");
+      const result = cancelUpgrade(makeAuthRequest(OTHER));
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(403);
+    });
+  });
+
+  describe("executeUpgrade", () => {
+    it("returns 400 when trying to execute before timelock expires", async () => {
+      scheduleUpgrade(makeAuthRequest(ADMIN), "test-data");
+      const result = executeUpgrade(makeAuthRequest(ADMIN));
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(400);
+    });
+
+    it("returns 400 when no upgrade is scheduled", async () => {
+      const result = executeUpgrade(makeAuthRequest(ADMIN));
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(400);
+    });
+
+    it("returns 403 when non-admin tries to execute", async () => {
+      scheduleUpgrade(makeAuthRequest(ADMIN), "test");
+      const result = executeUpgrade(makeAuthRequest(OTHER));
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(403);
+    });
+
+    it("admin can execute upgrade after timelock expires", () => {
+      // First schedule an upgrade
+      scheduleUpgrade(makeAuthRequest(ADMIN), "test-data");
+
+      // Hack the pendingUpgrade's executableAt to be in the past
+      const state = getAdminState();
+      // @ts-ignore - we're directly modifying for test purposes
+      require("@/app/lib/admin-guard")._state.pendingUpgrade.executableAt = new Date(Date.now() - 1000).toISOString();
+
+      const result = executeUpgrade(makeAuthRequest(ADMIN));
+      expect(result).not.toBeInstanceOf(Response);
+      expect((result as { pendingUpgrade: any }).pendingUpgrade.executedAt).not.toBeNull();
+    });
   });
 });

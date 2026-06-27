@@ -12,8 +12,9 @@ import { getCorrelationContext, logger } from "@/app/lib/logger";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
-import { checkTokenAllowed, normaliseToken } from "@/app/lib/token-allowlist";
+import { checkTokenAllowed, checkTokenAllowedForOrg, normaliseToken } from "@/app/lib/token-allowlist";
 import { validateCreateStreamBody } from "@/app/lib/stream-validation";
+import { orgDb } from "@/app/lib/org-db";
 
 export function errorResponse(code: string, message: string, status: number) {
   return createErrorResponse(code, message, status);
@@ -157,6 +158,7 @@ export async function POST(request: Request) {
     recipient?: string;
     schedule?: string;
     token?: string;
+    orgId?: string;
   };
 
   const tokenStr = rawToken?.trim() || "XLM";
@@ -168,9 +170,20 @@ export async function POST(request: Request) {
     return createErrorResponse("INVALID_TOKEN", `Invalid token format: ${msg}`, 422);
   }
 
-  const allowlistResult = await checkTokenAllowed(normalisedToken);
+  // Resolve org context from request body — if the stream is being created
+  // under an org, enforce that org's per-token allowlist; otherwise use global.
+  const orgId = (body as { orgId?: unknown }).orgId;
+  const org = typeof orgId === "string" ? orgDb.orgs.get(orgId) : undefined;
+
+  const allowlistResult = org
+    ? await checkTokenAllowedForOrg(normalisedToken, org)
+    : await checkTokenAllowed(normalisedToken);
+
   if (!allowlistResult.accepted) {
-    logger.warn("Stream creation rejected: token not in allowlist", { token: normalisedToken });
+    logger.warn("Stream creation rejected: token not in allowlist", {
+      token: normalisedToken,
+      orgId: orgId ?? null,
+    });
     return createErrorResponse("TOKEN_NOT_ALLOWED", allowlistResult.reason, 422);
   }
 

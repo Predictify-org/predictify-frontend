@@ -18,6 +18,7 @@ describe("POST /api/internal/reconciliation", () => {
     resetConfigCache();
     process.env.STELLAR_NETWORK = "testnet";
     process.env.JWT_SECRET = "test-secret-at-least-32-characters-long";
+    process.env.ALLOWED_ORIGINS = "http://localhost:3000";
     process.env.INTERNAL_SERVICE_HMAC_KEYS = JSON.stringify(authConfig.keys);
     process.env.INTERNAL_SERVICE_CURRENT_KEY_ID = authConfig.currentKeyId;
     process.env.INTERNAL_SERVICE_CLOCK_SKEW_SECONDS = String(authConfig.allowedClockSkewSeconds);

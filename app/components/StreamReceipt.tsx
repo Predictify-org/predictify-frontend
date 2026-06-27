@@ -7,6 +7,8 @@ type StreamReceiptProps = {
   stream: Stream;
   network?: "testnet" | "mainnet";
   generatedAt?: string;
+  note?: string;
+  hideToolbar?: boolean;
 };
 
 function truncateAddress(address: string, chars = 6): string {
@@ -75,6 +77,8 @@ export function StreamReceipt({
   stream,
   network = "testnet",
   generatedAt,
+  note,
+  hideToolbar = false,
 }: StreamReceiptProps) {
   const generated = generatedAt ?? new Date().toISOString();
   const networkLabel = network === "mainnet" ? "Stellar Mainnet" : "Stellar Testnet";
@@ -85,11 +89,13 @@ export function StreamReceipt({
   return (
     <div className="receipt-shell">
       {/* On-screen print trigger */}
-      <div className="receipt-toolbar no-print">
-        <button className="button button--primary" onClick={handlePrint} type="button">
-          Print / Save as PDF
-        </button>
-      </div>
+      {!hideToolbar && (
+        <div className="receipt-toolbar no-print">
+          <button className="button button--primary" onClick={handlePrint} type="button">
+            Print / Save as PDF
+          </button>
+        </div>
+      )}
 
       {/* ── Receipt document ── */}
       <article aria-label="Payment stream receipt" className="receipt-doc">
@@ -259,6 +265,16 @@ export function StreamReceipt({
             )}
           </dl>
         </section>
+
+        {note && (
+          <>
+            <div className="receipt-divider" />
+            <section className="receipt-section">
+              <h2 className="receipt-h2">Receipt Note</h2>
+              <p className="receipt-note-text">{note}</p>
+            </section>
+          </>
+        )}
 
         <div className="receipt-divider receipt-divider--thick" />
 

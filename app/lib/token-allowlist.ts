@@ -280,3 +280,48 @@ export async function _waitForInFlightOperations(): Promise<void> {
     await Promise.all(promises);
   }
 }
+
+// ── Per-org token check ───────────────────────────────────────────────────────
+
+/**
+ * Checks whether a token is accepted for stream creation scoped to an org.
+ *
+ * Resolution order:
+ *   1. If `org.tokenAllowlist` is non-empty → enforce it exclusively.
+ *      The global allowlist is ignored. This lets each org lock down its
+ *      accepted SAC tokens independently of the platform-wide list.
+ *   2. If `org.tokenAllowlist` is absent or empty → fall through to the
+ *      global `checkTokenAllowed()`.
+ *
+ * @param token  Raw token string from the API request body (will be normalised).
+ * @param org    The org record for the stream being created.
+ */
+export async function checkTokenAllowedForOrg(
+  token: string,
+  org: { tokenAllowlist?: string[] },
+): Promise<{ accepted: true } | { accepted: false; reason: string }> {
+  const orgList = org.tokenAllowlist;
+
+  // No per-org list → delegate to global check
+  if (!orgList || orgList.length === 0) {
+    return checkTokenAllowed(token);
+  }
+
+  // Normalise the incoming token first
+  let normalised: string;
+  try {
+    normalised = normaliseToken(token);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { accepted: false, reason: `Invalid token format: ${msg}` };
+  }
+
+  if (orgList.includes(normalised)) {
+    return { accepted: true };
+  }
+
+  return {
+    accepted: false,
+    reason: `Token "${normalised}" is not in this org's accepted token list. An org owner must add it via PATCH /api/orgs/:orgId/token-allowlist.`,
+  };
+}
