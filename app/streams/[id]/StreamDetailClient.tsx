@@ -10,6 +10,7 @@ import { ErrorToast } from "../../components/ErrorToast";
 import { fetchWithIdempotency } from "../../../lib/apiClient";
 import { isStreamPayError, normalizeError } from "../../lib/errors";
 import type { StreamPayError } from "../../lib/errors";
+import { exportStreamVestingAsIcs } from "../../utils/ics";
 
 type StreamDetailClientProps = {
   stream: Stream;
@@ -102,6 +103,22 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
     if (!error?.retry.retryable) return;
     handleDismissError();
     await handleAction();
+  };
+
+  const handleExportIcs = () => {
+    try {
+      exportStreamVestingAsIcs(
+        stream.id,
+        stream.rate,
+        stream.createdAt,
+        stream.status,
+        stream.token,
+        stream.label
+      );
+    } catch (err) {
+      console.error('Failed to export ICS:', err);
+      alert('Failed to export vesting calendar. Please check the stream rate format.');
+    }
   };
 
   const handleAction = async () => {
@@ -282,6 +299,15 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
               <Link href={`/streams/${stream.id}/receipt`} className="button button--secondary detail-action-btn">
                 Print Stream Receipt
               </Link>
+              
+              <button
+                className="button button--secondary detail-action-btn"
+                type="button"
+                onClick={handleExportIcs}
+                aria-label="Export vesting calendar as ICS file"
+              >
+                Export Calendar (.ics)
+              </button>
             </div>
             {isIncidentMode && (
               <p className="detail-incident-warning" role="alert">
