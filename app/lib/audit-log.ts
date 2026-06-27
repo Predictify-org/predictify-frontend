@@ -8,6 +8,7 @@ import type {
   AuditExportRow,
   AuditListFilters,
   AuditMetadataValue,
+  AuditPurgeResult,
 } from "@/app/types/audit";
 
 export const AUDIT_LOG_RETENTION_DAYS = 30;
@@ -273,12 +274,61 @@ export class AppendOnlyAuditLogStore {
     throw new Error("AUDIT_LOG_APPEND_ONLY");
   }
 
+  purgeArchivedRows(cutoffTimestamp: string, execute = false): AuditPurgeResult {
+    const cutoffMs = Date.parse(cutoffTimestamp);
+    if (!Number.isFinite(cutoffMs)) {
+      throw new Error("INVALID_PURGE_CUTOFF");
+    }
+
+    const chainIntactBefore = this.assertIntegrity();
+    const purged = this.entries.filter((entry) => Date.parse(entry.timestamp) < cutoffMs);
+    const retained = this.entries.filter((entry) => Date.parse(entry.timestamp) >= cutoffMs);
+
+    if (execute && purged.length > 0) {
+      const rebased = this.rebaseChain(retained);
+      this.entries.splice(0, this.entries.length, ...rebased);
+    }
+
+    return {
+      chainIntactAfter: execute ? this.assertIntegrity() : chainIntactBefore,
+      chainIntactBefore,
+      cutoffTimestamp: new Date(cutoffMs).toISOString(),
+      executed: execute,
+      purgedEntries: purged.length,
+      purgedIds: purged.map((entry) => entry.id),
+      retainedEntries: retained.length,
+    };
+  }
+
   reset(seedEntries: AuditEntryInput[] = defaultSeedAuditEntries) {
     this.entries.splice(0, this.entries.length);
     this.archivedEntries.splice(0, this.archivedEntries.length);
     for (const entry of seedEntries) {
       this.append(entry);
     }
+  }
+
+  private rebaseChain(entries: AuditEntry[]): AuditEntry[] {
+    let previousHash: string | null = null;
+
+    return entries.map((entry) => {
+      const nextEntry = cloneValue(entry);
+      nextEntry.prevHash = previousHash;
+      nextEntry.entryHash = hashValue({
+        action: nextEntry.action,
+        actor: nextEntry.actor,
+        afterHash: nextEntry.afterHash,
+        beforeHash: nextEntry.beforeHash,
+        diffHash: nextEntry.diffHash,
+        metadata: nextEntry.metadata ?? null,
+        prevHash: nextEntry.prevHash,
+        requestId: nextEntry.requestId,
+        target: nextEntry.target,
+        timestamp: nextEntry.timestamp,
+      });
+      previousHash = nextEntry.entryHash;
+      return deepFreeze(nextEntry);
+    });
   }
 }
 
