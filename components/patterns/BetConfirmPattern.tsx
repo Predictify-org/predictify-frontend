@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Receipt } from "@/components/receipts/Receipt"
 
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { Button } from "@/components/ui/button"
@@ -28,60 +29,103 @@ import { Label } from "@/components/ui/label"
 
 export function BetConfirmPattern() {
   const [open, setOpen] = React.useState(false)
+  const [isSuccess, setIsSuccess] = React.useState(false)
   const isDesktop = useMediaQuery("(min-width: 768px)")
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen)
+    if (!newOpen) {
+      setTimeout(() => setIsSuccess(false), 300)
+    }
+  }
+
+  const handleConfirm = () => {
+    // Simulate transaction delay
+    setIsSuccess(true)
+  }
 
   if (isDesktop) {
     return (
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild>
           <Button variant="default" className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc]">Place Prediction (Desktop)</Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md bg-[#0f1930] text-[#dee5ff] border-[#40485d]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-headline font-bold text-white">Confirm Prediction</DialogTitle>
-            <DialogDescription className="text-[#a3aac4]">
-              Review your position before confirming. Once confirmed, the stake will be locked in the smart contract.
-            </DialogDescription>
-          </DialogHeader>
-          <BetForm />
-          <DialogFooter className="sm:justify-end gap-2 mt-4 flex-row">
-            <Button variant="ghost" onClick={() => setOpen(false)} className="text-[#a3aac4] hover:text-white">
-              Cancel
-            </Button>
-            <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc]" onClick={() => setOpen(false)}>
-              Confirm Prediction
-            </Button>
-          </DialogFooter>
+        <DialogContent className={isSuccess ? "sm:max-w-xl bg-background border-border p-0" : "sm:max-w-md bg-[#0f1930] text-[#dee5ff] border-[#40485d]"}>
+          {!isSuccess ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl font-headline font-bold text-white">Confirm Prediction</DialogTitle>
+                <DialogDescription className="text-[#a3aac4]">
+                  Review your position before confirming. Once confirmed, the stake will be locked in the smart contract.
+                </DialogDescription>
+              </DialogHeader>
+              <BetForm />
+              <DialogFooter className="sm:justify-end gap-2 mt-4 flex-row">
+                <Button variant="ghost" onClick={() => setOpen(false)} className="text-[#a3aac4] hover:text-white">
+                  Cancel
+                </Button>
+                <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc]" onClick={handleConfirm}>
+                  Confirm Prediction
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <div className="w-full">
+              <Receipt 
+                receiptId="TXN-98237498234-XYZ"
+                amount="$100.00"
+                partyA="0x1234...5678 (You)"
+                partyB="Predictify Market Pool"
+                timestamp={new Date().toISOString()}
+                type="Bet Placement"
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     )
   }
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
+    <Drawer open={open} onOpenChange={handleOpenChange}>
       <DrawerTrigger asChild>
         <Button variant="default" className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc] w-full">Place Prediction (Mobile)</Button>
       </DrawerTrigger>
-      <DrawerContent className="bg-[#0f1930] text-[#dee5ff] border-[#40485d]">
-        <DrawerHeader className="text-left">
-          <DrawerTitle className="text-xl font-headline font-bold text-white">Confirm Prediction</DrawerTitle>
-          <DrawerDescription className="text-[#a3aac4]">
-           Review your position before confirming. Once confirmed, the stake will be locked in the smart contract.
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="px-4">
-          <BetForm />
-        </div>
-        <DrawerFooter className="pt-4 flex flex-col gap-2">
-          <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc] w-full" onClick={() => setOpen(false)}>
-            Confirm Prediction
-          </Button>
-          <DrawerClose asChild>
-            <Button variant="outline" className="text-[#a3aac4] border-[#40485d] hover:bg-[#192540] w-full">
-              Cancel
-            </Button>
-          </DrawerClose>
-        </DrawerFooter>
+      <DrawerContent className={isSuccess ? "bg-background border-border" : "bg-[#0f1930] text-[#dee5ff] border-[#40485d]"}>
+        {!isSuccess ? (
+          <>
+            <DrawerHeader className="text-left">
+              <DrawerTitle className="text-xl font-headline font-bold text-white">Confirm Prediction</DrawerTitle>
+              <DrawerDescription className="text-[#a3aac4]">
+              Review your position before confirming. Once confirmed, the stake will be locked in the smart contract.
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4">
+              <BetForm />
+            </div>
+            <DrawerFooter className="pt-4 flex flex-col gap-2">
+              <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc] w-full" onClick={handleConfirm}>
+                Confirm Prediction
+              </Button>
+              <DrawerClose asChild>
+                <Button variant="outline" className="text-[#a3aac4] border-[#40485d] hover:bg-[#192540] w-full">
+                  Cancel
+                </Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </>
+        ) : (
+          <div className="w-full pt-4 max-h-[90vh] overflow-y-auto">
+            <Receipt 
+              receiptId="TXN-98237498234-XYZ"
+              amount="$100.00"
+              partyA="0x1234...5678 (You)"
+              partyB="Predictify Market Pool"
+              timestamp={new Date().toISOString()}
+              type="Bet Placement"
+            />
+          </div>
+        )}
       </DrawerContent>
     </Drawer>
   )

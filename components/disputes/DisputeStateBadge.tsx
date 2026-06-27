@@ -7,7 +7,7 @@ interface DisputeStateBadgeProps {
   state: DisputeState;
 }
 
-const stateConfig: Record
+const stateConfig: Record<
   DisputeState,
   { label: string; className: string; Icon: typeof CheckCircle2 }
 > = {
