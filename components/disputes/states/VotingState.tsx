@@ -6,6 +6,7 @@ import { WarningBanner } from '@/components/disputes/shared/WarningBanner';
 import { CountdownTimer } from '@/components/disputes/shared/CountdownTimer';
 import { TallyBar } from '@/components/disputes/shared/TallyBar';
 import type { DisputeData, DisputeState } from '@/types/disputes';
+import { OutcomeIcon, getVariantByIndex } from '@/components/icons/OutcomeIcons';
 
 interface VotingStateProps {
   data: DisputeData;
@@ -39,13 +40,20 @@ export function VotingState({ data, onStateChange }: VotingStateProps) {
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium">Cast your vote</p>
         <div className="flex gap-3">
-          {[leftLabel, rightLabel].map((voteLabel) => (
+          {[leftLabel, rightLabel].map((voteLabel, index) => (
             <Button
               key={voteLabel}
               variant={selectedVote === voteLabel ? 'default' : 'outline'}
               onClick={() => setSelectedVote(voteLabel)}
               disabled={isDisabled}
+              className="flex items-center gap-1.5"
             >
+              {/*
+               * Shape icon (color-blind safe) on each vote button.
+               * ▲ (positive) for the first option, ▽ (negative) for the second.
+               * aria-hidden — the button text is the accessible label.
+               */}
+              <OutcomeIcon variant={getVariantByIndex(index)} aria-hidden />
               {voteLabel}
             </Button>
           ))}

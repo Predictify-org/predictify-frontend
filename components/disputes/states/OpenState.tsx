@@ -8,6 +8,7 @@ import { WarningBanner } from '@/components/disputes/shared/WarningBanner';
 import { CountdownTimer } from '@/components/disputes/shared/CountdownTimer';
 import { TallyBar } from '@/components/disputes/shared/TallyBar';
 import type { DisputeData, DisputeState } from '@/types/disputes';
+import { OutcomeIcon, getVariantByIndex } from '@/components/icons/OutcomeIcons';
 
 interface OpenStateProps {
   data: DisputeData;
@@ -44,7 +45,7 @@ export function OpenState({ data, onStateChange }: OpenStateProps) {
       <div className="flex flex-col gap-2">
         <Label>Select your side</Label>
         <div className="flex gap-4">
-          {[leftLabel, rightLabel].map((sideLabel) => (
+          {[leftLabel, rightLabel].map((sideLabel, index) => (
             <label key={sideLabel} className="flex cursor-pointer items-center gap-2">
               <input
                 type="radio"
@@ -55,6 +56,12 @@ export function OpenState({ data, onStateChange }: OpenStateProps) {
                 disabled={isDisabled}
                 className="accent-primary"
               />
+              {/*
+               * Shape icon (color-blind safe) beside each radio option.
+               * ▲ (positive) for the first side, ▽ (negative) for the second.
+               * aria-hidden — the adjacent text is the accessible label.
+               */}
+              <OutcomeIcon variant={getVariantByIndex(index)} aria-hidden />
               <span className="text-sm">{sideLabel}</span>
             </label>
           ))}

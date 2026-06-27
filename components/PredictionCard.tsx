@@ -4,6 +4,8 @@ import { Prediction, PredictionStatus } from '../types/predictions';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, XCircle, Clock, Activity } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { OutcomeIcon } from '@/components/icons/OutcomeIcons';
+import type { OutcomeVariant } from '@/components/icons/OutcomeIcons';
 
 interface PredictionCardProps {
   prediction: Prediction;
@@ -17,6 +19,24 @@ const statusMap: Record<PredictionStatus, { icon: React.ElementType; label: stri
   active: { icon: Activity, label: 'Active', className: 'text-blue-600 dark:text-blue-500 border-blue-600/20 bg-blue-50/50 dark:bg-blue-500/10' },
 };
 
+/**
+ * Maps a PredictionStatus to a shape-based OutcomeVariant so that status
+ * differentiation does not rely on color alone (WCAG 2.1 AA 1.4.1).
+ *
+ * Shape → Status mapping:
+ *   ▲ positive (TriangleUp)   → won
+ *   ▽ negative (TriangleDown) → lost
+ *   ◇ neutral  (Diamond)      → pending / active
+ *
+ * See app/design-system/tokens.md for the full palette + icon mapping.
+ */
+const statusOutcomeVariant: Record<PredictionStatus, OutcomeVariant> = {
+  won: 'positive',
+  lost: 'negative',
+  pending: 'neutral',
+  active: 'neutral',
+};
+
 const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
   const { title, description, stakeAmount, stakeToken, odds, potentialWinnings, winningsToken, eventDate, resolvedDate, status } = prediction;
   const { icon: Icon, className, label } = statusMap[status];
@@ -27,6 +47,15 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
       <div className="flex justify-between items-start mb-3">
         <h3 className="text-lg font-semibold text-card-foreground line-clamp-2 pr-2">{title}</h3>
         <Badge variant="outline" className={`gap-1.5 shrink-0 ${className}`} aria-label={`Status: ${label}`}>
+          {/*
+           * Shape icon (color-blind safe) — rendered BEFORE the status icon.
+           * aria-hidden because the Badge's aria-label already names the status.
+           * Distinguishable by shape under Deuteranopia & Tritanopia simulations.
+           */}
+          <OutcomeIcon
+            variant={statusOutcomeVariant[status]}
+            aria-hidden
+          />
           <Icon className="w-3.5 h-3.5" aria-hidden="true" />
           {label}
         </Badge>
@@ -84,4 +113,4 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
   );
 };
 
-export default PredictionCard;
+export default PredictionCard;
