@@ -3,6 +3,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2, Timer } from "lucide-react";
+import { getThemedSticker } from "@/app/utils/sticker";
 
 export type MarketStatus = "active" | "resolved" | "tied" | "disputed";
 
@@ -15,6 +16,8 @@ interface MarketShareCardProps {
   timeLeft?: string;
   winner?: string;
   className?: string;
+  creatorName?: string;
+  creatorImage?: string;
 }
 
 const MarketShareCard: React.FC<MarketShareCardProps> = ({
@@ -26,6 +29,8 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
   timeLeft,
   winner,
   className,
+  creatorName,
+  creatorImage,
 }) => {
   return (
     <div
@@ -61,6 +66,29 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col justify-center">
+          {(creatorName || creatorImage) && (
+            <div className="flex items-center gap-3 mb-6">
+              {creatorImage ? (
+                <img src={creatorImage} alt={creatorName} className="w-12 h-12 rounded-full object-cover border-2 border-white/10" />
+              ) : (
+                <div 
+                  className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center border-2 border-white/10 text-xl font-bold shadow-lg", 
+                    getThemedSticker(creatorName || "").backgroundClass
+                  )}
+                  aria-label={`Avatar for ${creatorName || "Anonymous"}`}
+                  title={creatorName || "Anonymous"}
+                >
+                  {getThemedSticker(creatorName || "").emoji}
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-caption text-white/50 uppercase tracking-widest">Creator</span>
+                <span className="text-h5 font-semibold text-white/90">{creatorName || "Anonymous"}</span>
+              </div>
+            </div>
+          )}
+
           <h1 className="text-[64px] leading-[1.1] font-bold text-white mb-12 max-w-[900px] text-balance">
             {title}
           </h1>

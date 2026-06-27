@@ -18,6 +18,7 @@ export default function ShareCardsPreview() {
             outcome="YES"
             volume="$2.5M"
             timeLeft="45 days"
+            creatorName="Alice"
           />
         </div>
       </section>
@@ -30,6 +31,7 @@ export default function ShareCardsPreview() {
             title="Who will win the 2024 Presidential Election?"
             winner="Candidate X"
             volume="$12.4M"
+            creatorName="Bob"
           />
         </div>
       </section>
@@ -40,6 +42,7 @@ export default function ShareCardsPreview() {
           <MarketShareCard
             status="disputed"
             title="Will it rain in London on June 1st, 2024?"
+            creatorName="Charlie123"
           />
         </div>
       </section>
@@ -50,6 +53,7 @@ export default function ShareCardsPreview() {
           <MarketShareCard
             status="tied"
             title="Final Score: Team A vs Team B (Exhibition Match)"
+            creatorName="David"
           />
         </div>
       </section>
