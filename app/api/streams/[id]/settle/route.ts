@@ -91,10 +91,18 @@ export async function POST(
           targetAccount: updatedStream.recipient,
         });
 
-      return NextResponse.json(payload);
-    } catch {
-      return errorResponse("SETTLEMENT_FAILED", "Failed to settle stream on Stellar/Soroban", 502);
-    }
+        const payload = { data: { ...updatedStream, settlement } };
+
+        logger.info("Stream settled successfully", {
+          streamId: id,
+          action: "settle",
+          status: "success",
+        });
+
+        return NextResponse.json(payload);
+      } catch {
+        return errorResponse("SETTLEMENT_FAILED", "Failed to settle stream on Stellar/Soroban", 502);
+      }
     });
   });
 }

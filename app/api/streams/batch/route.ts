@@ -6,7 +6,7 @@ import {
   idempotencyToken,
   setIdempotency,
 } from "@/app/lib/db";
-import { errorResponse, ErrorCode } from "@/app/lib/errors";
+import { errorResponse, ErrorCode } from "@/app/lib/errors/server";
 import { getCorrelationContext, logger } from "@/app/lib/logger";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
