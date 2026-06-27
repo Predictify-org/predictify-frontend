@@ -3,6 +3,7 @@
 import type React from "react";
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/navbar/Navbar";
+import { MobileBottomTabs } from "@/components/navbar/MobileBottomTabs";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 
 export default function DashboardLayout({
@@ -51,6 +52,7 @@ export default function DashboardLayout({
       <main className="flex-1 pb-24 md:pb-12 pt-20">
         <div className="">{children}</div>
       </main>
+    <MobileBottomTabs />
     </div>
   );
 }
