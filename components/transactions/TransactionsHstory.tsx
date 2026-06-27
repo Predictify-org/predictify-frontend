@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, RefreshCw, X } from 'lucide-react';
 import { TransactionFilters } from '@/lib/types';
 import { allTransactions } from '@/lib/mock-data';
 import { Timestamp } from '@/components/ui/Timestamp';
+import { CopyableText } from '@/components/ui/CopyableText';
 
 
 export default function TransactionHistory() {
@@ -291,6 +292,7 @@ export default function TransactionHistory() {
                                 <thead className='bg-[#F9FAFB] h-16'>
                                     <tr className="border-b h-[61px] box-border border-gray-200">
                                         <th className="text-left h-[61px] py-3 px-8 text-gray-600 font-medium text-sm">Date</th>
+                                        <th className="text-left h-[61px] py-3 px-8 text-gray-600 font-medium text-sm">Hash</th>
                                         <th className="text-left h-[61px] py-4 px-8 w-[179px] text-gray-600 font-medium text-sm">Type</th>
                                         <th className="text-left max-h-[61px] py-4 px-8 w-[159px] text-gray-600 font-medium text-sm">Amount</th>
                                         <th className="text-left max-h-[61px] py-6 px-8 w-[164px] text-gray-600 font-medium text-sm">Status</th>
@@ -302,6 +304,9 @@ export default function TransactionHistory() {
                                         <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                                             <td className="h-[94px] max-h-[91px]py-8 px-8 text-sm text-gray-500">
                                                 <Timestamp date={transaction.date} />
+                                            </td>
+                                            <td className="py-8 px-8">
+                                                <CopyableText text={transaction.hash} visibleChars={6} />
                                             </td>
                                             <td className="py-8 px-8">
                                                 <div className="flex items-center gap-2">

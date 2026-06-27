@@ -4,6 +4,7 @@ import React, { Component, ErrorInfo, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
+import { CopyableText } from "@/components/ui/CopyableText";
 
 interface Props {
   children: ReactNode;
@@ -13,6 +14,7 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  incidentId: string | null;
 }
 
 /**
@@ -22,11 +24,12 @@ interface State {
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, incidentId: null };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    const incidentId = Math.random().toString(36).substring(2, 10).toUpperCase();
+    return { hasError: true, error, incidentId };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -40,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, incidentId: null });
   };
 
   render() {
@@ -62,6 +65,12 @@ export class ErrorBoundary extends Component<Props, State> {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {this.state.incidentId && (
+                <div className="flex flex-col gap-1.5 rounded-md bg-muted/50 p-3 border border-border/50">
+                  <span className="text-xs font-medium text-muted-foreground">Incident ID</span>
+                  <CopyableText text={this.state.incidentId} truncateMiddle={false} className="w-fit" />
+                </div>
+              )}
               {process.env.NODE_ENV === 'development' && this.state.error && (
                 <div className="rounded-md bg-muted p-3">
                   <p className="text-sm font-mono text-destructive">

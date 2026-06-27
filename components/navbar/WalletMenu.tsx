@@ -1,6 +1,7 @@
 "use client";
 
 
+import React from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,11 +14,12 @@ import {
 import { useWalletContext } from "@/context/WalletContext";
 import { useWallet } from "@/hooks/useWallet.hook";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
-import { Copy as CopyIcon, RefreshCcw, LogOut as LogOutIcon } from "lucide-react";
+import { RefreshCcw, LogOut as LogOutIcon } from "lucide-react";
 import ArrowDownIcon from "../icons/ArrowDown";
 import { Switch } from "@/components/ui/switch";
 import { usePrivacy } from "@/context/PrivacyContext";
 import { maskAmount } from "@/utils/maskAmount";
+import { CopyableText } from "@/components/ui/CopyableText";
 
 function truncateMiddle(address: string, visible = 4) {
   if (address.length <= visible * 2) return address;
@@ -43,10 +45,6 @@ export function WalletMenu() {
         <span className="text-[#540D8D] text-sm dark:text-white">Loading...</span>
       </Button>
     );
-  }
-
-  function handleCopy() {
-    if (address) navigator.clipboard.writeText(address);
   }
 
   if (!connected) {
@@ -80,12 +78,11 @@ export function WalletMenu() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56" role="menu">
-          <DropdownMenuLabel>Wallet</DropdownMenuLabel>
+          <DropdownMenuLabel className="flex flex-col gap-1">
+            <span className="text-xs font-normal text-muted-foreground">Connected Address</span>
+            {address && <CopyableText text={address} className="-ml-1.5" visibleChars={6} />}
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem role="menuitem" onClick={handleCopy} className="cursor-pointer" aria-label="Copy address">
-            <CopyIcon className="mr-2 h-4 w-4" />
-            Copy
-          </DropdownMenuItem>
           <DropdownMenuItem role="menuitem" onClick={() => setIsOpen(true)} className="cursor-pointer" aria-label="Switch wallet">
             <RefreshCcw className="mr-2 h-4 w-4" />
             Switch
