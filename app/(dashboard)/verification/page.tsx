@@ -1,27 +1,41 @@
 "use client"
 
-import { useState } from "react"
-import { CheckCircle, Clock, Filter, Search } from "lucide-react"
+import { useState, useCallback, useMemo } from "react"
+import {
+  CheckCircle,
+  Clock,
+  Filter,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  FileText,
+  ArrowUpDown,
+  UserCheck,
+  ShieldCheck,
+  ClipboardCheck,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
+import { VerificationStepper, type Step, type StepState } from "@/components/verification/VerificationStepper"
+import { useSessionStorage } from "@/hooks/useSessionStorage"
 
-// Mock data for events needing verification
+const STEPS_CONFIG = [
+  { id: "select", label: "Select Event", icon: Search },
+  { id: "review", label: "Review Event", icon: FileText },
+  { id: "winner", label: "Select Winner", icon: UserCheck },
+  { id: "notes", label: "Add Notes", icon: ClipboardCheck },
+  { id: "confirm", label: "Confirm", icon: ShieldCheck },
+]
+
 const pendingEvents = [
   {
     id: "1",
@@ -80,7 +94,6 @@ const pendingEvents = [
   },
 ]
 
-// Mock data for recently verified events
 const verifiedEvents = [
   {
     id: "5",
@@ -100,70 +113,155 @@ const verifiedEvents = [
   },
 ]
 
+function getStepState(
+  stepIndex: number,
+  currentStep: number,
+  stepErrors: Record<number, boolean>,
+): StepState {
+  if (stepErrors[stepIndex]) return "error"
+  if (stepIndex === currentStep) return "current"
+  if (stepIndex < currentStep) return "done"
+  return "incomplete"
+}
+
 export default function VerificationPage() {
+  const [currentStep, setCurrentStep] = useSessionStorage("verification:currentStep", 0)
+  const [selectedEventId, setSelectedEventId] = useSessionStorage<string | null>("verification:selectedEventId", null)
+  const [selectedOption, setSelectedOption] = useSessionStorage("verification:selectedOption", "")
+  const [verificationNotes, setVerificationNotes] = useSessionStorage("verification:notes", "")
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
-  const [selectedEvent, setSelectedEvent] = useState(null)
-  const [selectedOption, setSelectedOption] = useState("")
-  const [verificationNotes, setVerificationNotes] = useState("")
+  const [stepErrors, setStepErrors] = useState<Record<number, boolean>>({})
+  const [showSuccess, setShowSuccess] = useState(false)
 
-  // Filter events based on search query and filters
+  const selectedEvent = useMemo(
+    () => pendingEvents.find((e) => e.id === selectedEventId) ?? null,
+    [selectedEventId],
+  )
+
   const filteredEvents = pendingEvents.filter((event) => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = categoryFilter === "all" || event.category === categoryFilter
-
     return matchesSearch && matchesCategory
   })
 
+  const steps: Step[] = STEPS_CONFIG.map((config, index) => ({
+    id: config.id,
+    label: config.label,
+    state: getStepState(index, currentStep, stepErrors),
+  }))
+
+  const clearError = (step: number) => {
+    setStepErrors((prev) => {
+      const next = { ...prev }
+      delete next[step]
+      return next
+    })
+  }
+
+  const validateStep = (step: number): boolean => {
+    setStepErrors((prev) => {
+      const next = { ...prev }
+      delete next[step]
+      return next
+    })
+
+    switch (step) {
+      case 0:
+        if (!selectedEvent) {
+          setStepErrors((prev) => ({ ...prev, [step]: true }))
+          return false
+        }
+        return true
+      case 1:
+        return true
+      case 2:
+        if (!selectedOption) {
+          setStepErrors((prev) => ({ ...prev, [step]: true }))
+          return false
+        }
+        return true
+      case 3:
+        if (!verificationNotes.trim()) {
+          setStepErrors((prev) => ({ ...prev, [step]: true }))
+          return false
+        }
+        return true
+      case 4:
+        return true
+      default:
+        return true
+    }
+  }
+
+  const goNext = useCallback(() => {
+    if (validateStep(currentStep)) {
+      if (currentStep < steps.length - 1) {
+        setCurrentStep(currentStep + 1)
+      }
+    }
+  }, [currentStep, steps.length])
+
+  const goBack = useCallback(() => {
+    if (currentStep > 0) {
+      clearError(currentStep)
+      setCurrentStep(currentStep - 1)
+    }
+  }, [currentStep])
+
+  const handleStepClick = useCallback(
+    (step: number) => {
+      if (step < currentStep) {
+        clearError(currentStep)
+        setCurrentStep(step)
+      }
+    },
+    [currentStep],
+  )
+
+  const handleSelectEvent = (eventId: string) => {
+    setSelectedEventId(eventId)
+    setSelectedOption("")
+    setVerificationNotes("")
+    setStepErrors({})
+    setCurrentStep(1)
+  }
+
   const handleVerify = () => {
-    // In a real app, you would send this data to your API
     console.log({
-      eventId: selectedEvent.id,
+      eventId: selectedEvent?.id,
       winningOption: selectedOption,
       notes: verificationNotes,
     })
-
-    // Reset the form
-    setSelectedEvent(null)
-    setSelectedOption("")
-    setVerificationNotes("")
+    setShowSuccess(true)
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Outcome Verification</h1>
-      </div>
+  const handleReset = () => {
+    setSelectedEventId(null)
+    setSelectedOption("")
+    setVerificationNotes("")
+    setCurrentStep(0)
+    setStepErrors({})
+    setShowSuccess(false)
+  }
 
-      <Tabs defaultValue="pending" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="pending" className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Pending Verification
-            <Badge variant="secondary" className="ml-1">
-              {pendingEvents.length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="verified" className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Recently Verified
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pending" className="space-y-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search events..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2">
-              <div className="flex items-center gap-2">
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search events..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                   <SelectTrigger className="w-[130px]">
                     <Filter className="mr-2 h-4 w-4" />
@@ -180,115 +278,376 @@ export default function VerificationPage() {
                 </Select>
               </div>
             </div>
-          </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>End Date</TableHead>
-                  <TableHead>Participants</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEvents.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell className="font-medium">{event.title}</TableCell>
-                    <TableCell>{event.category}</TableCell>
-                    <TableCell>{new Date(event.endDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{event.participants.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" onClick={() => setSelectedEvent(event)}>
-                            Verify
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Verify Outcome</DialogTitle>
-                            <DialogDescription>Select the winning option for this prediction event.</DialogDescription>
-                          </DialogHeader>
+            {stepErrors[0] && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>Please select an event to continue.</span>
+              </div>
+            )}
 
-                          {selectedEvent && (
-                            <div className="space-y-4 py-4">
-                              <div>
-                                <h3 className="font-medium">{selectedEvent.title}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                  Ended on {new Date(selectedEvent.endDate).toLocaleDateString()}
-                                </p>
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label>Select Winning Option</Label>
-                                <RadioGroup value={selectedOption} onValueChange={setSelectedOption}>
-                                  {selectedEvent.options.map((option) => (
-                                    <div key={option.id} className="flex items-center space-x-2">
-                                      <RadioGroupItem value={option.id} id={option.id} />
-                                      <Label htmlFor={option.id}>{option.text}</Label>
-                                    </div>
-                                  ))}
-                                </RadioGroup>
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label htmlFor="notes">Verification Notes</Label>
-                                <Textarea
-                                  id="notes"
-                                  placeholder="Add any notes about this verification"
-                                  value={verificationNotes}
-                                  onChange={(e) => setVerificationNotes(e.target.value)}
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          <DialogFooter>
-                            <Button type="button" onClick={handleVerify}>
-                              Confirm Verification
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </TableCell>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">Select</TableHead>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>End Date</TableHead>
+                    <TableHead>Participants</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
+                </TableHeader>
+                <TableBody>
+                  {filteredEvents.map((event) => (
+                    <TableRow
+                      key={event.id}
+                      className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                        selectedEventId === event.id ? "bg-muted" : ""
+                      }`}
+                      onClick={() => {
+                        setSelectedEventId(event.id)
+                        setSelectedOption("")
+                        setVerificationNotes("")
+                      }}
+                    >
+                      <TableCell>
+                        <input
+                          type="radio"
+                          name="event-select"
+                          checked={selectedEventId === event.id}
+                          onChange={() => {
+                            setSelectedEventId(event.id)
+                            setSelectedOption("")
+                            setVerificationNotes("")
+                          }}
+                          className="h-4 w-4"
+                          aria-label={`Select ${event.title}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{event.title}</TableCell>
+                      <TableCell>{event.category}</TableCell>
+                      <TableCell>{new Date(event.endDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{event.participants.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
-        <TabsContent value="verified" className="space-y-4">
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Verified Date</TableHead>
-                  <TableHead>Winning Option</TableHead>
-                  <TableHead>Verified By</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {verifiedEvents.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell className="font-medium">{event.title}</TableCell>
-                    <TableCell>{event.category}</TableCell>
-                    <TableCell>{new Date(event.verifiedDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{event.winningOption}</TableCell>
-                    <TableCell>{event.verifiedBy}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {filteredEvents.length === 0 && (
+              <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
+                <Search className="h-8 w-8" />
+                <p>No pending events match your search.</p>
+              </div>
+            )}
           </div>
-        </TabsContent>
-      </Tabs>
+        )
+
+      case 1:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>{selectedEvent?.title}</CardTitle>
+              <CardDescription>
+                Ended on {selectedEvent ? new Date(selectedEvent.endDate).toLocaleDateString() : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-sm text-muted-foreground">Category</span>
+                  <p className="font-medium">{selectedEvent?.category}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-sm text-muted-foreground">Total Participants</span>
+                  <p className="font-medium">{selectedEvent?.participants.toLocaleString()}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-sm text-muted-foreground">End Date</span>
+                  <p className="font-medium">
+                    {selectedEvent ? new Date(selectedEvent.endDate).toLocaleDateString() : ""}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  <Badge variant="secondary">Pending Verification</Badge>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="font-medium">Prediction Options</h3>
+                <div className="space-y-2">
+                  {selectedEvent?.options.map((option) => (
+                    <div
+                      key={option.id}
+                      className="flex items-center justify-between rounded-md border p-3"
+                    >
+                      <span>{option.text}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {(option.probability * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+
+      case 2:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Select Winning Outcome</CardTitle>
+              <CardDescription>Choose the outcome that actually occurred.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="mb-3 text-sm font-medium">{selectedEvent?.title}</p>
+                <RadioGroup value={selectedOption} onValueChange={(v) => { setSelectedOption(v); clearError(2) }}>
+                  {selectedEvent?.options.map((option) => (
+                    <div key={option.id} className="flex items-center space-x-2 rounded-md border p-3">
+                      <RadioGroupItem value={option.id} id={option.id} />
+                      <Label htmlFor={option.id} className="flex-1 cursor-pointer">
+                        {option.text}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {stepErrors[2] && (
+                <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>Please select the winning outcome to continue.</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+
+      case 3:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Add Verification Notes</CardTitle>
+              <CardDescription>
+                Provide details, evidence, or sources supporting this outcome.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes & Evidence</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Add any notes, links to sources, or evidence for this verification..."
+                  className="min-h-[120px]"
+                  value={verificationNotes}
+                  onChange={(e) => { setVerificationNotes(e.target.value); clearError(3) }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This information may be displayed to users to explain the outcome.
+                </p>
+              </div>
+
+              {stepErrors[3] && (
+                <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>Please provide verification notes to continue.</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+
+      case 4:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Confirm Verification</CardTitle>
+              <CardDescription>Review the details before submitting.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-md border divide-y">
+                <div className="flex items-center justify-between p-3">
+                  <span className="text-sm text-muted-foreground">Event</span>
+                  <span className="font-medium">{selectedEvent?.title}</span>
+                </div>
+                <div className="flex items-center justify-between p-3">
+                  <span className="text-sm text-muted-foreground">Category</span>
+                  <span>{selectedEvent?.category}</span>
+                </div>
+                <div className="flex items-center justify-between p-3">
+                  <span className="text-sm text-muted-foreground">Winning Outcome</span>
+                  <span className="font-medium">
+                    {selectedEvent?.options.find((o) => o.id === selectedOption)?.text}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3">
+                  <span className="text-sm text-muted-foreground">Participants</span>
+                  <span>{selectedEvent?.participants.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {verificationNotes.trim() && (
+                <div className="space-y-1">
+                  <span className="text-sm text-muted-foreground">Verification Notes</span>
+                  <p className="rounded-md bg-muted p-3 text-sm">{verificationNotes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+    }
+  }
+
+  const renderSummary = () => (
+    <div className="flex flex-col items-center gap-4 py-12 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
+        <CheckCircle className="h-8 w-8 text-green-500" />
+      </div>
+      <h2 className="text-xl font-bold">Outcome Verified Successfully</h2>
+      <p className="text-muted-foreground">
+        The outcome for{" "}
+        <span className="font-medium text-foreground">{selectedEvent?.title}</span> has been recorded
+        and payouts will be distributed.
+      </p>
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={handleReset}>
+          Verify Another Event
+        </Button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Outcome Verification</h1>
+      </div>
+
+      {showSuccess ? (
+        renderSummary()
+      ) : (
+        <>
+          <Card>
+            <CardContent className="pt-6">
+              <VerificationStepper
+                steps={steps}
+                currentStep={currentStep}
+                onStepClick={handleStepClick}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              Step {currentStep + 1} of {steps.length}
+            </Badge>
+            {stepErrors[currentStep] && (
+              <Badge variant="destructive" className="text-xs">
+                <AlertCircle className="mr-1 h-3 w-3" />
+                Validation required
+              </Badge>
+            )}
+          </div>
+
+          {renderStepContent()}
+
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              onClick={goBack}
+              disabled={currentStep === 0}
+            >
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+
+            {currentStep < steps.length - 1 ? (
+              <Button onClick={goNext}>
+                Continue
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={handleVerify}>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Confirm Verification
+              </Button>
+            )}
+          </div>
+        </>
+      )}
+
+      {!showSuccess && (
+        <Tabs defaultValue="recently-verified" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="recently-verified" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Recently Verified
+            </TabsTrigger>
+            <TabsTrigger value="all-pending" className="flex items-center gap-2">
+              <ArrowUpDown className="h-4 w-4" />
+              All Pending Events
+              <Badge variant="secondary" className="ml-1">
+                {pendingEvents.length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="recently-verified" className="space-y-4">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Verified Date</TableHead>
+                    <TableHead>Winning Option</TableHead>
+                    <TableHead>Verified By</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {verifiedEvents.map((event) => (
+                    <TableRow key={event.id}>
+                      <TableCell className="font-medium">{event.title}</TableCell>
+                      <TableCell>{event.category}</TableCell>
+                      <TableCell>{new Date(event.verifiedDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{event.winningOption}</TableCell>
+                      <TableCell>{event.verifiedBy}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="all-pending" className="space-y-4">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>End Date</TableHead>
+                    <TableHead>Participants</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingEvents.map((event) => (
+                    <TableRow key={event.id}>
+                      <TableCell className="font-medium">{event.title}</TableCell>
+                      <TableCell>{event.category}</TableCell>
+                      <TableCell>{new Date(event.endDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{event.participants.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   )
 }
-
