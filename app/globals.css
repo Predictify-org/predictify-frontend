@@ -255,7 +255,7 @@ body {
     background: white !important;
     color: black !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 20mm !important; /* Add padding to body so content isn't on the edge since @page margin is 0 */
     width: 100% !important;
   }
 
@@ -264,7 +264,7 @@ body {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 auto !important;
-    padding: 20px !important;
+    padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
     page-break-inside: avoid;
@@ -280,9 +280,9 @@ body {
     print-color-adjust: exact !important;
   }
 
-  /* Optimize page layout for A4/Letter */
+  /* Optimize page layout for A4/Letter and hide default headers/footers */
   @page {
     size: auto;
-    margin: 20mm;
+    margin: 0mm; /* Setting margin to 0mm hides the browser's default URL, Page Number, and Date */
   }
 }
