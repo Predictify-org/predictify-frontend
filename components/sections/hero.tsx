@@ -11,12 +11,19 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import KpiStrip from "@/app/(marketing)/_sections/kpi-strip";
 
+import { useParallax } from "@/hooks/use-parallax";
+
 export function Hero() {
       const [isMounted, setIsMounted] = useState(false);
       const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
       const [isConnected, setIsConnected] = useState(false);
       const [walletName, setWalletName] = useState<string | null>(null);
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
+    
+    // Parallax hook for the main marketing card (depth 12px)
+    const cardRef = useParallax({ depth: 12 });
+    // Parallax hook for a background element (depth -8px for counter-movement)
+    const bgRef = useParallax({ depth: -8 });
     
     // Listen for global open-connect-wallet event from navbar/drawer
     useEffect(() => {
@@ -39,7 +46,11 @@ export function Hero() {
     };
   return (
     <div className="relative overflow-hidden font-sans">
-
+      {/* Decorative Parallax Background Element */}
+      <div 
+        ref={bgRef}
+        className="pointer-events-none absolute -right-20 top-0 h-[500px] w-[500px] rounded-full bg-purple-600/10 blur-[100px] lg:block hidden" 
+      />
 
     {/* Content Container */}
     <div className="relative mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
@@ -108,98 +119,100 @@ export function Hero() {
             </div>
           </div>
 
-          {/* Markets Card */}
-          <Card className="w-full max-w-md border-white/10 bg-gradient-to-b from-[#48097B] to-[#111827] p-6 backdrop-blur-xl">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-h4 font-semibold text-white">Popular Prediction Markets</h2>
-              <button className="text-body-sm text-purple-300 hover:text-purple-200">View All</button>
-            </div>
+          {/* Markets Card with Parallax */}
+          <div ref={cardRef} className="w-full max-w-md transition-transform duration-75 ease-out">
+            <Card className="w-full border-white/10 bg-gradient-to-b from-[#48097B] to-[#111827] p-6 backdrop-blur-xl">
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-h4 font-semibold text-white">Popular Prediction Markets</h2>
+                <button className="text-body-sm text-purple-300 hover:text-purple-200">View All</button>
+              </div>
 
-            <div className="space-y-4">
-              {/* Market 1 - Bitcoin Price */}
-              <Card className="border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm">
-                <div className="mb-3 flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-lg bg-blue-500/20 p-2">
-                      <TrendingUp className="h-5 w-5 text-blue-400" />
+              <div className="space-y-4">
+                {/* Market 1 - Bitcoin Price */}
+                <Card className="border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm">
+                  <div className="mb-3 flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-lg bg-blue-500/20 p-2">
+                        <TrendingUp className="h-5 w-5 text-blue-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-h6 font-semibold text-white">Bitcoin Price</h3>
+                        <p className="text-body-sm text-white/70">Will BTC exceed $75K by Q3 2023?</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-h6 font-semibold text-white">Bitcoin Price</h3>
-                      <p className="text-body-sm text-white/70">Will BTC exceed $75K by Q3 2023?</p>
+                    <div className="text-right">
+                      <div className="text-body-sm font-medium text-green-400 mb-1">Yes: 68%</div>
+                      <div className="text-body-sm text-red-400">No: 32%</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-body-sm font-medium text-green-400 mb-1">Yes: 68%</div>
-                    <div className="text-body-sm text-red-400">No: 32%</div>
+                  <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full w-[68%] bg-gradient-to-r from-green-500 to-green-400" />
                   </div>
-                </div>
-                <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-[68%] bg-gradient-to-r from-green-500 to-green-400" />
-                </div>
-                <div className="flex justify-between text-caption text-white/60">
-                  <span>Pool: 1,245 USDC</span>
-                  <span>Ends in 3 days</span>
-                </div>
-              </Card>
+                  <div className="flex justify-between text-caption text-white/60">
+                    <span>Pool: 1,245 USDC</span>
+                    <span>Ends in 3 days</span>
+                  </div>
+                </Card>
 
-              {/* Market 2 - US Election */}
-              <Card className="border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm">
-                <div className="mb-3 flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-lg bg-purple-500/20 p-2">
-                      <Globe className="h-5 w-5 text-purple-400" />
+                {/* Market 2 - US Election */}
+                <Card className="border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm">
+                  <div className="mb-3 flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-lg bg-purple-500/20 p-2">
+                        <Globe className="h-5 w-5 text-purple-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-h6 font-semibold text-white">US Election 2024</h3>
+                        <p className="text-body-sm text-white/70">Democratic party to win?</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-h6 font-semibold text-white">US Election 2024</h3>
-                      <p className="text-body-sm text-white/70">Democratic party to win?</p>
+                    <div className="text-right">
+                      <div className="text-body-sm font-medium text-green-400">Yes: 53%</div>
+                      <div className="text-body-sm text-red-400">No: 47%</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-body-sm font-medium text-green-400">Yes: 53%</div>
-                    <div className="text-body-sm text-red-400">No: 47%</div>
+                  <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full w-[53%] bg-gradient-to-r from-green-500 to-green-400" />
                   </div>
-                </div>
-                <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-[53%] bg-gradient-to-r from-green-500 to-green-400" />
-                </div>
-                <div className="flex justify-between text-caption text-white/60">
-                  <span>Pool: 5,890 USDC</span>
-                  <span>Ends in 8 months</span>
-                </div>
-              </Card>
+                  <div className="flex justify-between text-caption text-white/60">
+                    <span>Pool: 5,890 USDC</span>
+                    <span>Ends in 8 months</span>
+                  </div>
+                </Card>
 
-              {/* Market 3 - Tesla Earnings */}
-              <Card className="border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm">
-                <div className="mb-3 flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-lg bg-green-500/20 p-2">
-                      <BarChart3 className="h-5 w-5 text-green-400" />
+                {/* Market 3 - Tesla Earnings */}
+                <Card className="border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm">
+                  <div className="mb-3 flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-lg bg-green-500/20 p-2">
+                        <BarChart3 className="h-5 w-5 text-green-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-h6 font-semibold text-white">Tesla Q2 Earnings</h3>
+                        <p className="text-body-sm text-white/70">Will exceed analyst expectations?</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-h6 font-semibold text-white">Tesla Q2 Earnings</h3>
-                      <p className="text-body-sm text-white/70">Will exceed analyst expectations?</p>
+                    <div className="text-right">
+                      <div className="text-body-sm font-medium text-green-400">Yes: 72%</div>
+                      <div className="text-body-sm text-red-400">No: 28%</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-body-sm font-medium text-green-400">Yes: 72%</div>
-                    <div className="text-body-sm text-red-400">No: 28%</div>
+                  <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full w-[72%] bg-gradient-to-r from-green-500 to-green-400" />
                   </div>
-                </div>
-                <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-[72%] bg-gradient-to-r from-green-500 to-green-400" />
-                </div>
-                <div className="flex justify-between text-caption text-white/60">
-                  <span>Pool: 2,456 USDC</span>
-                  <span>Ends in 14 days</span>
-                </div>
-              </Card>
+                  <div className="flex justify-between text-caption text-white/60">
+                    <span>Pool: 2,456 USDC</span>
+                    <span>Ends in 14 days</span>
+                  </div>
+                </Card>
 
-              {/* Place Prediction Button */}
-              <Button className="w-full bg-[#4F46E5] py-6 text-white hover:bg-[#4F46E5]/90">
-                Place Your Prediction
-              </Button>
-            </div>
-          </Card>
+                {/* Place Prediction Button */}
+                <Button className="w-full bg-[#4F46E5] py-6 text-white hover:bg-[#4F46E5]/90">
+                  Place Your Prediction
+                </Button>
+              </div>
+            </Card>
+          </div>
 
           {/* Success Notification Badge */}
           <div className="absolute bottom-0 right-0 z-20 animate-fade-in rounded-2xl bg-green-500 p-3 shadow-2xl">
@@ -214,3 +227,4 @@ export function Hero() {
   </div>
   );
 }
+
