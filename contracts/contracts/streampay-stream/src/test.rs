@@ -232,3 +232,148 @@ fn blocked_token_returns_token_not_allowed() {
         Error::TokenNotAllowed
     );
 }
+
+// ── Focused tests for every documented error condition ────────────────────────
+
+/// `initialize` called twice must return `Error::InvalidState`.
+#[test]
+fn initialize_twice_returns_invalid_state() {
+    let data = setup();
+
+    data.client.initialize(&data.admin);
+
+    assert_contract_error!(
+        data.client.try_initialize(&data.admin),
+        Error::InvalidState
+    );
+}
+
+/// `set_paused` with a non-admin caller must return `Error::Unauthorized`.
+#[test]
+fn set_paused_wrong_admin_returns_unauthorized() {
+    let data = setup();
+    let wrong = Address::generate(&data.env);
+
+    data.client.initialize(&data.admin);
+
+    assert_contract_error!(
+        data.client.try_set_paused(&wrong, &true),
+        Error::Unauthorized
+    );
+}
+
+/// `set_token_allowed` with a non-admin caller must return `Error::Unauthorized`.
+#[test]
+fn set_token_allowed_wrong_admin_returns_unauthorized() {
+    let data = setup();
+    let wrong = Address::generate(&data.env);
+
+    data.client.initialize(&data.admin);
+
+    assert_contract_error!(
+        data.client
+            .try_set_token_allowed(&wrong, &data.token, &false),
+        Error::Unauthorized
+    );
+}
+
+/// `start_stream` on a non-existent ID must return `Error::NotFound`.
+#[test]
+fn start_stream_missing_returns_not_found() {
+    let data = setup();
+
+    assert_contract_error!(
+        data.client.try_start_stream(&9999),
+        Error::NotFound
+    );
+}
+
+/// `start_stream` on a contract that is paused must return `Error::ContractPaused`.
+#[test]
+fn start_stream_paused_returns_contract_paused() {
+    let data = setup();
+
+    data.client.initialize(&data.admin);
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &true,
+    );
+
+    data.client.set_paused(&data.admin, &true);
+
+    assert_contract_error!(
+        data.client.try_start_stream(&stream_id),
+        Error::ContractPaused
+    );
+}
+
+/// `withdraw` on a missing stream must return `Error::NotFound`.
+#[test]
+fn withdraw_missing_stream_returns_not_found() {
+    let data = setup();
+
+    assert_contract_error!(
+        data.client.try_withdraw(&9999, &1),
+        Error::NotFound
+    );
+}
+
+/// `withdraw` on a `Draft` stream must return `Error::InvalidState`.
+#[test]
+fn withdraw_on_draft_stream_returns_invalid_state() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &true,
+    );
+
+    data.env.ledger().set_timestamp(1_050);
+
+    assert_contract_error!(
+        data.client.try_withdraw(&stream_id, &1),
+        Error::InvalidState
+    );
+}
+
+/// `withdraw` with `amount == 0` must return `Error::InvalidAmount`.
+#[test]
+fn withdraw_zero_returns_invalid_amount() {
+    let data = setup();
+
+    let stream_id = data.client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.token,
+        &1_000,
+        &100,
+        &false,
+    );
+
+    data.env.ledger().set_timestamp(1_050);
+
+    assert_contract_error!(
+        data.client.try_withdraw(&stream_id, &0),
+        Error::InvalidAmount
+    );
+}
+
+/// `withdrawable` on a missing stream must return `Error::NotFound`.
+#[test]
+fn withdrawable_missing_stream_returns_not_found() {
+    let data = setup();
+
+    assert_contract_error!(
+        data.client.try_withdrawable(&9999),
+        Error::NotFound
+    );
+}
