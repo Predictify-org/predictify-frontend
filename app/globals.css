@@ -1724,6 +1724,166 @@ a:hover {
   justify-content: space-between;
 }
 
+/* ─── Step Indicator (Create-Stream Wizard) ────────────────────────────── */
+.step-indicator {
+  width: 100%;
+}
+
+.step-indicator__list {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.step-indicator__step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.step-indicator__marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+.step-indicator__step--upcoming .step-indicator__marker {
+  background: transparent;
+  border: 2px solid var(--border);
+  color: var(--muted);
+}
+
+.step-indicator__step--current .step-indicator__marker {
+  background: var(--accent);
+  border: 2px solid var(--accent);
+  color: var(--accent-on);
+}
+
+.step-indicator__step--completed .step-indicator__marker {
+  background: var(--accent);
+  border: 2px solid var(--accent);
+  color: var(--accent-on);
+}
+
+.step-indicator__check {
+  display: block;
+}
+
+.step-indicator__number {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.step-indicator__content {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+  padding-right: 0.5rem;
+}
+
+.step-indicator__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 200ms ease;
+}
+
+.step-indicator__step--upcoming .step-indicator__label {
+  color: var(--muted);
+}
+
+.step-indicator__step--current .step-indicator__label {
+  color: var(--foreground);
+}
+
+.step-indicator__step--completed .step-indicator__label {
+  color: var(--accent);
+}
+
+.step-indicator__desc {
+  font-size: 0.75rem;
+  color: var(--muted-light);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: none;
+}
+
+.step-indicator__step--current .step-indicator__desc {
+  display: block;
+}
+
+.step-indicator__connector {
+  flex: 1;
+  min-width: 1rem;
+  height: 2px;
+  background: var(--border);
+  margin: 0 0.5rem;
+  align-self: center;
+  transition: background-color 200ms ease;
+}
+
+.step-indicator__step--completed .step-indicator__connector {
+  background: var(--accent);
+}
+
+.step-indicator__step--current .step-indicator__connector {
+  background: var(--accent);
+}
+
+@media (max-width: 47.9375rem) {
+  .step-indicator__list {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .step-indicator__step {
+    flex: none;
+    width: 100%;
+  }
+
+  .step-indicator__connector {
+    width: 2px;
+    height: 1rem;
+    min-width: unset;
+    margin: 0;
+    margin-left: calc(1rem - 1px);
+    flex: none;
+    align-self: stretch;
+  }
+
+  .step-indicator__desc {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-indicator__marker,
+  .step-indicator__label,
+  .step-indicator__connector {
+    transition: none !important;
+  }
+}
+
 .home__card--stack {
   display: grid;
   gap: var(--space-3);
