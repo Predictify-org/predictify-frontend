@@ -233,11 +233,32 @@ body {
   animation: bounce 2s infinite;
 }
 
+/* Live "resolving" status glow-pulse — see MarketStatusBadge */
+@keyframes status-live-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-status-live-pulse {
+  animation: status-live-pulse 1.6s ease-in-out infinite;
+  will-change: opacity;
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up,
   .animate-bounce {
     animation: none;
+  }
+
+  .animate-status-live-pulse {
+    animation: none;
+    opacity: 1;
   }
 }
