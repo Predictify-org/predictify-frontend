@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "crypto";
 import { tryAuthenticateRequest } from "@/app/lib/auth";
+import { attachRequestFingerprintMetadata } from "@/lib/fingerprint";
 import type {
   AuditActor,
   AuditActorRole,
@@ -377,7 +378,7 @@ export function recordPrivilegedStreamAuditEvent(args: {
     actor: resolveAuditActor(args.request),
     after: args.after,
     before: args.before,
-    metadata: args.metadata,
+    metadata: attachRequestFingerprintMetadata(args.request, args.metadata),
     requestId: buildRequestId(args.request),
     target: {
       account: args.targetAccount,
@@ -420,3 +421,6 @@ auditLogStore.reset();
 export function resetAuditLogStore() {
   auditLogStore.reset();
 }
+
+// Register the Node-side audit hook for middleware fingerprint capture.
+import '@/lib/fingerprint-audit';

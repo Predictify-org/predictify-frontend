@@ -206,9 +206,26 @@ export const IDEMPOTENCY_TTL_MS = 86_400_000;
  * Uses the same deterministic JSON serialisation as the rest of the stack.
  */
 export function computeFingerprint(method: string, path: string, body: unknown): string {
-  const normalised = JSON.stringify(body ?? null);
+  const normalised = JSON.stringify(sortKeys(body ?? null));
   const payload = `${method}:${path}:${normalised}`;
   return createHash("sha256").update(payload).digest("hex");
+}
+
+function sortKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortKeys);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.keys(value as Record<string, unknown>)
+      .sort((left, right) => left.localeCompare(right))
+      .reduce<Record<string, unknown>>((accumulator, key) => {
+        accumulator[key] = sortKeys((value as Record<string, unknown>)[key]);
+        return accumulator;
+      }, {});
+  }
+
+  return value;
 }
 
 /**
