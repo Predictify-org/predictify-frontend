@@ -68,13 +68,7 @@ pub fn withdrawn(env: &Env, stream_id: u64, recipient: &Address, amount: i128, t
     );
 }
 
-pub fn settled(
-    env: &Env,
-    stream_id: u64,
-    recipient: &Address,
-    total_amount: i128,
-    timestamp: u64,
-) {
+pub fn settled(env: &Env, stream_id: u64, recipient: &Address, total_amount: i128, timestamp: u64) {
     env.events().publish(
         (symbol_short!("stream"), symbol_short!("settled")),
         (stream_id, recipient.clone(), total_amount, timestamp),
