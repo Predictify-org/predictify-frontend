@@ -3,6 +3,8 @@
 import { Clock, AlertTriangle, ShieldAlert, Flag, XCircle, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Badge, badgeVariants } from '@/components/ui/badge';
+
 import type { ModerationState } from '@/types/moderation';
 import { MODERATION_CONFIG } from './moderation-config';
 
@@ -27,20 +29,29 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
   const Icon = STATE_ICONS[state];
   const isResolving = state === 'resolving';
 
+  const variantMap: Record<ModerationState, keyof typeof badgeVariants['variants']['variant']> = {
+    under_review: 'info',
+    paused: 'warning',
+    restricted: 'danger',
+    flagged: 'danger',
+    removed: 'neutral',
+    resolving: 'info',
+  };
   const badge = (
-    <span
+    <Badge
       role="status"
       aria-label={isResolving ? `Market status: ${config.label}. Resolving now.` : `Market status: ${config.label}`}
+      variant={variantMap[state]}
+      size="md"
       className={cn(
-        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold',
         config.badgeClass,
         isResolving && 'animate-status-live-pulse',
         className
       )}
     >
-      <Icon className="h-3 w-3" aria-hidden="true" />
+      <Icon className="h-3 w-3 mr-1" aria-hidden="true" />
       {config.label}
-    </span>
+    </Badge>
   );
 
   if (!showTooltip) return badge;

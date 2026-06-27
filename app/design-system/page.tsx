@@ -9,7 +9,10 @@ import {
   oracleDelayHelp,
   platformFeesHelp,
 } from "@/components/patterns/mechanic-help-content"
-import { Info } from "lucide-react"
+import { Info, CheckCircle2, AlertTriangle, ShieldAlert, XCircle } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { MarketStatusBadge } from "@/components/moderation/MarketStatusBadge"
+import { DisputeStateBadge } from "@/components/disputes/DisputeStateBadge"
 
 export default function DesignSystemPage() {
   return (
@@ -18,6 +21,71 @@ export default function DesignSystemPage() {
         <h1 className="text-3xl font-headline font-bold text-cyan-400 mb-2">Predictify Design System</h1>
         <p className="text-slate-400">Standardized Modal and Drawer Interactions</p>
       </div>
+
+      <section className="space-y-6 p-6 bg-[#192540]/20 border border-[#40485d]/30 rounded-2xl">
+        <div className="space-y-2">
+          <h2 className="text-xl font-headline font-bold text-white">Unified Badge Taxonomy</h2>
+          <p className="text-sm text-slate-400">
+            A single, secure badge component supporting semantic variants and sizing tokens. Color is paired with textual or iconic context to ensure accessibility.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Semantic Variants</h3>
+          <div className="flex flex-wrap gap-3 items-center">
+            <Badge variant="info"><Info className="w-3 h-3" /> Info</Badge>
+            <Badge variant="success"><CheckCircle2 className="w-3 h-3" /> Success</Badge>
+            <Badge variant="warning"><AlertTriangle className="w-3 h-3" /> Warning</Badge>
+            <Badge variant="danger"><ShieldAlert className="w-3 h-3" /> Danger</Badge>
+            <Badge variant="neutral"><XCircle className="w-3 h-3" /> Neutral</Badge>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Sizing Options</h3>
+          <div className="flex flex-wrap gap-6 items-end">
+            <div className="space-y-1">
+              <span className="text-xs text-slate-500 block font-semibold">Small (sm)</span>
+              <Badge variant="info" size="sm">Info Small</Badge>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs text-slate-500 block font-semibold">Medium (md - Default)</span>
+              <Badge variant="info" size="md">Info Medium</Badge>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs text-slate-500 block font-semibold">Large (lg)</span>
+              <Badge variant="info" size="lg">Info Large</Badge>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Status Badge Alignment</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="p-4 bg-[#0b1327] rounded-xl border border-[#40485d]/30 space-y-2">
+              <h4 className="text-sm font-medium text-slate-300 font-headline font-semibold">Market Status Badges</h4>
+              <div className="flex flex-wrap gap-2">
+                <MarketStatusBadge state="under_review" showTooltip={false} />
+                <MarketStatusBadge state="paused" showTooltip={false} />
+                <MarketStatusBadge state="restricted" showTooltip={false} />
+                <MarketStatusBadge state="flagged" showTooltip={false} />
+                <MarketStatusBadge state="removed" showTooltip={false} />
+                <MarketStatusBadge state="resolving" showTooltip={false} />
+              </div>
+            </div>
+            <div className="p-4 bg-[#0b1327] rounded-xl border border-[#40485d]/30 space-y-2">
+              <h4 className="text-sm font-medium text-slate-300 font-headline font-semibold">Dispute State Badges</h4>
+              <div className="flex flex-wrap gap-2 flex-col items-start">
+                <DisputeStateBadge state="none" />
+                <DisputeStateBadge state="open" />
+                <DisputeStateBadge state="voting" />
+                <DisputeStateBadge state="ended" />
+                <DisputeStateBadge state="executed" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className="space-y-6">
         <div className="flex items-start gap-3 bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-xl text-cyan-200">
