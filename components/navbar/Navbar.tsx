@@ -13,6 +13,7 @@ import { useTheme } from "next-themes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import { mockUser as user, mockNavbarState as navbarState } from "./navbar.mock";
+import { WhatsNewDrawer } from "@/components/changelog/WhatsNewDrawer";
 
 const NAV_ITEMS = [
   { name: "Markets", href: "/markets", icon: "trending_up" },
@@ -73,7 +74,9 @@ export function Navbar() {
             </div>
             
             <NetworkSwitcher network={network} onChange={setNetwork} />
-            
+
+            <WhatsNewDrawer />
+
             {isLoading ? (
               <button disabled aria-busy="true" aria-label="Connecting wallet, please wait" className="bg-[#69daff]/50 text-[#004a5d] px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-[#69daff]/10">
                 Loading...
@@ -106,6 +109,7 @@ export function Navbar() {
           Predictify
         </Link>
         <div className="flex items-center gap-2">
+          <WhatsNewDrawer />
           {isLoading ? (
             <button disabled aria-busy="true" aria-label="Connecting wallet, please wait" className="bg-[#69daff]/50 text-[#004a5d] px-4 py-2 rounded-md text-xs font-bold">
               <span aria-hidden="true">...</span>

@@ -263,59 +263,9 @@ body {
     animation: none;
   }
 
-  .animate-status-live-pulse {
-    animation: none;
-    opacity: 1;
-  }
-}
-
-/* ===== Marketing pointer follower & magnetic CTAs (#275) ===== */
-
-:root {
-  --cursor-x: -100px;
-  --cursor-y: -100px;
-  --cursor-scale: 1;
-}
-
-.marketing-cursor-follower {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 60;
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  border-radius: 9999px;
-  pointer-events: none;
-  opacity: 0;
-  transform: translate3d(
-      calc(var(--cursor-x) - 50%),
-      calc(var(--cursor-y) - 50%),
-      0
-    )
-    scale(var(--cursor-scale));
-  transition: opacity 120ms ease, transform 80ms ease;
-  will-change: transform;
-}
-
-/*
- * Visual-only magnetic pull: inner content shifts while the interactive
- * element keeps its layout box so scroll position and hit targets stay stable.
- */
-[data-magnet] .magnetic-inner {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transform: translate3d(var(--magnet-x, 0px), var(--magnet-y, 0px), 0);
-  will-change: transform;
-}
-
-@media (pointer: coarse), (prefers-reduced-motion: reduce) {
-  .marketing-cursor-follower {
-    display: none !important;
-  }
-
-  [data-magnet] .magnetic-inner {
-    transform: none !important;
+  /* tailwindcss-animate's enter/exit utilities, used by Sheet/Dialog (e.g. WhatsNewDrawer) */
+  .animate-in,
+  .animate-out {
+    animation: none !important;
   }
 }
