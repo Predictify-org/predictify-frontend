@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { ActiveBetCardProps } from '@/lib/types';
 import { categoryColors } from '@/lib/mock-data';
 import { useDensity } from '@/hooks/useDensity';
+import { ProgressRing } from './progress-ring';
 
 export const ActiveBetCard: React.FC<ActiveBetCardProps> = ({ bet, className }) => {
   const { tokens: t } = useDensity();
@@ -114,7 +115,13 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps> = ({ bet, className }) 
         </div>
         
         {/* Time Remaining */}
-        <div className="flex justify-end">
+        <div className="flex justify-end items-center gap-2">
+          <ProgressRing 
+            startDate={bet.startDate} 
+            endDate={bet.endDate} 
+            size={24} 
+          />
+
           <span className={cn(
             'font-mono font-medium',
             t.captionSize,
