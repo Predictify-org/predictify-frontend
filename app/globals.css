@@ -1,5 +1,5 @@
 :root {
-  /* ── Semantic Colors - Base Dark Theme ── */
+  /* ── Semantic Colors - Base Dark Theme (default) ── */
   --background: #0a0a0f;
   --foreground: #e4e4e7;
   --accent: #22c55e;
@@ -19,127 +19,98 @@
   --shadow-soft: 0 24px 60px rgba(0, 0, 0, 0.25);
   --skeleton-base: #20202a;
   --skeleton-shine: #31313f;
+}
 
-  /* ── Status Colors ── */
-  --error: #ef4444;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --info: #3b82f6;
+/* ── Light Theme ── */
+.light {
+  --background: #ffffff;
+  --foreground: #111827;
+  --accent: #16a34a;
+  --accent-strong: #dcfce7;
+  --accent-hover: #15803d;
+  --accent-on: #ffffff;
+  
+  --muted: #6b7280;
+  --muted-light: #9ca3af;
+  --muted-foreground: #6b7280;
 
-  /* ── Typography Scale ── */
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
-  --text-3xl: 1.875rem;
-  --text-4xl: 2.25rem;
+  --panel: #f9fafb;
+  --panel-elevated: #ffffff;
+  --border: #e5e7eb;
 
-  /* ── Font Weights ── */
-  --font-normal: 400;
-  --font-medium: 500;
-  --font-semibold: 600;
-  --font-bold: 700;
+  --shadow-soft: 0 24px 60px rgba(0, 0, 0, 0.12);
+  --skeleton-base: #f3f4f6;
+  --skeleton-shine: #e5e7eb;
 
-  /* ── Spacing Scale ── */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.25rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  --space-10: 2.5rem;
-  --space-12: 3rem;
+  /* ── Stream Lifecycle Tokens (light theme overrides) ── */
+  --stream-status-draft-bg:       #eff6ff;
+  --stream-status-draft-text:     #1e40af;
+  --stream-status-draft-border:   #3b82f6;
 
-  /* ── Radii ── */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-full: 9999px;
-
-  /* ── Shadows ── */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-
-  /* ── Touch Targets ── */
-  --touch-target: 44px;
-
-  /* ── Stream Lifecycle Tokens (from main) ── */
-  --stream-status-draft-bg:       #1e293b;
-  --stream-status-draft-text:     #dbeafe;
-  --stream-status-draft-border:   #60a5fa;
-
-  --stream-status-active-bg:      #0f2d1e;
-  --stream-status-active-text:    #d3f9df;
+  --stream-status-active-bg:      #dcfce7;
+  --stream-status-active-text:    #166534;
   --stream-status-active-border:  #22c55e;
 
-  --stream-status-paused-bg:      #31230f;
-  --stream-status-paused-text:    #fef3c7;
-  --stream-status-paused-border:  #fbbf24;
+  --stream-status-paused-bg:      #fefce8;
+  --stream-status-paused-text:    #854d0e;
+  --stream-status-paused-border:  #eab308;
 
-  --stream-status-ended-bg:       #1c1c24;
-  --stream-status-ended-text:     #a1a1aa;
-  --stream-status-ended-border:   #3f3f46;
+  --stream-status-ended-bg:       #f3f4f6;
+  --stream-status-ended-text:     #374151;
+  --stream-status-ended-border:   #9ca3af;
 
-  --stream-status-cancelled-bg:   #2a1617;
-  --stream-status-cancelled-text: #fee2e2;
-  --stream-status-cancelled-border: #f87171;
+  --stream-status-cancelled-bg:   #fee2e2;
+  --stream-status-cancelled-text: #991b1b;
+  --stream-status-cancelled-border: #ef4444;
 
-  /* ── Settlement / payout ── */
-  --stream-settle-pending-bg:     #1e1b2e;
-  --stream-settle-pending-text:   #c4b5fd;
-  --stream-settle-pending-border: #7c3aed;
+  /* ── Settlement / payout (light theme overrides) ── */
+  --stream-settle-pending-bg:     #f3e8ff;
+  --stream-settle-pending-text:   #7c3aed;
+  --stream-settle-pending-border: #a855f7;
 
-  --stream-settle-on-chain-bg:    #0f1e2d;
-  --stream-settle-on-chain-text:  #bae6fd;
-  --stream-settle-on-chain-border: #0ea5e9;
+  --stream-settle-on-chain-bg:    #e0f2fe;
+  --stream-settle-on-chain-text:  #0369a1;
+  --stream-settle-on-chain-border: #0284c7;
 
-  --stream-settle-success-bg:     #0f2d1e;
-  --stream-settle-success-text:   #d3f9df;
+  --stream-settle-success-bg:     #dcfce7;
+  --stream-settle-success-text:   #166534;
   --stream-settle-success-border: #22c55e;
 
-  --stream-settle-error-bg:       #2a1617;
-  --stream-settle-error-text:     #fee2e2;
-  --stream-settle-error-border:   #f87171;
+  --stream-settle-error-bg:       #fee2e2;
+  --stream-settle-error-text:     #991b1b;
+  --stream-settle-error-border:   #ef4444;
 
-  --stream-settle-withdrawn-bg:   #1c1c24;
-  --stream-settle-withdrawn-text: #e4e4e7;
-  --stream-settle-withdrawn-border: #52525b;
+  --stream-settle-withdrawn-bg:   #f3f4f6;
+  --stream-settle-withdrawn-text: #111827;
+  --stream-settle-withdrawn-border: #6b7280;
 
-  /* ── Semantic system ── */
-  --system-success-bg:     #0f2d1e;
-  --system-success-text:   #d3f9df;
+  /* ── Semantic system (light theme overrides) ── */
+  --system-success-bg:     #dcfce7;
+  --system-success-text:   #166534;
   --system-success-border: #22c55e;
 
-  --system-warning-bg:     #31230f;
-  --system-warning-text:   #fef3c7;
-  --system-warning-border: #fbbf24;
+  --system-warning-bg:     #fefce8;
+  --system-warning-text:   #854d0e;
+  --system-warning-border: #eab308;
 
-  --system-error-bg:       #2a1617;
-  --system-error-text:     #fee2e2;
-  --system-error-border:   #f87171;
+  --system-error-bg:       #fee2e2;
+  --system-error-text:     #991b1b;
+  --system-error-border:   #ef4444;
 
-  --system-info-bg:        #0f1e2d;
-  --system-info-text:      #bae6fd;
-  --system-info-border:    #0ea5e9;
+  --system-info-bg:        #e0f2fe;
+  --system-info-text:      #0369a1;
+  --system-info-border:    #0284c7;
 
-  /* ── Stellar network accent ── */
-  --stellar-accent:        #3e1bdb;
-  --stellar-accent-subtle: #1e1040;
-  --stellar-accent-text:   #c4b5fd;
-  --stellar-accent-border: #7c3aed;
+  /* ── Stellar network accent (light theme overrides) ── */
+  --stellar-accent:        #7c3aed;
+  --stellar-accent-subtle: #f3e8ff;
+  --stellar-accent-text:   #7c3aed;
+  --stellar-accent-border: #a855f7;
 
-  /* ── Interaction states ── */
-  --stream-loading-bg:     var(--skeleton-base);
-  --stream-loading-shine:  var(--skeleton-shine);
-
-  --stream-disabled-bg:    #1c1c24;
-  --stream-disabled-text:  #52525b;
-  --stream-disabled-border: #27272a;
+  /* ── Interaction states (light theme overrides) ── */
+  --stream-disabled-bg:    #f3f4f6;
+  --stream-disabled-text:  #9ca3af;
+  --stream-disabled-border: #e5e7eb;
 }
 
 /* ─── Base Reset ──────────────────────────────────────────────────────────── */

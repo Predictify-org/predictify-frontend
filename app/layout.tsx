@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SplashScreen from "./components/SplashScreen";
+import { getThemeScript } from "./utils/theme-noflash";
 
 export const metadata: Metadata = {
   title: "StreamPay - Payment Streaming",
@@ -13,7 +14,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: getThemeScript() }}
+          suppressHydrationWarning
+        />
+      </head>
       <body>
         <SplashScreen />
         {children}
