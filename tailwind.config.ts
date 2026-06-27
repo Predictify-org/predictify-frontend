@@ -122,6 +122,11 @@ const config: Config = {
   		}
   	}
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    function({ addVariant }: { addVariant: Function }) {
+      addVariant('high-contrast', '.high-contrast &')
+    }
+  ],
 };
 export default config;

@@ -1,6 +1,6 @@
 "use client"
 
-import { type SyntheticEvent, useMemo, useState } from "react"
+import { type SyntheticEvent, useMemo, useState, useEffect } from "react"
 import {
   Bell,
   Eye,
@@ -120,6 +120,22 @@ export default function SettingsPage() {
   const [walletAlias, setWalletAlias] = useState(true)
   const [copyWarning, setCopyWarning] = useState(true)
   const { soundEnabled, setSoundEnabled } = useSoundEnabled()
+  const [forceHighContrast, setHighContrast] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("force-high-contrast") === "true"
+    }
+    return false
+  })
+
+  useEffect(() => {
+    const root = window.document.documentElement
+    if (forceHighContrast) {
+      root.classList.add("high-contrast")
+    } else {
+      root.classList.remove("high-contrast")
+    }
+    localStorage.setItem("force-high-contrast", forceHighContrast.toString())
+  }, [forceHighContrast])
 
   const selectedDensity = useMemo(
     () => densityOptions.find((option) => option.value === density),
@@ -305,6 +321,13 @@ export default function SettingsPage() {
                       description="Displays the connected network beside your account so cross-network actions are easier to spot."
                       checked={showWalletBadge}
                       onCheckedChange={setShowWalletBadge}
+                    />
+                    <PreferenceSwitch
+                      id="force-high-contrast"
+                      label="Force high contrast"
+                      description="Overrides the current theme with a high-contrast palette for maximum readability. Recommended for visual impairments."
+                      checked={forceHighContrast}
+                      onCheckedChange={setHighContrast}
                     />
                   </div>
                 </CardContent>
