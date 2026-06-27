@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo, useId } from "react";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Search as SearchIcon,
   Loader2,
@@ -148,32 +150,39 @@ export function SearchInput({
         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#FFFFFF]" aria-hidden="true" />
       )}
       <div className="relative w-full max-w-[400px]">
-        <Input
-          ref={inputRef}
-          role="combobox"
-          aria-expanded={isOpen}
-          aria-haspopup="listbox"
-          aria-autocomplete="list"
-          aria-controls={listboxId}
-          aria-activedescendant={activeDescendant}
-          aria-label={placeholder}
-          value={value}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onFocus={() => value.trim() && setIsOpen(true)}
-          placeholder={placeholder}
-          className={inputClasses}
-        />
-        {!isSidebar && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none text-[#9366B7] dark:text-[#C5C5C5]">
-            <kbd
-              className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-[#540D8D33] dark:border-[#71B48D] bg-muted/50 px-1.5 font-mono text-[10px] font-medium opacity-100"
-              aria-label="Command K shortcut"
-            >
-              <span className="text-xs" aria-hidden="true">⌘</span><span aria-hidden="true">K</span>
-            </kbd>
-          </div>
-        )}
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-full relative">
+                <Input
+                  ref={inputRef}
+                  role="combobox"
+                  aria-expanded={isOpen}
+                  aria-haspopup="listbox"
+                  aria-autocomplete="list"
+                  aria-controls={listboxId}
+                  aria-activedescendant={activeDescendant}
+                  aria-label={placeholder}
+                  value={value}
+                  onChange={handleChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => value.trim() && setIsOpen(true)}
+                  placeholder={placeholder}
+                  className={inputClasses}
+                />
+                {!isSidebar && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none text-[#9366B7] dark:text-[#C5C5C5]">
+                    <Kbd shortcut="search" />
+                  </div>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="flex items-center gap-2">
+              <span className="text-xs">Search</span>
+              <Kbd shortcut="search" />
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Auto-suggest Dropdown */}

@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/drawer"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Kbd } from "@/components/ui/kbd"
 
 export function BetConfirmPattern() {
   const [open, setOpen] = React.useState(false)
@@ -48,9 +50,19 @@ export function BetConfirmPattern() {
             <Button variant="ghost" onClick={() => setOpen(false)} className="text-[#a3aac4] hover:text-white">
               Cancel
             </Button>
-            <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc]" onClick={() => setOpen(false)}>
-              Confirm Prediction
-            </Button>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc]" onClick={() => setOpen(false)}>
+                    Confirm Prediction
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="flex items-center gap-2">
+                  <span className="text-xs">Press</span>
+                  <Kbd shortcut="confirmBet" actionLabel="to confirm" />
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </DialogFooter>
         </DialogContent>
       </Dialog>

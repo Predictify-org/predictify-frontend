@@ -1,0 +1,43 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Kbd component renders Windows shortcut (Ctrl+K) 1`] = `
+<div>
+  <kbd
+    class="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-[#540D8D33] dark:border-[#71B48D] bg-muted/50 px-1.5 font-mono text-[10px] font-medium opacity-100 whitespace-nowrap"
+  >
+    <span
+      aria-hidden="true"
+      class=""
+    >
+      Ctrl
+    </span>
+    <span
+      aria-hidden="true"
+      class="text-xs"
+    >
+      K
+    </span>
+  </kbd>
+</div>
+`;
+
+exports[`Kbd component renders macOS shortcut (Cmd+K) 1`] = `
+<div>
+  <kbd
+    class="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-[#540D8D33] dark:border-[#71B48D] bg-muted/50 px-1.5 font-mono text-[10px] font-medium opacity-100 whitespace-nowrap"
+  >
+    <span
+      aria-hidden="true"
+      class=""
+    >
+      ⌘
+    </span>
+    <span
+      aria-hidden="true"
+      class="text-xs"
+    >
+      K
+    </span>
+  </kbd>
+</div>
+`;
