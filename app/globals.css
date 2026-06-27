@@ -270,6 +270,73 @@ body {
   }
 }
 
+/* ===== HIGH CONTRAST MODE (Accessibility) ===== */
+
+/**
+ * Native Windows High Contrast Support (forced-colors: active)
+ * and manual override (html.high-contrast)
+ */
+@media (forced-colors: active) {
+  :root {
+    /* Respect system colors while ensuring borders are visible */
+    --border: CanvasText;
+    --input: CanvasText;
+    --ring: CanvasText;
+  }
+  
+  * {
+    /* Ensure all elements have visible borders in forced-colors mode */
+    forced-color-adjust: none;
+    border-color: CanvasText !important;
+  }
+
+  button, a.btn, .badge {
+    border: 2px solid CanvasText !important;
+  }
+
+  /* Status badges meaning without color */
+  .badge-success::before { content: "✓ "; }
+  .badge-warning::before { content: "⚠ "; }
+  .badge-error::before { content: "✕ "; }
+}
+
+/* Manual "Force high contrast" override */
+.high-contrast {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 0%;
+  --card-foreground: 0 0% 100%;
+  --primary: 0 0% 100%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 0 0% 15%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 20%;
+  --muted-foreground: 0 0% 100%;
+  --accent: 0 0% 30%;
+  --accent-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 0 0% 100%;
+}
+
+.high-contrast * {
+  border-color: white !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+.high-contrast button, 
+.high-contrast a.btn, 
+.high-contrast .badge {
+  border: 2px solid white !important;
+}
+
+/* Ensure icons are visible */
+.high-contrast svg {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
 /* ===== PRINT STYLES ===== */
 
 @media print {
