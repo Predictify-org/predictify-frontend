@@ -7,6 +7,8 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { NetworkBadge } from "../../components/NetworkBadge";
 import { PaymentTimeline } from "../../components/PaymentTimeline";
 import { ErrorToast } from "../../components/ErrorToast";
+import { ConfirmCancel } from "../../components/ConfirmCancel";
+import { Timestamp } from "../../components/Timestamp";
 import { fetchWithIdempotency } from "../../../lib/apiClient";
 import { isStreamPayError, normalizeError } from "../../lib/errors";
 import type { StreamPayError } from "../../lib/errors";
@@ -19,14 +21,6 @@ type StreamDetailClientProps = {
 function truncateAddress(address: string, chars = 6): string {
   if (address.length <= chars * 2 + 3) return address;
   return `${address.slice(0, chars)}...${address.slice(-chars)}`;
-}
-
-function formatUtc(iso: string): string {
-  try {
-    return new Date(iso).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
-  } catch {
-    return iso;
-  }
 }
 
 function CopyButton({ value }: { value: string }) {
@@ -87,12 +81,43 @@ const ACTION_MAP: Record<string, string> = {
   withdrawn: "Settled",
 };
 
+const STREAM_ACTION_SUMMARY: Record<
+  string,
+  {
+    amountLabel: string;
+    destructiveAction?: "cancel" | "withdraw";
+    requiresTypedAmount?: boolean;
+  }
+> = {
+  "stream-ada": {
+    amountLabel: "120 XLM",
+    destructiveAction: "cancel",
+    requiresTypedAmount: true,
+  },
+  "stream-kemi": {
+    amountLabel: "32 XLM",
+    destructiveAction: "cancel",
+    requiresTypedAmount: false,
+  },
+  "stream-yusuf": {
+    amountLabel: "18 XLM",
+    destructiveAction: "withdraw",
+    requiresTypedAmount: false,
+  },
+};
+
 export function StreamDetailClient({ stream, network = "testnet" }: StreamDetailClientProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDestructiveOpen, setIsDestructiveOpen] = useState(false);
   const [error, setError] = useState<StreamPayError | null>(null);
 
   const isIncidentMode = process.env.NEXT_PUBLIC_DISABLE_ONCHAIN_OPERATIONS === "true";
   const nextAction = ACTION_MAP[stream.status] || "Action";
+  const actionSummary = STREAM_ACTION_SUMMARY[stream.id] ?? {
+    amountLabel: stream.rate,
+    destructiveAction: stream.status === "ended" ? "withdraw" : "cancel",
+    requiresTypedAmount: false,
+  };
 
   const handleDismissError = () => {
     setError(null);
@@ -140,6 +165,37 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
         console.error('Stream action failed:', err);
       }
       
+      setError(normalizedError);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDestructiveAction = async () => {
+    const actionRoute = actionSummary.destructiveAction;
+    if (!actionRoute || isIncidentMode) return;
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      await fetchWithIdempotency(`/api/streams/${stream.id}/${actionRoute}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: actionRoute,
+          amount: actionSummary.amountLabel,
+        }),
+      });
+
+      alert(`${actionRoute === "cancel" ? "Cancel" : "Withdraw"} successful for stream ${stream.id}!`);
+    } catch (err: unknown) {
+      const normalizedError = isStreamPayError(err)
+        ? err
+        : normalizeError(err);
+
       setError(normalizedError);
     } finally {
       setIsProcessing(false);
@@ -207,11 +263,11 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
               </div>
               <div>
                 <dt>Stream Created</dt>
-                <dd>{formatUtc(stream.createdAt)}</dd>
+                <dd><Timestamp iso={stream.createdAt} /></dd>
               </div>
               <div>
                 <dt>Last Updated</dt>
-                <dd>{formatUtc(stream.updatedAt)}</dd>
+                <dd><Timestamp iso={stream.updatedAt} /></dd>
               </div>
               {stream.memo && (
                 <div>
@@ -242,7 +298,7 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
                     </div>
                     <div>
                       <dt>Requested At</dt>
-                      <dd>{formatUtc(stream.withdrawal.requestedAt)}</dd>
+                      <dd><Timestamp iso={stream.withdrawal.requestedAt} /></dd>
                     </div>
                     {stream.withdrawal.confirmedTxHash && (
                       <div>
@@ -282,7 +338,22 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
               <Link href={`/streams/${stream.id}/receipt`} className="button button--secondary detail-action-btn">
                 Print Stream Receipt
               </Link>
+              {actionSummary.destructiveAction && stream.status !== "withdrawn" && (
+                <button
+                  className="button button--danger detail-action-btn"
+                  disabled={isProcessing || isIncidentMode}
+                  onClick={() => setIsDestructiveOpen(true)}
+                  type="button"
+                >
+                  {actionSummary.destructiveAction === "cancel" ? "Cancel Stream" : "Withdraw Funds"}
+                </button>
+              )}
             </div>
+            {actionSummary.destructiveAction === "cancel" && (
+              <p className="detail-action-note">
+                Large cancels require a typed amount confirmation before the request is submitted.
+              </p>
+            )}
             {isIncidentMode && (
               <p className="detail-incident-warning" role="alert">
                 ⚠️ On-chain operations are temporarily paused during incident mode.
@@ -304,6 +375,18 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
           onRetry={error.retry.retryable ? handleRetry : undefined}
           autoDismiss={!error.retry.retryable}
           autoDismissDelayMs={5000}
+        />
+      )}
+
+      {actionSummary.destructiveAction && (
+        <ConfirmCancel
+          action={actionSummary.destructiveAction}
+          amountLabel={actionSummary.amountLabel}
+          isOpen={isDestructiveOpen}
+          onClose={() => setIsDestructiveOpen(false)}
+          onConfirm={handleDestructiveAction}
+          recipientLabel={stream.label || stream.email || stream.recipient}
+          requiresTypedAmount={actionSummary.requiresTypedAmount}
         />
       )}
     </main>
