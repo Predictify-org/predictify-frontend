@@ -156,7 +156,7 @@ relevant groups for this overview:
 | UI primitives | [`components/ui`](../components/ui) | Reusable, presentational primitives (`button.tsx`, `badge.tsx`, `calendar.tsx`, `back-to-top-fab.tsx`, and more), with tests under `components/ui/__tests__`. |
 | Events | [`components/events`](../components/events) | Events domain UI: `events-section.tsx`, `events-table.tsx`, `events-table-skeleton.tsx`, `events-toolbar.tsx`, `pagination.tsx`, `virtualized-events-list.tsx`. These read from `useEventsStore`. |
 | Disputes | [`components/disputes`](../components/disputes) | Dispute UI: `DisputePanel.tsx`, `DisputeStateBadge.tsx`, plus `shared/`, `states/`, and a local `mock-data.ts`. |
-| Navbar | [`components/navbar`](../components/navbar) | Navigation and wallet entry points: `Navbar.tsx`, `MarketingNavbar.tsx`, `NavItem.tsx`, `MobileDrawer.tsx`, `SearchInput.tsx`, `NetworkSwitcher.tsx`, `ConnectWalletAction.tsx`, `WalletMenu.tsx`. |
+| Navbar | [`components/navbar`](../components/navbar) | Navigation and wallet entry points: `Navbar.tsx`, `MarketingNavbar.tsx`, `NavItem.tsx`, `MobileDrawer.tsx`, `SearchInput.tsx`, `NetworkSwitcher.tsx`, `ConnectWalletAction.tsx`, `WalletMenu.tsx`. Also `Breadcrumbs.tsx`, mounted from [`app/(dashboard)/layout.tsx`](<../app/(dashboard)/layout.tsx>) and driven by [`lib/breadcrumbs.ts`](../lib/breadcrumbs.ts); see [BREADCRUMBS.md](./BREADCRUMBS.md). |
 
 Convention: primitives in `components/ui` are presentational and own appearance;
 domain folders (`events`, `disputes`, `navbar`) compose those primitives and read
@@ -166,4 +166,6 @@ from the state layer.
 
 - [API.md](./API.md) for environment configuration, the events/transactions data
   shapes, and exactly where real API calls should be introduced.
+- [BREADCRUMBS.md](./BREADCRUMBS.md) for the breadcrumb trail derivation and its
+  shared-element route-transition animation.
 - [README.md](./README.md) for the full documentation index.
