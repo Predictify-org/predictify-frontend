@@ -39,6 +39,7 @@ Complete frontend-only implementation of virtualized and infinite scroll lists w
    - Overscan: 3 for mobile optimization
    - Infinite scroll trigger (200px from bottom)
    - Scroll position preservation with useLayoutEffect
+   - Keyboard-only row focus indicator keyed by event id to avoid stale focus outlines on recycled virtual rows
    - Data caching with stale-time checking
 
 ### UI Components
@@ -67,6 +68,7 @@ Complete frontend-only implementation of virtualized and infinite scroll lists w
 - ✅ Infinite scroll triggers
 - ✅ Data caching and staleness
 - ✅ Accessibility attributes
+- ✅ Keyboard focus visibility across virtualized rows
 - ✅ Edge cases (filters, navigation, errors)
 
 ### Documentation
