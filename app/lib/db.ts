@@ -382,4 +382,29 @@ export function decodeCursor(cursor: string): string {
   }
 }
 
+export function encodeCompositeCursor(timestamp: string, id: string): string {
+  const payload = `${timestamp}|${id}`;
+  return Buffer.from(payload).toString("base64");
+}
+
+export function decodeCompositeCursor(cursor: string): { timestamp: string; id: string } {
+  if (!cursor || typeof cursor !== "string") {
+    throw new Error("Invalid cursor: must be non-empty string");
+  }
+  let decoded: string;
+  try {
+    decoded = Buffer.from(cursor, "base64").toString("utf8");
+  } catch {
+    throw new Error("Invalid cursor: malformed base64");
+  }
+  const separatorIndex = decoded.indexOf("|");
+  if (separatorIndex === -1) {
+    throw new Error("Invalid cursor: malformed composite key");
+  }
+  return {
+    timestamp: decoded.slice(0, separatorIndex),
+    id: decoded.slice(separatorIndex + 1),
+  };
+}
+
 export { createInMemoryPersistenceStore, createPostgresPersistenceStore, POSTGRES_SCHEMA_SKETCH, POSTGRES_ROLLOUT_NOTES };
