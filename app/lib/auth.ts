@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import type { AuditActorRole } from "@/app/types/audit";
 
 /**
  * Validates double-submit CSRF tokens using constant-time comparison.
@@ -19,5 +20,50 @@ export function validateCsrfToken(cookieToken: string | null, headerToken: strin
     return crypto.timingSafeEqual(bufCookie, bufHeader);
   } catch {
     return false;
+  }
+}
+
+/**
+ * Attempts to authenticate a request from its Bearer JWT.
+ *
+ * In the MVP the JWT is verified against `process.env.JWT_SECRET`.
+ * Returns `null` when no valid token is present — callers must treat
+ * this as "unauthenticated" and fall back to header-based identity.
+ *
+ * Shape matches what `audit-log.ts` and `org-policy.ts` expect:
+ *   { walletAddress, actorId, role }
+ */
+export function tryAuthenticateRequest(
+  request: Request,
+): { walletAddress: string; actorId: string; role: AuditActorRole } | null {
+  try {
+    const authHeader = request.headers?.get?.("Authorization") ?? null;
+    if (!authHeader?.startsWith("Bearer ")) return null;
+
+    const token = authHeader.slice(7).trim();
+    if (!token) return null;
+
+    // Dynamic import keeps jsonwebtoken out of the critical bundle path.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const jwt = require("jsonwebtoken") as typeof import("jsonwebtoken");
+    const secret = process.env.JWT_SECRET;
+    if (!secret) return null;
+
+    const payload = jwt.verify(token, secret) as Record<string, unknown>;
+
+    const sub = typeof payload.sub === "string" ? payload.sub : null;
+    const actorId = typeof payload.actorId === "string" ? payload.actorId : (sub ?? null);
+    const role = typeof payload.role === "string" ? payload.role : "user";
+
+    if (!sub) return null;
+
+    return {
+      actorId: actorId ?? sub,
+      role: role as AuditActorRole,
+      walletAddress: sub,
+    };
+  } catch {
+    // Invalid / expired JWT — treat as unauthenticated
+    return null;
   }
 }
