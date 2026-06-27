@@ -288,6 +288,81 @@
             }
           }
         }
+      },
+      "ActivityEvent": {
+        "type": "object",
+        "required": ["id", "type", "timestamp", "description"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique event identifier.",
+            "example": "evt_a1b2c3d4"
+          },
+          "type": {
+            "type": "string",
+            "description": "Event type classification.",
+            "example": "stream.created"
+          },
+          "streamId": {
+            "type": "string",
+            "description": "Associated stream identifier, if applicable.",
+            "example": "stream-abc12345"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 timestamp of the event.",
+            "example": "2026-04-28T09:00:00Z"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable event description.",
+            "example": "Stream 'Design Retainer' created and set to draft."
+          }
+        }
+      },
+      "PaginatedMeta": {
+        "type": "object",
+        "required": ["hasNext", "nextCursor", "total"],
+        "properties": {
+          "hasNext": {
+            "type": "boolean",
+            "description": "Whether additional results are available."
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Opaque base64-encoded cursor for the next page. Null when hasNext is false.",
+            "example": "MjAyNi0wNC0yN1QyMDowMDowMFp8ZXZ0LTI="
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of items matching the filter criteria.",
+            "example": 42
+          }
+        }
+      },
+      "ActivityResponse": {
+        "type": "object",
+        "required": ["data", "meta", "links"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ActivityEvent" }
+          },
+          "meta": { "$ref": "#/components/schemas/PaginatedMeta" },
+          "links": {
+            "type": "object",
+            "required": ["self"],
+            "properties": {
+              "self": {
+                "type": "string",
+                "description": "Canonical URL for this request.",
+                "example": "/api/activity?limit=20"
+              }
+            }
+          }
+        }
       }
     },
     "responses": {
@@ -399,6 +474,66 @@
     }
   },
   "paths": {
+    "/api/activity": {
+      "get": {
+        "operationId": "listActivity",
+        "summary": "List activity events",
+        "description": "Returns a paginated, cursor-based list of activity events. Events are sorted by (timestamp desc, id desc) for stable ordering. Supports filtering by streamId and event type.",
+        "tags": ["Activity"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of events to return (1-100, default 20).",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque base64-encoded composite cursor (timestamp|id) for cursor-based pagination. Obtained from meta.nextCursor of the previous response.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "streamId",
+            "in": "query",
+            "description": "Filter events by associated stream identifier.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter events by type (e.g. stream.created, wallet.connected).",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of activity events.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ActivityResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity — malformed cursor.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/audit": {
       "get": {
         "operationId": "listAuditLogs",
@@ -1479,6 +1614,7 @@
     }
   },
   "tags": [
+    { "name": "Activity", "description": "Activity event log" },
     { "name": "Auth", "description": "Wallet-based authentication flow" },
     { "name": "Streams", "description": "Payment stream management (v2)" },
     { "name": "Streams v1", "description": "Payment stream management (v1, deprecated — use Streams)" },
