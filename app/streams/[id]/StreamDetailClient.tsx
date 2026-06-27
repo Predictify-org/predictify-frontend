@@ -9,6 +9,7 @@ import { PaymentTimeline } from "../../components/PaymentTimeline";
 import { ErrorToast } from "../../components/ErrorToast";
 import { ConfirmCancel } from "../../components/ConfirmCancel";
 import { Timestamp } from "../../components/Timestamp";
+import { CopyAddress } from "../../components/CopyAddress";
 import { fetchWithIdempotency } from "../../../lib/apiClient";
 import { isStreamPayError, normalizeError } from "../../lib/errors";
 import type { StreamPayError } from "../../lib/errors";
@@ -19,60 +20,6 @@ type StreamDetailClientProps = {
   network?: "testnet" | "mainnet";
 };
 
-function truncateAddress(address: string, chars = 6): string {
-  if (address.length <= chars * 2 + 3) return address;
-  return `${address.slice(0, chars)}...${address.slice(-chars)}`;
-}
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
-    }
-  };
-
-  return (
-    <button
-      aria-label="Copy to clipboard"
-      className="receipt-copy-btn no-print"
-      onClick={handleCopy}
-      type="button"
-      style={{ marginLeft: "0.5rem" }}
-    >
-      {copied ? "Copied" : "Copy"}
-    </button>
-  );
-}
-
-function StellarAddress({ address }: { address: string }) {
-  return (
-    <span className="receipt-address-wrap">
-      <span aria-hidden="true" className="no-print">
-        {truncateAddress(address)}
-      </span>
-      <span className="print-only">{address}</span>
-      <CopyButton value={address} />
-    </span>
-  );
-}
-
-function TxHash({ hash }: { hash: string }) {
-  return (
-    <span className="receipt-address-wrap">
-      <span aria-hidden="true" className="no-print">
-        {truncateAddress(hash, 8)}
-      </span>
-      <span className="print-only">{hash}</span>
-      <CopyButton value={hash} />
-    </span>
-  );
-}
 
 const ACTION_MAP: Record<string, string> = {
   draft: "Start",
@@ -268,7 +215,7 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
               )}
               <div>
                 <dt>Recipient Address</dt>
-                <dd><StellarAddress address={stream.recipient} /></dd>
+                <dd><CopyAddress value={stream.recipient} /></dd>
               </div>
               <div>
                 <dt>Payment Rate</dt>
@@ -304,7 +251,7 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
                 {stream.settlementTxHash && (
                   <div>
                     <dt>Settlement TX</dt>
-                    <dd><TxHash hash={stream.settlementTxHash} /></dd>
+                    <dd><CopyAddress value={stream.settlementTxHash} truncateChars={8} /></dd>
                   </div>
                 )}
                 {stream.withdrawal && (
@@ -320,7 +267,7 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
                     {stream.withdrawal.confirmedTxHash && (
                       <div>
                         <dt>Confirmed TX</dt>
-                        <dd><TxHash hash={stream.withdrawal.confirmedTxHash} /></dd>
+                        <dd><CopyAddress value={stream.withdrawal.confirmedTxHash} truncateChars={8} /></dd>
                       </div>
                     )}
                     {stream.withdrawal.failureCode && (

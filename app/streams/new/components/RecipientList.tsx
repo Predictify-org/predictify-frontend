@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Card } from "../../../components/Card";
+import { CopyAddress } from "../../../components/CopyAddress";
 
 export interface Recipient {
   id: string;
@@ -129,21 +130,26 @@ export function RecipientList({ totalAmount, recipients, onChange }: RecipientLi
               <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: "0.25rem", color: "var(--muted-light)" }}>
                 Recipient Address / Email
               </label>
-              <input
-                type="text"
-                placeholder="GABC... or email@example.com"
-                value={recipient.address}
-                onChange={(e) => handleAddressChange(recipient.id, e.target.value)}
-                style={{
-                  width: "100%",
-                  background: "var(--background)",
-                  border: "1px solid var(--border)",
-                  color: "var(--foreground)",
-                  padding: "0.5rem 0.75rem",
-                  borderRadius: "var(--radius-md)",
-                  fontSize: "var(--text-base)"
-                }}
-              />
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder="GABC... or email@example.com"
+                  value={recipient.address}
+                  onChange={(e) => handleAddressChange(recipient.id, e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: "var(--background)",
+                    border: "1px solid var(--border)",
+                    color: "var(--foreground)",
+                    padding: "0.5rem 0.75rem",
+                    borderRadius: "var(--radius-md)",
+                    fontSize: "var(--text-base)"
+                  }}
+                />
+                {recipient.address && !recipient.address.includes("@") && (
+                  <CopyAddress value={recipient.address} showCopyButton={true} />
+                )}
+              </div>
             </div>
 
             <div style={{ width: "120px" }}>
