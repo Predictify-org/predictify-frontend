@@ -48,7 +48,7 @@ export default function DashboardLayout({
       <Navbar />
 
       {/* Main Content */}
-      <main className="flex-1 pb-24 md:pb-12 pt-20">
+      <main className="flex-1 pb-[calc(6rem+var(--safe-pb))] md:pb-12 pt-20">
         <div className="">{children}</div>
       </main>
     </div>

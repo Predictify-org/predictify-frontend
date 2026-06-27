@@ -128,7 +128,7 @@ export function Navbar() {
       </header>
 
       {/* Mobile Bottom Navbar */}
-      <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[72px] px-4 bg-slate-950/90 backdrop-blur-lg shadow-2xl border-t border-slate-800/15">
+      <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center min-h-[72px] px-4 pb-safe bg-slate-950/90 backdrop-blur-lg shadow-2xl border-t border-slate-800/15">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href || (pathname === '/' && item.href === '/markets');
           return (
