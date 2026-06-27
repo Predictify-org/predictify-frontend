@@ -30,6 +30,14 @@ export const Card: React.FC<PropsWithChildren<CardProps>> = ({
       style={{
         padding: paddingStyles[padding],
       }}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable ? (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.(e as any);
+        }
+      } : undefined}
     >
       {children}
     </div>
