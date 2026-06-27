@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { useEventsStore } from "@/lib/events-store"
 import type { EventSort } from "@/types/events"
 import { SearchInput } from "@/components/navbar/SearchInput"
+import { DensityToggle } from "@/components/ui/density-toggle"
 
 interface EventsToolbarProps {
   className?: string
@@ -30,7 +31,6 @@ interface EventsToolbarProps {
 export function EventsToolbar({ className }: EventsToolbarProps) {
   const { filters, sort, setSearch, setFilters, setSort, setDateRange } = useEventsStore()
   
-  // Handle search input with debouncing
   const [searchValue, setSearchValue] = React.useState(filters.search)
   const [showSearchInput, setShowSearchInput] = React.useState(false)
 
@@ -38,29 +38,23 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
     const timer = setTimeout(() => {
       setSearch(searchValue)
     }, 300)
-
     return () => clearTimeout(timer)
   }, [searchValue, setSearch])
 
-  // Handle date range changes
   const handleDateRangeChange = (dateRange: DateRange | undefined) => {
     setDateRange(dateRange?.from || null, dateRange?.to || null)
   }
 
-  // Handle category filter changes
   const handleCategoryChange = (category: string, checked: boolean) => {
     const newCategories = checked ? [...filters.category, category] : filters.category.filter((c) => c !== category)
-
     setFilters({ category: newCategories })
   }
 
-  // Handle sort changes
   const handleSortChange = (field: EventSort["field"]) => {
     const newDirection = sort.field === field && sort.direction === "asc" ? "desc" : "asc"
     setSort({ field, direction: newDirection })
   }
 
-  // Get active filter count
   const activeFilterCount = React.useMemo(() => {
     let count = 0
     if (filters.category.length > 0) count++
@@ -94,7 +88,7 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
           />
         </div>
 
-        {/* Search, Filter, Sort Row - Mobile with Border */}
+        {/* Search, Filter, Sort, Density Row - Mobile */}
         <div className="border border-gray-200 rounded-md overflow-hidden">
           <div className="flex">
             {/* Search Button */}
@@ -102,6 +96,8 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
               variant="ghost"
               className="flex-1 gap-2 bg-transparent border-0 rounded-none border-r border-gray-200 h-10"
               onClick={() => setShowSearchInput(!showSearchInput)}
+              aria-label={showSearchInput ? "Hide search" : "Show search"}
+              aria-expanded={showSearchInput}
             >
               <Search className="h-4 w-4 text-gray-500" />
               <span className="text-gray-500">Search</span>
@@ -136,6 +132,11 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Density Toggle - Mobile (replaces Sort button for space) */}
+            <div className="flex-1 flex items-center justify-center border-r border-gray-200">
+              <DensityToggle variant="cycle" />
+            </div>
 
             {/* Sort Dropdown */}
             <DropdownMenu>
@@ -255,17 +256,21 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
           </DropdownMenu>
         </div>
 
-        {/* Right side - Date Range Picker */}
-        <div className="flex-shrink-0">
-          <DateRangePicker
-            date={{
-              from: filters.dateRange.from || undefined,
-              to: filters.dateRange.to || undefined,
-            }}
-            onDateChange={handleDateRangeChange}
-            placeholder="29-03-2025 To 29-12-2025"
-            className="w-auto"
-          />
+        {/* Right side - Density Toggle + Date Range */}
+        <div className="flex items-center gap-3">
+          <DensityToggle variant="segmented" />
+          
+          <div className="flex-shrink-0">
+            <DateRangePicker
+              date={{
+                from: filters.dateRange.from || undefined,
+                to: filters.dateRange.to || undefined,
+              }}
+              onDateChange={handleDateRangeChange}
+              placeholder="29-03-2025 To 29-12-2025"
+              className="w-auto"
+            />
+          </div>
         </div>
       </div>
 

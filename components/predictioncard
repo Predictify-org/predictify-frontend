@@ -1,0 +1,129 @@
+"use client";
+
+import React from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useDensity } from "@/hooks/useDensity";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+
+export interface PredictionCardProps {
+  id: string;
+  title: string;
+  description?: string;
+  category: { name: string; color?: string };
+  thumbnail?: string;
+  creator?: { name: string; avatar?: string };
+  startDate: Date;
+  endDate: Date;
+  totalStake: number;
+  participantCount: number;
+  progressPercent: number;
+  href: string;
+}
+
+export default function PredictionCard({
+  id,
+  title,
+  description,
+  category,
+  thumbnail,
+  creator,
+  startDate,
+  endDate,
+  totalStake,
+  participantCount,
+  progressPercent,
+  href,
+}: PredictionCardProps) {
+  const { tokens: t } = useDensity();
+
+  const timeRemaining = Math.max(0, endDate.getTime() - Date.now());
+  const isEnded = timeRemaining === 0;
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "group block rounded-xl border border-border bg-card text-card-foreground",
+        "transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        t.cardPadding
+      )}
+      data-density
+    >
+      {thumbnail && (
+        <div className={cn("relative overflow-hidden rounded-lg mb-3", t.thumbnailHeight)}>
+          <Image
+            src={thumbnail}
+            alt={title}
+            fill
+            className="object-cover transition-transform group-hover:scale-105"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            loading="lazy"
+          />
+          <div className="absolute top-3 left-3">
+            <Badge
+              className={cn("bg-black/60 text-white backdrop-blur-sm hover:bg-black/60", t.chipPadding)}
+              style={{ backgroundColor: category.color }}
+            >
+              <span className={t.captionSize}>{category.name}</span>
+            </Badge>
+          </div>
+        </div>
+      )}
+
+      <div className={cn("flex flex-col", t.cardGap)}>
+        <h3 className={cn("font-semibold leading-tight line-clamp-2", t.titleSize)}>{title}</h3>
+
+        {description && t.showDescription && (
+          <p className={cn("text-muted-foreground line-clamp-2", t.bodySize)}>{description}</p>
+        )}
+
+        <div className={cn("flex items-center justify-between", t.showMetaRow ? "flex" : "hidden")}>
+          <div className="flex items-center gap-2">
+            {creator && (
+              <>
+                <Avatar className={t.avatarSize}>
+                  <AvatarImage src={creator.avatar} alt={creator.name} />
+                  <AvatarFallback className={t.captionSize}>
+                    {creator.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className={cn("text-muted-foreground", t.captionSize)}>{creator.name}</span>
+              </>
+            )}
+          </div>
+          <span className={cn("text-muted-foreground tabular-nums", t.captionSize)}>
+            {participantCount.toLocaleString()} participants
+          </span>
+        </div>
+
+        <div className={cn("flex items-center justify-between text-muted-foreground", t.captionSize)}>
+          <span>Ends {endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+          <span className="tabular-nums">{totalStake.toLocaleString()} XLM</span>
+        </div>
+
+        <div className="space-y-1">
+          <Progress value={progressPercent} className={t.progressHeight} aria-label="Prediction progress" />
+          <div className={cn("flex justify-between text-muted-foreground", t.captionSize)}>
+            <span>{progressPercent}% funded</span>
+            <span>{isEnded ? "Ended" : formatTimeRemaining(timeRemaining)}</span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function formatTimeRemaining(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days}d left`;
+  if (hours > 0) return `${hours}h left`;
+  if (minutes > 0) return `${minutes}m left`;
+  return `${seconds}s left`;
+}
