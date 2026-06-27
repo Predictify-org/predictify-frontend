@@ -1,7 +1,7 @@
 "use client";
 
 import { useWallet } from "@/hooks/useWallet.hook";
-import { AlertCircle, Check, Copy, LogOut } from "lucide-react";
+import { AlertCircle, Check, Copy, LogOut, Info, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
@@ -13,11 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { getKit } from "@/constants/wallet-kits.constant";
 
 interface WalletOption {
   id: string;
   name: string;
   icon: string;
+  url: string;
 }
 
 interface ConnectWalletModalProps {
@@ -27,31 +30,36 @@ interface ConnectWalletModalProps {
   onWalletDisconnect?: () => void;
 }
 
-const walletOptions: WalletOption[] = [
+const defaultWallets: WalletOption[] = [
   {
     id: "freighter",
     name: "Freighter",
-    icon: "/images/freighter.png",
+    icon: "/assets/wallets/freighter.svg",
+    url: "https://freighter.app/",
   },
   {
     id: "lobstr",
     name: "LOBSTR",
-    icon: "/images/lobstr.png",
+    icon: "/assets/wallets/lobstr.svg",
+    url: "https://lobstr.co/",
   },
   {
     id: "xbull",
     name: "XBULL",
-    icon: "/images/xbull.svg",
+    icon: "/assets/wallets/xbull.svg",
+    url: "https://xbull.app/",
   },
   {
     id: "albedo",
     name: "Albedo",
-    icon: "/images/albedo.png",
+    icon: "/assets/wallets/albedo.svg",
+    url: "https://albedo.link/",
   },
   {
     id: "rabet",
     name: "Rabet",
-    icon: "/images/rabet.webp",
+    icon: "/assets/wallets/rabet.svg",
+    url: "https://rabet.io/",
   },
 ];
 
@@ -73,12 +81,35 @@ export function ConnectWalletModal({
     null
   );
   const [copied, setCopied] = useState(false);
+  const [walletsAvailability, setWalletsAvailability] = useState<Record<string, boolean>>({});
+  const [hasCheckedAvailability, setHasCheckedAvailability] = useState(false);
 
   // Clean up connection error and connecting wallet id when modal is closed
   useEffect(() => {
     if (!isOpen) {
       setConnectionError(null);
       setConnectingWalletId(null);
+    } else {
+      // Check wallet availability when modal opens
+      try {
+        const kit = getKit();
+        kit.getSupportedWallets()
+          .then(supported => {
+            const availability: Record<string, boolean> = {};
+            supported.forEach(w => {
+              availability[w.id] = w.isAvailable;
+            });
+            setWalletsAvailability(availability);
+            setHasCheckedAvailability(true);
+          })
+          .catch(err => {
+            console.error("Failed to load wallets availability", err);
+            setHasCheckedAvailability(true); // Stop loading state even on error
+          });
+      } catch (err) {
+        console.error("Error accessing wallet kit", err);
+        setHasCheckedAvailability(true);
+      }
     }
   }, [isOpen]);
 
@@ -138,8 +169,24 @@ export function ConnectWalletModal({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md rounded-lg">
         <DialogHeader>
-          <DialogTitle className="font-bold">
-            {isConnected ? `Wallet Connected` : `Connect Your Wallet`}
+          <DialogTitle className="font-bold flex items-center justify-between">
+            <span>{isConnected ? `Wallet Connected` : `Connect Your Wallet`}</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-muted" aria-label="Why these wallets?">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80">
+                <div className="space-y-2">
+                  <h4 className="font-medium leading-none">Why these wallets?</h4>
+                  <p className="text-sm text-muted-foreground">
+                    We support secure and audited wallets that are widely used in the Stellar ecosystem. 
+                    These wallets provide the best user experience and security for managing your digital assets and making predictions on our platform.
+                  </p>
+                </div>
+              </PopoverContent>
+            </Popover>
           </DialogTitle>
           <DialogDescription>
             {isConnected
@@ -182,35 +229,68 @@ export function ConnectWalletModal({
         )}
 
         <div className="flex flex-col gap-3 py-4">
-          {walletOptions.map((wallet) => (
-            <Button
-              key={wallet.id}
-              variant="outline"
-              onClick={() => handleWalletConnect(wallet)}
-              disabled={!!connectingWalletId || isConnected}
-              className={`flex items-center justify-start cursor-pointer gap-3 w-full p-4 h-auto hover:bg-muted transition-colors ${
-                isConnected && walletName === wallet.name
-                  ? "border-primary"
-                  : ""
-              }`}
-            >
-              <div className="w-10 h-10 relative rounded-lg overflow-hidden">
-                <Image
-                  src={wallet.icon || "/images/placeholder.png"}
-                  alt={`${wallet.name} logo`}
-                  fill
-                  className="object-cover"
-                />
+          {defaultWallets.map((wallet) => {
+            // Assume available if we haven't loaded the status yet
+            const isAvailable = hasCheckedAvailability 
+              ? walletsAvailability[wallet.id] !== false 
+              : true;
+            
+            const isDisabled = !!connectingWalletId || isConnected || !isAvailable;
+
+            return (
+              <div key={wallet.id} className="relative group">
+                <Button
+                  variant="outline"
+                  onClick={() => handleWalletConnect(wallet)}
+                  disabled={isDisabled}
+                  className={`flex items-center justify-start cursor-pointer gap-3 w-full p-4 h-auto transition-colors ${
+                    isConnected && walletName === wallet.name
+                      ? "border-primary"
+                      : ""
+                  } ${
+                    isAvailable 
+                      ? "hover:bg-accent hover:text-accent-foreground" 
+                      : "opacity-60 grayscale hover:bg-transparent"
+                  }`}
+                >
+                  <div className="w-12 h-12 relative rounded-lg overflow-hidden shrink-0">
+                    <Image
+                      src={wallet.icon || "/images/placeholder.png"}
+                      alt={`${wallet.name} logo`}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="flex flex-col items-start gap-1">
+                    <span className="font-bold text-base">{wallet.name}</span>
+                    {!isAvailable && hasCheckedAvailability && (
+                      <span className="text-xs text-muted-foreground font-normal">Not installed</span>
+                    )}
+                  </div>
+                  
+                  {connectingWalletId === wallet.id && (
+                    <span className="ml-auto text-sm font-normal">Connecting...</span>
+                  )}
+                  {isConnected && walletName === wallet.name && (
+                    <span className="ml-auto text-primary text-sm font-normal">Connected</span>
+                  )}
+                </Button>
+                
+                {!isAvailable && hasCheckedAvailability && (
+                  <a
+                    href={wallet.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 text-xs text-primary hover:underline bg-background/90 px-3 py-1.5 rounded-md shadow-sm border"
+                    onClick={(e) => e.stopPropagation()}
+                    tabIndex={0}
+                  >
+                    Install <ExternalLink className="w-3 h-3 ml-1" />
+                  </a>
+                )}
               </div>
-              <span className="font-bold">{wallet.name}</span>
-              {connectingWalletId === wallet.id && (
-                <span className="ml-auto">Connecting...</span>
-              )}
-              {isConnected && walletName === wallet.name && (
-                <span className="ml-auto text-primary text-sm">Connected</span>
-              )}
-            </Button>
-          ))}
+            );
+          })}
         </div>
 
         {isConnected && (
