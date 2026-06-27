@@ -55,8 +55,15 @@ const AnimatedMetric: React.FC<{ metric: KpiMetric }> = ({ metric }) => {
 // Main Component
 export const KpiStrip: React.FC = () => {
   return (
-    <section className="pt-0 pb-8 md:pb-16">
+    <section
+      data-marketing-cursor-section
+      className="pt-0 pb-8 md:pb-16"
+      aria-labelledby="kpi-strip-heading"
+    >
       <div className="container mx-auto px-4">
+        <h2 id="kpi-strip-heading" className="sr-only">
+          Platform metrics
+        </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {kpis.map((metric: KpiMetric) => (
             <AnimatedMetric key={metric.id} metric={metric} />
