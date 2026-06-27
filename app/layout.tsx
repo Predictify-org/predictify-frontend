@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SplashScreen from "./components/SplashScreen";
+import { ToastProvider } from "./components/ToastProvider";
 import { getThemeScript } from "./utils/theme-noflash";
 
 export const metadata: Metadata = {
@@ -22,8 +23,10 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <SplashScreen />
-        {children}
+        <ToastProvider>
+          <SplashScreen />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );
