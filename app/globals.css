@@ -68,6 +68,11 @@ body {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Safe-area inset tokens */
+  .pb-safe {
+    padding-bottom: var(--safe-pb);
+  }
 }
 
 /* ===== COMPONENT TYPOGRAPHY ===== */
@@ -107,6 +112,7 @@ body {
   }
 
   :root {
+    --safe-pb: env(safe-area-inset-bottom, 0px);
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
@@ -233,11 +239,33 @@ body {
   animation: bounce 2s infinite;
 }
 
+/* Live "resolving" status glow-pulse — see MarketStatusBadge */
+@keyframes status-live-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-status-live-pulse {
+  animation: status-live-pulse 1.6s ease-in-out infinite;
+  will-change: opacity;
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up,
   .animate-bounce {
     animation: none;
+  }
+
+  /* tailwindcss-animate's enter/exit utilities, used by Sheet/Dialog (e.g. WhatsNewDrawer) */
+  .animate-in,
+  .animate-out {
+    animation: none !important;
   }
 }

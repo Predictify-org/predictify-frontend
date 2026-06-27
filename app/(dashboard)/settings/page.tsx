@@ -115,7 +115,7 @@ export default function SettingsPage() {
   const [oracleDelayAlerts, setOracleDelayAlerts] = useState(true)
   const [priceMovementAlerts, setPriceMovementAlerts] = useState(false)
   const [weeklyDigest, setWeeklyDigest] = useState(true)
-  const [publicActivity, setPublicActivity] = useState(false)
+  const { hideBalances, setHideBalances } = usePrivacy();
   const [walletAlias, setWalletAlias] = useState(true)
   const [copyWarning, setCopyWarning] = useState(true)
 
@@ -502,8 +502,47 @@ export default function SettingsPage() {
               <CardTitle>Notification settings</CardTitle>
               <CardDescription>Manage your notification preferences.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Notification settings are managed in the Preferences tab.</p>
+            <CardContent className="space-y-5">
+              <Alert className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200">
+                <Wallet className="h-4 w-4" />
+                <AlertDescription>
+                  Safe default: activity sharing is off until you explicitly choose to make it visible.
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-1">
+                <PreferenceSwitch
+                  id="hide-balances"
+                  label="Hide sensitive amounts"
+                  description="Mask balances and amounts throughout the app for privacy."
+                  checked={hideBalances}
+                  onCheckedChange={setHideBalances}
+                />
+
+                <PreferenceSwitch
+                  id="wallet-alias"
+                  label="Use wallet alias instead of full address"
+                  description="Shows a human-friendly label first, while keeping the full address available when needed."
+                  checked={walletAlias}
+                  onCheckedChange={setWalletAlias}
+                />
+                <PreferenceSwitch
+                  id="copy-warning"
+                  label="Warn before copying full wallet address"
+                  description="Adds a brief reminder that full addresses can link activity across apps and communities."
+                  checked={copyWarning}
+                  onCheckedChange={setCopyWarning}
+                />
+              </div>
+
+              <div className="rounded-2xl border border-dashed border-border/80 bg-muted/40 p-4">
+                <p className="text-sm font-medium">Privacy guidance</p>
+                <ul className="mt-3 space-y-2 text-sm leading-relaxed text-muted-foreground">
+                  <li>Use a separate wallet if public market participation should stay distinct from your main identity.</li>
+                  <li>Keep profile activity off unless you want disputes, payouts, and voting behavior to be discoverable.</li>
+                  <li>Prefer aliases in shared screenshots so addresses are not accidentally exposed outside the product.</li>
+                </ul>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -544,4 +583,53 @@ function PreferenceSwitch({
           {label}
         </Label>
         <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">{description}</p>
-      </div
+      </div>
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
+  )
+}
+
+import { usePrivacy } from '@/context/PrivacyContext';
+function PreferenceSelect({
+  id,
+  label,
+  description,
+  value,
+  onValueChange,
+  options,
+}: {
+  id: string
+  label: string
+  description: string
+  value: string
+  onValueChange: (value: string) => void
+  options: Array<{ label: string; value: string; description: string }>
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger id={id}>
+          <SelectValue placeholder={`Choose ${label.toLowerCase()}`} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+    </div>
+  )
+}
+
+function PreferencePill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-muted/30 px-3 py-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  )
+}

@@ -8,6 +8,7 @@ interface ButtonProps {
   walletAddress: string | null;
   onConnectClick: () => void;
   onOpenModal: () => void;
+  "data-magnet"?: boolean;
 }
 
 function ConnectWalletButton({
@@ -16,12 +17,14 @@ function ConnectWalletButton({
   walletAddress,
   onConnectClick,
   onOpenModal,
+  "data-magnet": dataMagnet,
 }: ButtonProps) {
   const pathname = usePathname(); 
   return (
     <>
       {!isConnected ? (
         <button
+          data-magnet={dataMagnet ? true : undefined}
           onClick={onConnectClick}
           className={`${
             pathname != "/"
@@ -30,7 +33,7 @@ function ConnectWalletButton({
           }`}
         >
           {pathname !== "/" && <Wallet size={18} />}
-          <span className="relative z-10 flex items-center">
+          <span className={`relative z-10 flex items-center${dataMagnet ? " magnetic-inner" : ""}`}>
             Connect Wallet & start
           </span>
           {pathname === "/" && (
@@ -39,6 +42,7 @@ function ConnectWalletButton({
         </button>
       ) : (
         <button
+          data-magnet={dataMagnet ? true : undefined}
           onClick={onOpenModal}
           className={`${
             pathname != "/"
@@ -47,7 +51,7 @@ function ConnectWalletButton({
           }`}
         >
           {pathname !== "/" && <Wallet size={18} />}
-          <span className="relative z-10 flex items-center">
+          <span className={`relative z-10 flex items-center${dataMagnet ? " magnetic-inner" : ""}`}>
             {walletName || "Wallet"}:{" "}
             {walletAddress
               ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`

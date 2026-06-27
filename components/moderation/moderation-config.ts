@@ -51,4 +51,14 @@ export const MODERATION_CONFIG: Record<ModerationState, ModerationConfig> = {
       'border-red-600/50 bg-red-100 text-red-950 dark:bg-red-950/30 dark:text-red-200 [&>svg]:text-red-600',
     badgeClass: 'bg-red-200 text-red-900 border-red-400 dark:bg-red-900/40 dark:text-red-200',
   },
+  resolving: {
+    label: 'Resolving',
+    title: 'This market is actively resolving.',
+    description: 'The oracle is confirming the final outcome for this market.',
+    allowedActions: 'Trading is closed while the outcome is being confirmed.',
+    learnMoreHref: '/help/moderation#resolving',
+    bannerClass:
+      'border-blue-400/50 bg-blue-50 text-blue-900 dark:bg-blue-950/20 dark:text-blue-300 [&>svg]:text-blue-500',
+    badgeClass: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300',
+  },
 };

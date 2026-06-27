@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, AlertTriangle, ShieldAlert, Flag, XCircle } from 'lucide-react';
+import { Clock, AlertTriangle, ShieldAlert, Flag, XCircle, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { ModerationState } from '@/types/moderation';
@@ -12,6 +12,7 @@ const STATE_ICONS: Record<ModerationState, React.ElementType> = {
   restricted: ShieldAlert,
   flagged: Flag,
   removed: XCircle,
+  resolving: Loader2,
 };
 
 interface MarketStatusBadgeProps {
@@ -24,14 +25,16 @@ interface MarketStatusBadgeProps {
 export function MarketStatusBadge({ state, className, showTooltip = true }: MarketStatusBadgeProps) {
   const config = MODERATION_CONFIG[state];
   const Icon = STATE_ICONS[state];
+  const isResolving = state === 'resolving';
 
   const badge = (
     <span
       role="status"
-      aria-label={`Market status: ${config.label}`}
+      aria-label={isResolving ? `Market status: ${config.label}. Resolving now.` : `Market status: ${config.label}`}
       className={cn(
         'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold',
         config.badgeClass,
+        isResolving && 'animate-status-live-pulse',
         className
       )}
     >

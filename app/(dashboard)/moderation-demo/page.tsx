@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { ModerationState } from '@/types/moderation';
 
-const STATES: ModerationState[] = ['under_review', 'paused', 'restricted', 'flagged', 'removed'];
+const STATES: ModerationState[] = ['under_review', 'paused', 'restricted', 'flagged', 'removed', 'resolving'];
 
 // Simulated market list card
 function MockMarketCard({ title, category, state }: { title: string; category: string; state?: ModerationState }) {
@@ -80,6 +80,7 @@ export default function ModerationDemoPage() {
           <MockMarketCard title="Champions League Final Winner" category="Football" state="under_review" />
           <MockMarketCard title="US Election 2026 Senate Majority" category="Politics" state="paused" />
           <MockMarketCard title="AAPL Q2 Earnings Beat?" category="Stocks" state="restricted" />
+          <MockMarketCard title="Will the Fed cut rates in Q3?" category="Economics" state="resolving" />
         </div>
       </section>
     </div>

@@ -2,8 +2,8 @@
 
 import * as React from "react"
 import Link from "next/link"
-/* NEW: Added lucide icons for row actions */
-import { Edit, MoreHorizontal, Trash2, Users, Calendar, Trophy, Building2, CircleDollarSign, LineChart, TrendingUp } from "lucide-react"
+/* NEW: Added lucide icons for row actions and compare */
+import { Edit, MoreHorizontal, Trash2, Users, Calendar, Trophy, Building2, CircleDollarSign, LineChart, TrendingUp, GitCompareArrows } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { EventsTableSkeleton } from "./events-table-skeleton"
 import { useEventsStore, formatTimeRemaining, getTimeRemainingColor } from "@/lib/events-store"
+import { useCompareStore, MAX_COMPARE } from "@/lib/compare-store"
+import { Checkbox } from "@/components/ui/checkbox"
 import type { Event } from "@/types/events"
 
 interface EventsTableProps {
@@ -140,9 +142,20 @@ function TimeRemainingProgress({ event }: { event: Event }) {
 export function EventsTable({ className }: EventsTableProps) {
   /* MODIFIED: Added deleteEvent from store */
   const { filteredEvents, loading, pagination, deleteEvent } = useEventsStore()
+  /* Compare store */
+  const { selectedIds, toggle } = useCompareStore()
 
   /* NEW: State to track which event is pending delete confirmation */
   const [deleteTarget, setDeleteTarget] = React.useState<Event | null>(null)
+
+  // Track rows that have already animated in
+  const seenIds = React.useRef(new Set<string>())
+  const [animationReady, setAnimationReady] = React.useState(false)
+  const prefersReduced = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false
+
+  React.useEffect(() => {
+    setAnimationReady(true)
+  }, [])
 
   // Calculate paginated events
   const startIndex = (pagination.page - 1) * pagination.pageSize
@@ -204,6 +217,10 @@ export function EventsTable({ className }: EventsTableProps) {
           <Table className="min-w-[800px] sm:min-w-full">
             <TableHeader>
               <TableRow className="hover:bg-[#540D8D] text-white border-b border-[#540D8D]/50 bg-black">
+                {/* Compare select column */}
+                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 w-10">
+                  <span className="sr-only">Compare</span>
+                </TableHead>
                 <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[200px] sm:min-w-0">
                   Event Title
                 </TableHead>
@@ -230,21 +247,41 @@ export function EventsTable({ className }: EventsTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedEvents.map((event, index) => (
+              {paginatedEvents.map((event, index) => {
+                // Mark row as seen after initial render
+                React.useEffect(() => {
+                  seenIds.current.add(event.id)
+                }, [event.id])
+
+                return (
                 <TableRow
                   key={event.id}
                   className={cn(
                     "hover:bg-[#540D8D] transition-colors border-0",
                     index !== paginatedEvents.length - 1 && "border-b border-[#540D8D]",
+                    animationReady && !prefersReduced && !seenIds.current.has(event.id) && index < 12 && "animate-in fade-in slide-in-from-bottom-2"
                   )}
+                  style={animationReady && !prefersReduced && !seenIds.current.has(event.id) && index < 12 ? { transitionDelay: `${index * 30}ms`, animationFillMode: 'both' } : undefined}
                 >
+                  {/* Compare checkbox */}
+                  <TableCell className="py-3 md:py-4 px-4 md:px-6 w-10">
+                    <Checkbox
+                      checked={selectedIds.includes(event.id)}
+                      onCheckedChange={() => toggle(event.id)}
+                      disabled={
+                        !selectedIds.includes(event.id) &&
+                        selectedIds.length >= MAX_COMPARE
+                      }
+                      aria-label={`Select ${event.title} for comparison`}
+                      className="border-[#540D8D] data-[state=checked]:bg-[#540D8D] data-[state=checked]:border-[#540D8D]"
+                    />
+                  </TableCell>
                   <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[200px] sm:min-w-0">
                     <div className="space-y-1">
                       <div className="font-medium text-sm leading-tight text-White">{event.title}</div>
                       <div className="text-xs text-muted-foreground">#{event.txHash}</div>
                     </div>
-                  </TableCell>
-                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[100px] sm:min-w-0">
+                  </TableCell>                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[100px] sm:min-w-0">
                     <Badge className={cn(getCategoryBadgeVariant(event.category), "inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1")}>
                       {getCategoryIcon(event.category)}
                       {event.category}
