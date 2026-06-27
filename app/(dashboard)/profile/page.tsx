@@ -11,11 +11,30 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ProfileShareCard } from "@/components/profile/ProfileShareCard"
+import { useWalletContext } from "@/context/WalletContext"
 
 export default function ProfilePage() {
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const { address, name } = useWalletContext()
 
-  const handleSave = (e) => {
+  const displayName = name || "Admin User"
+  const handle = address ? address : "admin"
+  const publicProfileUrl = address
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/profile/${address}`
+    : "https://predictify.app/profile/admin"
+
+  const shareProfile = {
+    displayName,
+    handle,
+    avatarUrl: "/placeholder.svg?height=80&width=80",
+    winRate: 0.72,
+    totalPredictions: 148,
+    topCategory: "Sports",
+    publicProfileUrl,
+  }
+
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     // Simulate API call
     setTimeout(() => {
@@ -32,6 +51,7 @@ export default function ProfilePage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Your Profile</h1>
+        <ProfileShareCard profile={shareProfile} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
