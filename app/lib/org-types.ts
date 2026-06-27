@@ -95,6 +95,24 @@ export type OrgRecord = {
   name: string;
   members: OrgMember[];
   policy: StreamPolicy;
+  /**
+   * Per-org token allowlist (normalised token strings, e.g. "XLM", "USDC:G...").
+   *
+   * Behaviour:
+   *   - undefined / empty array → org inherits global allowlist behaviour:
+   *     open mode when the global list is disabled; global list when enabled.
+   *   - Non-empty array         → ONLY these tokens may be used when creating
+   *     a stream owned by this org, regardless of global allowlist state.
+   *     Maps to the Soroban contract's `accepted_tokens` storage key so
+   *     unexpected SAC interactions are blocked at the API layer.
+   *
+   * Only org owners may mutate this list via:
+   *   GET    /api/orgs/:orgId/token-allowlist
+   *   PUT    /api/orgs/:orgId/token-allowlist
+   *   POST   /api/orgs/:orgId/token-allowlist
+   *   DELETE /api/orgs/:orgId/token-allowlist/:token
+   */
+  tokenAllowlist?: string[];
   /** ISO-8601 UTC */
   createdAt: string;
   /** ISO-8601 UTC */
