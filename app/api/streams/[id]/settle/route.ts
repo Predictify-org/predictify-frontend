@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  checkIdempotency,
-  computeFingerprint,
-  db,
-  idempotencyToken,
-  setIdempotency,
-  withLock,
-} from "@/app/lib/db";
+import { db, withLock } from "@/app/lib/db";
+import { withIdempotency, settleStore } from "@/app/lib/idempotency";
 import { getCorrelationContext, logger } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
@@ -32,42 +26,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-
-  const idempotencyKey = getHeader(request, "Idempotency-Key");
-  const token = idempotencyKey
-    ? idempotencyToken(`streams.settle.${id}`, idempotencyKey)
-    : null;
-
-  const fingerprint = computeFingerprint("POST", `/api/streams/${id}/settle`, null);
-
-  if (token) {
-    const cached = checkIdempotency(db.idempotency, token, fingerprint);
-    if (cached) {
-      if (!cached.ok) {
-        return NextResponse.json(
-          { error: { code: "IDEMPOTENCY_CONFLICT", message: "Idempotency key has been used with a different request." } },
-          { status: 409 },
-        );
-      }
-      return NextResponse.json(cached.body, { status: cached.status });
-    }
-  }
-
-  return withLock(id, async () => {
-    if (token) {
-      const cached = checkIdempotency(db.idempotency, token, fingerprint);
-      if (cached) {
-        if (!cached.ok) {
-          return NextResponse.json(
-            { error: { code: "IDEMPOTENCY_CONFLICT", message: "Idempotency key has been used with a different request." } },
-            { status: 409 },
-          );
-        }
-        return NextResponse.json(cached.body, { status: cached.status });
-      }
-    }
-
-    const stream = db.streams.get(id);
+  // IDEMPOTENCY: Settle is non-idempotent by nature — this wrapper ensures retries return the original response without re-executing the settlement
+  return withIdempotency(request, "settle", settleStore, async () => {
+    return withLock(id, async () => {
+      const stream = db.streams.get(id);
     if (!stream) {
       return errorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
     }
@@ -130,9 +92,6 @@ export async function POST(
       });
 
       const payload = { data: { ...updatedStream, settlement } };
-      if (token) {
-        setIdempotency(db.idempotency, token, fingerprint, 200, payload);
-      }
 
       logger.info("Stream settled successfully", {
         streamId: id,
