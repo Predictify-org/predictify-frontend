@@ -7,6 +7,7 @@ This repository now protects internal-only API paths with signed HMAC service-to
 ## Scope
 
 - `POST /api/internal/reconciliation`
+- `POST /api/internal/reconciliation/nightly`
 - Any future `/api/internal/*` route must call `requireInternalServiceAuth(...)`
 - Public user APIs keep their existing end-user auth model and are not implicitly trusted as internal callers
 
@@ -28,6 +29,8 @@ Not fully solved here:
 ## Request Format
 
 Workers sign requests with these headers:
+
+For the nightly reconciliation route, callers may also include `x-correlation-id` or a `correlationId` field in the JSON body to trace the run.
 
 - `x-streampay-service-name`
 - `x-streampay-key-id`

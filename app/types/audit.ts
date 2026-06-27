@@ -56,3 +56,13 @@ export interface AuditExportRow {
   metadata?: Record<string, AuditMetadataValue>;
   redactionPolicy: "mask-target-account";
 }
+
+export interface AuditPurgeResult {
+  chainIntactAfter: boolean;
+  chainIntactBefore: boolean;
+  cutoffTimestamp: string;
+  executed: boolean;
+  purgedEntries: number;
+  purgedIds: string[];
+  retainedEntries: number;
+}

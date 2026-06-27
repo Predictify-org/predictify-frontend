@@ -1,5 +1,5 @@
-import crypto from 'crypto';
-import { logger, getCorrelationContext, withWebhookContext } from './logger';
+import crypto from "crypto";
+import { logger, getCorrelationContext, withWebhookContext } from "./logger";
 import {
   WebhookDeliveryClient,
   WebhookEndpoint,
@@ -8,18 +8,19 @@ import {
   RetryConfig,
   DEFAULT_RETRY_CONFIG,
   calculateNextRetryDelay,
-} from './webhook-delivery';
-import { webhookDeliveryStore } from './webhook-delivery-store';
+} from "./webhook-delivery";
+import { webhookDeliveryStore } from "./webhook-delivery-store";
+import { webhookOutboxStore, WebhookOutboxEntry } from "./webhook-outbox";
 
 export class WebhookDeliveryWorker {
   private client: WebhookDeliveryClient;
   private retryConfig: RetryConfig;
 
   /**
-   * @param retryConfig  Full retry config. Pass `{ maxAttempts: N }` to
-   *                     override the default 10-attempt cap.
-   * @param delayFn      Injectable sleep function — pass `() => Promise.resolve()`
-   *                     in tests to skip real delays without capping production.
+   * @param retryConfig  - Full retry config. Pass `{ maxAttempts: N }` to
+   *                       override the default 10-attempt cap.
+   * @param delayFn      - Injectable sleep function — pass `() => Promise.resolve()`
+   *                       in tests to skip real delays without capping production.
    */
   constructor(
     retryConfig: Partial<RetryConfig> = {},
@@ -52,7 +53,7 @@ export class WebhookDeliveryWorker {
     withWebhookContext(deliveryId);
     const maxAttempts = this.maxRetries;
 
-    logger.info('Starting webhook delivery', {
+    logger.info("Starting webhook delivery", {
       delivery_id: deliveryId, endpoint_id: endpoint.id,
       event_id: event.id, event_type: event.eventType,
       max_attempts: maxAttempts, correlation_id: ctx?.correlation_id,
@@ -80,7 +81,7 @@ export class WebhookDeliveryWorker {
         // ── Success ──────────────────────────────────────────────────────────
         if (result.success) {
           webhookDeliveryStore.markDelivered(deliveryId);
-          logger.info('Webhook delivery succeeded', {
+          logger.info("Webhook delivery succeeded", {
             delivery_id: deliveryId, total_attempts: attempt,
             correlation_id: ctx?.correlation_id,
           });
@@ -93,7 +94,7 @@ export class WebhookDeliveryWorker {
             deliveryId,
             `Non-retryable failure on attempt ${attempt}: ${result.error}`,
           );
-          logger.error('Webhook delivery non-retryable — moved to DLQ', {
+          logger.error("Webhook delivery non-retryable — moved to DLQ", {
             delivery_id: deliveryId, dlq_id: dlq?.id, attempt,
             error: result.error, status_code: result.statusCode,
             correlation_id: ctx?.correlation_id,
@@ -107,7 +108,7 @@ export class WebhookDeliveryWorker {
             deliveryId,
             `Max attempts (${maxAttempts}) exhausted: ${result.error}`,
           );
-          logger.error('Webhook delivery exhausted max attempts — moved to DLQ', {
+          logger.error("Webhook delivery exhausted max attempts — moved to DLQ", {
             delivery_id: deliveryId, dlq_id: dlq?.id,
             max_attempts: maxAttempts, error: result.error,
             correlation_id: ctx?.correlation_id,
@@ -115,9 +116,9 @@ export class WebhookDeliveryWorker {
           return { success: false, deliveryId, attempts: attempt, dlqed: true };
         }
 
-        // ── Schedule next retry with full-jitter backoff ──────────────────────
+        // ── Schedule next retry with full-jitter backoff ─────────────────────
         const delayMs = calculateNextRetryDelay(attempt, this.retryConfig);
-        logger.info('Webhook delivery retry scheduled', {
+        logger.info("Webhook delivery retry scheduled", {
           delivery_id: deliveryId, attempt, next_attempt: attempt + 1,
           delay_ms: delayMs, retry_at: result.nextRetryAt,
           correlation_id: ctx?.correlation_id,
@@ -126,13 +127,13 @@ export class WebhookDeliveryWorker {
       }
 
       // Should never reach here, but guard anyway.
-      webhookDeliveryStore.moveToDLQ(deliveryId, 'Retry loop exited unexpectedly');
+      webhookDeliveryStore.moveToDLQ(deliveryId, "Retry loop exited unexpectedly");
       return { success: false, deliveryId, attempts: maxAttempts, dlqed: true };
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const dlq = webhookDeliveryStore.moveToDLQ(deliveryId, `Unexpected error: ${msg}`);
-      logger.error('Webhook delivery worker unexpected error', {
+      logger.error("Webhook delivery worker unexpected error", {
         delivery_id: deliveryId, dlq_id: dlq?.id, error: msg,
         correlation_id: ctx?.correlation_id,
       });
@@ -141,19 +142,101 @@ export class WebhookDeliveryWorker {
   }
 
   /**
+   * Process a single outbox entry
+   */
+  async processOutboxEntry(
+    entry: WebhookOutboxEntry,
+  ): Promise<void> {
+    // Mark as processing first
+    webhookOutboxStore.updateOutboxEntry(entry.id, { status: "processing" });
+
+    const deliveryId = `delivery-${crypto.randomUUID()}`;
+    const result = await this.processDelivery(
+      entry.endpoint,
+      entry.event,
+      deliveryId,
+    );
+
+    if (result.success) {
+      webhookOutboxStore.updateOutboxEntry(entry.id, {
+        status: "delivered",
+        attempts: result.attempts,
+      });
+    } else if (result.dlqed) {
+      webhookOutboxStore.updateOutboxEntry(entry.id, {
+        status: "dlq",
+        attempts: result.attempts,
+      });
+    } else {
+      // Shouldn't happen, but just in case
+      webhookOutboxStore.updateOutboxEntry(entry.id, {
+        status: "failed",
+        attempts: result.attempts,
+        lastError: "Unknown failure",
+      });
+    }
+  }
+
+  /**
+   * Drain the outbox: process all pending entries
+   */
+  async drainOutbox(limit: number = 100): Promise<void> {
+    const entries = webhookOutboxStore.getPendingOutboxEntries(limit);
+
+    logger.info("Draining webhook outbox", {
+      pending_count: entries.length,
+    });
+
+    for (const entry of entries) {
+      await this.processOutboxEntry(entry);
+    }
+
+    logger.info("Outbox drain complete");
+  }
+
+  /**
+   * Start a background worker that drains the outbox periodically
+   */
+  startOutboxWorker(intervalMs: number = 1000): () => void {
+    let running = true;
+    let timeout: NodeJS.Timeout | null = null;
+
+    const run = async () => {
+      if (!running) return;
+      try {
+        await this.drainOutbox();
+      } catch (err) {
+        logger.error("Outbox worker error", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        if (running) {
+          timeout = setTimeout(run, intervalMs);
+        }
+      }
+    };
+
+    // Start immediately
+    run();
+
+    return () => {
+      running = false;
+      if (timeout) clearTimeout(timeout);
+    };
+  }
+
+  /**
    * Re-enqueue a DLQ entry through the delivery worker idempotently.
    *
    * This is the core of the DLQ replay feature (issue #234).
    *
-   * ## Idempotency
-   * If the DLQ entry already has a `replayedDeliveryId` the method returns
+   * **Idempotency:** If the DLQ entry already has a `replayedDeliveryId` the method returns
    * the existing result immediately — a double-click never double-delivers.
    *
-   * ## Auth
-   * The caller (route handler) is responsible for verifying internal-service
+   * **Auth:** The caller (route handler) is responsible for verifying internal-service
    * or admin auth before calling this method.
    *
-   * @param dlqId  The DLQ entry to replay.
+   * @param dlqId  - The DLQ entry to replay.
    * @returns Result object with the new deliveryId and success flag.
    */
   async replayFromDLQ(dlqId: string): Promise<{
@@ -173,7 +256,7 @@ export class WebhookDeliveryWorker {
     // ── Idempotency guard ────────────────────────────────────────────────────
     // If already replayed, return the existing delivery ID without re-enqueuing.
     if (dlqEntry.replayedDeliveryId) {
-      logger.info('DLQ replay skipped — already replayed (idempotent)', {
+      logger.info("DLQ replay skipped — already replayed (idempotent)", {
         dlq_id: dlqId,
         existing_delivery_id: dlqEntry.replayedDeliveryId,
         replayed_at: dlqEntry.replayedAt,
@@ -195,7 +278,7 @@ export class WebhookDeliveryWorker {
       maxRetries: this.maxRetries,
     };
 
-    logger.info('Replaying DLQ entry', {
+    logger.info("Replaying DLQ entry", {
       dlq_id:          dlqId,
       new_delivery_id: newDeliveryId,
       endpoint_id:     endpoint.id,
@@ -212,7 +295,7 @@ export class WebhookDeliveryWorker {
     // Fire-and-forget: processDelivery manages its own retry/DLQ lifecycle.
     // We do not await here so the HTTP response returns immediately.
     this.processDelivery(endpoint, dlqEntry.payload, newDeliveryId).catch((err) => {
-      logger.error('DLQ replay delivery failed unexpectedly', {
+      logger.error("DLQ replay delivery failed unexpectedly", {
         dlq_id:          dlqId,
         new_delivery_id: newDeliveryId,
         error:           err instanceof Error ? err.message : String(err),

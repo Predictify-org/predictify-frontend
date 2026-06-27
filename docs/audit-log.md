@@ -20,8 +20,25 @@ Each entry records:
 
 ## Retention
 
-- Default retention: **2555 days** (7 years)
-- The API returns `retentionDays` for JSON reads and `x-audit-retention-days` for NDJSON exports.
+- Default retention: **30 days**
+- Expired entries are archived to cold storage by the daily retention job before they are removed from the active append-only store.
+- The API returns `retentionDays` for JSON reads and `x-audit-retention-days`
+  for NDJSON exports.
+- The store exposes `archiveExpiredEntries()` and `restoreArchivedEntries()` so
+  archived records can be restored without changing the existing hash-chain
+  values.
+- Retention cleanup is performed with the admin CLI, not through the public API:
+
+```bash
+# Dry-run rows older than the retention window
+npx ts-node scripts/purge-audit.ts --older-than-days 2555
+
+# Execute the purge after reviewing the dry-run output
+npx ts-node scripts/purge-audit.ts --older-than-days 2555 --execute
+```
+
+The CLI prints a JSON result containing the cutoff timestamp, purge count,
+retained count, request id, and before/after hash-chain integrity flags.
 
 ## Access matrix
 
@@ -53,5 +70,7 @@ This keeps exports useful for investigations without leaking unnecessary PII int
 ## Notes and intentional exclusions
 
 - The current implementation uses an in-memory append-only store because this repo is a frontend/mock API surface. A production deployment should mirror each write to an external immutable sink such as S3 object lock or a warehouse table with write-once controls.
-- No API exists to mutate or delete audit records.
+- No API exists to mutate or delete audit records. Retention purges are limited
+  to the admin CLI and should only run after archived records have crossed the
+  configured retention window.
 - Search is available by actor id, role, action, target id, request id, and free-text query.

@@ -8,7 +8,7 @@ const config = {
   // Component tests will run in a separate command with jsdom
   testEnvironment: "node",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
-  testMatch: ["**/*.test.ts", "**/*.spec.ts"],
+  testMatch: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
   collectCoverageFrom: [
     "app/**/*.{ts,tsx}",
     "lib/**/*.{ts,tsx}",
