@@ -258,7 +258,7 @@ export function TypographyExample() {
             <h3 className="text-h3 mb-4">Possible Outcomes</h3>
             <div className="space-y-2">
               <div className="flex justify-between p-3 bg-secondary/30 rounded-lg">
-                <span className="text-body-md">Yes - SPY > $450</span>
+                <span className="text-body-md">Yes - SPY &gt; $450</span>
                 <span className="text-stat-md font-bold text-emerald-400">72%</span>
               </div>
               <div className="flex justify-between p-3 bg-secondary/30 rounded-lg">

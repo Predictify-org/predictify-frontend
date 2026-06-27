@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
                 >
                   P
                 </div>
-                <span style={{ fontSize: '36px', fontWeight: 'bold', tracking: '-0.02em' }}>Predictify</span>
+                <span style={{ fontSize: '36px', fontWeight: 'bold', letterSpacing: '-0.02em' }}>Predictify</span>
               </div>
               <div
                 style={{

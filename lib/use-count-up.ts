@@ -13,7 +13,7 @@ export const useCountUp = (
   endValue: number,
   startValue: number = 0,
   duration: number = 2000
-): [React.RefObject<HTMLDivElement>, number] => {
+): [React.RefObject<HTMLDivElement | null>, number] => {
   const [currentValue, setCurrentValue] = React.useState(startValue);
   const ref = React.useRef<HTMLDivElement>(null);
   const animationRef = React.useRef<number>(0);

@@ -363,7 +363,7 @@ export default function MyPage() {
                   </tr>
                   <tr>
                     <td className="py-3 px-4 text-gray-700">onLoadMore</td>
-                    <td className="py-3 px-4 text-gray-700">() => void</td>
+                    <td className="py-3 px-4 text-gray-700">{"() => void"}</td>
                     <td className="py-3 px-4 text-gray-500">undefined</td>
                     <td className="py-3 px-4 text-gray-600">Callback when user clicks load more</td>
                   </tr>

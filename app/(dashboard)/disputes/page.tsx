@@ -26,6 +26,20 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
+// Type for local disputes mock data
+interface LocalDispute {
+  id: string
+  eventId: string
+  eventTitle: string
+  category: string
+  submittedBy: string
+  submittedDate: string
+  reason: string
+  status: string
+  priority: string
+  evidence: string
+}
+
 // Mock data for disputes
 const disputes = [
   {
@@ -108,7 +122,7 @@ export default function DisputesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
-  const [selectedDispute, setSelectedDispute] = useState(null)
+  const [selectedDispute, setSelectedDispute] = useState<LocalDispute | null>(null)
   const [resolution, setResolution] = useState("")
   const [resolutionNotes, setResolutionNotes] = useState("")
   const [selectedDisputeData, setSelectedDisputeData] = useState<DisputeData>(mockDisputesByState.none)
@@ -126,7 +140,7 @@ export default function DisputesPage() {
     return matchesSearch && matchesStatus && matchesPriority
   })
 
-  const getPriorityBadge = (priority) => {
+  const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case "high":
         return <Badge className="bg-red-500">High</Badge>
@@ -142,7 +156,7 @@ export default function DisputesPage() {
   const handleResolve = () => {
     // In a real app, you would send this data to your API
     console.log({
-      disputeId: selectedDispute.id,
+      disputeId: selectedDispute?.id,
       resolution,
       notes: resolutionNotes,
     })

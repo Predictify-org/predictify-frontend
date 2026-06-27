@@ -63,6 +63,7 @@ interface CustomToastContentProps {
   message: string;
   description?: string;
   action?: {
+    label: string;
     onClick: () => void;
   };
   onShare?: () => void;
