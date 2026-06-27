@@ -1,6 +1,7 @@
 import { Check, X } from 'lucide-react';
 import { TallySide } from '@/types/disputes';
 import { cn } from '@/lib/utils';
+import { OutcomeIcon, getVariantByIndex } from '@/components/icons/OutcomeIcons';
 
 interface TallyBarProps {
   tally: [TallySide, TallySide];
@@ -25,9 +26,24 @@ export function TallyBar({ tally, showAmounts = false }: TallyBarProps) {
 
   return (
     <div className="w-full space-y-1">
+      {/*
+       * Label row — each label is prefixed with a color-blind safe shape icon.
+       * Icons are aria-hidden; the bar's aria-label above is the primary
+       * accessible description (WCAG 2.1 AA 1.4.1 Use of Color).
+       *
+       * Shape → side mapping (mirrors OUTCOME_COLOR_CLASS in OutcomeIcons.tsx):
+       *   ▲ TriangleUp  → index 0 (left / "Yes")
+       *   ▽ TriangleDown → index 1 (right / "No")
+       */}
       <div className="flex justify-between text-xs font-medium">
-        <span>{left.label}</span>
-        <span>{right.label}</span>
+        <span className="flex items-center gap-1">
+          <OutcomeIcon variant={getVariantByIndex(0)} aria-hidden className="text-chart-1" />
+          {left.label}
+        </span>
+        <span className="flex items-center gap-1">
+          {right.label}
+          <OutcomeIcon variant={getVariantByIndex(1)} aria-hidden className="text-chart-2" />
+        </span>
       </div>
 
       {showAmounts && (
