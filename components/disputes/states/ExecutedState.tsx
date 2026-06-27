@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { TallyBar } from '@/components/disputes/shared/TallyBar';
 import { DetailsAccordion } from '@/components/disputes/shared/DetailsAccordion';
 import type { DisputeData, DisputeState } from '@/types/disputes';
+import { OutcomeIcon } from '@/components/icons/OutcomeIcons';
 
 interface ExecutedStateProps {
   data: DisputeData;
@@ -16,6 +17,12 @@ export function ExecutedState({ data }: ExecutedStateProps) {
       {data.outcome && (
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">Final outcome:</span>
+          {/*
+           * Shape icon (▲ positive / TriangleUp) signals a resolved / executed
+           * outcome. aria-hidden because the badge text is the primary label.
+           * Distinguishable under Deuteranopia & Tritanopia simulations.
+           */}
+          <OutcomeIcon variant="positive" aria-hidden className="text-chart-1" />
           <Badge className="border-transparent bg-green-600 text-white text-sm px-3 py-1">
             {data.outcome}
           </Badge>
