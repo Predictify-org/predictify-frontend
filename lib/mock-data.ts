@@ -139,7 +139,8 @@ export const categoryColors = {
             icon: 'down',
             amountColor: 'text-green-500',
             currency: 'XLM',
-            numericAmount: 50
+            numericAmount: 50,
+            hash: '0x1A2b3C4d5E6f7G8h9I0j1K2l3M4n5O6p7Q8r9S0t'
         },
         {
             date: '09/06/2023',
@@ -150,7 +151,8 @@ export const categoryColors = {
             icon: 'up',
             amountColor: 'text-red-500',
             currency: 'XLM',
-            numericAmount: -10
+            numericAmount: -10,
+            hash: '0x2B3c4D5e6F7g8H9i0J1k2L3m4N5o6P7q8R9s0T1u'
         },
         {
             date: '08/06/2023',
@@ -161,7 +163,8 @@ export const categoryColors = {
             icon: 'down',
             amountColor: 'text-green-500',
             currency: 'XLM',
-            numericAmount: 18
+            numericAmount: 18,
+            hash: '0x3C4d5E6f7G8h9I0j1K2l3M4n5O6p7Q8r9S0t1U2v'
         },
         {
             date: '07/06/2023',
@@ -172,7 +175,8 @@ export const categoryColors = {
             icon: 'up',
             amountColor: 'text-red-500',
             currency: 'XLM',
-            numericAmount: -25
+            numericAmount: -25,
+            hash: '0x4D5e6F7g8H9i0J1k2L3m4N5o6P7q8R9s0T1u2V3w'
         },
         {
             date: '06/06/2023',
@@ -183,7 +187,8 @@ export const categoryColors = {
             icon: 'up',
             amountColor: 'text-red-500',
             currency: 'USDC',
-            numericAmount: -15
+            numericAmount: -15,
+            hash: '0x5E6f7G8h9I0j1K2l3M4n5O6p7Q8r9S0t1U2v3W4x'
         },
         {
             date: '05/06/2023',
@@ -194,7 +199,8 @@ export const categoryColors = {
             icon: 'refresh',
             amountColor: 'text-green-500',
             currency: 'USDC',
-            numericAmount: 5
+            numericAmount: 5,
+            hash: '0x6F7g8H9i0J1k2L3m4N5o6P7q8R9s0T1u2V3w4X5y'
         },
         {
             date: '06/06/2023',
@@ -205,7 +211,8 @@ export const categoryColors = {
             icon: 'up',
             amountColor: 'text-red-500',
             currency: 'USDC',
-            numericAmount: -15
+            numericAmount: -15,
+            hash: '0x7G8h9I0j1K2l3M4n5O6p7Q8r9S0t1U2v3W4x5Y6z'
         },
         {
             date: '05/06/2023',
@@ -216,7 +223,8 @@ export const categoryColors = {
             icon: 'refresh',
             amountColor: 'text-green-500',
             currency: 'USDC',
-            numericAmount: 5
+            numericAmount: 5,
+            hash: '0x8H9i0J1k2L3m4N5o6P7q8R9s0T1u2V3w4X5y6Z7a'
         },
         {
             date: '04/06/2023',
@@ -227,6 +235,7 @@ export const categoryColors = {
             icon: 'down',
             amountColor: 'text-green-500',
             currency: 'USDC',
-            numericAmount: 100
+            numericAmount: 100,
+            hash: '0x9I0j1K2l3M4n5O6p7Q8r9S0t1U2v3W4x5Y6z7A8b'
         }
     ];
