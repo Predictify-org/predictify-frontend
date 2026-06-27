@@ -9,6 +9,9 @@ API versioning follows the policy in [README.md#api-versioning](README.md#api-ve
 ## [Unreleased]
 
 ### Added
+- Centralized accessible toast queue (`ToastProvider`, `useToast`) with
+  severity icons, auto-dismiss, queue limits, and `role="status"` live
+  region announcements per WCAG 2.1 AA.
 - Request fingerprinting for fraud signals on all `/api/*` routes. Edge
   middleware computes a stable SHA-256 hash from non-volatile request signals
   (method, path, client IP, User-Agent, Accept-Language, Accept-Encoding) and

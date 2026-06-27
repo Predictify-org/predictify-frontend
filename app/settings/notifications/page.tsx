@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { PushOptIn } from '../../components/PushOptIn';
 import { NotificationGroup } from '../../components/settings/NotificationGroup';
 import { SettingItem } from '../../components/settings/SettingItem';
+import { useToast } from '../../hooks/useToast';
 
 export default function NotificationsPage() {
   const [prefs, setPrefs] = useState({
@@ -17,8 +18,8 @@ export default function NotificationsPage() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
-  const [showToast, setShowToast] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { success } = useToast();
 
   const handleToggle = (key: keyof Omit<typeof prefs, 'pushFallback'>, channel: 'inApp' | 'email', value: boolean) => {
     setPrefs((prev) => ({
@@ -36,8 +37,7 @@ export default function NotificationsPage() {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      success('Notification preferences saved successfully.');
     } catch {
       setError('Failed to save preferences. Please try again.');
     } finally {
@@ -152,11 +152,6 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {showToast && (
-        <div className="toast" role="status">
-          Notification preferences saved successfully.
-        </div>
-      )}
     </main>
   );
 }
