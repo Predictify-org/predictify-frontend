@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateConfig } from './app/lib/config/index';
 import { buildAllowedOriginSet, isOriginAllowed, DEFAULT_CORS_HEADERS, DEFAULT_CORS_METHODS, DEFAULT_CORS_MAX_AGE_SECONDS } from './app/lib/cors';
+import {
+  REQUEST_FINGERPRINT_HEADER,
+  captureRequestFingerprint,
+} from './lib/fingerprint';
 
 // ---------------------------------------------------------------------------
 // Request body size cap
@@ -129,12 +133,17 @@ function buildCorsHeaders(origin: string) {
   return headers;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const fingerprint = await captureRequestFingerprint(request);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(REQUEST_FINGERPRINT_HEADER, fingerprint);
+
   // ------------------------------------------------------------------
   // 1. Request body size cap (path-scoped, O(1) — reads Content-Length)
   // ------------------------------------------------------------------
   const sizeError = checkRequestBodySize(request);
   if (sizeError !== null) {
+    sizeError.headers.set(REQUEST_FINGERPRINT_HEADER, fingerprint);
     return sizeError;
   }
 
@@ -155,7 +164,11 @@ export function middleware(request: NextRequest) {
     });
   }
 
-  const response = NextResponse.next();
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 
   if (originAllowed) {
     const headers = response.headers;

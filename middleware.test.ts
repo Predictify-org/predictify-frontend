@@ -288,3 +288,73 @@ describe('request size cap middleware', () => {
     expect(atResponse.status).not.toBe(413);
   });
 });
+
+// =============================================================================
+// Request fingerprinting
+// =============================================================================
+
+describe('request fingerprint middleware', () => {
+  let middleware: any;
+
+  beforeEach(async () => {
+    jest.resetModules();
+
+    (process.env as any).STELLAR_NETWORK = 'testnet';
+    (process.env as any).JWT_SECRET = 'test-secret-at-least-32-characters-long';
+    (process.env as any).NODE_ENV = 'production';
+    (process.env as any).ALLOWED_ORIGINS = 'https://allowed.example.com';
+
+    const { resetAuditLogStore } = await import('@/app/lib/audit-log');
+    resetAuditLogStore();
+    await import('@/lib/fingerprint-audit');
+    const imported = await import('./middleware');
+    middleware = imported.middleware;
+  });
+
+  afterEach(() => {
+    delete (process.env as any).STELLAR_NETWORK;
+    delete (process.env as any).JWT_SECRET;
+    delete (process.env as any).NODE_ENV;
+    delete (process.env as any).ALLOWED_ORIGINS;
+  });
+
+  it('captures a stable fingerprint in the audit log for API requests', async () => {
+    const { auditLogStore } = await import('@/app/lib/audit-log');
+    const { REQUEST_FINGERPRINT_AUDIT_ACTION } = await import('@/lib/fingerprint');
+
+    const request = new Request('https://api.example.com/api/health', {
+      method: 'GET',
+      headers: {
+        'accept-encoding': 'gzip',
+        'accept-language': 'en-US',
+        'user-agent': 'StreamPay-Test/1.0',
+        'x-forwarded-for': '203.0.113.10',
+        'x-request-id': 'req_fingerprint_middleware_1',
+      },
+    });
+
+    const response = await middleware(request as any);
+
+    expect(response.status).not.toBe(413);
+
+    const entries = auditLogStore.list({ action: REQUEST_FINGERPRINT_AUDIT_ACTION });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.metadata?.requestFingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(entries[0]?.requestId).toBe('req_fingerprint_middleware_1');
+  });
+
+  it('includes the fingerprint on 413 responses for oversized bodies', async () => {
+    const request = new Request('http://localhost/api/v2/streams', {
+      method: 'POST',
+      headers: {
+        'content-length': String(256 * 1024 + 1),
+        'user-agent': 'StreamPay-Test/1.0',
+      },
+    });
+
+    const response = await middleware(request as any);
+
+    expect(response.status).toBe(413);
+    expect(response.headers.get('x-request-fingerprint')).toMatch(/^[a-f0-9]{64}$/);
+  });
+});

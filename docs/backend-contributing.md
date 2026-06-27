@@ -190,6 +190,7 @@ and `app/lib/amount.test.ts` for pure-logic unit testing.
 | Stellar client | `app/lib/stellarClient.ts` | Horizon/Soroban wrapper with caching, circuit breaker, concurrency limits |
 | Rate limiting | `app/lib/rate-limit.ts` | `checkRateLimit()`, per-route config in `rate-limit-config.ts` |
 | Idempotency | `app/lib/db.ts` (`checkIdempotency`, `setIdempotency`) | `Idempotency-Key` header, SHA-256 fingerprint, 24h TTL |
+| Request fingerprinting | `lib/fingerprint.ts`, `middleware.ts` | Stable SHA-256 hash from request signals; see [request-fingerprinting.md](./request-fingerprinting.md) |
 | State machine | `app/lib/state-machine.ts` | Stream status transitions, `transition()` |
 | Stream service | `app/lib/stream-service.ts` | `StreamService.applyAction()`, orchestration layer |
 | Event bus | `app/lib/event-bus.ts` | Pub/sub for real-time updates |
