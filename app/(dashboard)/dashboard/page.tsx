@@ -1,11 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { Activity, Calendar, CheckCircle, DollarSign, HelpCircle, TrendingUp, Users, AlertCircle } from "lucide-react"
+import { AlertCircle, CheckCircle, HelpCircle, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { StatCard } from "@/components/cards/stat-card"
+import { RecommendationProvenance, type RecommendationSignalKey } from "@/components/cards/recommendation-provenance"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStrip"
@@ -16,9 +17,46 @@ interface Stat {
   value: string
 }
 
+interface RecommendedMarket {
+  id: string
+  title: string
+  category: string
+  href: string
+  signalKey: RecommendationSignalKey
+  volume: string
+}
+
+const recommendedMarkets: RecommendedMarket[] = [
+  {
+    id: "ai-policy-2026",
+    title: "Will a major AI safety bill pass this quarter?",
+    category: "Politics",
+    href: "/events",
+    signalKey: "category_match",
+    volume: "$18.4k volume",
+  },
+  {
+    id: "eth-weekly-close",
+    title: "Will ETH close above $4,000 this week?",
+    category: "Crypto",
+    href: "/events",
+    signalKey: "similar_markets",
+    volume: "$42.1k volume",
+  },
+  {
+    id: "finals-game-seven",
+    title: "Will the finals series reach game seven?",
+    category: "Sports",
+    href: "/events",
+    signalKey: "trending",
+    volume: "$27.9k volume",
+  },
+]
+
 export default function DashboardPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
   const [stats, setStats] = useState<Stat[] | null>(null)
+  const [hiddenRecommendations, setHiddenRecommendations] = useState<string[]>([])
 
   // Simulate async fetch
   useEffect(() => {
@@ -102,6 +140,90 @@ export default function DashboardPage() {
           </div>
         )
     }
+  }
+
+  const renderRecommendationStrip = () => {
+    const visibleRecommendations = recommendedMarkets.filter(
+      (market) => !hiddenRecommendations.includes(market.id)
+    )
+
+    if (visibleRecommendations.length === 0) {
+      return (
+        <Card>
+          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold">No recommendations right now</p>
+              <p className="text-sm text-muted-foreground">
+                We will refresh this strip as new market signals become available.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setHiddenRecommendations([])}
+            >
+              Reset
+            </Button>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    return (
+      <section aria-labelledby="recommendations-title" className="space-y-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 id="recommendations-title" className="text-lg font-semibold">
+              Recommended markets
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              A few markets matched to recent signals.
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/events">View all markets</Link>
+          </Button>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {visibleRecommendations.map((market) => (
+            <Card key={market.id} className="overflow-hidden">
+              <CardContent className="flex h-full flex-col gap-4 p-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
+                      {market.category}
+                    </span>
+                    <RecommendationProvenance
+                      signalKey={market.signalKey}
+                      marketTitle={market.title}
+                      onStopRecommending={() =>
+                        setHiddenRecommendations((current) => [
+                          ...current,
+                          market.id,
+                        ])
+                      }
+                    />
+                  </div>
+                  <h3 className="text-base font-semibold leading-6">
+                    <Link href={market.href} className="hover:underline">
+                      {market.title}
+                    </Link>
+                  </h3>
+                </div>
+                <div className="mt-auto flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                  <span>{market.volume}</span>
+                  <Button asChild variant="ghost" size="sm" className="px-2">
+                    <Link href={market.href}>Open</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+    )
   }
 
   const renderAnalyticsPanel = () => {
@@ -237,6 +359,7 @@ export default function DashboardPage() {
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           {renderCards()}
+          {renderRecommendationStrip()}
           <RecommendationsStrip />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
