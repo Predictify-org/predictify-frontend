@@ -110,24 +110,54 @@ pub fn created(
 }
 
 pub fn started(env: &Env, stream_id: u64, start_time: u64, end_time: u64, timestamp: u64) {
-    StreamStarted { stream_id, start_time, end_time, timestamp }.publish(env);
+    StreamStarted {
+        stream_id,
+        start_time,
+        end_time,
+        timestamp,
+    }
+    .publish(env);
 }
 
 pub fn withdrawn(env: &Env, stream_id: u64, recipient: &Address, amount: i128, timestamp: u64) {
-    StreamWithdrawn { stream_id, recipient: recipient.clone(), amount, timestamp }.publish(env);
+    StreamWithdrawn {
+        stream_id,
+        recipient: recipient.clone(),
+        amount,
+        timestamp,
+    }
+    .publish(env);
 }
 
 pub fn settled(env: &Env, stream_id: u64, recipient: &Address, total_amount: i128, timestamp: u64) {
-    StreamSettled { stream_id, recipient: recipient.clone(), total_amount, timestamp }.publish(env);
+    StreamSettled {
+        stream_id,
+        recipient: recipient.clone(),
+        total_amount,
+        timestamp,
+    }
+    .publish(env);
 }
 
 pub fn paused(env: &Env, stream_id: u64, sender: &Address, pause_time: u64, timestamp: u64) {
-    StreamPaused { stream_id, sender: sender.clone(), pause_time, timestamp }.publish(env);
+    StreamPaused {
+        stream_id,
+        sender: sender.clone(),
+        pause_time,
+        timestamp,
+    }
+    .publish(env);
 }
 
 #[allow(dead_code)]
 pub fn resumed(env: &Env, stream_id: u64, sender: &Address, end_time: u64, timestamp: u64) {
-    StreamResumed { stream_id, sender: sender.clone(), end_time, timestamp }.publish(env);
+    StreamResumed {
+        stream_id,
+        sender: sender.clone(),
+        end_time,
+        timestamp,
+    }
+    .publish(env);
 }
 
 pub fn upgraded(env: &Env, new_wasm_hash: BytesN<32>) {
@@ -171,5 +201,11 @@ pub fn amended(
 }
 
 pub fn admin_action(env: &Env, stream_id: u64, admin: &Address, action: Symbol, timestamp: u64) {
-    AdminAction { stream_id, admin: admin.clone(), action, timestamp }.publish(env);
+    AdminAction {
+        stream_id,
+        admin: admin.clone(),
+        action,
+        timestamp,
+    }
+    .publish(env);
 }

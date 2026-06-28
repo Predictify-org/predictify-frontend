@@ -24,9 +24,9 @@ mod release;
 mod storage;
 
 pub use error::Error;
+use soroban_sdk::contracttype;
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 pub use storage::{Stream, StreamStatus};
-use soroban_sdk::contracttype;
 
 /// The StreamPay contract entry point registered with the Soroban host.
 #[contract]
@@ -584,7 +584,7 @@ impl Contract {
         Ok(amount)
     }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────────
 
     /// Pauses an Active stream. Only the `sender` may pause.
     ///
@@ -923,7 +923,7 @@ mod upgrade_test {
         env.mock_all_auths();
 
         let admin = Address::generate(&env);
-        let contract_id = env.register_contract(None, Contract);
+        let contract_id = env.register(Contract, ());
         let client = ContractClient::new(&env, &contract_id);
 
         client.initialize(&admin);
