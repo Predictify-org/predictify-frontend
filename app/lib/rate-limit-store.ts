@@ -68,7 +68,7 @@ export class InMemoryRateLimitStore implements RateLimitStore {
     };
   }
 
-  private cleanup(): void {
+  cleanup(): void {
     const now = Date.now();
     const windowSize = 120_000;
     for (const [key, bucket] of this.buckets.entries()) {

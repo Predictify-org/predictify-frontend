@@ -26,7 +26,30 @@ export const homeCopy = {
   heading: "Manage payment streams with clear, consistent actions.",
   body: "Connect your wallet to start, pause, stop, settle, and withdraw from streams with confidence.",
   primaryCta: "Connect Wallet",
-  secondaryCta: "View Stream Actions",
+  secondaryCta: "How it works",
+} as const;
+
+export const onboardingCopy = {
+  title: "What is a payment stream?",
+  subtitle: "Understand how real-time payments flow on Stellar.",
+  steps: [
+    {
+      id: "stream",
+      title: "Stream",
+      description: "Pay and be paid in real-time. XLM flows continuously from sender to receiver every second.",
+    },
+    {
+      id: "settle",
+      title: "Settle",
+      description: "Finalize the stream to stop the flow and calculate the exact final amounts for both parties.",
+    },
+    {
+      id: "withdraw",
+      title: "Withdraw",
+      description: "Transfer your settled XLM directly to your connected Stellar wallet.",
+    },
+  ],
+  cta: "Got it, let's go",
 } as const;
 
 /**
@@ -38,6 +61,16 @@ export const homeCopy = {
  * DO NOT use these in production until a feature-flag issue is created
  * and analytics instrumentation is in place.
  */
+export const receiptCopy = {
+  noteLabel: "Custom Note",
+  notePlaceholder: "Add a note to this receipt (optional)",
+  noteHelper: "Your note will appear on the printed receipt.",
+  print: "Print / Save as PDF",
+  share: "Share",
+  shareCopied: "Link copied to clipboard",
+  noteSectionTitle: "Receipt Note",
+} as const;
+
 export const heroCtaVariants = {
   a: { label: "Connect Stellar wallet", hypothesis: "Naming the network signals trust and specificity for Stellar-native users" },
   b: { label: "Link wallet", hypothesis: "Shorter verb lowers perceived friction for users unfamiliar with Stellar terminology" },

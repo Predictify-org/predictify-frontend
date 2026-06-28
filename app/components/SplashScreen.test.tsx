@@ -1,4 +1,9 @@
-import { render, screen, act } from "@testing-library/react";
+/**
+ * @jest-environment jsdom
+ */
+
+import { render, act } from "@testing-library/react";
+const { screen } = require("@testing-library/react") as any;
 import "@testing-library/jest-dom";
 import SplashScreen from "./SplashScreen";
 
@@ -60,7 +65,7 @@ describe("SplashScreen", () => {
     const orbs = container.querySelectorAll(".splash-orb");
     expect(orbs).toHaveLength(3);
 
-    orbs.forEach((orb) => {
+    orbs.forEach((orb: any) => {
       expect(orb).toHaveAttribute("aria-hidden", "true");
     });
   });

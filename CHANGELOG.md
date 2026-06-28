@@ -8,6 +8,22 @@ API versioning follows the policy in [README.md#api-versioning](README.md#api-ve
 
 ## [Unreleased]
 
+### Added
+- Centralized accessible toast queue (`ToastProvider`, `useToast`) with
+  severity icons, auto-dismiss, queue limits, and `role="status"` live
+  region announcements per WCAG 2.1 AA.
+- Request fingerprinting for fraud signals on all `/api/*` routes. Edge
+  middleware computes a stable SHA-256 hash from non-volatile request signals
+  (method, path, client IP, User-Agent, Accept-Language, Accept-Encoding) and
+  forwards it via the internal `x-request-fingerprint` header. Fingerprint
+  observations are written to the append-only audit log with correlation IDs,
+  and privileged stream audit events now include `requestFingerprint` metadata.
+
+### Fixed
+- `GET /api/orgs/:orgId/members` and `POST /api/orgs/:orgId/members` now return
+  `404 ORG_NOT_FOUND` when the organization does not exist, instead of an
+  unhandled `500` caused by accessing an undefined legacy store.
+
 ## [2.0.0] — 2026-04-28
 
 ### Added

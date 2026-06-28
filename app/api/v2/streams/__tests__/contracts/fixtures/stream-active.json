@@ -1,0 +1,27 @@
+{
+  "consumer": { "name": "streampay-frontend" },
+  "provider": { "name": "streampay-api-v2" },
+  "interactions": [
+    {
+      "description": "a request for an active stream",
+      "providerState": "stream stream_abc123 exists and is active",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/streams/stream_abc123",
+        "headers": { "Authorization": "Bearer test-token" }
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "body": {
+          "id": "stream_abc123",
+          "recipient": "GABC1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234",
+          "rate": "120",
+          "status": "active",
+          "actions": ["pause", "stop"],
+          "createdAt": "2026-01-01T00:00:00.000Z"
+        }
+      }
+    }
+  ]
+}

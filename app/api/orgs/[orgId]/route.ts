@@ -30,7 +30,11 @@ export async function GET(
   }
 
   return NextResponse.json({
-    data: { ...org, ownedStreams },
+    data: {
+      ...org,
+      ownedStreams,
+      tokenAllowlist: org.tokenAllowlist ?? [],
+    },
     links: { self: `/api/orgs/${orgId}` },
   });
 }

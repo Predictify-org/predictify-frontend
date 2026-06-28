@@ -1,11 +1,10 @@
 import { GET } from "./route";
-import { NextRequest } from "next/request";
-import { db, resetDb } from "@/app/lib/auth"; // Wait, db is in app/lib/db
+import { db, resetDb } from "@/app/lib/db";
 import { eventBus } from "@/app/lib/event-bus";
 import jwt from "jsonwebtoken";
 
 // Mock dependencies
-jest.mock("@/app/lib/logger");
+jest.mock("../../../lib/logger");
 
 const JWT_SECRET = process.env.JWT_SECRET || "streampay-dev-secret-do-not-use-in-prod";
 
@@ -23,7 +22,7 @@ describe("SSE Events API", () => {
   });
 
   it("returns 422 if streamId is missing", async () => {
-    const token = jwt.sign({ sub: "GD7H...3J4K", role: "user" }, JWT_SECRET);
+    const token = jwt.sign({ iss: "streampay", aud: "streampay-api", sub: "GD7H...3J4K", role: "user" }, JWT_SECRET);
     const req = new Request("http://localhost/api/streams/events", {
       headers: { authorization: `Bearer ${token}` },
     }) as any;
@@ -32,7 +31,7 @@ describe("SSE Events API", () => {
   });
 
   it("returns 404 if stream does not exist", async () => {
-    const token = jwt.sign({ sub: "GD7H...3J4K", role: "user" }, JWT_SECRET);
+    const token = jwt.sign({ iss: "streampay", aud: "streampay-api", sub: "GD7H...3J4K", role: "user" }, JWT_SECRET);
     const req = new Request("http://localhost/api/streams/events?streamId=invalid-id", {
       headers: { authorization: `Bearer ${token}` },
     }) as any;
@@ -43,7 +42,7 @@ describe("SSE Events API", () => {
   it("returns 403 if user does not own the stream", async () => {
     // stream-ada belongs to ada@creativestudio.io (GD7H...3J4K)
     // We'll use a different wallet address
-    const token = jwt.sign({ sub: "OTHER_WALLET", role: "user" }, JWT_SECRET);
+    const token = jwt.sign({ iss: "streampay", aud: "streampay-api", sub: "OTHER_WALLET", role: "user" }, JWT_SECRET);
     const req = new Request("http://localhost/api/streams/events?streamId=stream-ada", {
       headers: { authorization: `Bearer ${token}` },
     }) as any;
@@ -52,7 +51,7 @@ describe("SSE Events API", () => {
   });
 
   it("returns 200 and establishes SSE for authorized user", async () => {
-    const token = jwt.sign({ sub: "GD7H...3J4K", role: "user" }, JWT_SECRET);
+    const token = jwt.sign({ iss: "streampay", aud: "streampay-api", sub: "GD7H...3J4K", role: "user" }, JWT_SECRET);
     const req = new Request("http://localhost/api/streams/events?streamId=stream-ada", {
       headers: { authorization: `Bearer ${token}` },
     }) as any;

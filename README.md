@@ -40,6 +40,7 @@ The application will fail to boot without these required variables:
 
 - `STELLAR_NETWORK` - Network selection: `testnet` or `mainnet`
 - `JWT_SECRET` - JWT signing secret (minimum 32 characters)
+- `ALLOWED_ORIGINS` - Comma-separated list of allowed browser origins for API requests
 
 ### Setup
 
@@ -52,6 +53,7 @@ The application will fail to boot without these required variables:
    ```env
    STELLAR_NETWORK=testnet
    JWT_SECRET=dev-secret-key-at-least-32-chars
+   ALLOWED_ORIGINS=http://localhost:3000
    NODE_ENV=development
    ```
 
@@ -72,6 +74,24 @@ The application will fail to boot without these required variables:
 
 See [docs/network-security.md](docs/network-security.md) for the complete security guide.
 
+## Stream lifecycle (at a glance)
+
+A stream moves through these on-chain states:
+
+`Draft` → `Active` → (`Paused` ↔ `Active`)* → `Settled`
+
+- **Draft**: created and escrowed, not yet streaming. `start_time` and
+  `end_time` are not pinned until activation.
+- **Active**: vesting linearly between `start_time` and `end_time`.
+  Recipient may withdraw vested funds at any time.
+- **Paused**: accrual is frozen; vested funds remain withdrawable.
+- **Settled**: terminal. All funds released; no further state changes.
+- **Cancelled**: terminal alternative to Settled when the sender ends
+  the stream early. Remaining unvested funds refund to the sender.
+
+See [docs/STATE_MACHINE.md](docs/STATE_MACHINE.md) for the formal
+transition table and invariants.
+
 ## Schedule semantics
 
 - Calendar-month schedules use UTC day boundaries for proration.
@@ -88,6 +108,18 @@ eventually consistent; balances and account state may lag the chain by the cache
 
 Auth and write operations are never cached. Cache keys must include the tenant and account address to
 prevent cross-tenant data leakage.
+
+## Persistence seam
+
+Backend stream, idempotency, export, and activity state now sits behind a
+pluggable repository interface.
+
+- Default adapter: in-memory (`app/lib/repositories/in-memory.ts`)
+- Durable seam: PostgreSQL-oriented adapter contract (`app/lib/repositories/postgres.ts`)
+- Design notes and rollout plan: [docs/persistent-store-interface.md](docs/persistent-store-interface.md)
+
+The default runtime behavior remains in-memory until the SQL migration track
+cuts the durable adapter in.
 
 ## Prerequisites
 
@@ -230,31 +262,111 @@ streampay-frontend/
 └── README.md
 ```
 
-## GDPR export support
+## API
 
-The app now includes a self-serve export flow for stream and activity history under `/api/exports`.
+The app exposes Next.js route handlers under `app/api/`. All routes share a single error envelope (see below).
 
-- `POST /api/exports` creates an async export job
-- `GET /api/exports/:id` returns export status
-- `GET /api/exports/:id?download=true` returns a short-lived signed URL for the resulting CSV
-- Export artifacts are retained for 7 days and signed URLs are short-lived
-- Download requests are audited when the signed URL is requested
+### Authentication
 
-## Asset Amount Validation Policy
+Wallet-based auth uses a challenge/verify flow:
 
-`app/lib/amount.ts` centralizes amount parsing and stream escrow math used by the frontend stream list.
+1. `GET /api/auth/wallet?address=G…` — receive a one-time challenge nonce
+2. Sign the challenge with your Stellar private key
+3. `POST /api/auth/wallet` — submit `{ address, challenge, signature }` to receive a bearer token
+4. Pass the token as `Authorization: Bearer <token>` on all authenticated requests
 
-- Supported assets are intentionally allow-listed: `XLM`, `USDC`.
-- Amount inputs must be plain decimal strings with at most 7 fractional digits (Stellar stroop precision).
-- Negative values are rejected.
-- Values above signed int64 bounds are rejected.
-- Escrow derivation rejects sub-stroop outcomes (no implicit rounding).
-- Validation returns explicit 4xx-style error metadata (`httpStatus` + error `code`) so invalid user input does not bubble into 500-class failures.
+### Routes
 
-## Fuzz and Property-style Tests
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/auth/wallet` | — | Issue wallet challenge |
+| `POST` | `/api/auth/wallet` | — | Verify signature, get token |
+| `GET` | `/api/v2/streams` | Bearer | List streams (v2 shape) |
+| `POST` | `/api/v2/streams` | Bearer | Create a stream |
+| `POST` | `/api/webhooks/dlq` | — | Receive DLQ webhook events |
+| `GET` | `/api/webhooks/deliveries` | — | List delivery attempts |
+| `POST` | `/api/debug/kms-sign` | — | Sign payload via KMS (non-prod only) |
 
-- `app/lib/amount.test.ts` includes deterministic fuzz-style checks (seeded RNG) with bounded runtime.
-- Bounded fuzz runs in normal CI because it is fast; if runtime grows in the future, keep deterministic unit coverage in CI and move larger fuzz campaigns to nightly workflows.
+### Error envelope
+
+Every error response — regardless of status code — uses this shape:
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "The requested stream does not exist.",
+    "request_id": "req_01HZ9ABCDEF"
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | `string` | Machine-readable error code (e.g. `BAD_REQUEST`, `UNAUTHORIZED`) |
+| `message` | `string` | Human-readable detail safe to display |
+| `request_id` | `string` | Forwarded from `x-request-id` header, or auto-generated fallback |
+
+The helper lives in `app/lib/errors/index.ts`. Use `errorResponse(code, message, status)` in every route — never return a bare `{ error: "string" }` or `{ success, error }` shape.
+
+### v2 stream shape
+
+`/api/v2/streams` returns streams in the v2 contract. Key differences from v1:
+
+| v1 field | v2 field | Notes |
+|----------|----------|-------|
+| `actions` | `allowed_actions` | Renamed |
+| `createdAt` | `created_at` | snake_case |
+| _(absent)_ | `settlement` | `null` until settled |
+
+See `app/lib/api-version.ts` for the `toV2Stream()` conversion and `openapi.json` for the full OpenAPI 3.1 spec.
+
+## Organization Management API
+
+The following endpoints support multi-tenant organization management:
+
+- `POST /api/orgs/[orgId]/members`: Add a member to an organization (Owner-only).
+- `GET /api/orgs/[orgId]/members`: List organization members (Member-only).
+
+These endpoints require a valid JWT token obtained via `POST /api/auth/wallet` in the `Authorization: Bearer <token>` header.
+
+## Documentation index
+
+Quick links to the long-form docs under [docs/](docs/):
+
+- [Architecture overview](docs/architecture.md)
+- [API client usage](docs/api-client-usage.md)
+- [Stream state glossary](docs/stream-state-glossary.md)
+- [Error codes reference](docs/error-codes.md)
+- [Testing guide](docs/testing-guide.md)
+- [Glossary](docs/glossary.md)
+- [State machine](docs/STATE_MACHINE.md)
+- [Network security](docs/network-security.md)
+- [Privacy](docs/PRIVACY.md)
+- [Reconciliation runbook](docs/reconciliation-runbook.md)
+
+See also [CONTRIBUTING.md](CONTRIBUTING.md) and
+[SECURITY.md](SECURITY.md) in the repository root.
+
+## Troubleshooting
+
+A few of the most common local-dev issues:
+
+- **App fails to start with "STELLAR_NETWORK environment variable is required"**
+  — copy `.env.example` to `.env.local` and set `STELLAR_NETWORK=testnet`.
+- **JWT errors during local auth** — ensure `JWT_SECRET` is at least
+  32 characters. Generate one with `openssl rand -base64 32`.
+- **CORS errors in the browser** — your origin must appear in
+  `ALLOWED_ORIGINS` (comma-separated). The default is
+  `http://localhost:3000`.
+- **`npm test` cannot find Jest** — run `npm install` first; the test
+  runner is a dev dependency.
+- **Stale Next.js build artifacts** — delete `.next/` and rebuild.
+- **Port 3000 already in use** — set `PORT=3001 npm run dev` or kill
+  the process holding the port.
+
+For deeper issues see [docs/network-security.md](docs/network-security.md)
+and the runbooks under [docs/runbooks/](docs/runbooks).
 
 ## License
 

@@ -1,8 +1,13 @@
-import { NextResponse, NextRequest } from "next/server";
-import { db, encodeCursor, decodeCursor } from "@/app/lib/db";
-import { getClientIdentity, checkRateLimit, rateLimitResponse } from "@/app/lib/rate-limit";
-import { recordThrottle, recordRequest } from "@/app/lib/rate-limit-metrics";
+import { NextResponse } from "next/server";
+import {
+  decodeCompositeCursor,
+  encodeCompositeCursor,
+  getStore,
+} from "@/app/lib/db";
+import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
+import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
+import { getCorrelationContext, logger, withCorrelationContext } from "@/app/lib/logger";
 
 function createErrorResponse(code: string, message: string, status: number) {
   const context = getCorrelationContext();
@@ -10,6 +15,7 @@ function createErrorResponse(code: string, message: string, status: number) {
 }
 
 export async function GET(request: Request) {
+  const { streamRepository } = getStore();
   const url = new URL(request.url);
   const limitType = getLimitForRoute("GET", url.pathname);
   const identity = getClientIdentity(request);
@@ -25,42 +31,65 @@ export async function GET(request: Request) {
   const cursor = searchParams.get("cursor");
   const streamId = searchParams.get("streamId");
   const type = searchParams.get("type");
-  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+  const limit = Math.min(Number.parseInt(searchParams.get("limit") || "20", 10), 100);
 
-  let events = Array.from(db.activity.values()).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const context = {
+    correlation_id: request.headers.get("x-correlation-id") || `api-${crypto.randomUUID()}`,
+    request_id: `req-${crypto.randomUUID()}`,
+  };
 
-  if (streamId) {
-    events = events.filter((e) => e.streamId === streamId);
-  }
-  if (type) {
-    events = events.filter((e) => e.type === type);
-  }
+  return withCorrelationContext(context, async () => {
+    let events = Array.from(streamRepository.activity.values()).sort((a, b) => {
+      const tsCmp = b.timestamp.localeCompare(a.timestamp);
+      return tsCmp !== 0 ? tsCmp : b.id.localeCompare(a.id);
+    });
 
-  if (cursor) {
-    const cursorId = decodeCursor(cursor);
-    const cursorIndex = events.findIndex((e) => e.id === cursorId);
-    if (cursorIndex >= 0) {
-      events = events.slice(cursorIndex + 1);
+    if (streamId) {
+      events = events.filter((event) => event.streamId === streamId);
     }
 
+    if (type) {
+      events = events.filter((event) => event.type === type);
+    }
+
+    const totalFiltered = events.length;
+
     if (cursor) {
-      const cursorId = decodeCursor(cursor);
-      const cursorIndex = events.findIndex((e) => e.id === cursorId);
-      if (cursorIndex >= 0) {
-        events = events.slice(cursorIndex + 1);
+      let cursorTimestamp: string;
+      let cursorId: string;
+      try {
+        const decoded = decodeCompositeCursor(cursor);
+        cursorTimestamp = decoded.timestamp;
+        cursorId = decoded.id;
+      } catch {
+        return createErrorResponse("INVALID_CURSOR", "Malformed cursor", 422);
       }
+
+      events = events.filter((event) => {
+        const tsCmp = event.timestamp.localeCompare(cursorTimestamp);
+        return tsCmp < 0 || (tsCmp === 0 && event.id.localeCompare(cursorId) < 0);
+      });
     }
 
     const paginatedEvents = events.slice(0, limit);
     const hasNext = events.length > limit;
-    const nextCursor = hasNext && paginatedEvents.length > 0 ? encodeCursor(paginatedEvents[paginatedEvents.length - 1].id) : null;
+    const nextCursor =
+      hasNext && paginatedEvents.length > 0
+        ? encodeCompositeCursor(
+            paginatedEvents[paginatedEvents.length - 1].timestamp,
+            paginatedEvents[paginatedEvents.length - 1].id,
+          )
+        : null;
 
-    logger.info('Activity list completed', { count: paginatedEvents.length, total: db.activity.size });
+    logger.info("Activity list completed", {
+      count: paginatedEvents.length,
+      total: totalFiltered,
+    });
 
     return NextResponse.json({
       data: paginatedEvents,
-      meta: { hasNext, nextCursor, total: db.activity.size },
-      links: { self: `/api/v1/activity?limit=${limit}` },
+      meta: { hasNext, nextCursor, total: totalFiltered },
+      links: { self: `/api/activity?limit=${limit}` },
     });
   });
 }

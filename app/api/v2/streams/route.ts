@@ -19,10 +19,9 @@
  */
 
 import { NextResponse } from "next/server";
-import { db, encodeCursor, decodeCursor, idempotencyToken } from "@/app/lib/db";
-import { toV2Stream } from "@/app/lib/api-version";
-import { getClientIdentity } from "@/app/lib/rate-limit";
-import { checkOrgDailyQuota, orgQuotaResponse } from "@/app/lib/org-quota";
+import { db, encodeCursor, decodeCursor, idempotencyToken, getStore } from "@/app/lib/db";
+import { toV2Stream, dbStreamToV1 } from "@/app/lib/api-version";
+import type { Stream } from "@/app/types/openapi";
 
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -35,7 +34,8 @@ export async function GET(request: Request) {
   const status = searchParams.get("status");
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 100);
 
-  let streams = Array.from(db.streams.values()).sort((a, b) =>
+  const { streamRepository } = getStore();
+  let streams = Array.from(streamRepository.streams.values() as Iterable<Stream>).sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
 
@@ -55,20 +55,14 @@ export async function GET(request: Request) {
       : null;
 
   return NextResponse.json({
-    data: page.map(toV2Stream),
-    meta: { hasNext, nextCursor, total: db.streams.size },
+    data: page.map((stream) => toV2Stream(dbStreamToV1(stream))),
+    meta: { hasNext, nextCursor, total: streamRepository.streams.size },
     links: { self: `/api/v2/streams?limit=${limit}` },
   });
 }
 
 /**
- * POST /api/v2/streams
- *
- * Flow:
- *   1. Idempotency check (early return on replay).
- *   2. Per-org daily quota check → 429 if exceeded.
- *   3. Validate request body.
- *   4. Persist stream and return 201.
+ * POST /api/v2/streams — create a stream, respond with v2 shape.
  */
 export async function POST(request: Request) {
   // ── 1. Idempotency ────────────────────────────────────────────────────────
@@ -123,21 +117,22 @@ export async function POST(request: Request) {
   // ── 4. Persist and respond ────────────────────────────────────────────────
   const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
-  const newStream = {
+  const newStream: Stream = {
     id,
     recipient: String(recipient),
     rate: String(rate),
     schedule: String(schedule),
-    status: "draft" as const,
-    nextAction: "start" as const,
+    status: "draft",
+    nextAction: "start",
     createdAt: now,
     updatedAt: now,
+    token: "XLM",
   };
 
   db.streams.set(id, newStream);
 
   const payload = {
-    data: toV2Stream(newStream),
+    data: toV2Stream(dbStreamToV1(newStream)),
     links: { self: `/api/v2/streams/${id}` },
   };
 

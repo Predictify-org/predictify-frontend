@@ -15,6 +15,7 @@ describe("Privacy Services", () => {
     partnerId: "PID-999",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    token: "XLM",
   };
 
   describe("scrubStreamPII", () => {

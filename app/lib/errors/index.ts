@@ -1,67 +1,35 @@
 /**
- * StreamPay Error Handling Module
- * 
- * Unified error handling system using application/problem+json (RFC 7807 style)
- * with stable, versioned internal error codes.
- * 
- * @module @/app/lib/errors
+ * Client-safe error module barrel.
+ * Server routes should import errorResponse from ./server instead.
  */
 
-// Types
 export type {
   StreamPayError,
-  ErrorCode,
-  ErrorCategory,
-  RetryGuidance,
-  BackendApiError,
-  BackendApiErrorResponse,
-  HorizonError,
-  ErrorSeverity,
-  ErrorPresentation,
   ErrorHandler,
   ErrorFilter,
+  ErrorPresentation,
+  ErrorSeverity,
+  BackendApiErrorResponse,
+  HorizonError,
   ErrorNormalizationOptions,
-} from './types';
+} from "./types";
 
-// Error Codes and Registry
 export {
-  ERROR_REGISTRY,
-  HORIZON_ERROR_MAPPING,
-  BACKEND_ERROR_CODE_MAPPING,
-  getErrorMetadata,
   isRetryableError,
   getRetryGuidance,
   getUserMessage,
-  getErrorCodeForHttpStatus,
-  type ErrorCodeMetadata,
-} from './codes';
+} from "./codes";
 
-// Error Mapping and Normalization
 export {
   normalizeError,
-  normalizeBackendError,
-  normalizeHorizonError,
-  normalizeNetworkError,
-  normalizeGenericError,
-  createError,
   isStreamPayError,
-  isBackendApiErrorResponse,
-  isHorizonError,
+  createError,
   isNetworkError,
-} from './mapper';
+} from "./mapper";
 
-// Global Error Handler
 export {
-  GlobalErrorHandler,
-  getGlobalErrorHandler,
-  resetGlobalErrorHandler,
+  formatErrorForDisplay,
   handleError,
-  handleApiCall,
-  useErrorHandler,
-  getFormErrors,
   hasFieldErrors,
   getFirstFieldError,
-  formatErrorForDisplay,
-  type ErrorEvent,
-  type ErrorHandlerConfig,
-} from './handler';
+} from "./handler";
