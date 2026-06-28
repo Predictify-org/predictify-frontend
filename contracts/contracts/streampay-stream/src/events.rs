@@ -157,7 +157,7 @@ pub fn admin_action(
     timestamp: u64,
 ) {
     env.events().publish(
-        (symbol_short!("stream"), symbol_short!("admin_action")),
+        (symbol_short!("stream"), symbol_short!("adminact")),
         (stream_id, admin.clone(), action, timestamp),
     );
 }
