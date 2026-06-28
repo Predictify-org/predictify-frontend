@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/badge';
 import { TallyBar } from '@/components/disputes/shared/TallyBar';
+import { OutcomeChip } from '@/components/ui/OutcomeChip';
 import type { DisputeData, DisputeState } from '@/types/disputes';
 
 interface EndedStateProps {
@@ -25,7 +25,7 @@ export function EndedState({ data }: EndedStateProps) {
       {leadingOutcome && (
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Leading outcome:</span>
-          <Badge className="border-transparent bg-green-600 text-white">{leadingOutcome}</Badge>
+          <OutcomeChip variant="positive">{leadingOutcome}</OutcomeChip>
         </div>
       )}
     </div>

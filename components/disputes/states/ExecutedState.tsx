@@ -1,7 +1,7 @@
 import { ExternalLink } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { TallyBar } from '@/components/disputes/shared/TallyBar';
 import { DetailsAccordion } from '@/components/disputes/shared/DetailsAccordion';
+import { OutcomeChip } from '@/components/ui/OutcomeChip';
 import type { DisputeData, DisputeState } from '@/types/disputes';
 
 interface ExecutedStateProps {
@@ -16,9 +16,9 @@ export function ExecutedState({ data }: ExecutedStateProps) {
       {data.outcome && (
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">Final outcome:</span>
-          <Badge className="border-transparent bg-green-600 text-white text-sm px-3 py-1">
+          <OutcomeChip variant="positive" className="text-sm px-3 py-1">
             {data.outcome}
-          </Badge>
+          </OutcomeChip>
         </div>
       )}
 

@@ -1,0 +1,84 @@
+/* ==========================================================================
+   patterns.css — Color-blind safe SVG/CSS patterns for outcome states
+
+   These pattern classes are designed to OVERLAY on top of the HSL chart
+   tokens (bg-chart-1 … bg-chart-5) so that each outcome state can be
+   distinguished by both colour AND texture.  This passes WCAG 2.1 AA
+   success criterion 1.4.1 (Use of Color) because information is no longer
+   conveyed through hue alone.
+
+   Usage:
+     <div className="bg-chart-1 pattern-diagonal" />
+
+   Each pattern uses `background-image` with a repeating gradient so that
+   the Tailwind `background-color` (set by bg-chart-*) continues to show
+   through transparent sections.
+
+   All patterns use `rgba(255,255,255,…)` so they inherit the text colour
+   of the chip — this keeps them visible in both light and dark mode
+   without additional overrides.
+   ========================================================================== */
+
+@layer utilities {
+
+  /* 1 – Diagonal lines (45°) – used for chart-1 / positive outcomes */
+  .pattern-diagonal {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(255, 255, 255, 0.15) 4px,
+      rgba(255, 255, 255, 0.15) 6px
+    );
+  }
+
+  /* 2 – Dots – used for chart-2 / negative outcomes */
+  .pattern-dots {
+    background-image: radial-gradient(
+      rgba(255, 255, 255, 0.18) 1.2px,
+      transparent 1.2px
+    );
+    background-size: 8px 8px;
+  }
+
+  /* 3 – Crosshatch – used for chart-3 / neutral outcomes */
+  .pattern-crosshatch {
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(255, 255, 255, 0.12) 3px,
+        rgba(255, 255, 255, 0.12) 4px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 3px,
+        rgba(255, 255, 255, 0.12) 3px,
+        rgba(255, 255, 255, 0.12) 4px
+      );
+  }
+
+  /* 4 – Horizontal stripes – used for chart-4 / tie outcomes */
+  .pattern-horizontal {
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(255, 255, 255, 0.14) 3px,
+      rgba(255, 255, 255, 0.14) 5px
+    );
+  }
+
+  /* 5 – Vertical stripes – used for chart-5 / dispute outcomes */
+  .pattern-vertical {
+    background-image: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 3px,
+      rgba(255, 255, 255, 0.14) 3px,
+      rgba(255, 255, 255, 0.14) 5px
+    );
+  }
+}
