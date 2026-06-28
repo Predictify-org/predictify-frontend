@@ -30,6 +30,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Kbd } from "@/components/ui/kbd"
 import { playSound } from "@/lib/audio/play-sound"
 import { LiveRegion } from "@/components/ui/live-region"
+import {
+  clearInProgressPrediction,
+  saveInProgressPrediction,
+} from "@/lib/state/inProgress"
+
+const DEMO_IN_PROGRESS_MARKET = {
+  id: "eth-weekly-close-draft",
+  marketId: "eth-weekly-close",
+  marketTitle: "Will ETH close above $4,000 this week?",
+  href: "/events",
+  stakeAmount: "$100.00",
+}
 
 /** Each step in the bet placement flow */
 type BetStep = "review" | "sign" | "submit" | "confirm"
@@ -63,6 +75,21 @@ export function BetConfirmPattern() {
   const goToStep = React.useCallback((next: BetStep) => {
     setError(null)
     setStep(next)
+
+    if (next === "confirm") {
+      clearInProgressPrediction()
+    } else {
+      saveInProgressPrediction({
+        id: DEMO_IN_PROGRESS_MARKET.id,
+        marketId: DEMO_IN_PROGRESS_MARKET.marketId,
+        marketTitle: DEMO_IN_PROGRESS_MARKET.marketTitle,
+        href: DEMO_IN_PROGRESS_MARKET.href,
+        stakeAmount: DEMO_IN_PROGRESS_MARKET.stakeAmount,
+        step: next,
+        savedAt: Date.now(),
+      })
+    }
+
     // Focus the heading after React re-renders
     requestAnimationFrame(() => headingRef.current?.focus())
   }, [])

@@ -10,6 +10,7 @@ import { RecommendationProvenance, type RecommendationSignalKey } from "@/compon
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStrip"
+import { ResumeCard } from "@/components/dashboard/ResumeCard"
 import { ActiveBets } from "@/components/active-bets/ActiveBets"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { useEffect, useState } from "react"
@@ -358,6 +359,7 @@ export default function DashboardPage() {
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
+          <ResumeCard />
           {renderCards()}
           <ActiveBets 
             bets={status === 'empty' ? [] : []} 
