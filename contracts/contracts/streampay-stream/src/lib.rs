@@ -637,117 +637,7 @@ impl Contract {
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-/// Returns the next stream ID to assign, defaulting to `1` if the counter has
-/// not been written yet.
-fn next_stream_id(env: &Env) -> u64 {
-    match env.storage().persistent().get(&DataKey::NextStreamId) {
-        Some(id) => id,
-        None => 1,
-    /// Pauses an active stream, freezing accrual while preserving vested funds.
-    ///
-    /// Only the stream sender may call this. On pause, status is set to Paused
-    /// and pause_time is recorded. Vested amount remains withdrawable but does
-    /// not increase while paused.
-    pub fn pause(env: Env, stream_id: u64) -> Result<Stream, Error> {
-        let mut stream = get_existing_stream(&env, stream_id)?;
-        stream.sender.require_auth();
 
-        if stream.status != StreamStatus::Active {
-            return Err(Error::InvalidState);
-        }
-
-        let now = env.ledger().timestamp();
-
-        stream.last_update = now;
-        stream.status = StreamStatus::Paused;
-        stream.pause_time = now;
-
-        storage::set_stream(&env, stream_id, &stream);
-        
-        // Emit admin_action event for pause
-        events::admin_action(
-            &env,
-            stream_id,
-            &stream.sender,
-            soroban_sdk::symbol_short!("pause"),
-            now,
-        );
-
-        Ok(stream)
-    }#618 Add NatSpec-style /// docs to every public entrypoint
-Repo Avatar
-Streampay-Org/StreamPay-Frontend
-Description
-This is a smart-contract issue for the GrantFox campaign. This is a smart-contract issue for the GrantFox campaign. Doc every public fn with semantics and errors.
-
-Requirements and Context
-Implement per the description
-Add focused tests
-Document any API changes
-Run the standard verification for this domain
-Must be secure, tested, and documented
-Should be efficient and easy to review
-Suggested Execution
-Fork the repo and create a branch
-git checkout -b task/natspec-docs
-Implement changes
-contracts/contracts/streampay-stream/src/lib.rs
-Test and commit
-Run the repo's standard test suite and lint
-Cover edge cases; include output in the PR
-Example commit message
-
-feat: add natspec-style /// docs to every public entrypoint
-Acceptance Criteria
- Implementation matches design
- Tests pass for the domain
- Code review approved
- Docs updated
-Guidelines
-Minimum 95% test coverage with cargo test
-require_auth on every state-changing entrypoint
-Overflow-safe math; no unwrap() in production paths
-Clear NatSpec-style /// rustdoc
-Timeframe: 96 hours
-
-
-
-/// Fetches a stream by ID, returning [`Error::NotFound`] if absent.
-fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
-    env.storage()
-        .persistent()
-        .get(&DataKey::Stream(stream_id))
-        .ok_or(Error::NotFound)
-}
-
-/// Computes the token amount accrued and not yet withdrawn for `stream`.
-///
-/// Formula (integer arithmetic, truncates toward zero — always floors):
-/// ```text
-/// elapsed = min(now, end_time) − start_time
-/// accrued = (total_amount × elapsed) / duration
-/// result  = accrued − released_amount
-/// ```
-///
-/// The `min` cap ensures accrual never exceeds `total_amount` after
-/// `end_time`. Because integer division truncates, dust (the remainder of
-/// `total_amount % duration`) is withheld until `elapsed == duration`, at
-/// which point `accrued == total_amount` exactly — no tokens are permanently
-/// lost. Rounding always favours the sender (recipient receives slightly less
-/// mid-stream, never more).
-///
-/// Returns `0` for any non-`Active` stream or when `start_time == 0`.
-fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
-    /// Resumes a paused stream, extending end_time to preserve unstreamed time.
-    ///
-    /// Only the stream sender may call this. On resume, the end_time is extended
-    /// by the paused duration so the remaining streamable amount is preserved.
-    /// Status is set back to Active.
-    pub fn resume(env: Env, stream_id: u64) -> Result<Stream, Error> {
-        let mut stream = get_existing_stream(&env, stream_id)?;
-        stream.sender.require_auth();
 
         if stream.status != StreamStatus::Paused {
             return Err(Error::InvalidState);
@@ -847,17 +737,24 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
         Ok(())
     }
 
-    /// Cancels an active or paused stream, returning unstreamed funds to the sender.
+    /// Cancels an active or paused stream with a correct sender/recipient refund split.
     ///
-    /// Only the stream sender may call this. On cancellation, the stream status is set to
-    /// `Cancelled`, and the unstreamed portion of `total_amount - released_amount` is
-    /// transferred back to the sender. Any amount already released to the recipient is kept.
+    /// At the moment of cancellation the stream's vested amount is computed. Funds
+    /// are split as follows:
+    ///
+    /// - **Recipient** receives `vested_amount - released_amount` (accrued but
+    ///   not yet withdrawn).
+    /// - **Sender** receives `total_amount - vested_amount` (unvested / unstreamed).
+    ///
+    /// This preserves the invariant that the recipient is entitled to everything
+    /// that has already vested, regardless of whether they have withdrawn it yet.
+    ///
+    /// The stream transitions to [`StreamStatus::Cancelled`] (terminal state).
     ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
-    /// - [`Error::Unauthorized`] if caller is not the stream sender.
-    /// - [`Error::InvalidState`] if the stream is already settled or cancelled.
-    /// - [`Error::Overflow`] if amount calculation overflows.
+    /// - [`Error::InvalidState`] if the stream is already `Settled` or `Cancelled`.
+    /// - [`Error::Overflow`] if any amount arithmetic overflows.
     ///
     /// # Auth
     /// Requires authorisation from the stream's `sender`.
@@ -870,37 +767,47 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
         }
 
         let now = env.ledger().timestamp();
+        let contract = env.current_contract_address();
+        let token = token::Client::new(&env, &stream.token);
 
-        // Calculate returned amount: unstreamed portion
-        let returned_amount = stream
-            .total_amount
+        // Compute vested amount at cancellation time (handles Active, Paused, Draft).
+        // For Draft streams, vested = 0 so the full amount returns to sender.
+        let vested = release::vested_amount(&stream, now)?;
+
+        // Recipient is owed vested - already_released (may be 0).
+        let recipient_payout = vested
             .checked_sub(stream.released_amount)
             .ok_or(Error::Overflow)?;
 
-        // Transfer unstreamed funds back to sender
-        if returned_amount > 0 {
+        // Sender reclaims everything that has not yet vested.
+        let sender_refund = stream
+            .total_amount
+            .checked_sub(vested)
+            .ok_or(Error::Overflow)?;
+
+        if recipient_payout > 0 {
             #[allow(clippy::needless_borrows_for_generic_args)]
-            token::Client::new(&env, &stream.token).transfer(
-                &env.current_contract_address(),
-                &stream.sender,
-                &returned_amount,
-            );
+            token.transfer(&contract, &stream.recipient, &recipient_payout);
+            stream.released_amount = vested;
         }
 
-        // Update stream state
+        if sender_refund > 0 {
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            token.transfer(&contract, &stream.sender, &sender_refund);
+        }
+
         stream.status = StreamStatus::Cancelled;
         stream.last_update = now;
 
         limits::decrement_sender_stream_count(&env, &stream.sender);
         storage::set_stream(&env, stream_id, &stream);
 
-        // Emit cancellation event
         events::cancelled(
             &env,
             stream_id,
             &stream.sender,
-            returned_amount,
-            stream.released_amount,
+            sender_refund,
+            recipient_payout,
             now,
         );
 

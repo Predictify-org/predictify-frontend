@@ -733,6 +733,192 @@ fn cancel_stream_returns_unstreamed_funds() {
     assert_eq!(cancelled_stream.status, StreamStatus::Cancelled);
 }
 
+// ── cancel_stream: correct sender/recipient refund split (issue #601) ────────
+
+/// Cancelling at the midpoint: half is vested → recipient gets half, sender gets half.
+#[test]
+fn cancel_stream_splits_vested_to_recipient_unvested_to_sender() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    // Stream: 1000 tokens, active from t=1000 to t=2000 (duration=1000s)
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_000u64,
+        &2_000u64,
+    );
+
+    let sender_token = soroban_sdk::token::Client::new(&data.env, &data.tokens[0]);
+    let sender_before = sender_token.balance(&data.sender);
+    let recipient_before = sender_token.balance(&data.recipient);
+
+    // Cancel at t=1500 → 500 tokens vested, 500 unvested
+    data.env.ledger().set_timestamp(1_500);
+    client.cancel_stream(&id);
+
+    // Recipient receives the vested-but-undrawn 500
+    assert_eq!(sender_token.balance(&data.recipient), recipient_before + 500);
+    // Sender gets back the unvested 500
+    assert_eq!(sender_token.balance(&data.sender), sender_before + 500);
+
+    let s = client.get_stream(&id);
+    assert_eq!(s.status, StreamStatus::Cancelled);
+}
+
+/// Cancelling before the stream starts (Draft-like timing): full amount returns to sender.
+#[test]
+fn cancel_stream_before_start_returns_all_to_sender() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    // Create stream starting in the future (relative to current ledger t=1000)
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &2_000u64, // starts later
+        &3_000u64,
+    );
+
+    let sender_token = soroban_sdk::token::Client::new(&data.env, &data.tokens[0]);
+    let sender_before = sender_token.balance(&data.sender);
+
+    // Cancel at t=1000 (before start_time=2000) → 0 vested → full refund to sender
+    client.cancel_stream(&id);
+
+    assert_eq!(sender_token.balance(&data.sender), sender_before + 1000);
+    assert_eq!(sender_token.balance(&data.recipient), 0);
+}
+
+/// Cancelling after the stream has fully elapsed: full amount goes to recipient.
+#[test]
+fn cancel_stream_after_end_pays_all_to_recipient() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_000u64,
+        &2_000u64,
+    );
+
+    let sender_token = soroban_sdk::token::Client::new(&data.env, &data.tokens[0]);
+    let sender_before = sender_token.balance(&data.sender);
+    let recipient_before = sender_token.balance(&data.recipient);
+
+    // Cancel at t=2500 (past end_time) → 1000 vested → all to recipient, 0 to sender
+    data.env.ledger().set_timestamp(2_500);
+    client.cancel_stream(&id);
+
+    assert_eq!(sender_token.balance(&data.recipient), recipient_before + 1000);
+    assert_eq!(sender_token.balance(&data.sender), sender_before);
+}
+
+/// Cancelling after a partial withdrawal: recipient gets remaining vested portion only.
+#[test]
+fn cancel_stream_after_partial_withdraw_correct_split() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    // 1000 tokens, t=1000..2000
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_000u64,
+        &2_000u64,
+    );
+
+    let sender_token = soroban_sdk::token::Client::new(&data.env, &data.tokens[0]);
+
+    // At t=1500, 500 vested; recipient withdraws 200
+    data.env.ledger().set_timestamp(1_500);
+    client.withdraw(&id, &200i128);
+
+    let sender_before = sender_token.balance(&data.sender);
+    let recipient_before = sender_token.balance(&data.recipient);
+
+    // Cancel at t=1500 → vested=500, released=200
+    // recipient_payout = 500 - 200 = 300; sender_refund = 1000 - 500 = 500
+    client.cancel_stream(&id);
+
+    assert_eq!(sender_token.balance(&data.recipient), recipient_before + 300);
+    assert_eq!(sender_token.balance(&data.sender), sender_before + 500);
+}
+
+/// Cancelling a paused stream respects the frozen accrual point.
+#[test]
+fn cancel_stream_while_paused_uses_pause_time_for_split() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    // 1000 tokens, t=1000..2000
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_000u64,
+        &2_000u64,
+    );
+
+    let sender_token = soroban_sdk::token::Client::new(&data.env, &data.tokens[0]);
+
+    // Pause at t=1200 → 200 tokens vested at pause
+    data.env.ledger().set_timestamp(1_200);
+    client.pause(&id);
+
+    let sender_before = sender_token.balance(&data.sender);
+    let recipient_before = sender_token.balance(&data.recipient);
+
+    // Cancel at t=1800 (later, but stream is paused so accrual is frozen at t=1200)
+    data.env.ledger().set_timestamp(1_800);
+    client.cancel_stream(&id);
+
+    // vested=200 (frozen at pause), released=0
+    // recipient_payout=200, sender_refund=800
+    assert_eq!(sender_token.balance(&data.recipient), recipient_before + 200);
+    assert_eq!(sender_token.balance(&data.sender), sender_before + 800);
+}
+
+/// cancel_stream sets released_amount to vested_amount in the final state.
+#[test]
+fn cancel_stream_updates_released_amount_to_vested() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_000u64,
+        &2_000u64,
+    );
+
+    data.env.ledger().set_timestamp(1_750);
+    client.cancel_stream(&id);
+
+    let s = client.get_stream(&id);
+    // vested at t=1750 = 750; released_amount should reflect that
+    assert_eq!(s.released_amount, 750);
+    assert_eq!(s.status, StreamStatus::Cancelled);
+}
+
 #[test]
 fn amend_stream_emits_amended_event() {
     let data = setup_init();
