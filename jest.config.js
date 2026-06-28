@@ -4,9 +4,7 @@ const createJestConfig = nextJest({ dir: "./" });
 
 /** @type {import('jest').Config} */
 const config = {
-  // Use node environment for unit tests (config, lib, api)
-  // Component tests will run in a separate command with jsdom
-  testEnvironment: "node",
+  testEnvironment: "jsdom",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   testMatch: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
   collectCoverageFrom: [
@@ -24,6 +22,8 @@ module.exports = async () => {
     ...resolvedConfig.moduleNameMapper,
     "^@/(.*)$": "<rootDir>/$1",
     "^\\./app/(.*)$": "<rootDir>/app/$1",
+    "^next/navigation$": "<rootDir>/__mocks__/next/navigation.js",
+    "^next/router$": "<rootDir>/__mocks__/next/router.js",
   };
   return resolvedConfig;
 };
