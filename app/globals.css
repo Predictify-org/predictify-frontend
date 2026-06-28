@@ -440,6 +440,48 @@ a:hover {
   max-width: 48ch;
 }
 
+/* ─── Inline page error ─── */
+.page-error {
+  background: linear-gradient(180deg, var(--system-error-bg), var(--panel));
+  border: 1px solid var(--system-error-border);
+  border-radius: 1.5rem;
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.5rem;
+}
+
+.page-error__icon {
+  color: var(--system-error-text);
+  display: block;
+  height: 2rem;
+  width: 2rem;
+}
+
+.page-error__eyebrow {
+  color: var(--system-error-text);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page-error__heading {
+  font-size: 1.5rem;
+}
+
+.page-error__message {
+  color: var(--muted-light);
+  line-height: 1.6;
+  max-width: 48ch;
+}
+
+.page-error__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
 /* ─── Skeletons ─── */
 .stream-row--skeleton {
   pointer-events: none;

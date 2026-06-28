@@ -1,7 +1,8 @@
 import { EmptyState } from "../components/EmptyState";
+import { PageError } from "../components/PageError";
 import { StreamRow, type StreamRowData } from "../components/StreamRow";
 
-export type StreamsViewState = "empty" | "loading" | "populated";
+export type StreamsViewState = "empty" | "loading" | "populated" | "error";
 
 const streamListCopy = {
   description:
@@ -48,6 +49,10 @@ export const mockStreams: StreamRowData[] = [
 type StreamsPageContentProps = {
   state?: StreamsViewState;
   streams?: StreamRowData[];
+  /** Shown in the error panel when state === "error". */
+  errorMessage?: string;
+  /** Called when the user presses "Try again" in the error panel. */
+  onRetry?: () => void;
 };
 
 function StreamListSkeleton() {
@@ -89,6 +94,8 @@ function StreamListSkeleton() {
 export function StreamsPageContent({
   state = "populated",
   streams = mockStreams,
+  errorMessage,
+  onRetry,
 }: StreamsPageContentProps) {
   const isEmpty = state === "empty" || streams.length === 0;
 
@@ -125,6 +132,15 @@ export function StreamsPageContent({
 
         {state === "loading" ? (
           <StreamListSkeleton />
+        ) : state === "error" ? (
+          <PageError
+            heading="Couldn't load your streams"
+            message={
+              errorMessage ??
+              "There was a problem fetching your streams. Check your connection and try again."
+            }
+            onRetry={onRetry}
+          />
         ) : isEmpty ? (
           <EmptyState
             actionLabel={streamListCopy.empty.actionLabel}
