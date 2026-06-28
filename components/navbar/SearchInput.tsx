@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useId } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
@@ -11,10 +12,30 @@ import {
   Trophy,
   Building2,
   CircleDollarSign,
-  LineChart
+  LineChart,
+  User,
+  HelpCircle,
+  Settings as SettingsIcon,
+  Pin as PinIcon,
+  History,
+  CornerDownLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEventsStore } from "@/lib/events-store";
+import { getPinnedActions } from "@/lib/command-palette/pins";
+import type { PinnedAction } from "@/lib/command-palette/pins";
+import { getRecentMarkets, addRecentMarket } from "@/lib/command-palette/recents";
+import type { RecentMarket } from "@/lib/command-palette/recents";
+
+// Lucide icon components mapper for pinned actions
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  CircleDollarSign,
+  Trophy,
+  User,
+  HelpCircle,
+  Settings: SettingsIcon,
+};
+
 
 interface SearchInputProps {
   className?: string;
@@ -29,10 +50,16 @@ export function SearchInput({
   onSubmit,
   variant = "default",
 }: SearchInputProps) {
+  const router = useRouter();
   const [value, setValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  
+  // Local list states for empty-state suggestion items
+  const [pinnedActions, setPinnedActions] = useState<PinnedAction[]>([]);
+  const [recentMarkets, setRecentMarkets] = useState<RecentMarket[]>([]);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -49,12 +76,39 @@ export function SearchInput({
     ).slice(0, 5);
   }, [events, value]);
 
+  // Load pinned actions and recents dynamically when dropdown opens or value changes
+  useEffect(() => {
+    if (isOpen) {
+      setPinnedActions(getPinnedActions());
+      setRecentMarkets(getRecentMarkets());
+    }
+  }, [isOpen, value]);
+
+  // Map empty state pinned actions + recent items to a single flat index list for navigation
+  const emptyStateItems = useMemo(() => {
+    const items: Array<
+      | { type: "pin"; id: string; label: string; url: string; iconName: string }
+      | { type: "recent"; id: string; title: string; category: string; odds: number }
+    > = [];
+    
+    pinnedActions.forEach(p => {
+      items.push({ type: "pin", ...p });
+    });
+    
+    recentMarkets.forEach(m => {
+      items.push({ type: "recent", ...m });
+    });
+    
+    return items;
+  }, [pinnedActions, recentMarkets]);
+
   // Handle Cmd+K
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         inputRef.current?.focus();
+        setIsOpen(true);
       }
     };
     document.addEventListener("keydown", down);
@@ -83,14 +137,31 @@ export function SearchInput({
       setIsLoading(true);
       setTimeout(() => setIsLoading(false), 300);
     } else {
-      setIsOpen(false);
+      // Keep open to show pinned actions and recent markets in empty state
+      setIsOpen(true);
     }
   };
 
-  const handleSelect = (title: string, _marketId: string) => {
+  const handleSelect = (title: string, marketId: string) => {
+    // Record selected market in recently visited list
+    const matched = events.find(e => e.id === marketId);
+    if (matched) {
+      addRecentMarket({
+        id: matched.id,
+        title: matched.title,
+        category: matched.category,
+        odds: matched.odds,
+      });
+    }
+    
     setIsOpen(false);
     setValue(title);
     onSubmit?.(title);
+  };
+
+  const handleCommandNavigate = (url: string) => {
+    setIsOpen(false);
+    router.push(url);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -100,24 +171,61 @@ export function SearchInput({
       return;
     }
 
-    if (!isOpen && value.trim()) {
+    if (!isOpen) {
       setIsOpen(true);
     }
 
+    const hasValue = value.trim().length > 0;
+    const maxIndex = hasValue ? filteredEvents.length - 1 : emptyStateItems.length - 1;
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIndex(prev => (prev < filteredEvents.length - 1 ? prev + 1 : prev));
+      setSelectedIndex(prev => (prev < maxIndex ? prev + 1 : prev));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
+    } else if (e.key === "Tab") {
+      // Focus trapping/Virtual focus cycling within command palette suggestions
+      if (maxIndex >= 0) {
+        e.preventDefault();
+        setSelectedIndex(prev => {
+          if (e.shiftKey) {
+            return prev > 0 ? prev - 1 : maxIndex;
+          } else {
+            return prev < maxIndex ? prev + 1 : 0;
+          }
+        });
+      }
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (selectedIndex >= 0 && selectedIndex < filteredEvents.length) {
-        const selected = filteredEvents[selectedIndex];
-        handleSelect(selected.title, selected.id);
+      if (hasValue) {
+        if (selectedIndex >= 0 && selectedIndex < filteredEvents.length) {
+          const selected = filteredEvents[selectedIndex];
+          handleSelect(selected.title, selected.id);
+        } else {
+          // Check for typed commands first
+          const cmd = value.trim().toLowerCase();
+          if (cmd === "/markets") {
+            handleCommandNavigate("/events");
+          } else if (cmd === "/claim") {
+            handleCommandNavigate("/mypredictions?tab=completed");
+          } else if (cmd === "/help") {
+            handleCommandNavigate("/help");
+          } else {
+            onSubmit?.(value.trim());
+            setIsOpen(false);
+          }
+        }
       } else {
-        onSubmit?.(value.trim());
-        setIsOpen(false);
+        // Selection in empty state
+        if (selectedIndex >= 0 && selectedIndex < emptyStateItems.length) {
+          const selected = emptyStateItems[selectedIndex];
+          if (selected.type === "pin") {
+            handleCommandNavigate(selected.url);
+          } else {
+            handleSelect(selected.title, selected.id);
+          }
+        }
       }
     }
   };
@@ -144,6 +252,7 @@ export function SearchInput({
 
   const activeDescendant = selectedIndex >= 0 ? getOptionId(selectedIndex) : undefined;
 
+
   return (
     <div className={wrapperClasses}>
       {isSidebar && (
@@ -166,7 +275,7 @@ export function SearchInput({
                   value={value}
                   onChange={handleChange}
                   onKeyDown={handleKeyDown}
-                  onFocus={() => value.trim() && setIsOpen(true)}
+                  onFocus={() => setIsOpen(true)}
                   placeholder={placeholder}
                   className={inputClasses}
                 />
@@ -199,7 +308,129 @@ export function SearchInput({
               <Loader2 className="h-5 w-5 animate-spin text-purple-400" aria-hidden="true" />
               <span className="ml-3 text-sm font-medium">Searching markets...</span>
             </div>
+          ) : !value.trim() ? (
+            /* ── EMPTY STATE SUGGESTIONS (PINNED ACTIONS + RECENTS) ── */
+            <div className="flex flex-col gap-3">
+              {/* Pinned Actions */}
+              {pinnedActions.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  <div className="px-2 pb-1 pt-1 opacity-60 text-[10px] uppercase font-bold tracking-wider text-white flex items-center gap-1.5" aria-hidden="true">
+                    <PinIcon className="h-3 w-3 shrink-0" />
+                    Pinned Actions
+                  </div>
+                  <div className="grid grid-cols-1 gap-1">
+                    {pinnedActions.map((action, index) => {
+                      const isActive = index === selectedIndex;
+                      const Icon = iconMap[action.iconName] || CircleDollarSign;
+
+                      return (
+                        <button
+                          key={action.id}
+                          id={getOptionId(index)}
+                          role="option"
+                          aria-selected={isActive}
+                          onClick={() => handleCommandNavigate(action.url)}
+                          onMouseEnter={() => setSelectedIndex(index)}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg p-2.5 text-left transition-colors cursor-pointer w-full text-white",
+                            isActive ? "bg-white/15" : "hover:bg-white/5"
+                          )}
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500/20 text-purple-400 shrink-0">
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="text-sm font-medium">{action.label}</span>
+                            <span className="text-[10px] text-white/40">Navigate to {action.url}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Recently Visited Markets */}
+              {recentMarkets.length > 0 && (
+                <div className="flex flex-col gap-1 border-t border-white/5 pt-2">
+                  <div className="px-2 pb-1 pt-1 opacity-60 text-[10px] uppercase font-bold tracking-wider text-white flex items-center gap-1.5" aria-hidden="true">
+                    <History className="h-3 w-3 shrink-0" />
+                    Recently Visited
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {recentMarkets.map((market, idx) => {
+                      const flatIndex = pinnedActions.length + idx;
+                      const isActive = flatIndex === selectedIndex;
+
+                      return (
+                        <button
+                          key={`${market.id}-${idx}`}
+                          id={getOptionId(flatIndex)}
+                          role="option"
+                          aria-selected={isActive}
+                          onClick={() => handleSelect(market.title, market.id)}
+                          onMouseEnter={() => setSelectedIndex(flatIndex)}
+                          className={cn(
+                            "flex items-center justify-between rounded-lg p-2.5 text-left transition-colors cursor-pointer w-full text-white",
+                            isActive ? "bg-white/15" : "hover:bg-white/5"
+                          )}
+                        >
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500/20 text-purple-400 shrink-0">
+                              {getCategoryIcon(market.category)}
+                            </div>
+                            <div className="flex flex-col overflow-hidden">
+                              <span className="text-sm font-medium truncate">{market.title}</span>
+                              <span className="text-xs text-white/50">{market.category}</span>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-xs font-semibold text-green-400">{market.odds}% Yes</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Try Prefix Commands pill bar */}
+              <div className="border-t border-white/5 pt-2 px-2 text-[11px] flex flex-wrap items-center gap-1.5 text-white/50">
+                <span>Try:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue("/markets");
+                    inputRef.current?.focus();
+                  }}
+                  className="font-mono text-[#E3D365] bg-white/5 hover:bg-white/10 px-1.5 py-0.5 rounded border border-white/10 transition cursor-pointer"
+                >
+                  /markets
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue("/claim");
+                    inputRef.current?.focus();
+                  }}
+                  className="font-mono text-[#E3D365] bg-white/5 hover:bg-white/10 px-1.5 py-0.5 rounded border border-white/10 transition cursor-pointer"
+                >
+                  /claim
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue("/help");
+                    inputRef.current?.focus();
+                  }}
+                  className="font-mono text-[#E3D365] bg-white/5 hover:bg-white/10 px-1.5 py-0.5 rounded border border-white/10 transition cursor-pointer"
+                >
+                  /help
+                </button>
+              </div>
+            </div>
           ) : filteredEvents.length > 0 ? (
+            /* ── SUGGESTIONS LIST ── */
             <div className="flex flex-col gap-1">
               <div id={`${listboxId}-label`} className="px-2 pb-1 pt-1 opacity-60 text-[10px] uppercase font-bold tracking-wider text-white" aria-hidden="true">
                 Suggestions
@@ -218,7 +449,7 @@ export function SearchInput({
                     onClick={() => handleSelect(event.title, event.id)}
                     onMouseEnter={() => setSelectedIndex(index)}
                     className={cn(
-                      "flex items-center justify-between rounded-lg p-3 text-left transition-colors cursor-pointer w-full",
+                      "flex items-center justify-between rounded-lg p-3 text-left transition-colors cursor-pointer w-full text-white",
                       isActive ? "bg-white/15" : "hover:bg-white/5"
                     )}
                   >
@@ -227,7 +458,7 @@ export function SearchInput({
                         {getCategoryIcon(event.category)}
                       </div>
                       <div className="flex flex-col overflow-hidden">
-                        <span className="text-sm font-medium text-white truncate">
+                        <span className="text-sm font-medium truncate">
                           {titleParts.map((part, i) =>
                             regex.test(part) ? (
                               <span key={i} className="text-[#E3D365] font-bold">{part}</span>
@@ -239,14 +470,16 @@ export function SearchInput({
                         <span className="text-xs text-white/50">{event.category}</span>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-xs font-semibold text-green-400">{event.odds}% Yes</div>
+                    <div className="text-right shrink-0 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-green-400">{event.odds}% Yes</span>
+                      {isActive && <CornerDownLeft className="h-3 w-3 text-white/40" />}
                     </div>
                   </button>
                 );
               })}
             </div>
           ) : (
+            /* ── NO RESULTS ── */
             <div role="status" aria-live="polite" className="flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in-95">
               <div className="rounded-full bg-white/5 p-4 mb-3 border border-white/10">
                 <SearchIcon className="h-6 w-6 text-white/40" aria-hidden="true" />

@@ -136,7 +136,7 @@ export const useWallet = () => {
       const clientConfig = getClientConfig();
       const networkPassphrase =
         clientConfig.stellar.network === 'mainnet'
-          ? WalletNetwork.MAINNET
+          ? WalletNetwork.PUBLIC
           : WalletNetwork.TESTNET;
 
       const { signedTxXdr } = await kit.signTransaction(xdr, {

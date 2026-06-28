@@ -10,7 +10,12 @@ import {
   Wallet,
   Table2,
   LayoutList,
+  Pin,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react"
+import { getPinnedActions, savePinnedActions, ALL_AVAILABLE_ACTIONS } from "@/lib/command-palette/pins"
+
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -28,7 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { useDensity, densityTokens, type Density } from "@/hooks/useDensity"
+import { useDensity, densityTokens, type Density, type DensityTokens } from "@/hooks/useDensity"
 import { useSoundEnabled } from "@/hooks/useSoundEnabled"
 import { cn } from "@/lib/utils"
 
@@ -75,7 +80,7 @@ const densityOptions: Array<{
   label: string
   description: string
   icon: React.ElementType
-  tokens: (typeof densityTokens)["cozy"]
+  tokens: DensityTokens[keyof DensityTokens]
 }> = [
   {
     value: "cozy",
@@ -137,6 +142,17 @@ export default function SettingsPage() {
     localStorage.setItem("force-high-contrast", forceHighContrast.toString())
   }, [forceHighContrast])
 
+  // Declare missing publicActivity state to resolve compilation reference error
+  const [publicActivity, setPublicActivity] = useState(false)
+
+  // Command palette pinned action configuration state
+  const [pinnedActionIds, setPinnedActionIds] = useState<string[]>([])
+
+  // Load pinned actions on mount
+  useEffect(() => {
+    setPinnedActionIds(getPinnedActions().map((p) => p.id))
+  }, [])
+
   const selectedDensity = useMemo(
     () => densityOptions.find((option) => option.value === density),
     [density]
@@ -148,9 +164,12 @@ export default function SettingsPage() {
 
   const handleSave = (event: SyntheticEvent) => {
     event.preventDefault()
+    // Persist pinned actions configure
+    savePinnedActions(pinnedActionIds)
     setSaveState("saved")
     window.setTimeout(() => setSaveState("idle"), 2500)
   }
+
 
   return (
     <form className="mx-auto flex w-full max-w-6xl flex-col gap-6" onSubmit={handleSave}>
@@ -329,6 +348,107 @@ export default function SettingsPage() {
                       checked={forceHighContrast}
                       onCheckedChange={setHighContrast}
                     />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/70">
+                <CardHeader className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Pin className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-xl">Command Palette Shortcuts</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Configure and reorder the pinned actions displayed when opening the Command Palette (Cmd/Ctrl+K).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Active Pinned Actions</Label>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Select which actions to pin, and use the arrows to define their display order.
+                    </p>
+                    
+                    <div className="space-y-2">
+                      {ALL_AVAILABLE_ACTIONS.map((action) => {
+                        const isPinned = pinnedActionIds.includes(action.id)
+                        const pinIndex = pinnedActionIds.indexOf(action.id)
+
+                        const handleToggle = (checked: boolean) => {
+                          if (checked) {
+                            setPinnedActionIds((prev) => [...prev, action.id])
+                          } else {
+                            setPinnedActionIds((prev) => prev.filter((id) => id !== action.id))
+                          }
+                        }
+
+                        const handleMoveUp = () => {
+                          if (pinIndex <= 0) return
+                          const updated = [...pinnedActionIds]
+                          const temp = updated[pinIndex]
+                          updated[pinIndex] = updated[pinIndex - 1]
+                          updated[pinIndex - 1] = temp
+                          setPinnedActionIds(updated)
+                        }
+
+                        const handleMoveDown = () => {
+                          if (pinIndex < 0 || pinIndex >= pinnedActionIds.length - 1) return
+                          const updated = [...pinnedActionIds]
+                          const temp = updated[pinIndex]
+                          updated[pinIndex] = updated[pinIndex + 1]
+                          updated[pinIndex + 1] = temp
+                          setPinnedActionIds(updated)
+                        }
+
+                        return (
+                          <div
+                            key={action.id}
+                            className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-muted/20 p-3 hover:bg-muted/30 transition duration-150"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Switch
+                                id={`pin-${action.id}`}
+                                checked={isPinned}
+                                onCheckedChange={handleToggle}
+                              />
+                              <Label htmlFor={`pin-${action.id}`} className="text-sm font-medium cursor-pointer">
+                                {action.label}
+                                <span className="block text-xs font-normal text-muted-foreground">
+                                  Navigates to {action.url}
+                                </span>
+                              </Label>
+                            </div>
+                            
+                            {isPinned && (
+                              <div className="flex items-center gap-1.5">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  disabled={pinIndex === 0}
+                                  onClick={handleMoveUp}
+                                  aria-label={`Move ${action.label} up`}
+                                >
+                                  <ArrowUp className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  disabled={pinIndex === pinnedActionIds.length - 1}
+                                  onClick={handleMoveDown}
+                                  aria-label={`Move ${action.label} down`}
+                                >
+                                  <ArrowDown className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

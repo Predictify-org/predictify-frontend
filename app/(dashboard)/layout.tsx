@@ -7,7 +7,7 @@ import { Navbar } from "@/components/navbar/Navbar";
 import { Breadcrumbs } from "@/components/navbar/Breadcrumbs";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { getBreadcrumbsForPath } from "@/lib/breadcrumbs";
-import { ErrorBoundary } from "@/components/error-boundary";
+import { MobileBottomTabs } from "@/components/navbar/MobileBottomTabs";
 
 export default function DashboardLayout({
   children,

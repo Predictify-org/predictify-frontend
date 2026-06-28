@@ -1,20 +1,21 @@
 
 import React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { MdHome, MdShowChart, MdInsights, MdAccountBalanceWallet, MdMoreHoriz } from 'react-icons/md';
+import { Home, TrendingUp, Lightbulb, Wallet, MoreHorizontal, LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface TabItem {
   label: string;
   href: string;
-  icon: React.ReactElement;
+  Icon: LucideIcon;
 }
 
 const tabs: TabItem[] = [
-  { label: 'Home', href: '/', icon: <MdHome size={24} /> },
-  { label: 'Markets', href: '/markets', icon: <MdShowChart size={24} /> },
-  { label: 'Predictions', href: '/mypredictions', icon: <MdInsights size={24} /> },
-  { label: 'Wallet', href: '/wallet', icon: <MdAccountBalanceWallet size={24} /> },
-  { label: 'More', href: '/more', icon: <MdMoreHoriz size={24} /> },
+  { label: 'Home', href: '/', Icon: Home },
+  { label: 'Markets', href: '/markets', Icon: TrendingUp },
+  { label: 'Predictions', href: '/mypredictions', Icon: Lightbulb },
+  { label: 'Wallet', href: '/wallet', Icon: Wallet },
+  { label: 'More', href: '/more', Icon: MoreHorizontal },
 ];
 
 export const MobileBottomTabs: React.FC = () => {
@@ -42,7 +43,10 @@ export const MobileBottomTabs: React.FC = () => {
             aria-current={isActive ? 'page' : undefined}
             aria-label={isActive ? undefined : tab.label}
           >
-            {React.cloneElement(tab.icon, { className: isActive ? 'text-primary-500' : '' })}
+            <tab.Icon
+              size={24}
+              className={cn(isActive ? 'text-purple-400' : 'text-gray-400')}
+            />
             {isActive && <span className="text-xs mt-1">{tab.label}</span>}
           </button>
         );

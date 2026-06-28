@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import { CalendarIcon, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -20,7 +20,7 @@ export default function NewEventPage() {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
-  const [deadline, setDeadline] = useState(null)
+  const [deadline, setDeadline] = useState<Date | undefined>(undefined)
   const [options, setOptions] = useState([{ text: "", probability: "" }])
   const [newOption, setNewOption] = useState("")
   const [isPublic, setIsPublic] = useState(true)
@@ -33,13 +33,13 @@ export default function NewEventPage() {
     }
   }
 
-  const removeOption = (index) => {
+  const removeOption = (index: number) => {
     const updatedOptions = [...options]
     updatedOptions.splice(index, 1)
     setOptions(updatedOptions)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     // In a real app, you would send this data to your API
     console.log({

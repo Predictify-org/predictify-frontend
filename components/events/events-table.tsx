@@ -296,7 +296,7 @@ export function EventsTable({ className }: EventsTableProps) {
   // Track rows that have already animated in
   const seenIds = React.useRef(new Set<string>())
   const [animationReady, setAnimationReady] = React.useState(false)
-  const prefersReduced = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false
+  const prefersReduced = typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false
 
   React.useEffect(() => {
     setAnimationReady(true)
@@ -393,7 +393,7 @@ export function EventsTable({ className }: EventsTableProps) {
             </TableHeader>
             <TableBody>
               {paginatedEvents.map((event, index) => (
-                <EventRow
+                <TableRow
                   key={event.id}
                   event={event}
                   index={index}

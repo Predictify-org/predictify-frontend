@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,22 +17,6 @@ import { useWalletContext } from "@/context/WalletContext"
 export default function ProfilePage() {
   const [saveSuccess, setSaveSuccess] = useState(false)
   const { address, name } = useWalletContext()
-
-  const displayName = name || "Admin User"
-  const handle = address ? address : "admin"
-  const publicProfileUrl = address
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/profile/${address}`
-    : "https://predictify.app/profile/admin"
-
-  const shareProfile = {
-    displayName,
-    handle,
-    avatarUrl: "/placeholder.svg?height=80&width=80",
-    winRate: 0.72,
-    totalPredictions: 148,
-    topCategory: "Sports",
-    publicProfileUrl,
-  }
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()

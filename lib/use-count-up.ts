@@ -8,11 +8,12 @@ import * as React from 'react';
 export const useCountUp = (
   endValue: number,
   startValue: number = 0,
-  duration: number = 400
-): number => {
-  const [currentValue, setCurrentValue] = React.useState(endValue);
-  const animationRef = React.useRef<number | null>(null);
-  const currentValueRef = React.useRef(endValue);
+  duration: number = 2000
+): [React.RefObject<HTMLDivElement | null>, number] => {
+  const [currentValue, setCurrentValue] = React.useState(startValue);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const animationRef = React.useRef<number>(0);
+  const hasAnimated = React.useRef<boolean>(false);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {

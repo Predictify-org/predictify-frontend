@@ -69,7 +69,7 @@ export const useTransaction = (): UseTransactionResult => {
         setTransactionError(error);
         setFailureType('requestFailed');
         toast({ title: 'Wallet required', description: error, variant: 'destructive' });
-        return { success: false, error, failureType: 'requestFailed' };
+        return { success: false, error, failureType: 'requestFailed' as TransactionFailureType };
       }
 
       try {
@@ -96,7 +96,7 @@ export const useTransaction = (): UseTransactionResult => {
           return {
             success: false,
             error,
-            failureType: userRejected ? 'userRejected' : 'signFailed',
+            failureType: (userRejected ? 'userRejected' : 'signFailed') as TransactionFailureType,
           };
         }
 
@@ -106,7 +106,7 @@ export const useTransaction = (): UseTransactionResult => {
           description: 'Broadcasting signed transaction to the Stellar network.',
         });
 
-        const submissionResult = await submitTransaction(signResult.signedTxXdr);
+        const submissionResult = await submitTransaction(signResult.signedTxXdr!);
         if (!submissionResult.success) {
           const error = submissionResult.error;
           setStatus('failed');
@@ -120,7 +120,7 @@ export const useTransaction = (): UseTransactionResult => {
           return {
             success: false,
             error,
-            failureType: 'submitFailed',
+            failureType: 'submitFailed' as TransactionFailureType,
           };
         }
 
@@ -167,7 +167,7 @@ export const useTransaction = (): UseTransactionResult => {
           description: message,
           variant: 'destructive',
         });
-        return { success: false, error: message, failureType: 'requestFailed' };
+        return { success: false, error: message, failureType: 'requestFailed' as TransactionFailureType };
       }
     },
     [isConnected, signTransaction],

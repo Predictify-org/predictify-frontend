@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import type { DateRange } from "react-day-picker"
 import { ArrowDownRight, ArrowUpRight, Calendar, CreditCard, DollarSign, Download, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -74,7 +75,7 @@ const financialData = {
 
 export default function FinancesPage() {
   const { hideBalances } = usePrivacy();
-  const [date, setDate] = useState({
+  const [date, setDate] = useState<DateRange | undefined>({
     from: new Date(2023, 3, 1),
     to: new Date(2023, 3, 30),
   })
@@ -107,7 +108,7 @@ export default function FinancesPage() {
                 mode="range"
                 defaultMonth={date?.from}
                 selected={date}
-                onSelect={setDate}
+                onSelect={(range) => setDate(range)}
                 numberOfMonths={2}
               />
             </PopoverContent>
