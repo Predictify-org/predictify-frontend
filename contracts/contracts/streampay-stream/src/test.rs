@@ -676,7 +676,10 @@ fn cancel_stream_requires_auth() {
     let impostor = Address::generate(&data.env);
 
     let result = client.try_cancel_stream(&impostor, &id);
-    assert!(result.is_err(), "cancel_stream should fail without auth from sender");
+    assert!(
+        result.is_err(),
+        "cancel_stream should fail without auth from sender"
+    );
 }
 
 #[test]
@@ -1017,10 +1020,7 @@ fn initialize_twice_returns_invalid_state() {
 
     data.client.initialize(&data.admin);
 
-    assert_contract_error!(
-        data.client.try_initialize(&data.admin),
-        Error::InvalidState
-    );
+    assert_contract_error!(data.client.try_initialize(&data.admin), Error::InvalidState);
 }
 
 /// `set_paused` with a non-admin caller must return `Error::Unauthorized`.
@@ -1057,10 +1057,7 @@ fn set_token_allowed_wrong_admin_returns_unauthorized() {
 fn start_stream_missing_returns_not_found() {
     let data = setup();
 
-    assert_contract_error!(
-        data.client.try_start_stream(&9999),
-        Error::NotFound
-    );
+    assert_contract_error!(data.client.try_start_stream(&9999), Error::NotFound);
 }
 
 /// `start_stream` on a contract that is paused must return `Error::ContractPaused`.
@@ -1092,10 +1089,7 @@ fn start_stream_paused_returns_contract_paused() {
 fn withdraw_missing_stream_returns_not_found() {
     let data = setup();
 
-    assert_contract_error!(
-        data.client.try_withdraw(&9999, &1),
-        Error::NotFound
-    );
+    assert_contract_error!(data.client.try_withdraw(&9999, &1), Error::NotFound);
 }
 
 /// `withdraw` on a `Draft` stream must return `Error::InvalidState`.
@@ -1147,8 +1141,5 @@ fn withdraw_zero_returns_invalid_amount() {
 fn withdrawable_missing_stream_returns_not_found() {
     let data = setup();
 
-    assert_contract_error!(
-        data.client.try_withdrawable(&9999),
-        Error::NotFound
-    );
+    assert_contract_error!(data.client.try_withdrawable(&9999), Error::NotFound);
 }

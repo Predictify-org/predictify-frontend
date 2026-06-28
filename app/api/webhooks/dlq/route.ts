@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, ErrorCode } from "@/app/lib/errors/server";
 
 /**
@@ -9,14 +9,14 @@ import { errorResponse, ErrorCode } from "@/app/lib/errors/server";
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => null);
+    const body = await req.json();
 
-    if (!body || typeof body !== "object") {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
       return errorResponse(ErrorCode.BAD_REQUEST, "Request body must be a JSON object.", 400);
     }
 
     // TODO: enqueue body for reprocessing
-    return Response.json({ received: true }, { status: 200 });
+    return NextResponse.json({ received: true }, { status: 200 });
   } catch {
     return errorResponse(
       ErrorCode.WEBHOOK_PROCESSING_FAILED,

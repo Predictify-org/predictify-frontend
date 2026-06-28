@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { GasOnRecipientToggle } from '../../components/GasOnRecipientToggle';
 
 /**
@@ -46,7 +47,7 @@ export default function NewStreamPage() {
             <h1 className="page-hero__title">Stream Created</h1>
             <p className="page-hero__description">Your stream is live.</p>
           </div>
-          <a href="/streams" className="button button--primary">View Streams</a>
+          <Link href="/streams" className="button button--primary">View Streams</Link>
         </section>
       </main>
     );
