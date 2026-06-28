@@ -9,13 +9,16 @@ import {
   normalizeBackendError,
   normalizeHorizonError,
   normalizeNetworkError,
+  normalizeSorobanError,
   isStreamPayError,
+  isSorobanError,
   isBackendApiErrorResponse,
   isHorizonError,
   isNetworkError,
   createError,
 } from './mapper';
 import type { StreamPayError, BackendApiErrorResponse, HorizonError } from './types';
+import { SorobanError as SorobanErrorClass, SorobanErrorCode } from '../../../types';
 
 describe('normalizeBackendError', () => {
   it('normalizes backend API error response', () => {
@@ -174,6 +177,138 @@ describe('normalizeHorizonError', () => {
   });
 });
 
+describe('normalizeSorobanError', () => {
+  it('normalizes SimulationFailed to SOROBAN_SIMULATION_FAILED', () => {
+    const error = new SorobanErrorClass(
+      SorobanErrorCode.SimulationFailed,
+      'Simulation failed: contract revert',
+      { statusCode: 400, meta: { streamId: 's1' } }
+    );
+
+    const result = normalizeSorobanError(error);
+
+    expect(result.code).toBe('SOROBAN_SIMULATION_FAILED');
+    expect(result.status).toBe(400);
+    expect(result.category).toBe('blockchain');
+    expect(result.title).toBe('Soroban Simulation Failed');
+    expect(result.retry.retryable).toBe(false);
+  });
+
+  it('normalizes SubmitTimeout to SOROBAN_SUBMIT_TIMEOUT', () => {
+    const error = new SorobanErrorClass(
+      SorobanErrorCode.SubmitTimeout,
+      'Submission timed out',
+      { statusCode: 504, meta: { txHash: 'abc' } }
+    );
+
+    const result = normalizeSorobanError(error);
+
+    expect(result.code).toBe('SOROBAN_SUBMIT_TIMEOUT');
+    expect(result.status).toBe(504);
+    expect(result.retry.retryable).toBe(true);
+    expect(result.retry.useExponentialBackoff).toBe(true);
+  });
+
+  it('normalizes RpcUnavailable to SOROBAN_RPC_UNAVAILABLE', () => {
+    const error = new SorobanErrorClass(
+      SorobanErrorCode.RpcUnavailable,
+      'RPC node down',
+      { statusCode: 503 }
+    );
+
+    const result = normalizeSorobanError(error);
+
+    expect(result.code).toBe('SOROBAN_RPC_UNAVAILABLE');
+    expect(result.status).toBe(503);
+  });
+
+  it('normalizes StreamNotFound to SOROBAN_STREAM_NOT_FOUND', () => {
+    const error = new SorobanErrorClass(
+      SorobanErrorCode.StreamNotFound,
+      'Stream not found',
+      { statusCode: 404, meta: { streamId: 'missing' } }
+    );
+
+    const result = normalizeSorobanError(error);
+
+    expect(result.code).toBe('SOROBAN_STREAM_NOT_FOUND');
+    expect(result.status).toBe(404);
+    expect(result.meta?.streamId).toBe('missing');
+  });
+
+  it('normalizes unknown variant to SOROBAN_UNKNOWN', () => {
+    const error = new Error('Something broke') as Error & { variant: string };
+    error.variant = 'TotallyUnknownVariant';
+
+    const result = normalizeSorobanError(error);
+
+    expect(result.code).toBe('SOROBAN_UNKNOWN');
+    expect(result.status).toBe(500);
+  });
+
+  it('falls back to registry HTTP status when statusCode is missing', () => {
+    const error = new SorobanErrorClass(
+      SorobanErrorCode.StreamAlreadyExists,
+      'Already exists'
+      // no statusCode
+    );
+
+    const result = normalizeSorobanError(error);
+    expect(result.status).toBe(409); // from ERROR_REGISTRY
+  });
+
+  it('includes debug info in test environment', () => {
+    const error = new SorobanErrorClass(
+      SorobanErrorCode.SubmitFailed,
+      'txBadSeq',
+      { meta: { reason: 'txBadSeq' } }
+    );
+
+    const result = normalizeSorobanError(error, {
+      environment: 'test',
+      includeDebug: true,
+    });
+
+    expect(result.debug).toBeDefined();
+    expect(result.debug?.originalCode).toBe('SubmitFailed');
+    expect(result.debug?.originalMessage).toBe('txBadSeq');
+  });
+
+  it('excludes debug info in production', () => {
+    const error = new SorobanErrorClass(
+      SorobanErrorCode.SubmitFailed,
+      'txBadSeq'
+    );
+
+    const result = normalizeSorobanError(error, {
+      environment: 'production',
+      includeDebug: true,
+    });
+
+    expect(result.debug).toBeUndefined();
+    expect(result.detail).not.toContain('txBadSeq');
+  });
+
+  it('sanitizes metadata containing sensitive keys', () => {
+    const error = new SorobanErrorClass(
+      SorobanErrorCode.SimulationFailed,
+      'Failed',
+      {
+        meta: {
+          streamId: 's1',
+          secretKey: 'super-secret',
+          password: 'hunter2',
+        },
+      }
+    );
+
+    const result = normalizeSorobanError(error);
+    expect(result.meta?.streamId).toBe('s1');
+    expect(result.meta?.secretKey).toBe('[REDACTED]');
+    expect(result.meta?.password).toBe('[REDACTED]');
+  });
+});
+
 describe('normalizeNetworkError', () => {
   it('normalizes network timeout error', () => {
     const error = new Error('Request timeout');
@@ -231,6 +366,17 @@ describe('normalizeError', () => {
 
     const result = normalizeError(existingError);
     expect(result).toBe(existingError);
+  });
+
+  it('normalizes SorobanError instances', () => {
+    const error = new SorobanErrorClass(
+      SorobanErrorCode.StreamNotFound,
+      'Stream missing'
+    );
+
+    const result = normalizeError(error);
+    expect(result.code).toBe('SOROBAN_STREAM_NOT_FOUND');
+    expect(result.category).toBe('blockchain');
   });
 
   it('normalizes backend error response object', () => {
@@ -294,6 +440,35 @@ describe('Type Guards', () => {
 
     it('returns false for null', () => {
       expect(isStreamPayError(null)).toBe(false);
+    });
+  });
+
+  describe('isSorobanError', () => {
+    it('returns true for valid SorobanError instance', () => {
+      const error = new SorobanErrorClass(
+        SorobanErrorCode.SimulationFailed,
+        'Sim failed'
+      );
+
+      expect(isSorobanError(error)).toBe(true);
+    });
+
+    it('returns false for regular Error', () => {
+      expect(isSorobanError(new Error('test'))).toBe(false);
+    });
+
+    it('returns false for Error with non-matching variant', () => {
+      const error = new Error('test') as Error & { variant: string };
+      error.variant = 'NotARealVariant';
+      expect(isSorobanError(error)).toBe(false);
+    });
+
+    it('returns false for null', () => {
+      expect(isSorobanError(null)).toBe(false);
+    });
+
+    it('returns false for plain object', () => {
+      expect(isSorobanError({ variant: 'SimulationFailed' })).toBe(false);
     });
   });
 
