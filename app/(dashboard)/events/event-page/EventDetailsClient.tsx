@@ -18,9 +18,10 @@ import {
 } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { Clock, DollarSign, Users, BarChart2, Loader2 } from "lucide-react";
+import { Clock, DollarSign, Users, BarChart2, Loader2, Share2 } from "lucide-react";
 import { formatDistanceToNowStrict, parseISO, isValid } from "date-fns";
 import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
+import { ShareSheet } from "@/app/components/ShareSheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Drawer,
@@ -462,7 +463,20 @@ export default function EventDetailsClient() {
           <h1 className="text-3xl font-bold tracking-tight">
             {eventData.title}
           </h1>
-          <Badge variant="outline">{eventData.category}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{eventData.category}</Badge>
+            <ShareSheet
+              title={eventData.title}
+              text={`Check out "${eventData.title}" on Predictify!`}
+              url={typeof window !== "undefined" ? window.location.href : `https://predictify.app/events/${eventData.id}`}
+              trigger={
+                <Button variant="outline" size="sm" className="gap-2" aria-label="Share this event">
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </Button>
+              }
+            />
+          </div>
         </div>
         <p className="text-muted-foreground">{eventData.description}</p>
       </div>
