@@ -1,0 +1,92 @@
+name: Coverage Gate (≥ 95 %)
+
+# Runs on every push/PR that touches the Rust contract, and on demand.
+# Fails the build if any coverage metric (lines, regions, or functions)
+# drops below 95 %.  Uses cargo-llvm-cov so the numbers match the
+# coverage-output.txt already checked-in for GrantFox.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/coverage.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/coverage.yml"
+  workflow_dispatch: {}
+
+jobs:
+  coverage:
+    name: cargo-llvm-cov ≥ 95 %
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Rust toolchain ─────────────────────────────────────────────────────
+      - name: Install Rust stable with llvm-tools-preview
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # cargo-llvm-cov requires the llvm-tools-preview component to
+          # instrument source code with LLVM coverage counters.
+          components: llvm-tools-preview
+
+      # ── Cargo / build cache ────────────────────────────────────────────────
+      - name: Cache Cargo registry + build artefacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/target
+          key: ${{ runner.os }}-cargo-cov-${{ hashFiles('contracts/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-cov-
+
+      # ── Install cargo-llvm-cov ─────────────────────────────────────────────
+      # We pin the version so the gate is reproducible across CI runs.
+      # Bump the pin deliberately when upgrading; do not use @latest.
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov@0.6
+
+      # ── Run tests under coverage instrumentation ───────────────────────────
+      # --fail-under-lines 95  → fail if line coverage < 95 %
+      # --fail-under-regions 95 → fail if region coverage < 95 %
+      # --fail-under-functions 95 → fail if function coverage < 95 %
+      # The three flags mirror the three columns that cargo-llvm-cov reports
+      # and that GrantFox tracks. Any metric below 95 % exits non-zero.
+      #
+      # --lcov --output-path  → emit an LCOV report so the Codecov uploader
+      #   and GitHub's coverage summary can consume it.
+      - name: Run cargo-llvm-cov with 95 % gate
+        working-directory: contracts
+        run: |
+          cargo llvm-cov \
+            --all-features \
+            --workspace \
+            --lcov \
+            --output-path lcov.info \
+            --fail-under-lines 95 \
+            --fail-under-regions 95 \
+            --fail-under-functions 95
+
+      # ── Human-readable summary in CI logs ─────────────────────────────────
+      # Re-run with --summary-only so the exact percentages are visible in
+      # the "Run cargo-llvm-cov summary" step without re-running tests.
+      - name: Print coverage summary
+        if: always()
+        working-directory: contracts
+        run: |
+          cargo llvm-cov report --summary-only || true
+
+      # ── Upload LCOV artefact for external consumers ────────────────────────
+      - name: Upload LCOV coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lcov-coverage-report
+          path: contracts/lcov.info
+          retention-days: 30

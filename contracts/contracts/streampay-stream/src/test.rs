@@ -671,11 +671,15 @@ fn cancel_stream_requires_auth() {
         &1_200u64,
     );
 
-    // Mock auths off and try to cancel as a different address
+    // Clear all auth mocks — the stream sender's auth is now missing,
+    // so the host must reject the call with an auth error.
     data.env.mock_auths(&[]);
-    let impostor = Address::generate(&data.env);
 
-    let result = client.try_cancel_stream(&impostor, &id);
+    // `cancel_stream` only takes `stream_id`; auth comes from the stored
+    // sender address inside the contract. With no mocked auth the host
+    // panics with an `Error(Auth, InvalidAction)` host error, which the
+    // SDK surfaces as an `Err` from `try_cancel_stream`.
+    let result = client.try_cancel_stream(&id);
     assert!(
         result.is_err(),
         "cancel_stream should fail without auth from sender"
