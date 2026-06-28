@@ -660,8 +660,11 @@ impl Contract {
         stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
-        
-        // Emit admin_action event for pause
+
+        // Dedicated structured lifecycle event for off-chain indexers that
+        // filter on the `stream::paused` topic, in addition to the generic
+        // admin_action audit event below.
+        events::paused(&env, stream_id, &stream.sender, stream.pause_time, now);
         events::admin_action(
             &env,
             stream_id,
@@ -708,8 +711,11 @@ impl Contract {
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
-        
-        // Emit admin_action event for resume
+
+        // Dedicated structured lifecycle event for off-chain indexers that
+        // filter on the `stream::resumed` topic, in addition to the generic
+        // admin_action audit event below.
+        events::resumed(&env, stream_id, &stream.sender, stream.end_time, now);
         events::admin_action(
             &env,
             stream_id,
