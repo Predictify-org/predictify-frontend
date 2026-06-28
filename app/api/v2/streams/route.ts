@@ -1,6 +1,28 @@
+/**
+ * POST /api/v2/streams — create a stream, enforcing a per-org daily quota.
+ * GET  /api/v2/streams — paginated stream list in v2 shape.
+ *
+ * Quota enforcement (POST only):
+ *   Each calling identity (API key > wallet > IP) is treated as an "org"
+ *   for quota purposes. The daily limit is configured in rate-limit-config.ts
+ *   via ORG_DAILY_STREAM_QUOTA and can be tuned with the
+ *   ORG_DAILY_STREAM_QUOTA_LIMIT env var without a code deploy.
+ *
+ *   When the quota is exceeded the handler returns 429 with a Retry-After
+ *   header set to the number of seconds until UTC midnight, and a metric
+ *   is emitted via org-quota-metrics.ts.
+ *
+ * Breaking changes vs v1:
+ *   - Response body uses `allowed_actions`, `created_at`, `updated_at`
+ *     instead of `nextAction`, `createdAt`, `updatedAt`.
+ *   - `settlement` is always present (null when not yet settled).
+ */
+
 import { NextResponse } from "next/server";
 import { db, encodeCursor, decodeCursor, idempotencyToken } from "@/app/lib/db";
 import { toV2Stream } from "@/app/lib/api-version";
+import { getClientIdentity } from "@/app/lib/rate-limit";
+import { checkOrgDailyQuota, orgQuotaResponse } from "@/app/lib/org-quota";
 
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -40,23 +62,43 @@ export async function GET(request: Request) {
 }
 
 /**
- * POST /api/v2/streams — create a stream, respond with v2 shape.
+ * POST /api/v2/streams
  *
- * Breaking changes vs v1:
- *   - Response body uses `allowed_actions`, `created_at`, `updated_at`
- *     instead of `nextAction`, `createdAt`, `updatedAt`.
- *   - `settlement` is always present (null when not yet settled).
+ * Flow:
+ *   1. Idempotency check (early return on replay).
+ *   2. Per-org daily quota check → 429 if exceeded.
+ *   3. Validate request body.
+ *   4. Persist stream and return 201.
  */
 export async function POST(request: Request) {
+  // ── 1. Idempotency ────────────────────────────────────────────────────────
   const idempotencyKey = request.headers.get("Idempotency-Key");
   const token = idempotencyKey
     ? idempotencyToken("v2.streams.create", idempotencyKey)
     : null;
 
   if (token && db.idempotency.has(token)) {
+    // Replayed request — return the cached response without counting against quota.
     return NextResponse.json(db.idempotency.get(token), { status: 201 });
   }
 
+  // ── 2. Per-org daily quota ────────────────────────────────────────────────
+  //
+  // We use ClientIdentity.value as the org key:
+  //   - API key callers   → keyed by their API key (most precise)
+  //   - Wallet callers    → keyed by their Stellar public key
+  //   - Unauthenticated   → keyed by IP (coarser, still prevents runaway billing)
+  //
+  // The quota is checked *before* body parsing so the 429 is returned cheaply
+  // and the counter is incremented atomically inside checkOrgDailyQuota.
+  const identity = getClientIdentity(request);
+  const quota = await checkOrgDailyQuota(identity.value);
+
+  if (!quota.allowed) {
+    return orgQuotaResponse(quota.retryAfter!);
+  }
+
+  // ── 3. Parse and validate body ───────────────────────────────────────────
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -78,6 +120,7 @@ export async function POST(request: Request) {
     );
   }
 
+  // ── 4. Persist and respond ────────────────────────────────────────────────
   const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
   const newStream = {
