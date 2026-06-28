@@ -776,12 +776,6 @@ impl Contract {
             .ok_or(Error::Overflow)?;
 
         if recipient_payout > 0 {
-        let returned_amount = stream
-            .total_amount
-            .checked_sub(stream.released_amount)
-            .ok_or(Error::Overflow)?;
-
-        if returned_amount > 0 {
             #[allow(clippy::needless_borrows_for_generic_args)]
             token.transfer(&contract, &stream.recipient, &recipient_payout);
             stream.released_amount = vested;
