@@ -14,6 +14,8 @@
     "test": "node scripts/run-from-realpath.mjs jest",
     "test:e2e": "node scripts/run-from-realpath.mjs jest --runInBand --testPathPattern=e2e\\.test\\.ts$",
     "test:e2e:coverage": "node scripts/run-from-realpath.mjs jest --runInBand --testPathPattern=stream-lifecycle.e2e --coverage --collectCoverageFrom='app/api/streams/**/*.ts' --forceExit",
+    "smoke": "node scripts/run-from-realpath.mjs jest --runInBand --testPathPattern=smoke-contract\\.test\\.ts$ --forceExit",
+    "smoke:shell": "bash scripts/smoke-contract.sh",
     "reconcile": "node scripts/run-from-realpath.mjs ts-node scripts/reconcile-streams.ts"
   },
   "dependencies": {
