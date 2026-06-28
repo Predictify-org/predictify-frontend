@@ -23,14 +23,15 @@ export class TenantScopedCache<T> {
     return false;
   }
 
-  private buildKey(tenant: string, id: string): string {
+  private buildKey(tenant: string, id: string, network?: string): string {
     if (!tenant || tenant.trim() === '') {
       throw new Error("Tenant is required");
     }
     if (!id) {
       throw new Error("ID is required");
     }
-    return `${this.scope}:${tenant}:${id}`;
+    const networkSegment = network && network.trim() !== '' ? network.trim() : "default";
+    return `${this.scope}:${networkSegment}:${tenant}:${id}`;
   }
 
   private lazySweep(): void {
@@ -48,11 +49,11 @@ export class TenantScopedCache<T> {
     }
   }
 
-  get(tenant: string, id: string): T | null {
+  get(tenant: string, id: string, network?: string): T | null {
     if (this.isDisabled()) {
       return null;
     }
-    const key = this.buildKey(tenant, id);
+    const key = this.buildKey(tenant, id, network);
     const entry = this.cache.get(key);
     if (!entry) {
       return null;
@@ -64,12 +65,12 @@ export class TenantScopedCache<T> {
     return entry.value;
   }
 
-  set(tenant: string, id: string, val: T): void {
+  set(tenant: string, id: string, val: T, network?: string): void {
     if (this.isDisabled()) {
       return;
     }
-    const key = this.buildKey(tenant, id);
-    
+    const key = this.buildKey(tenant, id, network);
+
     if (this.cache.size >= 500) {
       /* istanbul ignore next: lazy sweep path exclusion */
       this.lazySweep();
@@ -81,9 +82,23 @@ export class TenantScopedCache<T> {
     });
   }
 
-  invalidate(tenant: string, id: string): void {
-    const key = this.buildKey(tenant, id);
+  invalidate(tenant: string, id: string, network?: string): void {
+    const key = this.buildKey(tenant, id, network);
     this.cache.delete(key);
+  }
+
+  /**
+   * Drop every cached entry under this scope.
+   *
+   * Intended to be invoked from a real `setNetwork()` path (e.g.
+   * `app/lib/network.ts`) once such a switcher exists. The network-
+   * segmented cache keys already prevent cross-network cache leakage
+   * on their own; this method is the belt-and-braces companion for
+   * clearing every segment (including `"default"` entries written by
+   * legacy callers) on a hard network reset.
+   */
+  flush(): void {
+    this.cache.clear();
   }
 }
 
@@ -92,3 +107,17 @@ export function createCache<T>(scope: string, ttlMs?: number): TenantScopedCache
 }
 
 export const streamCache = createCache<any>("stream");
+
+/**
+ * Flush the process-wide stream cache.
+ *
+ * TODO: wire this into the project-wide `setNetwork()` call site once it
+ * lands (the bug spec requires the cache to be flushed *immediately* on
+ * network switch — network-segmented keys alone satisfy the regression
+ * but not the "flush immediately" wording). Today there is no internal
+ * caller, so this helper is exercised only by tests. It maps directly to
+ * `Map.clear()`, which is O(n) with n bounded at 500 by `lazySweep()`.
+ */
+export function flushStreamCache(): void {
+  streamCache.flush();
+}
