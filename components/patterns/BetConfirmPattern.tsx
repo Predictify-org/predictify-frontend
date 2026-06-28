@@ -30,6 +30,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Kbd } from "@/components/ui/kbd"
 import { playSound } from "@/lib/audio/play-sound"
 import { LiveRegion } from "@/components/ui/live-region"
+import { SuccessConfetti } from "@/components/success/SuccessConfetti"
 
 /** Each step in the bet placement flow */
 type BetStep = "review" | "sign" | "submit" | "confirm"
@@ -148,14 +149,17 @@ export function BetConfirmPattern() {
               </DialogFooter>
             </>
           ) : (
-            <Receipt
-              receiptId="TXN-98237498234-XYZ"
-              amount="$100.00"
-              partyA="0x1234...5678 (You)"
-              partyB="Predictify Market Pool"
-              timestamp={new Date().toISOString()}
-              type="Bet Placement"
-            />
+            <div className="relative">
+              <SuccessConfetti ariaLabel="Prediction confirmed" />
+              <Receipt
+                receiptId="TXN-98237498234-XYZ"
+                amount="$100.00"
+                partyA="0x1234...5678 (You)"
+                partyB="Predictify Market Pool"
+                timestamp={new Date().toISOString()}
+                type="Bet Placement"
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -200,7 +204,8 @@ export function BetConfirmPattern() {
             </DrawerFooter>
           </>
         ) : (
-          <div className="w-full pt-4 max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full pt-4 max-h-[90vh] overflow-y-auto">
+            <SuccessConfetti ariaLabel="Prediction confirmed" />
             <DrawerHeader className="text-left">
               <DrawerTitle
                 ref={headingRef}

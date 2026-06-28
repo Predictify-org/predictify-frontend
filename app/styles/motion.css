@@ -1,0 +1,102 @@
+/**
+ * Success confetti motion tokens.
+ * Animated pieces are disabled under prefers-reduced-motion (see globals.css + .success-confetti-static).
+ */
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, -10%, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--confetti-drift, 0px), 120%, 0) rotate(var(--confetti-spin, 360deg));
+    opacity: 0;
+  }
+}
+
+.success-confetti {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.success-confetti-piece {
+  position: absolute;
+  top: -8%;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0.9;
+  animation: confetti-fall var(--confetti-duration, 1.4s) ease-out forwards;
+  will-change: transform, opacity;
+}
+
+.success-confetti-piece--cyan {
+  background: #29fcf3;
+  left: 12%;
+  --confetti-drift: -24px;
+  --confetti-spin: 420deg;
+  animation-delay: 0ms;
+}
+
+.success-confetti-piece--green {
+  background: #4ade80;
+  left: 28%;
+  --confetti-drift: 18px;
+  --confetti-spin: -300deg;
+  animation-delay: 80ms;
+}
+
+.success-confetti-piece--violet {
+  background: #a78bfa;
+  left: 44%;
+  --confetti-drift: -12px;
+  --confetti-spin: 540deg;
+  animation-delay: 40ms;
+}
+
+.success-confetti-piece--amber {
+  background: #fbbf24;
+  left: 60%;
+  --confetti-drift: 28px;
+  --confetti-spin: -420deg;
+  animation-delay: 120ms;
+}
+
+.success-confetti-piece--pink {
+  background: #f472b6;
+  left: 76%;
+  --confetti-drift: -32px;
+  --confetti-spin: 480deg;
+  animation-delay: 60ms;
+}
+
+.success-confetti-piece--blue {
+  background: #69daff;
+  left: 88%;
+  --confetti-drift: 14px;
+  --confetti-spin: -360deg;
+  animation-delay: 100ms;
+}
+
+/* Static success badge shown when motion is reduced */
+.success-confetti-static {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.success-confetti-static__icon {
+  color: #4ade80;
+  filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.35));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .success-confetti-piece {
+    animation: none;
+    opacity: 0;
+  }
+}
