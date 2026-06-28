@@ -1,7 +1,7 @@
 /**
  * Error Mapping Layer
  * 
- * Converts raw API errors (backend, Stellar Horizon, network)
+ * Converts raw API errors (backend, Stellar Horizon, network, Soroban)
  * into standardized StreamPayError format.
  */
 
@@ -16,6 +16,7 @@ import {
   ERROR_REGISTRY,
   HORIZON_ERROR_MAPPING,
   BACKEND_ERROR_CODE_MAPPING,
+  SOROBAN_ERROR_MAPPING,
   getErrorCodeForHttpStatus,
   getErrorMetadata,
 } from './codes';
@@ -301,6 +302,47 @@ export function normalizeNetworkError(
 }
 
 /**
+ * Normalize a Soroban error into a StreamPayError.
+ *
+ * Soroban errors carry a typed `variant` (from the `SorobanError` enum)
+ * and optional metadata. This function maps the variant to a stable
+ * `ErrorCode`, preserves the original message in debug mode, and
+ * surfaces safe user-facing text in production.
+ */
+export function normalizeSorobanError(
+  error: Error & { variant?: string; meta?: Record<string, unknown>; statusCode?: number },
+  options: ErrorNormalizationOptions = {}
+): StreamPayError {
+  const variant = error.variant ?? 'Unknown';
+  const errorCode = SOROBAN_ERROR_MAPPING[variant] ?? 'SOROBAN_UNKNOWN';
+  const metadata = getErrorMetadata(errorCode);
+  const includeDebug = shouldIncludeDebug(options);
+  const status = error.statusCode ?? metadata.httpStatus;
+
+  const normalized: StreamPayError = {
+    type: metadata.typeUri,
+    code: errorCode,
+    title: metadata.title,
+    detail: includeDebug ? (error.message || metadata.userMessage) : metadata.userMessage,
+    status,
+    requestId: options.requestId,
+    category: 'blockchain',
+    retry: metadata.retry,
+    meta: sanitizeMetadata(error.meta),
+  };
+
+  if (includeDebug) {
+    normalized.debug = {
+      originalCode: variant,
+      originalMessage: error.message,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  return normalized;
+}
+
+/**
  * Normalize a generic JavaScript error
  */
 export function normalizeGenericError(
@@ -343,6 +385,11 @@ export function normalizeError(
   // Already normalized
   if (isStreamPayError(error)) {
     return error;
+  }
+  
+  // Handle Soroban errors (must check before generic Error)
+  if (isSorobanError(error)) {
+    return normalizeSorobanError(error, options);
   }
   
   // Handle Response objects (from fetch)
@@ -428,6 +475,24 @@ export function isStreamPayError(error: unknown): error is StreamPayError {
     typeof e.detail === 'string' &&
     typeof e.status === 'number' &&
     typeof e.category === 'string'
+  );
+}
+
+/**
+ * Type guard: Check if error is a SorobanError.
+ *
+ * SorobanError instances carry a `variant` property that matches
+ * one of the `SorobanError` enum values.
+ */
+export function isSorobanError(
+  error: unknown
+): error is Error & { variant: string; meta?: Record<string, unknown>; statusCode?: number } {
+  if (!(error instanceof Error)) return false;
+  const e = error as Record<string, unknown>;
+  return (
+    typeof e.variant === 'string' &&
+    e.variant.length > 0 &&
+    e.variant in SOROBAN_ERROR_MAPPING
   );
 }
 

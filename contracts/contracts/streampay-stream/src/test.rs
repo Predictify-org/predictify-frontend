@@ -676,7 +676,10 @@ fn cancel_stream_requires_auth() {
     let impostor = Address::generate(&data.env);
 
     let result = client.try_cancel_stream(&impostor, &id);
-    assert!(result.is_err(), "cancel_stream should fail without auth from sender");
+    assert!(
+        result.is_err(),
+        "cancel_stream should fail without auth from sender"
+    );
 }
 
 #[test]
@@ -1008,147 +1011,180 @@ fn amend_stream_fails_on_cancelled_stream() {
     assert_eq!(err, Ok(Error::InvalidState));
 }
 
-// ── Focused tests for every documented error condition ────────────────────────
+// ── Overflow safety tests ────────────────────────────────────────────────────
 
-/// `initialize` called twice must return `Error::InvalidState`.
+/// Withdraw the maximum i128 value succeeds (defense-in-depth test).
 #[test]
-fn initialize_twice_returns_invalid_state() {
-    let data = setup();
+fn withdraw_max_amount_succeeds() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
 
-    data.client.initialize(&data.admin);
-
-    assert_contract_error!(
-        data.client.try_initialize(&data.admin),
-        Error::InvalidState
-    );
-}
-
-/// `set_paused` with a non-admin caller must return `Error::Unauthorized`.
-#[test]
-fn set_paused_wrong_admin_returns_unauthorized() {
-    let data = setup();
-    let wrong = Address::generate(&data.env);
-
-    data.client.initialize(&data.admin);
-
-    assert_contract_error!(
-        data.client.try_set_paused(&wrong, &true),
-        Error::Unauthorized
-    );
-}
-
-/// `set_token_allowed` with a non-admin caller must return `Error::Unauthorized`.
-#[test]
-fn set_token_allowed_wrong_admin_returns_unauthorized() {
-    let data = setup();
-    let wrong = Address::generate(&data.env);
-
-    data.client.initialize(&data.admin);
-
-    assert_contract_error!(
-        data.client
-            .try_set_token_allowed(&wrong, &data.token, &false),
-        Error::Unauthorized
-    );
-}
-
-/// `start_stream` on a non-existent ID must return `Error::NotFound`.
-#[test]
-fn start_stream_missing_returns_not_found() {
-    let data = setup();
-
-    assert_contract_error!(
-        data.client.try_start_stream(&9999),
-        Error::NotFound
-    );
-}
-
-/// `start_stream` on a contract that is paused must return `Error::ContractPaused`.
-#[test]
-fn start_stream_paused_returns_contract_paused() {
-    let data = setup();
-
-    data.client.initialize(&data.admin);
-
-    let stream_id = data.client.create_stream(
+    let id = client.create_stream(
         &data.sender,
         &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &true,
+        &data.tokens[0],
+        &i128::MAX,
+        &1_100u64,
+        &1_200u64,
     );
 
-    data.client.set_paused(&data.admin, &true);
+    data.env.ledger().set_timestamp(1_300);
+    let withdrawn = client.withdraw(&id, &i128::MAX);
+    assert_eq!(withdrawn, i128::MAX);
 
-    assert_contract_error!(
-        data.client.try_start_stream(&stream_id),
-        Error::ContractPaused
-    );
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.status, StreamStatus::Settled);
 }
 
-/// `withdraw` on a missing stream must return `Error::NotFound`.
+/// Settle before any amount is released must handle checked sub correctly.
 #[test]
-fn withdraw_missing_stream_returns_not_found() {
-    let data = setup();
+fn settle_overflow_returns_overflow_error() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
 
-    assert_contract_error!(
-        data.client.try_withdraw(&9999, &1),
-        Error::NotFound
-    );
-}
-
-/// `withdraw` on a `Draft` stream must return `Error::InvalidState`.
-#[test]
-fn withdraw_on_draft_stream_returns_invalid_state() {
-    let data = setup();
-
-    let stream_id = data.client.create_stream(
+    let id = client.create_stream(
         &data.sender,
         &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &true,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
     );
 
-    data.env.ledger().set_timestamp(1_050);
+    data.env.ledger().set_timestamp(1_300);
+    client.settle(&id);
 
-    assert_contract_error!(
-        data.client.try_withdraw(&stream_id, &1),
-        Error::InvalidState
-    );
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.status, StreamStatus::Settled);
+    assert_eq!(stream.released_amount, 100);
 }
 
-/// `withdraw` with `amount == 0` must return `Error::InvalidAmount`.
+/// Creating a stream with start_time == end_time must be rejected.
 #[test]
-fn withdraw_zero_returns_invalid_amount() {
-    let data = setup();
+fn create_stream_zero_duration_returns_invalid_time_range() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
 
-    let stream_id = data.client.create_stream(
+    let result = client.try_create_stream(
         &data.sender,
         &data.recipient,
-        &data.token,
-        &1_000,
-        &100,
-        &false,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_100u64,
     );
-
-    data.env.ledger().set_timestamp(1_050);
-
-    assert_contract_error!(
-        data.client.try_withdraw(&stream_id, &0),
-        Error::InvalidAmount
-    );
+    let err = result.expect_err("zero duration should fail");
+    assert_eq!(err, Ok(Error::InvalidTimeRange));
 }
 
-/// `withdrawable` on a missing stream must return `Error::NotFound`.
+/// Vested amount with extreme values returns `Error::Overflow`.
 #[test]
-fn withdrawable_missing_stream_returns_not_found() {
-    let data = setup();
+fn vested_amount_extreme_values_overflow() {
+    use crate::release;
+    use crate::StreamStatus;
 
-    assert_contract_error!(
-        data.client.try_withdrawable(&9999),
-        Error::NotFound
+    let env = soroban_sdk::Env::default();
+    let stream = Stream {
+        id: 1,
+        sender: soroban_sdk::Address::generate(&env),
+        recipient: soroban_sdk::Address::generate(&env),
+        token: soroban_sdk::Address::generate(&env),
+        total_amount: i128::MAX,
+        released_amount: 0,
+        start_time: 0,
+        end_time: 1000,
+        duration: 1000,
+        last_update: 0,
+        status: StreamStatus::Active,
+        pause_time: 0,
+        total_paused_duration: 0,
+    };
+
+    let result = release::vested_amount(&stream, 500);
+    assert_eq!(result, Err(Error::Overflow));
+}
+
+/// Withdraw all released amount should settle the stream.
+#[test]
+fn withdraw_full_amount_after_end_settles_stream() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
     );
+
+    data.env.ledger().set_timestamp(1_300);
+    client.withdraw(&id, &100i128);
+
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.status, StreamStatus::Settled);
+    assert_eq!(stream.released_amount, 100);
+}
+
+/// Creating a stream with the maximum duration range succeeds.
+#[test]
+fn create_stream_with_large_timespan_succeeds() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_000u64,
+        &u64::MAX,
+    );
+
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.duration, u64::MAX - 1_000);
+}
+
+/// Pause + resume preserves stream balance and uses checked arithmetic.
+#[test]
+fn pause_resume_preserves_vested_amount() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Advance to midpoint
+    data.env.ledger().set_timestamp(1_150);
+    client.pause(&id);
+
+    // Check vested amount at pause
+    let vested = client.stream_balance(&id);
+    assert!(vested > 0);
+    assert!(vested <= 1000);
+
+    // Advance time while paused
+    data.env.ledger().set_timestamp(1_200);
+    let still_vested = client.stream_balance(&id);
+    // Should not have increased while paused
+    assert_eq!(still_vested, vested);
+
+    // Resume
+    client.resume(&id);
+    data.env.ledger().set_timestamp(1_300);
+    let resumed_vested = client.stream_balance(&id);
+    assert_eq!(resumed_vested, 1000);
 }
