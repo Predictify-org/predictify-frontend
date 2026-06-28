@@ -9,7 +9,7 @@
 //!   as unpaused, AND marks every token in `tokens` as `allowed = true`
 //!   - all in one transaction.
 //! - Re-initialisation (via either path) is rejected with
-//!   `Error::InvalidState` and leaves no partial state.
+//!   `Error::AlreadyInitialized` and leaves no partial state.
 //!
 //! The full allowlist/stream lifecycle is exercised elsewhere; this
 //! module only verifies the deployment-time surface area.
@@ -107,7 +107,28 @@ fn initialize_twice_returns_invalid_state() {
 
     let result = client.try_initialize(&data.admin);
     let err = result.expect_err("second initialize should fail");
-    assert_eq!(err, Ok(Error::InvalidState));
+    assert_eq!(err, Ok(Error::AlreadyInitialized));
+}
+
+#[test]
+fn create_stream_with_self_recipient_returns_self_stream() {
+    // Streaming to yourself is meaningless and now has its own semantic
+    // error code rather than the generic `InvalidState`.
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let result = client.try_create_stream(
+        &data.sender,
+        &data.sender,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    let err = result.expect_err("sender == recipient should fail");
+    assert_eq!(err, Ok(Error::SelfStream));
 }
 
 #[test]
@@ -217,7 +238,7 @@ fn init_with_token_allowlist_twice_returns_invalid_state() {
     let result =
         client.try_init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
     let err = result.expect_err("second init_with_token_allowlist should fail");
-    assert_eq!(err, Ok(Error::InvalidState));
+    assert_eq!(err, Ok(Error::AlreadyInitialized));
 }
 
 #[test]
@@ -232,7 +253,7 @@ fn init_with_token_allowlist_after_initialize_returns_invalid_state() {
     let result =
         client.try_init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
     let err = result.expect_err("init_with_token_allowlist after initialize should fail");
-    assert_eq!(err, Ok(Error::InvalidState));
+    assert_eq!(err, Ok(Error::AlreadyInitialized));
 }
 
 #[test]
@@ -244,7 +265,7 @@ fn initialize_after_init_with_token_allowlist_returns_invalid_state() {
 
     let result = client.try_initialize(&data.admin);
     let err = result.expect_err("initialize after init_with_token_allowlist should fail");
-    assert_eq!(err, Ok(Error::InvalidState));
+    assert_eq!(err, Ok(Error::AlreadyInitialized));
 }
 
 #[test]

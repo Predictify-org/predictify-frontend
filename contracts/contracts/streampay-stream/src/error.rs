@@ -43,4 +43,8 @@ pub enum Error {
     Overflow = 10,
     /// 11: Sender has exceeded the maximum number of active streams.
     StreamLimitExceeded = 11,
+    /// 12: Stream sender and recipient are the same address.
+    SelfStream = 12,
+    /// 13: Contract has already been initialised.
+    AlreadyInitialized = 13,
 }

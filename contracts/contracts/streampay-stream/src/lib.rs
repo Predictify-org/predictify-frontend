@@ -120,13 +120,13 @@ impl Contract {
     /// `set_token_allowed`. Sets the global pause flag to `false`.
     ///
     /// # Errors
-    /// - [`Error::InvalidState`] if the contract has already been initialised.
+    /// - [`Error::AlreadyInitialized`] if the contract has already been initialised.
     ///
     /// # Auth
     /// Requires authorisation from `admin`.
     pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
         if storage::has_admin(&env) {
-            return Err(Error::InvalidState);
+            return Err(Error::AlreadyInitialized);
         }
 
         admin.require_auth();
@@ -178,7 +178,7 @@ impl Contract {
     ///
     /// # Errors
     ///
-    /// - `Error::InvalidState` if the contract has already been
+    /// - `Error::AlreadyInitialized` if the contract has already been
     ///   initialised. The allowlist is *not* partially written.
     ///
     /// # Auth
@@ -202,7 +202,7 @@ impl Contract {
         // writes so that a previously-initialised contract cannot have
         // its allowlist silently mutated.
         if storage::has_admin(&env) {
-            return Err(Error::InvalidState);
+            return Err(Error::AlreadyInitialized);
         }
 
         // Authorise the caller up-front. Soroban rolls back all
@@ -362,7 +362,7 @@ impl Contract {
     /// # Errors
     /// - [`Error::ContractPaused`] if the global pause flag is set.
     /// - [`Error::InvalidAmount`] if `total_amount <= 0`.
-    /// - [`Error::InvalidState`] if `sender == recipient`.
+    /// - [`Error::SelfStream`] if `sender == recipient`.
     /// - [`Error::TokenNotAllowed`] if the token has been blocked by the admin.
     /// - [`Error::InvalidTimeRange`] if `end_time <= start_time` or `start_time < now`.
     ///
@@ -386,7 +386,7 @@ impl Contract {
         }
 
         if sender == recipient {
-            return Err(Error::InvalidState);
+            return Err(Error::SelfStream);
         }
 
         if storage::is_token_blocked(&env, &token) {
