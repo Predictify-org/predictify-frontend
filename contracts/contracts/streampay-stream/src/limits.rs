@@ -74,7 +74,7 @@ pub fn get_sender_stream_count(env: &Env, sender: &Address) -> u64 {
 }
 
 pub fn increment_sender_stream_count(env: &Env, sender: &Address) {
-    let count = get_sender_stream_count(env, sender) + 1;
+    let count = get_sender_stream_count(env, sender).saturating_add(1);
     env.storage()
         .persistent()
         .set(&LimitDataKey::SenderStreamCount(sender.clone()), &count);
@@ -84,7 +84,7 @@ pub fn increment_sender_stream_count(env: &Env, sender: &Address) {
 pub fn decrement_sender_stream_count(env: &Env, sender: &Address) {
     let count = get_sender_stream_count(env, sender);
     if count > 0 {
-        let new_count = count - 1;
+        let new_count = count.saturating_sub(1);
         env.storage()
             .persistent()
             .set(&LimitDataKey::SenderStreamCount(sender.clone()), &new_count);
