@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
-import { AlertTriangle, Copy, RefreshCw, Home, MessageSquare, Check } from "lucide-react";
+import { AlertTriangle, RefreshCw, Home, MessageSquare } from "lucide-react";
+import { CopyableText } from "@/components/ui/CopyableText";
 
 interface ErrorRecoveryScreenProps {
   error: Error;
@@ -12,27 +12,6 @@ interface ErrorRecoveryScreenProps {
 }
 
 export function ErrorRecoveryScreen({ error, incidentId, resetErrorBoundary }: ErrorRecoveryScreenProps) {
-  const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyId = async () => {
-    try {
-      await navigator.clipboard.writeText(incidentId);
-      setCopied(true);
-      toast({
-        title: "Incident ID Copied",
-        description: "The ID has been copied to your clipboard.",
-      });
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      toast({
-        title: "Copy Failed",
-        description: "Could not copy the ID.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleGoHome = () => {
     window.location.href = "/";
   };
@@ -54,16 +33,11 @@ export function ErrorRecoveryScreen({ error, incidentId, resetErrorBoundary }: E
 
       <div className="mb-8 flex flex-col items-center gap-2 rounded-lg bg-muted p-4 sm:flex-row">
         <span className="text-sm font-medium text-muted-foreground">Incident ID:</span>
-        <code className="rounded bg-background px-2 py-1 text-sm font-mono">{incidentId}</code>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="ml-2 h-8 px-2" 
-          onClick={handleCopyId}
-          aria-label="Copy Incident ID"
-        >
-          {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-        </Button>
+        <CopyableText 
+          text={incidentId} 
+          truncateMiddle={false} 
+          className="rounded bg-background px-2 py-1" 
+        />
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row">

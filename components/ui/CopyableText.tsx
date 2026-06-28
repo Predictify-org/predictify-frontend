@@ -5,13 +5,26 @@ import { Copy, Check } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
+/**
+ * Props for the CopyableText component.
+ */
 interface CopyableTextProps {
+  /** The full text string to be copied to the clipboard */
   text: string;
+  /** Whether to truncate the middle of the string (e.g., for wallet addresses) */
   truncateMiddle?: boolean;
+  /** The number of characters to show at the beginning and end when truncated */
   visibleChars?: number;
+  /** Additional CSS classes for styling */
   className?: string;
 }
 
+/**
+ * CopyableText
+ * 
+ * A reusable component that displays text (optionally truncated) with a hover-revealed copy icon.
+ * Includes accessibility features like an aria-live region for screen readers and toast feedback.
+ */
 export function CopyableText({
   text,
   truncateMiddle = true,
@@ -56,7 +69,7 @@ export function CopyableText({
   return (
     <div
       className={cn(
-        "group inline-flex items-center gap-1.5 cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground",
+        "group inline-flex items-center gap-1.5 cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground",
         className
       )}
       onClick={handleCopy}

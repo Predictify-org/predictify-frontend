@@ -14,7 +14,8 @@ import {
 import { useWalletContext } from "@/context/WalletContext";
 import { useWallet } from "@/hooks/useWallet.hook";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
-import { Copy as CopyIcon, RefreshCcw, LogOut as LogOutIcon } from "lucide-react";
+import { CopyableText } from "@/components/ui/CopyableText";
+import { RefreshCcw, LogOut as LogOutIcon } from "lucide-react";
 import ArrowDownIcon from "../icons/ArrowDown";
 import { Switch } from "@/components/ui/switch";
 import { usePrivacy } from "@/context/PrivacyContext";
@@ -46,9 +47,7 @@ export function WalletMenu() {
     );
   }
 
-  function handleCopy() {
-    if (address) navigator.clipboard.writeText(address);
-  }
+
 
   if (!connected) {
     return (
@@ -83,9 +82,13 @@ export function WalletMenu() {
         <DropdownMenuContent align="end" className="w-56" role="menu">
           <DropdownMenuLabel>Wallet</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem role="menuitem" onClick={handleCopy} className="cursor-pointer" aria-label="Copy address">
-            <CopyIcon className="mr-2 h-4 w-4" />
-            Copy
+          <DropdownMenuItem asChild>
+            <div className="flex w-full cursor-pointer items-center px-2 py-1.5 hover:bg-accent hover:text-accent-foreground">
+              <CopyableText 
+                text={address || ""} 
+                className="w-full justify-between px-0 py-0 hover:bg-transparent" 
+              />
+            </div>
           </DropdownMenuItem>
           <DropdownMenuItem role="menuitem" onClick={() => setIsOpen(true)} className="cursor-pointer" aria-label="Switch wallet">
             <RefreshCcw className="mr-2 h-4 w-4" />
