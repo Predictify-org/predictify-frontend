@@ -2090,6 +2090,161 @@ a:hover {
 .activity-dot--accent { background: var(--accent); box-shadow: 0 0 12px var(--accent); }
 
 /* ==========================================================================
+   STREAMPAY — CONTRACT EVENTS PANEL (EventTimeline)
+   Reuses the shared .activity-* timeline; adds the filter toolbar + event
+   metadata rows. Semantic dot colours are scoped here so reused
+   .activity-dot--* variants render correctly inside the panel in both themes.
+   ========================================================================== */
+
+.event-panel {
+  --success: #22c55e;
+  --info: #0ea5e9;
+  --warning: #eab308;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.event-panel__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.event-panel__subtitle {
+  color: var(--muted-light);
+  font-size: 0.875rem;
+}
+
+.event-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.event-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.event-filter-chip:hover {
+  border-color: var(--accent);
+}
+
+.event-filter-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.event-filter-chip--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+}
+
+.event-filter-chip__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--panel-elevated);
+  color: var(--muted-light);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.event-filter-chip--active .event-filter-chip__count {
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--accent-on);
+}
+
+.event-panel__count {
+  color: var(--muted-light);
+  font-size: 0.8125rem;
+}
+
+.event-panel__empty {
+  padding: 1.5rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.75rem;
+  color: var(--muted-light);
+  text-align: center;
+}
+
+.event-card__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.event-type-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-elevated);
+  color: var(--muted-light);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.event-amount {
+  color: var(--accent);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.event-meta__item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.event-meta__item dt {
+  color: var(--muted-light);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.event-meta__item dd {
+  color: var(--foreground);
+  font-size: 0.8125rem;
+}
+
+/* The event card stacks its richer content vertically rather than the
+   space-between row layout used by the base activity card. */
+.activity-card.event-card {
+  align-items: stretch;
+}
+
+/* ==========================================================================
    STREAMPAY — COMPREHENSIVE ACTION LOADING & BUSY MICRO-INTERACTIONS (#219)
    ========================================================================== */
 

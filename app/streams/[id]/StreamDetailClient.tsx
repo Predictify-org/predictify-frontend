@@ -302,6 +302,10 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
               <Link href={`/streams/${stream.id}/receipt`} className="button button--secondary detail-action-btn">
                 Print Stream Receipt
               </Link>
+
+              <Link href={`/streams/${stream.id}/events`} className="button button--secondary detail-action-btn">
+                View Contract Events
+              </Link>
               
               <button
                 className="button button--secondary detail-action-btn"
@@ -311,6 +315,19 @@ export function StreamDetailClient({ stream, network = "testnet" }: StreamDetail
               >
                 Export Calendar (.ics)
               </button>
+
+              {actionSummary.destructiveAction && (
+                <button
+                  className="button button--danger detail-action-btn"
+                  type="button"
+                  onClick={() => setIsDestructiveOpen(true)}
+                  disabled={isProcessing || isIncidentMode}
+                >
+                  {actionSummary.destructiveAction === "cancel"
+                    ? "Cancel Stream"
+                    : "Withdraw Funds"}
+                </button>
+              )}
             </div>
             {actionSummary.destructiveAction === "cancel" && (
               <p className="detail-action-note">

@@ -337,6 +337,7 @@ Quick links to the long-form docs under [docs/](docs/):
 - [Architecture overview](docs/architecture.md)
 - [API client usage](docs/api-client-usage.md)
 - [Stream state glossary](docs/stream-state-glossary.md)
+- [Contract events panel](docs/contract-events-panel.md)
 - [Error codes reference](docs/error-codes.md)
 - [Testing guide](docs/testing-guide.md)
 - [Glossary](docs/glossary.md)
