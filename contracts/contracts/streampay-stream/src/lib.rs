@@ -891,6 +891,22 @@ impl Contract {
         Ok(stream)
     }
 
+    /// Read-only view returning unsettled accrual per (stream, recipient).
+    ///
+    /// # Parameters
+    /// - `stream_id`: Numeric ID of the stream to query.
+    /// - `recipient`: Recipient address to verify (optional).
+    ///
+    /// # Returns
+    /// The unsettled accrual amount (vested minus released).
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    pub fn claim_drip(env: Env, stream_id: u64) -> Result<i128, Error> {
+        let stream = get_existing_stream(&env, stream_id)?;
+        release::withdrawable(&stream, env.ledger().timestamp())
+    }
+
     /// Upgrades the contract to a new WASM binary.
     ///
     /// # Errors
