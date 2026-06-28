@@ -346,7 +346,9 @@ impl Contract {
             return Err(Error::InvalidTimeRange);
         }
 
-        let duration = end_time - start_time;
+        let duration = end_time
+            .checked_sub(start_time)
+            .ok_or(Error::InvalidTimeRange)?;
         let id = storage::next_stream_id(&env);
         let contract_address = env.current_contract_address();
 
@@ -554,7 +556,10 @@ impl Contract {
             return Err(Error::OverWithdraw);
         }
 
-        stream.released_amount += amount;
+        stream.released_amount = stream
+            .released_amount
+            .checked_add(amount)
+            .ok_or(Error::Overflow)?;
         stream.last_update = now;
 
         if stream.released_amount == stream.total_amount {
@@ -585,6 +590,11 @@ impl Contract {
     ///
     /// # Auth
     /// Requires authorisation from the stream's `sender`.
+    /// Pauses an active stream, freezing accrual while preserving vested funds.
+    ///
+    /// Only the stream sender may call this. On pause, status is set to Paused
+    /// and pause_time is recorded. Vested amount remains withdrawable but does
+    /// not increase while paused.
     pub fn pause(env: Env, stream_id: u64) -> Result<Stream, Error> {
         let mut stream = get_existing_stream(&env, stream_id)?;
         stream.sender.require_auth();
@@ -609,6 +619,11 @@ impl Contract {
     ///
     /// # Auth
     /// Requires authorisation from the stream's `sender`.
+    /// Resumes a paused stream, extending end_time to preserve unstreamed time.
+    ///
+    /// Only the stream sender may call this. On resume, the end_time is extended
+    /// by the paused duration so the remaining streamable amount is preserved.
+    /// Status is set back to Active.
     pub fn resume(env: Env, stream_id: u64) -> Result<Stream, Error> {
         let mut stream = get_existing_stream(&env, stream_id)?;
         stream.sender.require_auth();
@@ -682,7 +697,10 @@ impl Contract {
             return Err(Error::InvalidState);
         }
 
-        let payout_amount = stream.total_amount - stream.released_amount;
+        let payout_amount = stream
+            .total_amount
+            .checked_sub(stream.released_amount)
+            .ok_or(Error::Overflow)?;
         if payout_amount > 0 {
             #[allow(clippy::needless_borrows_for_generic_args)]
             token::Client::new(&env, &stream.token).transfer(
@@ -698,8 +716,6 @@ impl Contract {
 
         limits::decrement_sender_stream_count(&env, &stream.sender);
         storage::set_stream(&env, stream_id, &stream);
-        
-        // Emit admin_action event for settle
         events::admin_action(
             &env,
             stream_id,
@@ -760,6 +776,12 @@ impl Contract {
             .ok_or(Error::Overflow)?;
 
         if recipient_payout > 0 {
+        let returned_amount = stream
+            .total_amount
+            .checked_sub(stream.released_amount)
+            .ok_or(Error::Overflow)?;
+
+        if returned_amount > 0 {
             #[allow(clippy::needless_borrows_for_generic_args)]
             token.transfer(&contract, &stream.recipient, &recipient_payout);
             stream.released_amount = vested;
@@ -791,7 +813,7 @@ impl Contract {
     /// Amends an active or paused stream to change its rate or end time.
     ///
     /// Only the stream sender may call this. The new `end_time` must be greater than
-    /// the current timestamp. The new rate and end_time replace the existing values.
+    /// the current timestamp.
     ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
@@ -820,22 +842,10 @@ impl Contract {
             return Err(Error::InvalidTimeRange);
         }
 
-        // Store old values for event (0 means unchanged)
-        let old_end_time = stream.end_time;
-        let old_rate = if stream.duration > 0 {
-            stream
-                .total_amount
-                .checked_div(stream.duration as i128)
-                .unwrap_or(0)
-        } else {
-            0
-        };
-
         // Update stream parameters
         stream.end_time = new_end_time;
         stream.last_update = now;
 
-        // Recalculate duration if needed
         let new_duration = new_end_time
             .checked_sub(stream.start_time)
             .ok_or(Error::InvalidTimeRange)?;
@@ -843,25 +853,12 @@ impl Contract {
 
         storage::set_stream(&env, stream_id, &stream);
 
-        // Emit amendment event
-        // Report the new rate and new end_time; 0 means no change for backward compat
-        let reported_rate = if new_rate_per_second != old_rate {
-            new_rate_per_second
-        } else {
-            0
-        };
-        let reported_end_time = if new_end_time != old_end_time {
-            new_end_time
-        } else {
-            0
-        };
-
         events::amended(
             &env,
             stream_id,
             &stream.sender,
-            reported_rate,
-            reported_end_time,
+            new_rate_per_second,
+            new_end_time,
             now,
         );
 
@@ -869,10 +866,6 @@ impl Contract {
     }
 
     /// Upgrades the contract to a new WASM binary.
-    ///
-    /// This function is admin-only and allows for updating the contract's
-    /// code while preserving its state. It emits an `upgraded` event upon
-    /// successful execution.
     ///
     /// # Errors
     /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
@@ -917,20 +910,6 @@ fn require_not_paused(env: &Env) -> Result<(), Error> {
     }
 
     Ok(())
-}
-
-/// Returns `true` when the token has been explicitly blocked by the admin.
-///
-/// A missing entry (token never mentioned) is treated as *allowed*.
-fn is_token_blocked(env: &Env, token: &Address) -> bool {
-    match env
-        .storage()
-        .persistent()
-        .get::<DataKey, bool>(&DataKey::TokenAllowed(token.clone()))
-    {
-        Some(allowed) => !allowed,
-        None => false,
-    }
 }
 
 #[cfg(test)]

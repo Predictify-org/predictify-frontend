@@ -287,6 +287,121 @@ describe('request size cap middleware', () => {
     const atResponse = await mw(at as any);
     expect(atResponse.status).not.toBe(413);
   });
+
+  // ---------------------------------------------------------------------------
+  // Webhook routes with 1 MB limit
+  // ---------------------------------------------------------------------------
+
+  it('returns 413 when webhook Content-Length exceeds 1 MB on POST /api/webhooks', async () => {
+    const WEBHOOK_CAP = 1024 * 1024; // 1 MB
+    const request = makeRequest('/api/webhooks', 'POST', WEBHOOK_CAP + 1);
+    const response = await middleware(request as any);
+
+    expect(response.status).toBe(413);
+  });
+
+  it('returns 413 when webhook Content-Length exceeds 1 MB on /api/webhooks/rotate', async () => {
+    const WEBHOOK_CAP = 1024 * 1024; // 1 MB
+    const request = makeRequest('/api/webhooks/rotate', 'POST', WEBHOOK_CAP + 1);
+    const response = await middleware(request as any);
+
+    expect(response.status).toBe(413);
+  });
+
+  it('returns 413 when webhook Content-Length exceeds 1 MB on /api/webhooks/deliveries', async () => {
+    const WEBHOOK_CAP = 1024 * 1024; // 1 MB
+    const request = makeRequest('/api/webhooks/deliveries', 'POST', WEBHOOK_CAP + 1);
+    const response = await middleware(request as any);
+
+    expect(response.status).toBe(413);
+  });
+
+  it('passes through when webhook Content-Length is exactly at the 1 MB cap', async () => {
+    const WEBHOOK_CAP = 1024 * 1024; // 1 MB
+    const request = makeRequest('/api/webhooks', 'POST', WEBHOOK_CAP);
+    const response = await middleware(request as any);
+
+    // Should NOT be a 413 — at-limit is allowed.
+    expect(response.status).not.toBe(413);
+  });
+
+  it('passes through when webhook Content-Length is below the 1 MB cap', async () => {
+    const request = makeRequest('/api/webhooks', 'POST', 512 * 1024); // 512 KB
+    const response = await middleware(request as any);
+
+    expect(response.status).not.toBe(413);
+  });
+
+  it('passes through when webhook Content-Length is at 768 KB (well below 1 MB)', async () => {
+    const request = makeRequest('/api/webhooks/rotate', 'POST', 768 * 1024);
+    const response = await middleware(request as any);
+
+    expect(response.status).not.toBe(413);
+  });
+
+  it('enforces 1 MB limit for nested webhook paths like /api/webhooks/dlq', async () => {
+    const WEBHOOK_CAP = 1024 * 1024; // 1 MB
+    const request = makeRequest('/api/webhooks/dlq', 'POST', WEBHOOK_CAP + 1);
+    const response = await middleware(request as any);
+
+    expect(response.status).toBe(413);
+  });
+
+  it('includes webhook limit in error message', async () => {
+    const WEBHOOK_CAP = 1024 * 1024; // 1 MB
+    const overLimit = WEBHOOK_CAP + 10000;
+    const request = makeRequest('/api/webhooks', 'POST', overLimit);
+    const response = await middleware(request as any);
+
+    expect(response.status).toBe(413);
+
+    const body = await response.json();
+    expect(body.error.message).toContain('1048576-byte limit'); // 1 MB in bytes
+    expect(body.error.message).toContain(String(overLimit));
+  });
+
+  it('honours MAX_WEBHOOK_BODY_BYTES env override', async () => {
+    // Re-import with a custom webhook cap of 2 MB
+    jest.resetModules();
+    (process.env as any).MAX_WEBHOOK_BODY_BYTES = String(2 * 1024 * 1024); // 2 MB
+    (process.env as any).STELLAR_NETWORK = 'testnet';
+    (process.env as any).JWT_SECRET = 'test-secret-at-least-32-characters-long';
+    (process.env as any).NODE_ENV = 'production';
+    (process.env as any).ALLOWED_ORIGINS = 'https://allowed.example.com';
+
+    const { middleware: mw } = await import('./middleware');
+
+    // 1.5 MB — within the custom 2 MB webhook cap, but exceeds default 1 MB
+    const within = makeRequest('/api/webhooks', 'POST', 1.5 * 1024 * 1024);
+    const withinResponse = await mw(within as any);
+    expect(withinResponse.status).not.toBe(413);
+
+    // 2.5 MB — exceeds the custom 2 MB webhook cap
+    const over = makeRequest('/api/webhooks', 'POST', 2.5 * 1024 * 1024);
+    const overResponse = await mw(over as any);
+    expect(overResponse.status).toBe(413);
+  });
+
+  it('does not apply webhook limit to non-webhook routes', async () => {
+    // A 512 KB body should be rejected on /api/v2/streams (under 256 KB default)
+    // but not be related to webhook limits
+    const request = makeRequest('/api/v2/streams', 'POST', 512 * 1024);
+    const response = await middleware(request as any);
+
+    expect(response.status).toBe(413);
+    const body = await response.json();
+    expect(body.error.message).toContain('262144-byte limit'); // 256 KB default
+  });
+
+  it('does not apply webhook limit to paths similar to webhooks but not exact', async () => {
+    // /api/webhook (singular) should not get 1 MB limit
+    // Should fall through to default behavior (no size check for unknown paths)
+    const request = makeRequest('/api/webhook', 'POST', 512 * 1024);
+    const response = await middleware(request as any);
+
+    // Should NOT be 413 because /api/webhook is not recognized as a scoped path
+    expect(response.status).not.toBe(413);
+  });
 });
 
 // =============================================================================

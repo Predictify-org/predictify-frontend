@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { CopyAddress } from "./CopyAddress";
 
