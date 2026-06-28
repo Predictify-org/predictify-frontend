@@ -180,3 +180,85 @@ fn test_cannot_resolve_already_resolved_market() {
     // Verify market is already resolved
     assert_eq!(market.status, MarketStatus::Resolved);
 }
+
+/// Test that indexers can correctly filter final events.
+/// This simulates the indexer behavior described in the bug report.
+#[test]
+fn test_indexer_filtering_behavior() {
+    // Scenario: primary fails, fallback succeeds
+    let events = vec![
+        OracleResultEvent::new(
+            "market-xyz".to_string(),
+            "chainlink".to_string(),
+            0,
+            false,
+            String::new(),
+            1700000000,
+            "tx-abc".to_string(),
+        ),
+        OracleResultEvent::new(
+            "market-xyz".to_string(),
+            "switchboard".to_string(),
+            1,
+            true,
+            "42000.00".to_string(),
+            1700000060,
+            "tx-abc".to_string(),
+        ),
+    ];
+
+    // Indexer logic: filter on is_final == true
+    let final_events: Vec<_> = events.iter().filter(|e| e.is_final).collect();
+    assert_eq!(final_events.len(), 1, "Indexer should see exactly one final event");
+    assert_eq!(final_events[0].oracle_provider, "switchboard");
+    assert_eq!(final_events[0].outcome, "42000.00");
+}
+
+/// Test three-oracle chain: primary fails, first fallback fails, second succeeds.
+#[test]
+fn test_three_oracle_chain() {
+    let events = vec![
+        OracleResultEvent::new(
+            "market-abc".to_string(),
+            "chainlink".to_string(),
+            0,
+            false,
+            String::new(),
+            1700000000,
+            "tx-1".to_string(),
+        ),
+        OracleResultEvent::new(
+            "market-abc".to_string(),
+            "switchboard".to_string(),
+            1,
+            false,
+            String::new(),
+            1700000020,
+            "tx-1".to_string(),
+        ),
+        OracleResultEvent::new(
+            "market-abc".to_string(),
+            "pyth".to_string(),
+            2,
+            true,
+            "99999.99".to_string(),
+            1700000040,
+            "tx-1".to_string(),
+        ),
+    ];
+
+    // Verify structure
+    assert_eq!(events.len(), 3);
+    
+    // Only last is final
+    let final_count = events.iter().filter(|e| e.is_final).count();
+    assert_eq!(final_count, 1);
+    
+    // Attempts are sequential
+    assert_eq!(events[0].attempt, 0);
+    assert_eq!(events[1].attempt, 1);
+    assert_eq!(events[2].attempt, 2);
+    
+    // Final event has outcome
+    assert!(!events[2].outcome.is_empty());
+}
