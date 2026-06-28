@@ -41,6 +41,7 @@ The application will fail to boot without these required variables:
 - `STELLAR_NETWORK` - Network selection: `testnet` or `mainnet`
 - `JWT_SECRET` - JWT signing secret (minimum 32 characters)
 - `ALLOWED_ORIGINS` - Comma-separated list of allowed browser origins for API requests
+- `CANARY_PERCENTAGE` - Optional integer from 0 to 100 that samples requests into the canary path; sampled traffic receives the `X-Canary: true` header
 
 ### Setup
 
@@ -67,6 +68,7 @@ The application will fail to boot without these required variables:
 - **Fail-fast validation**: Application refuses to start with invalid configuration
 - **No silent defaults**: Never falls back to mainnet automatically
 - **Explicit CORS allowlist**: Public API origin access is controlled by `ALLOWED_ORIGINS`
+- **Deterministic canary routing**: `CANARY_PERCENTAGE` can sample requests by tenant/user hash so a known percentage of traffic is tagged for canary review without changing the normal request path
 - **CI guardrails**: CI is enforced to use testnet only
 - **Secret redaction**: All secrets are automatically redacted from logs
 - **UI safety labels**: Testnet assets are clearly labeled to prevent confusion
