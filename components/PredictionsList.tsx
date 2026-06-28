@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useMemo } from 'react';
-import PredictionCard from './PredictionCard';
+import PredictionCard, { PredictionCardSkeleton } from './PredictionCard';
 import { Prediction, FilterTab, PredictionStatus, Token } from '../types/predictions';
 
 // --- MOCK DATA to match the screenshot ---
@@ -35,7 +35,14 @@ const MOCK_PREDICTIONS: Prediction[] = [
 
 const TABS: FilterTab[] = ['All', 'Active', 'Pending', 'Completed'];
 
-const PredictionsList: React.FC = () => {
+interface PredictionsListProps {
+  /** When true, renders skeleton cards instead of content (async hydration) */
+  isLoading?: boolean;
+  /** Number of skeleton cards to display during loading. Default 4. */
+  skeletonCount?: number;
+}
+
+const PredictionsList: React.FC<PredictionsListProps> = ({ isLoading = false, skeletonCount = 4 }) => {
   const [activeTab, setActiveTab] = useState<FilterTab>('All');
 
   const filteredPredictions = useMemo(() => {
@@ -52,6 +59,13 @@ const PredictionsList: React.FC = () => {
     const status: PredictionStatus = activeTab.toLowerCase() as PredictionStatus;
     return MOCK_PREDICTIONS.filter(p => p.status === status);
   }, [activeTab]);
+
+  // Render skeleton cards during async hydration
+  const renderSkeletons = () => (
+    Array.from({ length: skeletonCount }).map((_, i) => (
+      <PredictionCardSkeleton key={`skeleton-${i}`} />
+    ))
+  );
 
   return (
     <div className="space-y-6">
@@ -76,7 +90,9 @@ const PredictionsList: React.FC = () => {
 
       {/* Predictions Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredPredictions.length > 0 ? (
+        {isLoading ? (
+          renderSkeletons()
+        ) : filteredPredictions.length > 0 ? (
           filteredPredictions.map((prediction) => (
             <PredictionCard key={prediction.id} prediction={prediction} />
           ))

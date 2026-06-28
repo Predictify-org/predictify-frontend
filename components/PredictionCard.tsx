@@ -6,9 +6,11 @@ import { CheckCircle2, XCircle, Clock, Activity } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { OutcomeIcon } from '@/components/icons/OutcomeIcons';
 import type { OutcomeVariant } from '@/components/icons/OutcomeIcons';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PredictionCardProps {
-  prediction: Prediction;
+  /** The prediction data to display. When omitted, a themed skeleton is rendered. */
+  prediction?: Prediction;
 }
 
 // Map status to semantic colors and icons
@@ -37,7 +39,63 @@ const statusOutcomeVariant: Record<PredictionStatus, OutcomeVariant> = {
   active: 'neutral',
 };
 
+/**
+ * Skeleton placeholder that matches the exact shape of PredictionCard.
+ * Uses design-token-aware Skeleton primitives for automatic dark-mode
+ * and theme consistency. Intended for async hydration states.
+ */
+export const PredictionCardSkeleton: React.FC = () => (
+  <div
+    className="w-full text-left bg-card p-4 rounded-xl border border-border"
+    aria-busy="true"
+    data-testid="prediction-card-skeleton"
+  >
+    {/* Header: Title + Status Badge */}
+    <div className="flex justify-between items-start mb-3">
+      <Skeleton className="h-5 w-3/5 rounded" />
+      <Skeleton className="h-6 w-20 shrink-0 rounded-full" />
+    </div>
+
+    {/* Description (two lines) */}
+    <div className="space-y-1.5 mb-4">
+      <Skeleton className="h-3.5 w-full rounded" />
+      <Skeleton className="h-3.5 w-4/5 rounded" />
+    </div>
+
+    {/* Grid: Stake | Odds */}
+    {/*        Pot.Win | Event Date */}
+    <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
+      <div className="space-y-1">
+        <Skeleton className="h-3 w-12 rounded" />
+        <Skeleton className="h-4 w-16 rounded" />
+      </div>
+      <div className="space-y-1">
+        <Skeleton className="h-3 w-10 rounded" />
+        <Skeleton className="h-4 w-12 rounded" />
+      </div>
+      <div className="space-y-1">
+        <Skeleton className="h-3 w-20 rounded" />
+        <Skeleton className="h-4 w-16 rounded" />
+      </div>
+      <div className="space-y-1">
+        <Skeleton className="h-3 w-16 rounded" />
+        <Skeleton className="h-4 w-20 rounded" />
+      </div>
+      {/* Resolved date row (always shown in skeleton to match potential shape) */}
+      <div className="col-span-2 space-y-1 mt-0.5">
+        <Skeleton className="h-3 w-14 rounded" />
+        <Skeleton className="h-4 w-24 rounded" />
+      </div>
+    </div>
+  </div>
+);
+
 const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
+  // Render themed skeleton when data is not yet available (async hydration)
+  if (!prediction) {
+    return <PredictionCardSkeleton />;
+  }
+
   const { title, description, stakeAmount, stakeToken, odds, potentialWinnings, winningsToken, eventDate, resolvedDate, status } = prediction;
   const { icon: Icon, className, label } = statusMap[status];
   const [isOddsExpanded, setIsOddsExpanded] = React.useState(false);
