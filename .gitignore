@@ -37,6 +37,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Rust / Soroban contract build artifacts
+target/
+contracts/*/target/
+Cargo.lock
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
