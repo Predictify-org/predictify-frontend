@@ -31,80 +31,20 @@ pub use storage::{Stream, StreamStatus};
 #[contract]
 pub struct Contract;
 
-/// Lifecycle state of a payment stream.
-///
-/// Transitions allowed by the current public API:
-/// ```text
-/// Draft ──start_stream──► Active ──withdraw (full)──► Settled
-/// ```
-/// `Paused`, `Ended`, and `Cancelled` are reserved for future entry points.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[contracttype]
-pub enum StreamStatus {
-    /// Created and funded but not yet activated; accrual has not started.
-    Draft,
-    /// Tokens are flowing linearly to the recipient.
-    Active,
-    /// Reserved — stream-level pause not yet implemented.
-    Paused,
-    /// All `total_amount` tokens have been released to the recipient.
-    Settled,
-    /// Reserved — natural expiry entry point not yet implemented.
-    Ended,
-    /// Reserved — sender-initiated cancellation not yet implemented.
-    Cancelled,
-}
-
-/// On-chain record for a single payment stream.
-///
-/// All token amounts are in the token's base unit (stroops for XLM-based
-/// assets). All timestamps are Unix seconds as reported by the ledger.
-#[derive(Clone, Debug)]
-#[contracttype]
-pub struct Stream {
-    /// Unique monotonic identifier assigned at creation. Starts at 1.
-    pub id: u64,
-    /// Address that created the stream and escrowed `total_amount`.
-    pub sender: Address,
-    /// Address that receives streamed tokens via [`Contract::withdraw`].
-    pub recipient: Address,
-    /// Stellar asset contract address being streamed.
-    pub token: Address,
-    /// Total tokens (base units) locked in escrow at creation. Always > 0.
-    pub total_amount: i128,
-    /// Tokens already transferred to `recipient`. Monotonically non-decreasing.
-    /// Invariant: `released_amount <= total_amount`.
-    pub released_amount: i128,
-    /// Ledger timestamp when accrual begins. Zero for `Draft` streams.
-    pub start_time: u64,
-    /// Ledger timestamp when accrual ends (`start_time + duration`).
-    /// Zero for `Draft` streams.
-    pub end_time: u64,
-    /// Stream length in seconds. Set at creation; never changes.
-    pub duration: u64,
-    /// Ledger timestamp of the last state-mutating operation on this stream.
-    pub last_update: u64,
-    /// Current lifecycle status.
-    pub status: StreamStatus,
-}
-
-/// Ledger storage keys used internally by this contract.
-///
-/// Not exposed to callers; listed here for auditability.
-#[derive(Clone)]
-#[contracttype]
-enum DataKey {
-    /// The privileged admin [`Address`].
-    Admin,
-    /// Global emergency pause flag (`bool`).
-    Paused,
-    /// Monotonic counter; value is the **next** stream ID to assign.
-    NextStreamId,
-    /// Per-stream record keyed by numeric ID.
-    Stream(u64),
-    /// Per-token allowlist entry. Absent or `true` → allowed; `false` → blocked.
-    TokenAllowed(Address),
-}
+// Stream and StreamStatus are re-exported from `storage` (see the
+// `pub use` at the top of this file). The storage module is the single
+// source of truth for those types because it owns the `DataKey` enum they
+// are serialised against; redeclaring them here would clash on the
+// `#[contracttype]` attribute. The table below mirrors DataKey for
+// auditability - the actual enum lives in `storage`.
+//
+// | Variant                   | Storage tier   | Purpose                                                   |
+// |---------------------------|----------------|-----------------------------------------------------------|
+// | `Admin`                   | instance       | Privileged admin Address for governance entrypoints.      |
+// | `Paused`                  | instance       | Global emergency pause flag (bool).                        |
+// | `StreamCount`             | instance       | Monotonic counter; value is the next stream ID to assign. |
+// | `Stream(u64)`             | persistent     | Per-stream record keyed by numeric ID.                    |
+// | `TokenAllowed(Address)`   | persistent     | Per-token allowlist. Absent or true -> allowed; false blocked. |
 
 #[contractimpl]
 impl Contract {
@@ -135,19 +75,6 @@ impl Contract {
         Ok(())
     }
 
-    /// Sets the global emergency pause flag.
-    ///
-    /// When `paused` is `true`, [`Contract::create_stream`],
-    /// [`Contract::start_stream`], and [`Contract::withdraw`] all return
-    /// [`Error::ContractPaused`]. Read-only calls ([`Contract::get_stream`],
-    /// [`Contract::withdrawable`]) are unaffected.
-    ///
-    /// # Parameters
-    /// - `admin`  — Must match the admin set at initialisation.
-    /// - `paused` — `true` to pause; `false` to unpause.
-    ///
-    /// # Errors
-    /// - [`Error::Unauthorized`] if `admin` does not match the initialised admin.
     /// Atomic initialisation + token allowlist.
     ///
     /// Performs the work of `initialize` and then marks each
@@ -271,8 +198,6 @@ impl Contract {
     /// - `allowed` — `true` to allow; `false` to block.
     ///
     /// # Errors
-    /// - [`Error::Unauthorized`] if `admin` does not match the initialised admin.
-    /// # Errors
     /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
     /// - [`Error::NotFound`] if the contract has not been initialised.
     ///
@@ -291,16 +216,6 @@ impl Contract {
 
     /// Creates a funded stream and escrows `total_amount` from `sender`.
     ///
-    /// Sets the maximum number of active streams a single sender may have.
-    ///
-    /// When a sender reaches this limit, `create_stream` returns
-    /// [`Error::StreamLimitExceeded`. The default is 10.
-    ///
-    /// # Errors
-    /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
-    ///
-    /// # Auth
-    /// Requires authorisation from `admin`.
     pub fn set_max_streams_per_sender(env: Env, admin: Address, limit: u64) -> Result<(), Error> {
         require_admin(&env, &admin)?;
         limits::set_max_streams_per_sender(&env, limit);
