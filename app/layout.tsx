@@ -1,6 +1,7 @@
 import type React from "react";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import "./styles/patterns.css";
 import { Providers } from "@/components/providers";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
