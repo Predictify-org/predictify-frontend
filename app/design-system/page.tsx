@@ -10,6 +10,7 @@ import {
   platformFeesHelp,
 } from "@/components/patterns/mechanic-help-content"
 import { Info, CheckCircle2, AlertTriangle, ShieldAlert, XCircle } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { MarketStatusBadge } from "@/components/moderation/MarketStatusBadge"
 import { DisputeStateBadge } from "@/components/disputes/DisputeStateBadge"
@@ -174,6 +175,57 @@ export default function DesignSystemPage() {
             description="Attach near countdowns and resolving states."
             content={oracleDelayHelp}
           />
+        </div>
+      </section>
+
+      <section className="space-y-6 p-6 bg-[#192540]/20 border border-[#40485d]/30 rounded-2xl">
+        <div className="space-y-2">
+          <h2 className="text-xl font-headline font-bold text-white">Floating Label Input</h2>
+          <p className="text-sm text-slate-400">
+            The <code className="text-cyan-400">variant=&quot;floating&quot;</code> prop places the label inside the field at rest and floats it above on focus or when a value is present. Icons are always paired with a semantic colour token per the colour-alone rule. An animated underline uses <code className="text-cyan-400">duration-200</code> from the Tailwind duration scale; it snaps to full width when <code className="text-cyan-400">prefers-reduced-motion: reduce</code> is active.
+          </p>
+        </div>
+
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Basic Floating</h3>
+            <div className="space-y-4">
+              <div>
+                <Input variant="floating" label="Username" id="demo-username" defaultValue="jane_doe" />
+              </div>
+              <div>
+                <Input variant="floating" label="Email" id="demo-email" type="email" placeholder="you@example.com" />
+              </div>
+              <div>
+                <Input variant="floating" label="Password" id="demo-password" type="password" />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">With Success / Error</h3>
+            <div className="space-y-4">
+              <div>
+                <Input variant="floating" label="Valid Field" id="demo-success" defaultValue="Valid value" success />
+              </div>
+              <div>
+                <Input variant="floating" label="Errored Field" id="demo-error" defaultValue="bad" error="This field has an error" />
+              </div>
+              <div>
+                <Input variant="floating" label="Boolean Error" id="demo-error-bool" defaultValue="bad" error />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">With Inline Help Tooltip</h3>
+          <div className="max-w-sm">
+            <Input variant="floating" label="API Key" id="demo-apikey" type="password" helpText="Your API key is stored locally and never shared." />
+          </div>
+          <p className="text-xs text-slate-500">
+            The help <Info className="inline h-3 w-3" /> trigger is keyboard-accessible: <kbd className="text-cyan-400">Tab</kbd> to focus, <kbd className="text-cyan-400">Enter</kbd>/<kbd className="text-cyan-400">Space</kbd> to open, <kbd className="text-cyan-400">Escape</kbd> to close (provided by <code className="text-cyan-400">@radix-ui/react-tooltip</code>).
+          </p>
         </div>
       </section>
 
