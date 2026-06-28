@@ -4,6 +4,7 @@ import { recordThrottle, recordRequest } from "@/app/lib/rate-limit-metrics";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { getCorrelationContext } from "@/app/lib/logger";
 import { tryAuthenticateRequest } from "@/app/lib/auth";
+import { getLastSeen } from "@/lib/lastSeen";
 
 function createErrorResponse(code: string, message: string, status: number) {
   const context = getCorrelationContext();
@@ -34,6 +35,7 @@ export async function GET(request: Request) {
       display_name: actor.walletAddress,
       avatar_url: null,
       created_at: new Date().toISOString(),
+      last_seen: getLastSeen(actor.actorId),
     },
     links: { self: "/api/identity/me" },
   });
