@@ -1,0 +1,112 @@
+{
+  "board": "grantfox-accessibility-audit",
+  "campaign": "GrantFox",
+  "lastUpdated": "2026-06-28",
+  "summary": {
+    "verified": 5,
+    "partial": 1,
+    "followUpRequired": 0
+  },
+  "components": [
+    {
+      "id": "connect-wallet-modal",
+      "name": "ConnectWalletModal",
+      "status": "verified",
+      "area": "Wallet entry",
+      "auditScope": [
+        "provider button labels",
+        "last-used badge announcement",
+        "error messaging"
+      ],
+      "evidence": [
+        "components/connect-wallet-modal.tsx",
+        "components/__tests__/connect-wallet-modal.test.tsx"
+      ],
+      "notes": "Last-used wallet state is announced with labels and covered by focused interaction tests."
+    },
+    {
+      "id": "outcome-icons-and-dispute-states",
+      "name": "Outcome icons and dispute voting states",
+      "status": "verified",
+      "area": "Prediction and dispute UI",
+      "auditScope": [
+        "non-color outcome affordances",
+        "aria-hidden decorative icons",
+        "three-way market support"
+      ],
+      "evidence": [
+        "components/icons/OutcomeIcons.tsx",
+        "components/icons/__tests__/OutcomeIcons.test.tsx",
+        "components/disputes/shared/TallyBar.tsx",
+        "app/design-system/tokens.md"
+      ],
+      "notes": "Shape-based icons backstop color contrast and color-blind scenarios for WCAG 2.1 AA use-of-color requirements."
+    },
+    {
+      "id": "dispute-outcome-explainer",
+      "name": "DisputeOutcomeExplainer",
+      "status": "verified",
+      "area": "Dispute education",
+      "auditScope": [
+        "dialog trigger flow",
+        "step readability",
+        "formatted tally values"
+      ],
+      "evidence": [
+        "components/disputes/DisputeOutcomeExplainer.tsx",
+        "components/disputes/__tests__/DisputeOutcomeExplainer.test.tsx"
+      ],
+      "notes": "Math and payout explanation content is exercised through the open dialog path."
+    },
+    {
+      "id": "error-recovery-screen",
+      "name": "ErrorRecoveryScreen",
+      "status": "verified",
+      "area": "Failure states",
+      "auditScope": [
+        "recovery actions",
+        "incident copy affordance",
+        "navigation escape hatches"
+      ],
+      "evidence": [
+        "components/error/ErrorRecoveryScreen.tsx",
+        "components/error/ErrorRecoveryScreen.test.tsx",
+        "components/error-boundary.tsx"
+      ],
+      "notes": "Recovery CTA paths and incident ID actions are covered in focused tests."
+    },
+    {
+      "id": "virtualized-events-list",
+      "name": "VirtualizedEventsList",
+      "status": "verified",
+      "area": "Events browsing",
+      "auditScope": [
+        "keyboard focus visibility",
+        "loading state messaging",
+        "scroll restoration"
+      ],
+      "evidence": [
+        "components/events/virtualized-events-list.tsx",
+        "components/events/__tests__/virtualized-events-list.integration.test.tsx"
+      ],
+      "notes": "Focused integration coverage verifies visible focus movement between virtualized rows."
+    },
+    {
+      "id": "new-event-form-focus-order",
+      "name": "New event form focus order",
+      "status": "partial",
+      "area": "Authoring flow",
+      "auditScope": [
+        "tab order",
+        "visual reading order",
+        "combobox focus handoff"
+      ],
+      "evidence": [
+        "app/(dashboard)/events/new/page.tsx",
+        "app/(dashboard)/events/new/page.test.tsx",
+        "app/(dashboard)/settings/ACCESSIBILITY.md"
+      ],
+      "notes": "Initial focus-order coverage exists, but the test currently verifies only the early tab sequence and should be expanded during the next audit pass."
+    }
+  ]
+}
