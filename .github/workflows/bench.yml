@@ -1,0 +1,72 @@
+name: Benchmark Compile Check
+
+# Compiles the Criterion benchmark binary on every push/PR that touches the
+# Rust contract or the bench harness itself.  We do NOT run the benchmarks in
+# CI because shared GitHub Actions runners have high timing variance and would
+# produce unreliable numbers.
+#
+# To run benchmarks and compare against a saved baseline:
+#
+#   cd contracts
+#   cargo bench -- --save-baseline main          # save baseline on main branch
+#   cargo bench -- --load-baseline main          # compare on a feature branch
+#   open target/criterion/report/index.html      # HTML report
+#
+# See contracts/contracts/streampay-stream/benches/entrypoints.rs for the
+# full set of groups and sub-benchmarks.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/bench.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/bench.yml"
+  workflow_dispatch: {}
+
+jobs:
+  bench-compile:
+    name: Compile Criterion benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Rust toolchain ────────────────────────────────────────────────────
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      # ── Cargo / build cache ───────────────────────────────────────────────
+      - name: Cache Cargo registry + build artefacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('contracts/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-bench-
+
+      # ── Compile only ──────────────────────────────────────────────────────
+      # --no-run builds the benchmark binary and all its dependencies but
+      # does not execute a single iteration.  This catches compilation errors
+      # and broken imports without paying the cost of actually running
+      # Criterion's measurement loop on a shared runner.
+      - name: Compile benchmark binary (--no-run)
+        working-directory: contracts
+        run: cargo bench --no-run
+
+      # ── Optional: upload the compiled binary as an artefact ───────────────
+      # Committers can download this binary and run it on a local quiet
+      # machine to get reproducible timing numbers.
+      - name: Upload benchmark binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: streampay-bench-binary
+          # Criterion bench binaries land in target/release/deps/
+          path: contracts/target/release/deps/entrypoints-*
+          if-no-files-found: warn
+          retention-days: 7
