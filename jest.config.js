@@ -4,7 +4,7 @@ const createJestConfig = nextJest({ dir: "./" });
 
 /** @type {import('jest').Config} */
 const config = {
-  testEnvironment: "jsdom",
+  testEnvironment: "node",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   testMatch: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
   collectCoverageFrom: [
