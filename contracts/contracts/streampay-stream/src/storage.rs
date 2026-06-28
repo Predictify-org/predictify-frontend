@@ -295,3 +295,31 @@ pub fn get_stream(env: &Env, stream_id: u64) -> Option<Stream> {
     }
     stream
 }
+
+/// Peeks at the next stream ID without incrementing the counter.
+///
+/// This is used by pagination views to determine the upper bound for
+/// stream enumeration. It does not extend TTL since it's a read-only
+/// operation that doesn't need to keep the counter alive.
+///
+/// # Returns
+/// The next stream ID that would be assigned. If no streams have been
+/// created, returns `1`.
+///
+/// # Errors
+/// This helper does not return errors.
+pub fn peek_next_stream_id(env: &Env) -> u64 {
+    env.storage()
+        .instance()
+        .get(&DataKey::StreamCount)
+        .unwrap_or(1u64)
+}
+
+/// Test helper to set the next stream ID counter.
+///
+/// This is only available in test builds and is used by the views
+/// module tests to set up specific test scenarios.
+#[cfg(test)]
+pub fn set_next_stream_id_for_test(env: &Env, id: u64) {
+    env.storage().instance().set(&DataKey::StreamCount, &id);
+}

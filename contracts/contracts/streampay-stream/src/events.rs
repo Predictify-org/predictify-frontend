@@ -146,12 +146,12 @@ pub fn amended(
     );
 }
 
-/// Emits the `stream::admin_action` event after an admin performs an action.
-/// Carries the action symbol (e.g., "pause", "resume", "force_cancel") so
+/// Emits the `stream::admin_act` event after an admin performs an action.
+/// Carries the action symbol (e.g., "pause", "resume", "cancel") so
 /// indexers can track admin operations on behalf of senders.
 pub fn admin_action(env: &Env, stream_id: u64, admin: &Address, action: Symbol, timestamp: u64) {
     env.events().publish(
-        (symbol_short!("stream"), symbol_short!("admin_action")),
+        (symbol_short!("stream"), symbol_short!("admin_act")),
         (stream_id, admin.clone(), action, timestamp),
     );
 }
