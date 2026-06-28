@@ -15,6 +15,10 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Events and transactions data shapes
   - Where real API calls should be introduced
   - Mocked-vs-real status
+- **[a11y-status.md](./a11y-status.md)** - Accessibility audit board status
+  - Latest GrantFox component audit snapshot
+  - Verified vs. partial follow-up status
+  - Evidence paths for recent component work
 
 ### Core Features
 - **[WALLET.md](./WALLET.md)** - Wallet Integration Guide
