@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { ExternalLink } from "@/components/ExternalLink"
 
 // Type for local disputes mock data
 interface LocalDispute {
@@ -276,9 +277,9 @@ export default function DisputesPage() {
                                 <Label>Evidence</Label>
                                 <div className="flex items-center gap-2">
                                   <Button variant="outline" size="sm" asChild>
-                                    <a href={selectedDispute.evidence} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink href={selectedDispute.evidence}>
                                       View Evidence
-                                    </a>
+                                    </ExternalLink>
                                   </Button>
                                 </div>
                               </div>
