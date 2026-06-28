@@ -736,6 +736,93 @@ fn cancel_stream_returns_unstreamed_funds() {
     assert_eq!(cancelled_stream.status, StreamStatus::Cancelled);
 }
 
+// ── cancel_stream refund-split boundary tests ────────────────────────────────
+//
+// On cancellation the escrow is split: the recipient keeps everything already
+// released, and the sender is refunded `total_amount - released_amount`. These
+// tests pin that split at the boundaries (nothing released, partly released,
+// fully released) and assert escrow conservation via on-chain token balances.
+
+/// Helper: read a token balance using the SAC token client.
+fn token_balance(env: &Env, token: &Address, who: &Address) -> i128 {
+    soroban_sdk::token::TokenClient::new(env, token).balance(who)
+}
+
+#[test]
+fn cancel_before_any_withdraw_refunds_full_amount_to_sender() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let token = &data.tokens[0];
+    let sender_before = token_balance(&data.env, token, &data.sender);
+
+    // total = 1000 over [1100, 1200].
+    let id = client.create_stream(&data.sender, &data.recipient, token, &1000i128, &1_100u64, &1_200u64);
+
+    // Escrow holds the full amount immediately after creation.
+    assert_eq!(token_balance(&data.env, token, &data.sender), sender_before - 1000);
+
+    // Cancel before start: recipient released nothing, sender refunded all.
+    client.cancel_stream(&id);
+
+    assert_eq!(token_balance(&data.env, token, &data.sender), sender_before);
+    assert_eq!(token_balance(&data.env, token, &data.recipient), 0);
+}
+
+#[test]
+fn cancel_after_partial_withdraw_splits_refund() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let token = &data.tokens[0];
+    let sender_before = token_balance(&data.env, token, &data.sender);
+
+    let id = client.create_stream(&data.sender, &data.recipient, token, &1000i128, &1_100u64, &1_200u64);
+
+    // Halfway through ⇒ 500 vested; withdraw exactly 400 to the recipient.
+    data.env.ledger().set_timestamp(1_150);
+    client.withdraw(&id, &400i128);
+
+    // Cancel now: recipient keeps 400, sender refunded the remaining 600.
+    client.cancel_stream(&id);
+
+    assert_eq!(token_balance(&data.env, token, &data.recipient), 400);
+    assert_eq!(token_balance(&data.env, token, &data.sender), sender_before - 400);
+
+    // Escrow conservation: recipient payout + sender refund == total.
+    let refunded = token_balance(&data.env, token, &data.sender) - (sender_before - 1000);
+    let paid = token_balance(&data.env, token, &data.recipient);
+    assert_eq!(refunded + paid, 1000);
+}
+
+#[test]
+fn cancel_after_full_withdraw_rejected_as_settled() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let token = &data.tokens[0];
+    let sender_before = token_balance(&data.env, token, &data.sender);
+
+    let id = client.create_stream(&data.sender, &data.recipient, token, &1000i128, &1_100u64, &1_200u64);
+
+    // After end_time the full amount is vested; withdraw it all to settle.
+    data.env.ledger().set_timestamp(1_250);
+    client.withdraw(&id, &1000i128);
+
+    // Recipient got everything; sender refunded nothing.
+    assert_eq!(token_balance(&data.env, token, &data.recipient), 1000);
+    assert_eq!(token_balance(&data.env, token, &data.sender), sender_before - 1000);
+
+    // A settled stream can no longer be cancelled.
+    let err = client
+        .try_cancel_stream(&id)
+        .expect_err("settled stream must not be cancellable");
+    assert_eq!(err, Ok(Error::InvalidState));
+}
+
 #[test]
 fn amend_stream_emits_amended_event() {
     let data = setup_init();
