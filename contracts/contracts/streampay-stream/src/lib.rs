@@ -635,85 +635,6 @@ impl Contract {
         Ok(amount)
     }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
-
-/// Returns the next stream ID to assign, defaulting to `1` if the counter has
-/// not been written yet.
-fn next_stream_id(env: &Env) -> u64 {
-    match env.storage().persistent().get(&DataKey::NextStreamId) {
-        Some(id) => id,
-        None => 1,
-    }
-}
-
-/// Computes the token amount accrued and not yet withdrawn for `stream`.
-///
-/// Formula (integer arithmetic, truncates toward zero — always floors):
-/// ```text
-/// elapsed = min(now, end_time) − start_time
-/// accrued = (total_amount × elapsed) / duration
-/// result  = accrued − released_amount
-/// ```
-///
-/// The `min` cap ensures accrual never exceeds `total_amount` after
-/// `end_time`. Because integer division truncates, dust (the remainder of
-/// `total_amount % duration`) is withheld until `elapsed == duration`, at
-/// which point `accrued == total_amount` exactly — no tokens are permanently
-/// lost. Rounding always favours the sender (recipient receives slightly less
-/// mid-stream, never more).
-///
-/// Returns `0` for any non-`Active` stream or when `start_time == 0`.
-fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
-    if stream.status != StreamStatus::Active || stream.start_time == 0 {
-        return 0;
-    /// Resumes a paused stream, extending end_time to preserve unstreamed time.
-    ///
-    /// Only the stream sender may call this. On resume, the end_time is extended
-    /// by the paused duration so the remaining streamable amount is preserved.
-    /// Status is set back to Active.
-    pub fn resume(env: Env, stream_id: u64) -> Result<Stream, Error> {
-        let mut stream = get_existing_stream(&env, stream_id)?;
-        stream.sender.require_auth();
-
-        if stream.status != StreamStatus::Paused {
-            return Err(Error::InvalidState);
-        }
-
-        let now = env.ledger().timestamp();
-        let paused_duration = now
-            .checked_sub(stream.pause_time)
-            .ok_or(Error::InvalidTimeRange)?;
-
-        // Track total paused duration for accrual calculations
-        stream.total_paused_duration = stream
-            .total_paused_duration
-            .checked_add(paused_duration)
-            .ok_or(Error::InvalidTimeRange)?;
-
-        // Extend end_time by the paused duration to preserve unstreamed time
-        stream.end_time = stream
-            .end_time
-            .checked_add(paused_duration)
-            .ok_or(Error::InvalidTimeRange)?;
-
-        stream.last_update = now;
-        stream.status = StreamStatus::Active;
-        stream.pause_time = 0;
-
-        storage::set_stream(&env, stream_id, &stream);
-        
-        // Emit admin_action event for resume
-        events::admin_action(
-            &env,
-            stream_id,
-            &stream.sender,
-            soroban_sdk::symbol_short!("resume"),
-            now,
-        );
-
-        Ok(stream)
-    }
-
     /// Finalizes a stream whose time window has fully elapsed, paying out
     /// any remaining vested funds to the recipient and transitioning it to a
     /// terminal `Settled` state.
@@ -760,8 +681,6 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
 
         limits::decrement_sender_stream_count(&env, &stream.sender);
         storage::set_stream(&env, stream_id, &stream);
-        
-        // Emit admin_action event for settle
         events::admin_action(
             &env,
             stream_id,
@@ -797,13 +716,11 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
 
         let now = env.ledger().timestamp();
 
-        // Calculate returned amount: unstreamed portion
         let returned_amount = stream
             .total_amount
             .checked_sub(stream.released_amount)
             .ok_or(Error::Overflow)?;
 
-        // Transfer unstreamed funds back to sender
         if returned_amount > 0 {
             #[allow(clippy::needless_borrows_for_generic_args)]
             token::Client::new(&env, &stream.token).transfer(
@@ -813,14 +730,11 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
             );
         }
 
-        // Update stream state
         stream.status = StreamStatus::Cancelled;
         stream.last_update = now;
 
         limits::decrement_sender_stream_count(&env, &stream.sender);
         storage::set_stream(&env, stream_id, &stream);
-
-        // Emit cancellation event
         events::cancelled(
             &env,
             stream_id,
@@ -836,7 +750,7 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
     /// Amends an active or paused stream to change its rate or end time.
     ///
     /// Only the stream sender may call this. The new `end_time` must be greater than
-    /// the current timestamp. The new rate and end_time replace the existing values.
+    /// the current timestamp.
     ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
@@ -865,7 +779,6 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
             return Err(Error::InvalidTimeRange);
         }
 
-        // Store old values for event (0 means unchanged)
         let old_end_time = stream.end_time;
         let old_rate = if stream.duration > 0 {
             stream
@@ -876,11 +789,9 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
             0
         };
 
-        // Update stream parameters
         stream.end_time = new_end_time;
         stream.last_update = now;
 
-        // Recalculate duration if needed
         let new_duration = new_end_time
             .checked_sub(stream.start_time)
             .ok_or(Error::InvalidTimeRange)?;
@@ -888,8 +799,6 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
 
         storage::set_stream(&env, stream_id, &stream);
 
-        // Emit amendment event
-        // Report the new rate and new end_time; 0 means no change for backward compat
         let reported_rate = if new_rate_per_second != old_rate {
             new_rate_per_second
         } else {
@@ -914,10 +823,6 @@ fn withdrawable_amount(env: &Env, stream: &Stream) -> i128 {
     }
 
     /// Upgrades the contract to a new WASM binary.
-    ///
-    /// This function is admin-only and allows for updating the contract's
-    /// code while preserving its state. It emits an `upgraded` event upon
-    /// successful execution.
     ///
     /// # Errors
     /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.

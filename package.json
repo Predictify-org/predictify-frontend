@@ -2,6 +2,9 @@
   "name": "streampay-frontend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20 <21"
+  },
   "description": "StreamPay Dashboard â€” Stellar wallet integration and stream management",
   "scripts": {
     "dev": "node scripts/run-from-realpath.mjs next dev",
