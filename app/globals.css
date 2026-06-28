@@ -412,3 +412,11 @@ body {
     margin: 20mm;
   }
 }
+
+.quiet-hours-active *,
+.quiet-hours-active *::before,
+.quiet-hours-active *::after {
+  animation-play-state: paused !important;
+  transition-duration: 0ms !important;
+  scroll-behavior: auto !important;
+}

@@ -7,6 +7,7 @@ import type {
   ToastActionElement,
   ToastProps,
 } from "@/components/ui/toast"
+import { shouldShowToastDuringQuietHours } from "@/lib/quiet-hours"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
@@ -151,6 +152,14 @@ function toast({ ...props }: Toast) {
       toast: { ...props, id },
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
+
+  if (!shouldShowToastDuringQuietHours({ severity: props.severity, variant: props.variant })) {
+    return {
+      id: id,
+      dismiss,
+      update,
+    }
+  }
 
   dispatch({
     type: "ADD_TOAST",
