@@ -9,11 +9,10 @@ export const useCountUp = (
   endValue: number,
   startValue: number = 0,
   duration: number = 2000
-): [React.RefObject<HTMLDivElement | null>, number] => {
+): number => {
   const [currentValue, setCurrentValue] = React.useState(startValue);
-  const ref = React.useRef<HTMLDivElement>(null);
-  const animationRef = React.useRef<number>(0);
-  const hasAnimated = React.useRef<boolean>(false);
+  const currentValueRef = React.useRef<number>(startValue);
+  const animationRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -64,6 +63,7 @@ export const useCountUp = (
     return () => {
       if (animationRef.current !== null) {
         window.cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
     };
   }, [duration, endValue]);

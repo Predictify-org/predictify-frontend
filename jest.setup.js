@@ -22,6 +22,23 @@ Object.defineProperty(window, 'scrollTo', {
   writable: true
 })
 
+// Mock requestAnimationFrame for count-up / animation hooks.
+// Each call advances the timestamp by 500 ms so animations complete
+// within two frames (500 ms > the hook's 400 ms default duration).
+// Reset the clock before each test to prevent timestamp drift across suites.
+let rAFTime = 0;
+global.requestAnimationFrame = (cb) => {
+  const time = rAFTime;
+  rAFTime += 500;
+  cb(time);
+  return 1;
+};
+global.cancelAnimationFrame = () => {};
+
+beforeEach(() => {
+  rAFTime = 0;
+});
+
 // Mock HTMLElement scrollTo
 Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
   value: jest.fn(),
