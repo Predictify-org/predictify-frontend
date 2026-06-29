@@ -887,6 +887,12 @@ mod test;
 #[cfg(test)]
 mod prop_test;
 
+/// Focused tests that close function-coverage gaps identified in the
+/// GrantFox baseline (coverage-output.txt) and push the gate above 95 %.
+/// See `src/coverage_test.rs` for the full test matrix.
+#[cfg(test)]
+mod coverage_test;
+
 #[cfg(test)]
 mod upgrade_test {
     use super::*;

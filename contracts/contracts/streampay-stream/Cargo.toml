@@ -14,3 +14,11 @@ soroban-sdk = { workspace = true }
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
 proptest = "1.0"
+
+# Inherit workspace lints so the panic-free policy is enforced here too.
+# The workspace comment notes that cfg(test) units are exempt from the
+# deny-level lints because proptest and test helpers legitimately use
+# unwrap/expect; module-level #[allow] attributes in test files handle
+# those specific cases.
+[lints]
+workspace = true

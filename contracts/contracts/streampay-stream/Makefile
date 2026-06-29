@@ -12,6 +12,38 @@ fmt:
 clean:
 	cargo clean
 
+# ── Coverage gate (GrantFox ≥ 95 %) ─────────────────────────────────────────
+#
+# Prerequisites: cargo-llvm-cov must be installed.
+#   cargo install cargo-llvm-cov
+#
+# Usage:
+#   make coverage          – run gate, fail if any metric < 95 %
+#   make coverage-report   – same but also write lcov.info + open HTML report
+#
+# The --fail-under-* flags mirror the CI gate in .github/workflows/coverage.yml
+# so that the gate behaves identically locally and in CI.
+coverage:
+	cargo llvm-cov \
+		--all-features \
+		--workspace \
+		--fail-under-lines 95 \
+		--fail-under-regions 95 \
+		--fail-under-functions 95
+
+coverage-report:
+	cargo llvm-cov \
+		--all-features \
+		--workspace \
+		--html \
+		--output-dir target/llvm-cov-html \
+		--lcov \
+		--output-path target/lcov.info \
+		--fail-under-lines 95 \
+		--fail-under-regions 95 \
+		--fail-under-functions 95
+	@echo "HTML report: target/llvm-cov-html/index.html"
+
 # GrantFox campaign specific targets
 build-grantfox:
 	stellar contract build --release --profile optimized
