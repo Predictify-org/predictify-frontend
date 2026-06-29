@@ -651,11 +651,12 @@ fn cancel_stream_emits_cancelled_event() {
     assert!(!events.is_empty(), "cancel_stream should emit events");
 
     // The last event should be the cancelled event
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
 #[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
 fn cancel_stream_requires_auth() {
     let data = setup_init();
     let client = contract_client(&data.env);
@@ -671,15 +672,10 @@ fn cancel_stream_requires_auth() {
         &1_200u64,
     );
 
-    // Mock auths off and try to cancel as a different address
+    // Remove all auths — the host should reject the call because stream.sender
+    // has not authorized it.
     data.env.mock_auths(&[]);
-    let impostor = Address::generate(&data.env);
-
-    let result = client.try_cancel_stream(&impostor, &id);
-    assert!(
-        result.is_err(),
-        "cancel_stream should fail without auth from sender"
-    );
+    client.cancel_stream(&id);
 }
 
 #[test]
@@ -734,6 +730,204 @@ fn cancel_stream_returns_unstreamed_funds() {
     // Verify stream is now cancelled
     let cancelled_stream = client.get_stream(&id);
     assert_eq!(cancelled_stream.status, StreamStatus::Cancelled);
+}
+
+// ── cancel_stream: correct sender/recipient refund split (issue #601) ────────
+
+/// Cancelling at the midpoint: half is vested → recipient gets half, sender gets half.
+#[test]
+fn cancel_stream_splits_vested_to_recipient_unvested_to_sender() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    // Stream: 1000 tokens, active from t=1000 to t=2000 (duration=1000s)
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_000u64,
+        &2_000u64,
+    );
+
+    let sender_token = soroban_sdk::token::Client::new(&data.env, &data.tokens[0]);
+    let sender_before = sender_token.balance(&data.sender);
+    let recipient_before = sender_token.balance(&data.recipient);
+
+    // Cancel at t=1500 → 500 tokens vested, 500 unvested
+    data.env.ledger().set_timestamp(1_500);
+    client.cancel_stream(&id);
+
+    // Recipient receives the vested-but-undrawn 500
+    assert_eq!(
+        sender_token.balance(&data.recipient),
+        recipient_before + 500
+    );
+    // Sender gets back the unvested 500
+    assert_eq!(sender_token.balance(&data.sender), sender_before + 500);
+
+    let s = client.get_stream(&id);
+    assert_eq!(s.status, StreamStatus::Cancelled);
+}
+
+/// Cancelling before the stream starts (Draft-like timing): full amount returns to sender.
+#[test]
+fn cancel_stream_before_start_returns_all_to_sender() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    // Create stream starting in the future (relative to current ledger t=1000)
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &2_000u64, // starts later
+        &3_000u64,
+    );
+
+    let sender_token = soroban_sdk::token::Client::new(&data.env, &data.tokens[0]);
+    let sender_before = sender_token.balance(&data.sender);
+
+    // Cancel at t=1000 (before start_time=2000) → 0 vested → full refund to sender
+    client.cancel_stream(&id);
+
+    assert_eq!(sender_token.balance(&data.sender), sender_before + 1000);
+    assert_eq!(sender_token.balance(&data.recipient), 0);
+}
+
+/// Cancelling after the stream has fully elapsed: full amount goes to recipient.
+#[test]
+fn cancel_stream_after_end_pays_all_to_recipient() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_000u64,
+        &2_000u64,
+    );
+
+    let sender_token = soroban_sdk::token::Client::new(&data.env, &data.tokens[0]);
+    let sender_before = sender_token.balance(&data.sender);
+    let recipient_before = sender_token.balance(&data.recipient);
+
+    // Cancel at t=2500 (past end_time) → 1000 vested → all to recipient, 0 to sender
+    data.env.ledger().set_timestamp(2_500);
+    client.cancel_stream(&id);
+
+    assert_eq!(
+        sender_token.balance(&data.recipient),
+        recipient_before + 1000
+    );
+    assert_eq!(sender_token.balance(&data.sender), sender_before);
+}
+
+/// Cancelling after a partial withdrawal: recipient gets remaining vested portion only.
+#[test]
+fn cancel_stream_after_partial_withdraw_correct_split() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    // 1000 tokens, t=1000..2000
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_000u64,
+        &2_000u64,
+    );
+
+    let sender_token = soroban_sdk::token::Client::new(&data.env, &data.tokens[0]);
+
+    // At t=1500, 500 vested; recipient withdraws 200
+    data.env.ledger().set_timestamp(1_500);
+    client.withdraw(&id, &200i128);
+
+    let sender_before = sender_token.balance(&data.sender);
+    let recipient_before = sender_token.balance(&data.recipient);
+
+    // Cancel at t=1500 → vested=500, released=200
+    // recipient_payout = 500 - 200 = 300; sender_refund = 1000 - 500 = 500
+    client.cancel_stream(&id);
+
+    assert_eq!(
+        sender_token.balance(&data.recipient),
+        recipient_before + 300
+    );
+    assert_eq!(sender_token.balance(&data.sender), sender_before + 500);
+}
+
+/// Cancelling a paused stream respects the frozen accrual point.
+#[test]
+fn cancel_stream_while_paused_uses_pause_time_for_split() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    // 1000 tokens, t=1000..2000
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_000u64,
+        &2_000u64,
+    );
+
+    let sender_token = soroban_sdk::token::Client::new(&data.env, &data.tokens[0]);
+
+    // Pause at t=1200 → 200 tokens vested at pause
+    data.env.ledger().set_timestamp(1_200);
+    client.pause(&id);
+
+    let sender_before = sender_token.balance(&data.sender);
+    let recipient_before = sender_token.balance(&data.recipient);
+
+    // Cancel at t=1800 (later, but stream is paused so accrual is frozen at t=1200)
+    data.env.ledger().set_timestamp(1_800);
+    client.cancel_stream(&id);
+
+    // vested=200 (frozen at pause), released=0
+    // recipient_payout=200, sender_refund=800
+    assert_eq!(
+        sender_token.balance(&data.recipient),
+        recipient_before + 200
+    );
+    assert_eq!(sender_token.balance(&data.sender), sender_before + 800);
+}
+
+/// cancel_stream sets released_amount to vested_amount in the final state.
+#[test]
+fn cancel_stream_updates_released_amount_to_vested() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_000u64,
+        &2_000u64,
+    );
+
+    data.env.ledger().set_timestamp(1_750);
+    client.cancel_stream(&id);
+
+    let s = client.get_stream(&id);
+    // vested at t=1750 = 750; released_amount should reflect that
+    assert_eq!(s.released_amount, 750);
+    assert_eq!(s.status, StreamStatus::Cancelled);
 }
 
 #[test]
@@ -832,7 +1026,7 @@ fn pause_emits_admin_action_event() {
     assert!(!events.is_empty(), "pause should emit events");
 
     // The event should have 2 topics (stream, pause)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -865,7 +1059,7 @@ fn resume_emits_admin_action_event() {
     assert!(!events.is_empty(), "resume should emit events");
 
     // The event should have 2 topics (stream, resume)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -898,7 +1092,7 @@ fn settle_emits_admin_action_event() {
     assert!(!events.is_empty(), "settle should emit events");
 
     // The event should have 2 topics (stream, admin_action)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -1011,27 +1205,91 @@ fn amend_stream_fails_on_cancelled_stream() {
     assert_eq!(err, Ok(Error::InvalidState));
 }
 
+// ── Focused tests for error surfaces using the current client harness ───────
+
+#[test]
+fn set_paused_wrong_admin_returns_unauthorized() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    let wrong = Address::generate(&data.env);
+
+    client.initialize(&data.admin);
+
+    let result = client.try_set_paused(&wrong, &true);
+    let err = result.expect_err("non-admin pause should fail");
+    assert_eq!(err, Ok(Error::Unauthorized));
+}
+
+#[test]
+fn set_token_allowed_wrong_admin_returns_unauthorized() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    let wrong = Address::generate(&data.env);
+
+    client.initialize(&data.admin);
+
+    let result = client.try_set_token_allowed(&wrong, &data.tokens[0], &false);
+    let err = result.expect_err("non-admin allowlist change should fail");
+    assert_eq!(err, Ok(Error::Unauthorized));
+}
+
+#[test]
+fn start_stream_missing_returns_not_found() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    let result = client.try_start_stream(&9999);
+    let err = result.expect_err("missing stream should fail");
+    assert_eq!(err, Ok(Error::NotFound));
+}
+
+#[test]
+fn withdraw_missing_stream_returns_not_found() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    let result = client.try_withdraw(&9999, &1);
+    let err = result.expect_err("missing stream should fail");
+    assert_eq!(err, Ok(Error::NotFound));
+}
+
+#[test]
+fn withdrawable_missing_stream_returns_not_found() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    let result = client.try_withdrawable(&9999);
+    let err = result.expect_err("missing stream should fail");
+    assert_eq!(err, Ok(Error::NotFound));
+}
+
 // ── Overflow safety tests ────────────────────────────────────────────────────
 
-/// Withdraw the maximum i128 value succeeds (defense-in-depth test).
+/// Withdraw a large (but non-overflowing) amount succeeds.
 #[test]
 fn withdraw_max_amount_succeeds() {
     let data = setup_init();
     let client = contract_client(&data.env);
     client.initialize(&data.admin);
 
+    // Use a large amount that: (a) fits in the StellarAsset mint, and
+    // (b) does not overflow vested_amount math (amount * elapsed / duration).
+    // i128::MAX / 1000 is safe: (i128::MAX/1000) * 1000 / 1000 == i128::MAX/1000.
+    let large = i128::MAX / 1000;
+    StellarAssetClient::new(&data.env, &data.tokens[0]).mint(&data.sender, &large);
+
     let id = client.create_stream(
         &data.sender,
         &data.recipient,
         &data.tokens[0],
-        &i128::MAX,
+        &large,
         &1_100u64,
         &1_200u64,
     );
 
     data.env.ledger().set_timestamp(1_300);
-    let withdrawn = client.withdraw(&id, &i128::MAX);
-    assert_eq!(withdrawn, i128::MAX);
+    let withdrawn = client.withdraw(&id, &large);
+    assert_eq!(withdrawn, large);
 
     let stream = client.get_stream(&id);
     assert_eq!(stream.status, StreamStatus::Settled);

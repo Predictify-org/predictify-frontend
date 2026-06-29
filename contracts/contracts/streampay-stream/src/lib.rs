@@ -24,69 +24,13 @@ mod release;
 mod storage;
 
 pub use error::Error;
+use soroban_sdk::contracttype;
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 pub use storage::{Stream, StreamStatus};
 
 /// The StreamPay contract entry point registered with the Soroban host.
 #[contract]
 pub struct Contract;
-
-/// Lifecycle state of a payment stream.
-///
-/// Transitions allowed by the current public API:
-/// ```text
-/// Draft ──start_stream──► Active ──withdraw (full)──► Settled
-/// ```
-/// `Paused`, `Ended`, and `Cancelled` are reserved for future entry points.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[contracttype]
-pub enum StreamStatus {
-    /// Created and funded but not yet activated; accrual has not started.
-    Draft,
-    /// Tokens are flowing linearly to the recipient.
-    Active,
-    /// Reserved — stream-level pause not yet implemented.
-    Paused,
-    /// All `total_amount` tokens have been released to the recipient.
-    Settled,
-    /// Reserved — natural expiry entry point not yet implemented.
-    Ended,
-    /// Reserved — sender-initiated cancellation not yet implemented.
-    Cancelled,
-}
-
-/// On-chain record for a single payment stream.
-///
-/// All token amounts are in the token's base unit (stroops for XLM-based
-/// assets). All timestamps are Unix seconds as reported by the ledger.
-#[derive(Clone, Debug)]
-#[contracttype]
-pub struct Stream {
-    /// Unique monotonic identifier assigned at creation. Starts at 1.
-    pub id: u64,
-    /// Address that created the stream and escrowed `total_amount`.
-    pub sender: Address,
-    /// Address that receives streamed tokens via [`Contract::withdraw`].
-    pub recipient: Address,
-    /// Stellar asset contract address being streamed.
-    pub token: Address,
-    /// Total tokens (base units) locked in escrow at creation. Always > 0.
-    pub total_amount: i128,
-    /// Tokens already transferred to `recipient`. Monotonically non-decreasing.
-    /// Invariant: `released_amount <= total_amount`.
-    pub released_amount: i128,
-    /// Ledger timestamp when accrual begins. Zero for `Draft` streams.
-    pub start_time: u64,
-    /// Ledger timestamp when accrual ends (`start_time + duration`).
-    /// Zero for `Draft` streams.
-    pub end_time: u64,
-    /// Stream length in seconds. Set at creation; never changes.
-    pub duration: u64,
-    /// Ledger timestamp of the last state-mutating operation on this stream.
-    pub last_update: u64,
-    /// Current lifecycle status.
-    pub status: StreamStatus,
-}
 
 /// Ledger storage keys used internally by this contract.
 ///
@@ -640,6 +584,12 @@ impl Contract {
         Ok(amount)
     }
 
+    // ── Private helpers ───────────────────────────────────────────────────────────
+
+    /// Pauses an Active stream. Only the `sender` may pause.
+    ///
+    /// # Auth
+    /// Requires authorisation from the stream's `sender`.
     /// Pauses an active stream, freezing accrual while preserving vested funds.
     ///
     /// Only the stream sender may call this. On pause, status is set to Paused
@@ -654,25 +604,21 @@ impl Contract {
         }
 
         let now = env.ledger().timestamp();
-
+        stream.pause_time = now;
         stream.last_update = now;
         stream.status = StreamStatus::Paused;
-        stream.pause_time = now;
 
         storage::set_stream(&env, stream_id, &stream);
-        
-        // Emit admin_action event for pause
-        events::admin_action(
-            &env,
-            stream_id,
-            &stream.sender,
-            soroban_sdk::symbol_short!("pause"),
-            now,
-        );
+
+        events::paused(&env, stream_id, &stream.sender, stream.pause_time, now);
 
         Ok(stream)
     }
 
+    /// Resumes a previously paused stream. Only the `sender` may resume.
+    ///
+    /// # Auth
+    /// Requires authorisation from the stream's `sender`.
     /// Resumes a paused stream, extending end_time to preserve unstreamed time.
     ///
     /// Only the stream sender may call this. On resume, the end_time is extended
@@ -708,7 +654,7 @@ impl Contract {
         stream.pause_time = 0;
 
         storage::set_stream(&env, stream_id, &stream);
-        
+
         // Emit admin_action event for resume
         events::admin_action(
             &env,
@@ -781,17 +727,24 @@ impl Contract {
         Ok(())
     }
 
-    /// Cancels an active or paused stream, returning unstreamed funds to the sender.
+    /// Cancels an active or paused stream with a correct sender/recipient refund split.
     ///
-    /// Only the stream sender may call this. On cancellation, the stream status is set to
-    /// `Cancelled`, and the unstreamed portion of `total_amount - released_amount` is
-    /// transferred back to the sender. Any amount already released to the recipient is kept.
+    /// At the moment of cancellation the stream's vested amount is computed. Funds
+    /// are split as follows:
+    ///
+    /// - **Recipient** receives `vested_amount - released_amount` (accrued but
+    ///   not yet withdrawn).
+    /// - **Sender** receives `total_amount - vested_amount` (unvested / unstreamed).
+    ///
+    /// This preserves the invariant that the recipient is entitled to everything
+    /// that has already vested, regardless of whether they have withdrawn it yet.
+    ///
+    /// The stream transitions to [`StreamStatus::Cancelled`] (terminal state).
     ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
-    /// - [`Error::Unauthorized`] if caller is not the stream sender.
-    /// - [`Error::InvalidState`] if the stream is already settled or cancelled.
-    /// - [`Error::Overflow`] if amount calculation overflows.
+    /// - [`Error::InvalidState`] if the stream is already `Settled` or `Cancelled`.
+    /// - [`Error::Overflow`] if any amount arithmetic overflows.
     ///
     /// # Auth
     /// Requires authorisation from the stream's `sender`.
@@ -804,19 +757,33 @@ impl Contract {
         }
 
         let now = env.ledger().timestamp();
+        let contract = env.current_contract_address();
+        let token = token::Client::new(&env, &stream.token);
 
-        let returned_amount = stream
-            .total_amount
+        // Compute vested amount at cancellation time (handles Active, Paused, Draft).
+        // For Draft streams, vested = 0 so the full amount returns to sender.
+        let vested = release::vested_amount(&stream, now)?;
+
+        // Recipient is owed vested - already_released (may be 0).
+        let recipient_payout = vested
             .checked_sub(stream.released_amount)
             .ok_or(Error::Overflow)?;
 
-        if returned_amount > 0 {
+        // Sender reclaims everything that has not yet vested.
+        let sender_refund = stream
+            .total_amount
+            .checked_sub(vested)
+            .ok_or(Error::Overflow)?;
+
+        if recipient_payout > 0 {
             #[allow(clippy::needless_borrows_for_generic_args)]
-            token::Client::new(&env, &stream.token).transfer(
-                &env.current_contract_address(),
-                &stream.sender,
-                &returned_amount,
-            );
+            token.transfer(&contract, &stream.recipient, &recipient_payout);
+            stream.released_amount = vested;
+        }
+
+        if sender_refund > 0 {
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            token.transfer(&contract, &stream.sender, &sender_refund);
         }
 
         stream.status = StreamStatus::Cancelled;
@@ -824,12 +791,13 @@ impl Contract {
 
         limits::decrement_sender_stream_count(&env, &stream.sender);
         storage::set_stream(&env, stream_id, &stream);
+
         events::cancelled(
             &env,
             stream_id,
             &stream.sender,
-            returned_amount,
-            stream.released_amount,
+            sender_refund,
+            recipient_payout,
             now,
         );
 
@@ -955,7 +923,7 @@ mod upgrade_test {
         env.mock_all_auths();
 
         let admin = Address::generate(&env);
-        let contract_id = env.register_contract(None, Contract);
+        let contract_id = env.register(Contract, ());
         let client = ContractClient::new(&env, &contract_id);
 
         client.initialize(&admin);
