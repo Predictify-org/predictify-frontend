@@ -1,6 +1,6 @@
 //! # Contract storage layout
 //!
-//! All persistent state for the StreamPay contract is keyed by
+//! All persistent state for the `StreamPay` contract is keyed by
 //! [`DataKey`]. There are two storage tiers in use:
 //!
 //! - **Instance storage** holds singletons: `Admin`, `Paused`, the
@@ -16,7 +16,7 @@
 
 use soroban_sdk::{contracttype, Address, Env};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub enum StreamStatus {
     Draft,

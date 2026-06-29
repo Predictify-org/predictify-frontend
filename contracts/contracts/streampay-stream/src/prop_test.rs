@@ -1,4 +1,4 @@
-//! Property-based tests for the StreamPay contract.
+//! Property-based tests for the `StreamPay` contract.
 //!
 //! The property suite in this module was previously broken by an
 //! SDK API churn (changes to `register_stellar_asset_contract_v2`,

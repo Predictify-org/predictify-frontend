@@ -1,4 +1,4 @@
-//! # StreamPay Stream Contract
+//! # `StreamPay` Stream Contract
 //!
 //! Soroban smart contract that manages linear payment streams on Stellar.
 //! Each stream locks a fixed token amount in escrow and releases it linearly
@@ -29,7 +29,7 @@ use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, 
 pub use storage::{Stream, StreamStatus};
 pub use views::{StreamPage, MAX_PAGE_SIZE};
 
-/// The StreamPay contract entry point registered with the Soroban host.
+/// The `StreamPay` contract entry point registered with the Soroban host.
 #[contract]
 pub struct Contract;
 
@@ -51,6 +51,7 @@ enum DataKey {
     TokenAllowed(Address),
 }
 
+#[allow(clippy::needless_pass_by_value, clippy::must_use_candidate)]
 #[contractimpl]
 impl Contract {
     /// One-time contract initialisation.
@@ -491,7 +492,7 @@ impl Contract {
     /// Returns the stream balance (vested amount) at a given ledger timestamp.
     ///
     /// This is a view function that computes how much of the stream has vested
-    /// based on linear accrual from start_time to end_time. It uses overflow-safe
+    /// based on linear accrual from `start_time` to `end_time`. It uses overflow-safe
     /// checked arithmetic to ensure correctness even with large amounts.
     ///
     /// # Arguments
@@ -502,6 +503,10 @@ impl Contract {
     ///
     /// The vested amount as an i128, always in the range `[0, total_amount]`.
     /// Returns `Err(Error::Overflow)` if arithmetic overflows on extreme inputs.
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::Overflow`] if the vested-amount computation overflows.
     pub fn stream_balance(env: Env, stream_id: u64) -> Result<i128, Error> {
         let stream = get_existing_stream(&env, stream_id)?;
         release::vested_amount(&stream, env.ledger().timestamp())
@@ -588,8 +593,13 @@ impl Contract {
     /// Pauses an active stream, freezing accrual while preserving vested funds.
     ///
     /// Only the stream sender may call this. On pause, status is set to Paused
-    /// and pause_time is recorded. Vested amount remains withdrawable but does
+    /// and `pause_time` is recorded. Vested amount remains withdrawable but does
     /// not increase while paused.
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::Unauthorized`] if caller is not the stream sender.
+    /// - [`Error::InvalidState`] if the stream is not `Active`.
     pub fn pause(env: Env, stream_id: u64) -> Result<Stream, Error> {
         let mut stream = get_existing_stream(&env, stream_id)?;
         stream.sender.require_auth();
@@ -618,11 +628,17 @@ impl Contract {
         Ok(stream)
     }
 
-    /// Resumes a paused stream, extending end_time to preserve unstreamed time.
+    /// Resumes a paused stream, extending `end_time` to preserve unstreamed time.
     ///
-    /// Only the stream sender may call this. On resume, the end_time is extended
+    /// Only the stream sender may call this. On resume, the `end_time` is extended
     /// by the paused duration so the remaining streamable amount is preserved.
     /// Status is set back to Active.
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::Unauthorized`] if caller is not the stream sender.
+    /// - [`Error::InvalidState`] if the stream is not `Paused`.
+    /// - [`Error::InvalidTimeRange`] if time calculation overflows.
     pub fn resume(env: Env, stream_id: u64) -> Result<Stream, Error> {
         let mut stream = get_existing_stream(&env, stream_id)?;
         stream.sender.require_auth();
@@ -894,7 +910,7 @@ impl Contract {
         start_after: Option<u64>,
         limit: u64,
     ) -> views::StreamPage {
-        views::list_streams_by_sender(&env, sender, start_after, limit)
+        views::list_streams_by_sender(&env, &sender, start_after, limit)
     }
 
     /// Returns a paginated list of streams received by a given address.
@@ -916,7 +932,7 @@ impl Contract {
         start_after: Option<u64>,
         limit: u64,
     ) -> views::StreamPage {
-        views::list_streams_by_recipient(&env, recipient, start_after, limit)
+        views::list_streams_by_recipient(&env, &recipient, start_after, limit)
     }
 
     /// Returns a paginated list of streams filtered by status.
@@ -963,7 +979,7 @@ impl Contract {
         start_after: Option<u64>,
         limit: u64,
     ) -> views::StreamPage {
-        views::list_streams_by_recipient_and_status(&env, recipient, status, start_after, limit)
+        views::list_streams_by_recipient_and_status(&env, &recipient, status, start_after, limit)
     }
 
     /// Returns a paginated list of streams filtered by sender and status.
@@ -987,7 +1003,7 @@ impl Contract {
         start_after: Option<u64>,
         limit: u64,
     ) -> views::StreamPage {
-        views::list_streams_by_sender_and_status(&env, sender, status, start_after, limit)
+        views::list_streams_by_sender_and_status(&env, &sender, status, start_after, limit)
     }
 }
 
@@ -1041,7 +1057,7 @@ mod upgrade_test {
         env.mock_all_auths();
 
         let admin = Address::generate(&env);
-        let contract_id = env.register_contract(None, Contract);
+        let contract_id = env.register(Contract, ());
         let client = ContractClient::new(&env, &contract_id);
 
         client.initialize(&admin);

@@ -275,8 +275,7 @@ fn init_with_token_allowlist_emits_no_events() {
     let events = data.env.events().all();
     assert!(
         events.is_empty(),
-        "init_with_token_allowlist should emit zero events, got: {:?}",
-        events
+        "init_with_token_allowlist should emit zero events, got: {events:?}",
     );
 }
 
@@ -651,7 +650,7 @@ fn cancel_stream_emits_cancelled_event() {
     assert!(!events.is_empty(), "cancel_stream should emit events");
 
     // The last event should be the cancelled event
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -673,9 +672,9 @@ fn cancel_stream_requires_auth() {
 
     // Mock auths off and try to cancel as a different address
     data.env.mock_auths(&[]);
-    let impostor = Address::generate(&data.env);
+    let _impostor = Address::generate(&data.env);
 
-    let result = client.try_cancel_stream(&impostor, &id);
+    let result = client.try_cancel_stream(&id);
     assert!(
         result.is_err(),
         "cancel_stream should fail without auth from sender"
@@ -832,7 +831,7 @@ fn pause_emits_admin_action_event() {
     assert!(!events.is_empty(), "pause should emit events");
 
     // The event should have 2 topics (stream, pause)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -865,7 +864,7 @@ fn resume_emits_admin_action_event() {
     assert!(!events.is_empty(), "resume should emit events");
 
     // The event should have 2 topics (stream, resume)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -898,7 +897,7 @@ fn settle_emits_admin_action_event() {
     assert!(!events.is_empty(), "settle should emit events");
 
     // The event should have 2 topics (stream, admin_action)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -931,8 +930,7 @@ fn no_events_on_cancel_failure() {
     let events = data.env.events().all();
     assert!(
         events.is_empty(),
-        "Failed cancel_stream should not emit events, got: {:?}",
-        events
+        "Failed cancel_stream should not emit events, got: {events:?}",
     );
 }
 
@@ -1061,7 +1059,7 @@ fn settle_overflow_returns_overflow_error() {
     assert_eq!(stream.released_amount, 100);
 }
 
-/// Creating a stream with start_time == end_time must be rejected.
+/// Creating a stream with `start_time` == `end_time` must be rejected.
 #[test]
 fn create_stream_zero_duration_returns_invalid_time_range() {
     let data = setup_init();

@@ -130,7 +130,7 @@ pub fn list_streams(env: &Env, start_after: Option<u64>, limit: u64) -> StreamPa
 /// A [`StreamPage`] with up to `limit` streams sent by `sender`.
 pub fn list_streams_by_sender(
     env: &Env,
-    sender: Address,
+    sender: &Address,
     start_after: Option<u64>,
     limit: u64,
 ) -> StreamPage {
@@ -144,7 +144,7 @@ pub fn list_streams_by_sender(
 
     while current_id < max_id && collected < effective_limit {
         if let Some(stream) = storage::get_stream(env, current_id) {
-            if stream.sender == sender {
+            if stream.sender == *sender {
                 streams.push_back(stream);
                 collected = collected.saturating_add(1);
             }
@@ -177,7 +177,7 @@ pub fn list_streams_by_sender(
 /// A [`StreamPage`] with up to `limit` streams received by `recipient`.
 pub fn list_streams_by_recipient(
     env: &Env,
-    recipient: Address,
+    recipient: &Address,
     start_after: Option<u64>,
     limit: u64,
 ) -> StreamPage {
@@ -191,7 +191,7 @@ pub fn list_streams_by_recipient(
 
     while current_id < max_id && collected < effective_limit {
         if let Some(stream) = storage::get_stream(env, current_id) {
-            if stream.recipient == recipient {
+            if stream.recipient == *recipient {
                 streams.push_back(stream);
                 collected = collected.saturating_add(1);
             }
@@ -275,7 +275,7 @@ pub fn list_streams_by_status(
 /// A [`StreamPage`] with up to `limit` streams matching both filters.
 pub fn list_streams_by_recipient_and_status(
     env: &Env,
-    recipient: Address,
+    recipient: &Address,
     status: StreamStatus,
     start_after: Option<u64>,
     limit: u64,
@@ -290,7 +290,7 @@ pub fn list_streams_by_recipient_and_status(
 
     while current_id < max_id && collected < effective_limit {
         if let Some(stream) = storage::get_stream(env, current_id) {
-            if stream.recipient == recipient && stream.status == status {
+            if stream.recipient == *recipient && stream.status == status {
                 streams.push_back(stream);
                 collected = collected.saturating_add(1);
             }
@@ -324,7 +324,7 @@ pub fn list_streams_by_recipient_and_status(
 /// A [`StreamPage`] with up to `limit` streams matching both filters.
 pub fn list_streams_by_sender_and_status(
     env: &Env,
-    sender: Address,
+    sender: &Address,
     status: StreamStatus,
     start_after: Option<u64>,
     limit: u64,
@@ -339,7 +339,7 @@ pub fn list_streams_by_sender_and_status(
 
     while current_id < max_id && collected < effective_limit {
         if let Some(stream) = storage::get_stream(env, current_id) {
-            if stream.sender == sender && stream.status == status {
+            if stream.sender == *sender && stream.status == status {
                 streams.push_back(stream);
                 collected = collected.saturating_add(1);
             }
@@ -383,14 +383,13 @@ mod tests {
                 },
                 recipient: recipient.clone(),
                 token: token.clone(),
-                total_amount: 1000 * (i as i128),
+                total_amount: 1000 * i128::from(i),
                 released_amount: 0,
                 start_time: 1000,
                 end_time: 2000,
                 duration: 1000,
                 last_update: 1000,
                 status: match i {
-                    1 | 2 => StreamStatus::Active,
                     3 | 4 => StreamStatus::Paused,
                     5 => StreamStatus::Settled,
                     6 => StreamStatus::Draft,
@@ -472,9 +471,9 @@ mod tests {
     #[test]
     fn test_list_streams_by_sender() {
         let env = Env::default();
-        let (sender_a, sender_b, _recipient) = setup_test_streams(&env);
+        let (sender_a, _sender_b, _recipient) = setup_test_streams(&env);
 
-        let page = list_streams_by_sender(&env, sender_a.clone(), None, 10);
+        let page = list_streams_by_sender(&env, &sender_a, None, 10);
 
         // sender_a has streams 1, 3, 5 (odd IDs)
         assert_eq!(page.streams.len(), 3);
@@ -489,7 +488,7 @@ mod tests {
         let env = Env::default();
         let (_sender_a, _sender_b, recipient) = setup_test_streams(&env);
 
-        let page = list_streams_by_recipient(&env, recipient.clone(), None, 10);
+        let page = list_streams_by_recipient(&env, &recipient, None, 10);
 
         // All 6 streams have the same recipient
         assert_eq!(page.streams.len(), 6);
@@ -517,7 +516,7 @@ mod tests {
 
         let page = list_streams_by_recipient_and_status(
             &env,
-            recipient.clone(),
+            &recipient,
             StreamStatus::Paused,
             None,
             10,
@@ -537,7 +536,7 @@ mod tests {
 
         let page = list_streams_by_sender_and_status(
             &env,
-            sender_a.clone(),
+            &sender_a,
             StreamStatus::Active,
             None,
             10,
@@ -594,7 +593,7 @@ mod tests {
         setup_test_streams(&env);
 
         let non_existent_sender = Address::generate(&env);
-        let page = list_streams_by_sender(&env, non_existent_sender, None, 10);
+        let page = list_streams_by_sender(&env, &non_existent_sender, None, 10);
 
         assert_eq!(page.streams.len(), 0);
         assert_eq!(page.next_cursor, None);

@@ -33,6 +33,3 @@ export {
   hasFieldErrors,
   getFirstFieldError,
 } from "./handler";
-
-export { errorResponse, ErrorCode } from "./server";
-export type { ErrorEnvelope } from "./server";

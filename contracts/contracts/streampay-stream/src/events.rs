@@ -1,26 +1,28 @@
-//! # StreamPay contract events
+//! # `StreamPay` contract events
 //!
 //! All events use a two-topic scheme for indexer filtering:
-//!   topic[0] = symbol_short!("stream")   — identifies the StreamPay contract family
-//!   topic[1] = symbol_short!("<event>")  — identifies the lifecycle transition
+//!   topic[0] = `symbol_short!("stream")` — identifies the `StreamPay` contract family
+//!   topic[1] = `symbol_short!("<event>")` — identifies the lifecycle transition
 //!
 //! ## Event schema (for Horizon indexers and the transactional outbox)
 //!
-//! | Event       | topic[1]      | Data tuple (in order)                                                                                    |
-//! |-------------|---------------|----------------------------------------------------------------------------------------------------------|
-//! | created     | "created"     | (stream_id: u64, sender: Address, recipient: Address, token: Address, total_amount: i128, timestamp: u64) |
-//! | started     | "started"     | (stream_id: u64, start_time: u64, end_time: u64, timestamp: u64)                                         |
-//! | withdrawn   | "withdrawn"   | (stream_id: u64, recipient: Address, amount: i128, timestamp: u64)                                       |
-//! | settled     | "settled"     | (stream_id: u64, recipient: Address, total_amount: i128, timestamp: u64)                                 |
-//! | paused      | "paused"      | (stream_id: u64, sender: Address, pause_time: u64, timestamp: u64)                                       |
-//! | resumed     | "resumed"     | (stream_id: u64, sender: Address, end_time: u64, timestamp: u64)                                         |
-//! | cancelled   | "cancelled"   | (stream_id: u64, cancelled_by: Address, returned_amount: i128, released_amount: i128, timestamp: u64)   |
-//! | amended     | "amended"     | (stream_id: u64, amended_by: Address, new_rate_per_second: i128, new_end_time: u64, timestamp: u64)      |
-//! | admin_action| "admin_action"| (stream_id: u64, admin: Address, action: Symbol, timestamp: u64)                                         |
+//! | Event         | topic[1]        | Data tuple (in order)                                                                                                    |
+//! |---------------|-----------------|--------------------------------------------------------------------------------------------------------------------------|
+//! | created       | "created"       | (`stream_id`: u64, sender: Address, recipient: Address, token: Address, `total_amount`: i128, timestamp: u64)             |
+//! | started       | "started"       | (`stream_id`: u64, `start_time`: u64, `end_time`: u64, timestamp: u64)                                                    |
+//! | withdrawn     | "withdrawn"     | (`stream_id`: u64, recipient: Address, amount: i128, timestamp: u64)                                                      |
+//! | settled       | "settled"       | (`stream_id`: u64, recipient: Address, `total_amount`: i128, timestamp: u64)                                              |
+//! | paused        | "paused"        | (`stream_id`: u64, sender: Address, `pause_time`: u64, timestamp: u64)                                                    |
+//! | resumed       | "resumed"       | (`stream_id`: u64, sender: Address, `end_time`: u64, timestamp: u64)                                                      |
+//! | cancelled     | "cancelled"     | (`stream_id`: u64, `cancelled_by`: Address, `returned_amount`: i128, `released_amount`: i128, timestamp: u64)             |
+//! | amended       | "amended"       | (`stream_id`: u64, `amended_by`: Address, `new_rate_per_second`: i128, `new_end_time`: u64, timestamp: u64)               |
+//! | `admin_action`| "`admin_action`"| (`stream_id`: u64, admin: Address, action: Symbol, timestamp: u64)                                                        |
 //!
 //! All events are emitted AFTER successful state mutation and any token transfer.
 //! Failed calls (returning Err) emit no events.
 //! `settled` is emitted in addition to `withdrawn` when a withdrawal fully drains the stream.
+
+#![allow(deprecated)]
 
 use soroban_sdk::{symbol_short, Address, BytesN, Env, Symbol};
 
@@ -78,6 +80,7 @@ pub fn settled(env: &Env, stream_id: u64, recipient: &Address, total_amount: i12
     );
 }
 
+#[allow(dead_code)]
 pub fn paused(env: &Env, stream_id: u64, sender: &Address, pause_time: u64, timestamp: u64) {
     env.events().publish(
         (symbol_short!("stream"), symbol_short!("paused")),
@@ -85,6 +88,7 @@ pub fn paused(env: &Env, stream_id: u64, sender: &Address, pause_time: u64, time
     );
 }
 
+#[allow(dead_code)]
 pub fn resumed(env: &Env, stream_id: u64, sender: &Address, end_time: u64, timestamp: u64) {
     env.events().publish(
         (symbol_short!("stream"), symbol_short!("resumed")),
@@ -125,7 +129,7 @@ pub fn cancelled(
 }
 
 /// Emits the `stream::amended` event after a stream is successfully amended.
-/// Carries the new rate and end_time so indexers can track schedule changes.
+/// Carries the new rate and `end_time` so indexers can track schedule changes.
 pub fn amended(
     env: &Env,
     stream_id: u64,

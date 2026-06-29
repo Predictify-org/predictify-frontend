@@ -7,6 +7,7 @@
 
 use crate::{Contract, ContractClient, StreamStatus};
 use soroban_sdk::testutils::Address as _;
+use soroban_sdk::testutils::Ledger as _;
 use soroban_sdk::{token::StellarAssetClient, Address, Env};
 
 struct TestContext {
@@ -69,7 +70,7 @@ fn test_list_streams_empty() {
 
 #[test]
 fn test_list_streams_single_page() {
-    let mut ctx = setup();
+    let ctx = setup();
 
     // Create 3 streams
     for i in 1..=3 {
@@ -94,7 +95,7 @@ fn test_list_streams_single_page() {
 
 #[test]
 fn test_list_streams_pagination() {
-    let mut ctx = setup();
+    let ctx = setup();
 
     // Create 5 streams
     for i in 1..=5 {
@@ -131,7 +132,7 @@ fn test_list_streams_pagination() {
 
 #[test]
 fn test_list_streams_by_sender() {
-    let mut ctx = setup();
+    let ctx = setup();
 
     // sender_a creates 2 streams
     ctx.client.create_stream(
@@ -181,7 +182,7 @@ fn test_list_streams_by_sender() {
 
 #[test]
 fn test_list_streams_by_recipient() {
-    let mut ctx = setup();
+    let ctx = setup();
 
     // Create streams to recipient_a
     ctx.client.create_stream(
@@ -231,7 +232,7 @@ fn test_list_streams_by_recipient() {
 
 #[test]
 fn test_list_streams_by_status() {
-    let mut ctx = setup();
+    let ctx = setup();
 
     // Create active stream
     let stream_id = ctx.client.create_stream(
@@ -276,7 +277,7 @@ fn test_list_streams_by_status() {
 
 #[test]
 fn test_list_streams_recipient_status() {
-    let mut ctx = setup();
+    let ctx = setup();
 
     // Create active streams for recipient_a
     ctx.client.create_stream(
@@ -338,7 +339,7 @@ fn test_list_streams_recipient_status() {
 
 #[test]
 fn test_list_streams_sender_status() {
-    let mut ctx = setup();
+    let ctx = setup();
 
     // sender_a creates 2 streams
     ctx.client.create_stream(
@@ -400,7 +401,7 @@ fn test_list_streams_sender_status() {
 
 #[test]
 fn test_views_work_when_contract_paused() {
-    let mut ctx = setup();
+    let ctx = setup();
 
     // Create a stream
     ctx.client.create_stream(
@@ -422,7 +423,7 @@ fn test_views_work_when_contract_paused() {
 
 #[test]
 fn test_pagination_respects_max_page_size() {
-    let mut ctx = setup();
+    let ctx = setup();
 
     // Create just a few streams
     for i in 1..=5 {
@@ -446,7 +447,7 @@ fn test_pagination_respects_max_page_size() {
 
 #[test]
 fn test_no_streams_match_filter() {
-    let mut ctx = setup();
+    let ctx = setup();
 
     // Create stream for recipient_a
     ctx.client.create_stream(
