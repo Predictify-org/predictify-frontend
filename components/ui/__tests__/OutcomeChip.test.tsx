@@ -136,4 +136,37 @@ describe('OutcomeChip', () => {
       expect(chip.className).toMatch(/text-white/);
     });
   });
+
+  describe('WCAG-AA contrast', () => {
+    it('has font-semibold to boost effective contrast for small badge text', () => {
+      const variants = ['positive', 'negative', 'neutral', 'tie', 'dispute'] as const;
+      for (const variant of variants) {
+        const { container } = render(<OutcomeChip variant={variant}>{variant}</OutcomeChip>);
+        const chip = container.firstChild as HTMLElement;
+        // font-semibold is required alongside darkened chart tokens to ensure
+        // ≥4.5:1 contrast ratio for normal-weight text (WCAG 2.1 AA SC 1.4.3)
+        expect(chip.className).toMatch(/font-semibold/);
+      }
+    });
+
+    it('exposes role="img" so screen readers announce the chip as an image with label', () => {
+      render(<OutcomeChip variant="positive" ariaLabel="Outcome: Won">Won</OutcomeChip>);
+      expect(screen.getByRole('img', { name: 'Outcome: Won' })).toBeInTheDocument();
+    });
+
+    it('falls back aria-label to string children when ariaLabel is omitted', () => {
+      render(<OutcomeChip variant="negative">Lost</OutcomeChip>);
+      expect(screen.getByRole('img', { name: 'Lost' })).toBeInTheDocument();
+    });
+
+    it('does not rely on color alone — every variant carries a pattern class', () => {
+      // Verifies SC 1.4.1 (Use of Color) by asserting a non-color differentiator exists
+      const variants = ['positive', 'negative', 'neutral', 'tie', 'dispute'] as const;
+      for (const variant of variants) {
+        const { container } = render(<OutcomeChip variant={variant}>{variant}</OutcomeChip>);
+        const chip = container.firstChild as HTMLElement;
+        expect(chip.className).toMatch(/pattern-/);
+      }
+    });
+  });
 });
