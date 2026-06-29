@@ -1,4 +1,4 @@
-import { createCache, streamCache } from "./cache";
+import { createCache, streamCache, flushStreamCache } from "./cache";
 
 describe("TenantScopedCache", () => {
   const originalEnv = process.env.STREAMPAY_CACHE_DISABLED;
@@ -23,7 +23,9 @@ describe("TenantScopedCache", () => {
     expect(() => cache.get("", "id-1")).toThrow("Tenant is required");
     expect(() => cache.get("   ", "id-1")).toThrow("Tenant is required");
     expect(() => cache.set("", "id-1", "val")).toThrow("Tenant is required");
+    expect(() => cache.set("", "id-1", "val", "mainnet")).toThrow("Tenant is required");
     expect(() => cache.invalidate("", "id-1")).toThrow("Tenant is required");
+    expect(() => cache.invalidate("", "id-1", "mainnet")).toThrow("Tenant is required");
   });
 
   it("should enforce tenant-scoped isolation", () => {
@@ -70,5 +72,54 @@ describe("TenantScopedCache", () => {
 
   it("should export streamCache singleton", () => {
     expect(streamCache).toBeDefined();
+  });
+
+  it("scopes cache entries by network (setNetwork regression)", () => {
+    const cache = createCache<string>("test-scope", 300000);
+    // Cached on testnet
+    cache.set("tenant-1", "id-1", "testnet-value", "testnet");
+    expect(cache.get("tenant-1", "id-1", "testnet")).toBe("testnet-value");
+    // Switching to mainnet MUST NOT return the testnet entry
+    expect(cache.get("tenant-1", "id-1", "mainnet")).toBeNull();
+
+    // Cache the same key under mainnet — both must coexist independently
+    cache.set("tenant-1", "id-1", "mainnet-value", "mainnet");
+    expect(cache.get("tenant-1", "id-1", "testnet")).toBe("testnet-value");
+    expect(cache.get("tenant-1", "id-1", "mainnet")).toBe("mainnet-value");
+
+    // Invalidate one network — the other MUST remain intact
+    cache.invalidate("tenant-1", "id-1", "testnet");
+    expect(cache.get("tenant-1", "id-1", "testnet")).toBeNull();
+    expect(cache.get("tenant-1", "id-1", "mainnet")).toBe("mainnet-value");
+  });
+
+  it("flush() clears all entries (network-scoped and unscoped)", () => {
+    const cache = createCache<string>("test-scope", 300000);
+    cache.set("tenant-1", "id-1", "testnet-value", "testnet");
+    cache.set("tenant-1", "id-2", "mainnet-value", "mainnet");
+    cache.set("tenant-2", "id-3", "unscoped-value");
+
+    cache.flush();
+
+    expect(cache.get("tenant-1", "id-1", "testnet")).toBeNull();
+    expect(cache.get("tenant-1", "id-2", "mainnet")).toBeNull();
+    expect(cache.get("tenant-2", "id-3")).toBeNull();
+  });
+
+  it("flushStreamCache() empties the process-wide streamCache", () => {
+    streamCache.set("tenant-x", "id-x", { id: "id-x" }, "testnet");
+    expect(streamCache.get("tenant-x", "id-x", "testnet")).toEqual({ id: "id-x" });
+
+    flushStreamCache();
+
+    expect(streamCache.get("tenant-x", "id-x", "testnet")).toBeNull();
+  });
+
+  it("treating network=\"\" the same as no network (legacy callers)", () => {
+    const cache = createCache<string>("test-scope", 300000);
+    cache.set("tenant-1", "id-1", "legacy-value");
+    // Empty-string network normalises to "default" segment
+    expect(cache.get("tenant-1", "id-1", "")).toBe("legacy-value");
+    expect(cache.get("tenant-1", "id-1")).toBe("legacy-value");
   });
 });
