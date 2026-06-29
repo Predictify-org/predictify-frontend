@@ -9,6 +9,7 @@ import {
   checkRequestBodySize,
   buildLimitsConfig,
 } from './lib/bodySize';
+import { touchLastSeenFromRequest } from './lib/lastSeen';
 
 // ---------------------------------------------------------------------------
 // Request body size cap
@@ -49,6 +50,7 @@ function buildCorsHeaders(origin: string) {
 
 export async function middleware(request: NextRequest) {
   const fingerprint = await captureRequestFingerprint(request);
+  touchLastSeenFromRequest(request);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(REQUEST_FINGERPRINT_HEADER, fingerprint);
 
