@@ -1,9 +1,8 @@
-import { ExternalLink } from 'lucide-react';
 import { TallyBar } from '@/components/disputes/shared/TallyBar';
 import { DetailsAccordion } from '@/components/disputes/shared/DetailsAccordion';
 import { OutcomeChip } from '@/components/ui/OutcomeChip';
 import type { DisputeData, DisputeState } from '@/types/disputes';
-import { OutcomeIcon } from '@/components/icons/OutcomeIcons';
+import { ExternalLink } from '@/components/ExternalLink';
 
 interface ExecutedStateProps {
   data: DisputeData;
@@ -43,15 +42,13 @@ export function ExecutedState({ data }: ExecutedStateProps) {
           <ul className="flex flex-col gap-1">
             {data.auditRefs.map((ref) => (
               <li key={ref.url}>
-                <a
+                <ExternalLink
                   href={ref.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="flex items-center gap-1 text-sm text-blue-500 hover:underline"
+                  iconClassName="h-3 w-3"
                 >
                   {ref.label}
-                  <ExternalLink className="h-3 w-3 shrink-0" />
-                </a>
+                </ExternalLink>
               </li>
             ))}
           </ul>
