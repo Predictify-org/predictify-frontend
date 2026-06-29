@@ -43,4 +43,6 @@ pub enum Error {
     Overflow = 10,
     /// 11: Sender has exceeded the maximum number of active streams.
     StreamLimitExceeded = 11,
+    /// 12: Recipient has no established trustline for the streamed token.
+    RecipientTrustlineMissing = 12,
 }

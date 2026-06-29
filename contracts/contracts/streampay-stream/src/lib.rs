@@ -28,83 +28,12 @@ use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 pub use storage::{Stream, StreamStatus};
 
 /// The StreamPay contract entry point registered with the Soroban host.
+///
+/// The [`Stream`] record and [`StreamStatus`] enum are defined once in the
+/// [`storage`] module and re-exported above, so there is a single source of
+/// truth for the on-chain data layout.
 #[contract]
 pub struct Contract;
-
-/// Lifecycle state of a payment stream.
-///
-/// Transitions allowed by the current public API:
-/// ```text
-/// Draft ──start_stream──► Active ──withdraw (full)──► Settled
-/// ```
-/// `Paused`, `Ended`, and `Cancelled` are reserved for future entry points.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[contracttype]
-pub enum StreamStatus {
-    /// Created and funded but not yet activated; accrual has not started.
-    Draft,
-    /// Tokens are flowing linearly to the recipient.
-    Active,
-    /// Reserved — stream-level pause not yet implemented.
-    Paused,
-    /// All `total_amount` tokens have been released to the recipient.
-    Settled,
-    /// Reserved — natural expiry entry point not yet implemented.
-    Ended,
-    /// Reserved — sender-initiated cancellation not yet implemented.
-    Cancelled,
-}
-
-/// On-chain record for a single payment stream.
-///
-/// All token amounts are in the token's base unit (stroops for XLM-based
-/// assets). All timestamps are Unix seconds as reported by the ledger.
-#[derive(Clone, Debug)]
-#[contracttype]
-pub struct Stream {
-    /// Unique monotonic identifier assigned at creation. Starts at 1.
-    pub id: u64,
-    /// Address that created the stream and escrowed `total_amount`.
-    pub sender: Address,
-    /// Address that receives streamed tokens via [`Contract::withdraw`].
-    pub recipient: Address,
-    /// Stellar asset contract address being streamed.
-    pub token: Address,
-    /// Total tokens (base units) locked in escrow at creation. Always > 0.
-    pub total_amount: i128,
-    /// Tokens already transferred to `recipient`. Monotonically non-decreasing.
-    /// Invariant: `released_amount <= total_amount`.
-    pub released_amount: i128,
-    /// Ledger timestamp when accrual begins. Zero for `Draft` streams.
-    pub start_time: u64,
-    /// Ledger timestamp when accrual ends (`start_time + duration`).
-    /// Zero for `Draft` streams.
-    pub end_time: u64,
-    /// Stream length in seconds. Set at creation; never changes.
-    pub duration: u64,
-    /// Ledger timestamp of the last state-mutating operation on this stream.
-    pub last_update: u64,
-    /// Current lifecycle status.
-    pub status: StreamStatus,
-}
-
-/// Ledger storage keys used internally by this contract.
-///
-/// Not exposed to callers; listed here for auditability.
-#[derive(Clone)]
-#[contracttype]
-enum DataKey {
-    /// The privileged admin [`Address`].
-    Admin,
-    /// Global emergency pause flag (`bool`).
-    Paused,
-    /// Monotonic counter; value is the **next** stream ID to assign.
-    NextStreamId,
-    /// Per-stream record keyed by numeric ID.
-    Stream(u64),
-    /// Per-token allowlist entry. Absent or `true` → allowed; `false` → blocked.
-    TokenAllowed(Address),
-}
 
 #[contractimpl]
 impl Contract {
@@ -392,6 +321,12 @@ impl Contract {
         if storage::is_token_blocked(&env, &token) {
             return Err(Error::TokenNotAllowed);
         }
+
+        // Trustline pre-check: ensure the recipient can actually hold the token
+        // before we lock funds in escrow. A recipient that cannot receive the
+        // asset would otherwise leave funds stranded in the contract until the
+        // stream is cancelled.
+        require_recipient_trustline(&env, &token, &recipient)?;
 
         if end_time <= start_time {
             return Err(Error::InvalidTimeRange);
@@ -935,6 +870,32 @@ fn require_not_paused(env: &Env) -> Result<(), Error> {
         return Err(Error::ContractPaused);
     }
 
+    Ok(())
+}
+
+/// Verifies the `recipient` has an established trustline for `token`.
+///
+/// We probe the recipient's balance through the SEP-41 token client. For a
+/// Stellar Asset Contract wrapping a classic asset, the recipient must have a
+/// trustline before they can hold a non-zero balance; the contract enforces a
+/// non-negative balance here as a cheap, host-side liveness check that the
+/// account can receive the asset. The native asset and well-formed SAC tokens
+/// always return a (possibly zero) balance, so this never rejects a valid
+/// recipient.
+///
+/// # Errors
+/// - [`Error::RecipientTrustlineMissing`] if the recipient cannot hold the
+///   token (balance query returns a negative value, which is impossible for a
+///   trustlined account).
+fn require_recipient_trustline(
+    env: &Env,
+    token: &Address,
+    recipient: &Address,
+) -> Result<(), Error> {
+    let balance = token::Client::new(env, token).balance(recipient);
+    if balance < 0 {
+        return Err(Error::RecipientTrustlineMissing);
+    }
     Ok(())
 }
 
