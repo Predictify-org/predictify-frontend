@@ -488,7 +488,7 @@ export function isSorobanError(
   error: unknown
 ): error is Error & { variant: string; meta?: Record<string, unknown>; statusCode?: number } {
   if (!(error instanceof Error)) return false;
-  const e = error as Record<string, unknown>;
+  const e = error as unknown as Record<string, unknown>;
   return (
     typeof e.variant === 'string' &&
     e.variant.length > 0 &&

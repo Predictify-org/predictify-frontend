@@ -36,6 +36,9 @@ describe('Stellar Network Configuration', () => {
     delete (process.env as any).ANOMALY_SETTLE_THRESHOLD;
     delete (process.env as any).CI;
     delete (process.env as any).GITHUB_ACTIONS;
+    delete (process.env as any).INTERNAL_SERVICE_HMAC_KEYS;
+    delete (process.env as any).INTERNAL_SERVICE_CURRENT_KEY_ID;
+    delete (process.env as any).INTERNAL_SERVICE_CLOCK_SKEW_SECONDS;
   });
 
   describe('Network Profiles', () => {

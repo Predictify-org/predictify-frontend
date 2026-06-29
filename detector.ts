@@ -1,16 +1,15 @@
 import { AnomalyAlert, AnomalyThresholds, MetricSnapshot } from "./types";
-import { getConfig } from "./app/lib/config";
 import { auditLogStore } from "./app/lib/audit-log";
 
-/**
- * Default thresholds tunable via environment variables.
- * Now sourced from centralized config for validation.
- */
-const DEFAULT_THRESHOLDS: AnomalyThresholds = {
-  creationBurstLimit: getConfig().anomalyThresholds.creationBurstLimit,
-  settleRateLimit: getConfig().anomalyThresholds.settleRateLimit,
-  cancelBurstLimit: getConfig().anomalyThresholds.cancelBurstLimit,
-};
+function getDefaultThresholds(): AnomalyThresholds {
+  const { getConfig } = require("./app/lib/config");
+  const config = getConfig();
+  return {
+    creationBurstLimit: config.anomalyThresholds.creationBurstLimit,
+    settleRateLimit: config.anomalyThresholds.settleRateLimit,
+    cancelBurstLimit: config.anomalyThresholds.cancelBurstLimit,
+  };
+}
 
 /**
  * In-memory store for cancellation timestamps per tenant to support moving-window heuristic.
@@ -30,7 +29,7 @@ const whitelist = new Set<string>();
  * Do not use for unilateral fund freezing without a compliance policy.
  */
 export const AnomalyDetector = {
-  evaluate(snapshot: MetricSnapshot, config: AnomalyThresholds = DEFAULT_THRESHOLDS): AnomalyAlert[] {
+  evaluate(snapshot: MetricSnapshot, config: AnomalyThresholds = getDefaultThresholds()): AnomalyAlert[] {
     if (whitelist.has(snapshot.tenantId)) {
       return [];
     }

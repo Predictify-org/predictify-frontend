@@ -10,7 +10,7 @@ const vi = {
 import { WebhookDeliveryWorker } from '@/app/lib/webhook-delivery-worker';
 import { webhookDeliveryStore } from '@/app/lib/webhook-delivery-store';
 import { WebhookEndpoint, WebhookEvent } from '@/app/lib/webhook-delivery';
-import { logger, withCorrelationContext } from '@/app/lib/logger';
+import { logger, setCorrelationContext } from '@/app/lib/logger';
 
 /**
  * Integration tests with realistic failure scenarios
@@ -19,7 +19,7 @@ describe('Webhook Delivery Integration Tests', () => {
   let worker: WebhookDeliveryWorker;
 
   beforeEach(() => {
-    withCorrelationContext({
+    setCorrelationContext({
       correlation_id: 'integration-test-123',
       request_id: 'req-int-123',
     });

@@ -57,7 +57,7 @@ export function resolveMaxBodyBytes(envVar: string, defaultBytes: number): numbe
  * @returns True if path is a webhook route
  */
 export function isWebhookPath(pathname: string): boolean {
-  return pathname.startsWith('/api/webhooks');
+  return pathname === '/api/webhooks' || pathname.startsWith('/api/webhooks/');
 }
 
 /**
