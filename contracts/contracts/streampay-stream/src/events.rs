@@ -6,17 +6,20 @@
 //!
 //! ## Event schema (for Horizon indexers and the transactional outbox)
 //!
-//! | Event       | topic[1]      | Data tuple (in order)                                                                                    |
-//! |-------------|---------------|----------------------------------------------------------------------------------------------------------|
-//! | created     | "created"     | (stream_id: u64, sender: Address, recipient: Address, token: Address, total_amount: i128, timestamp: u64) |
-//! | started     | "started"     | (stream_id: u64, start_time: u64, end_time: u64, timestamp: u64)                                         |
-//! | withdrawn   | "withdrawn"   | (stream_id: u64, recipient: Address, amount: i128, timestamp: u64)                                       |
-//! | settled     | "settled"     | (stream_id: u64, recipient: Address, total_amount: i128, timestamp: u64)                                 |
-//! | paused      | "paused"      | (stream_id: u64, sender: Address, pause_time: u64, timestamp: u64)                                       |
-//! | resumed     | "resumed"     | (stream_id: u64, sender: Address, end_time: u64, timestamp: u64)                                         |
-//! | cancelled   | "cancelled"   | (stream_id: u64, cancelled_by: Address, returned_amount: i128, released_amount: i128, timestamp: u64)   |
-//! | amended     | "amended"     | (stream_id: u64, amended_by: Address, new_rate_per_second: i128, new_end_time: u64, timestamp: u64)      |
-//! | admin_action| "admin_action"| (stream_id: u64, admin: Address, action: Symbol, timestamp: u64)                                         |
+//! | Event           | topic[1]            | Data tuple (in order)                                                                                    |
+//! |-----------------|---------------------|----------------------------------------------------------------------------------------------------------|
+//! | created         | "created"           | (stream_id: u64, sender: Address, recipient: Address, token: Address, total_amount: i128, timestamp: u64) |
+//! | started         | "started"           | (stream_id: u64, start_time: u64, end_time: u64, timestamp: u64)                                         |
+//! | withdrawn       | "withdrawn"         | (stream_id: u64, recipient: Address, amount: i128, timestamp: u64)                                       |
+//! | settled         | "settled"           | (stream_id: u64, recipient: Address, total_amount: i128, timestamp: u64)                                 |
+//! | paused          | "paused"            | (stream_id: u64, sender: Address, pause_time: u64, timestamp: u64)                                       |
+//! | resumed         | "resumed"           | (stream_id: u64, sender: Address, end_time: u64, timestamp: u64)                                         |
+//! | cancelled       | "cancelled"         | (stream_id: u64, cancelled_by: Address, returned_amount: i128, released_amount: i128, timestamp: u64)   |
+//! | amended         | "amended"           | (stream_id: u64, amended_by: Address, new_rate_per_second: i128, new_end_time: u64, timestamp: u64)      |
+//! | admin_action    | "admin_action"      | (stream_id: u64, admin: Address, action: Symbol, timestamp: u64)                                         |
+//! | paused_set      | "set_pause"         | (admin: Address, paused: bool, timestamp: u64)                                                          |
+//! | admin_changed   | "set_admin"         | (admin: Address, new_admin: Address, timestamp: u64)                                                     |
+//! | token_allowed_set| "set_token"        | (admin: Address, token: Address, allowed: bool, timestamp: u64)                                          |
 //!
 //! All events are emitted AFTER successful state mutation and any token transfer.
 //! Failed calls (returning Err) emit no events.
@@ -151,7 +154,39 @@ pub fn amended(
 /// indexers can track admin operations on behalf of senders.
 pub fn admin_action(env: &Env, stream_id: u64, admin: &Address, action: Symbol, timestamp: u64) {
     env.events().publish(
-        (symbol_short!("stream"), symbol_short!("admin_action")),
+        (symbol_short!("stream"), Symbol::new(env, "admin_action")),
         (stream_id, admin.clone(), action, timestamp),
+    );
+}
+
+/// Emitted when the admin toggles the global pause flag via
+/// [`Contract::set_paused`].
+pub fn paused_set(env: &Env, admin: &Address, paused: bool, timestamp: u64) {
+    env.events().publish(
+        (symbol_short!("stream"), symbol_short!("set_pause")),
+        (admin.clone(), paused, timestamp),
+    );
+}
+
+/// Emitted when the admin role is transferred via [`Contract::set_admin`].
+pub fn admin_changed(env: &Env, admin: &Address, new_admin: &Address, timestamp: u64) {
+    env.events().publish(
+        (symbol_short!("stream"), symbol_short!("set_admin")),
+        (admin.clone(), new_admin.clone(), timestamp),
+    );
+}
+
+/// Emitted when a token's allowlist status is changed via
+/// [`Contract::set_token_allowed`].
+pub fn token_allowed_set(
+    env: &Env,
+    admin: &Address,
+    token: &Address,
+    allowed: bool,
+    timestamp: u64,
+) {
+    env.events().publish(
+        (symbol_short!("stream"), symbol_short!("set_token")),
+        (admin.clone(), token.clone(), allowed, timestamp),
     );
 }

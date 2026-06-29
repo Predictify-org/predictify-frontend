@@ -16,7 +16,7 @@
 
 use super::*;
 use soroban_sdk::testutils::{Address as _, Events as _, Ledger as _};
-use soroban_sdk::{token::StellarAssetClient, Address, Env};
+use soroban_sdk::{symbol_short, token::StellarAssetClient, Address, Env};
 
 /// All addresses and tokens needed by a single test. We use a
 /// fixed-size array on the stack (no `Vec`) because the contract
@@ -1187,4 +1187,121 @@ fn pause_resume_preserves_vested_amount() {
     data.env.ledger().set_timestamp(1_300);
     let resumed_vested = client.stream_balance(&id);
     assert_eq!(resumed_vested, 1000);
+}
+
+// ── Admin audit event tests ──────────────────────────────────────────────────
+
+#[test]
+fn set_paused_emits_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    // Clear any events from initialization
+    data.env.events().all();
+
+    client.set_paused(&data.admin, &true);
+
+    let events = data.env.events().all();
+    assert_eq!(events.len(), 1, "set_paused should emit exactly 1 event");
+
+    let (_, topics, data) = events.get(0).unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        symbol_short!("stream"),
+        "topic[0] should be stream"
+    );
+    assert_eq!(
+        topics.get(1).unwrap(),
+        symbol_short!("set_pause"),
+        "topic[1] should be set_paused"
+    );
+    assert_eq!(data.len(), 3, "Data should have 3 fields (admin, paused, timestamp)");
+}
+
+#[test]
+fn set_admin_emits_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let new_admin = Address::generate(&data.env);
+
+    // Clear any events from initialization
+    data.env.events().all();
+
+    client.set_admin(&data.admin, &new_admin);
+
+    let events = data.env.events().all();
+    assert_eq!(events.len(), 1, "set_admin should emit exactly 1 event");
+
+    let (_, topics, data) = events.get(0).unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        symbol_short!("stream"),
+        "topic[0] should be stream"
+    );
+    assert_eq!(
+        topics.get(1).unwrap(),
+        symbol_short!("set_admin"),
+        "topic[1] should be set_admin"
+    );
+    assert_eq!(data.len(), 3, "Data should have 3 fields (admin, new_admin, timestamp)");
+}
+
+#[test]
+fn set_token_allowed_emits_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    // Clear any events from initialization
+    data.env.events().all();
+
+    client.set_token_allowed(&data.admin, &data.tokens[0], &false);
+
+    let events = data.env.events().all();
+    assert_eq!(events.len(), 1, "set_token_allowed should emit exactly 1 event");
+
+    let (_, topics, data) = events.get(0).unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        symbol_short!("stream"),
+        "topic[0] should be stream"
+    );
+    assert_eq!(
+        topics.get(1).unwrap(),
+        symbol_short!("set_token"),
+        "topic[1] should be set_token"
+    );
+    assert_eq!(data.len(), 4, "Data should have 4 fields (admin, token, allowed, timestamp)");
+}
+
+#[test]
+fn set_paused_failure_emits_no_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let impostor = Address::generate(&data.env);
+
+    // Clear any events from initialization
+    data.env.events().all();
+
+    // Call with wrong admin — should fail
+    let _ = client.try_set_paused(&impostor, &true);
+
+    let events = data.env.events().all();
+    assert!(
+        events.is_empty(),
+        "Failed set_paused should not emit events, got: {:?}",
+        events
+    );
 }
