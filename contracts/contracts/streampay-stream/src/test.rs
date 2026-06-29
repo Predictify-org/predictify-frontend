@@ -1446,3 +1446,33 @@ fn pause_resume_preserves_vested_amount() {
     let resumed_vested = client.stream_balance(&id);
     assert_eq!(resumed_vested, 1000);
 }
+
+#[test]
+fn claim_drip_returns_withdrawable_amount() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Before start time, should return 0
+    assert_eq!(client.claim_drip(&id), Ok(0));
+
+    // Midpoint, should return half
+    data.env.ledger().set_timestamp(1_150);
+    let drip = client.claim_drip(&id);
+    assert_eq!(drip, Ok(500));
+
+    // Withdraw some, then check drip again
+    client.withdraw(&id, &200i128);
+    let drip_after_withdraw = client.claim_drip(&id);
+    assert_eq!(drip_after_withdraw, Ok(300));
+}
