@@ -190,6 +190,13 @@ export async function middleware(request: NextRequest) {
     });
   }
 
+  // ------------------------------------------------------------------
+  // 3. Request-Id propagation
+  // ------------------------------------------------------------------
+  // Resolve (or generate) the X-Request-Id and stamp it on both the
+  // forwarded request headers and the outgoing response headers so that
+  // every log line and downstream call can be correlated back to the
+  // originating request.
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,
