@@ -1,0 +1,318 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GET /api/streams shape matches snapshot: empty list 1`] = `
+{
+  "data": [
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "email": "fixture-user-1@example.test",
+      "id": "stream-<ID>",
+      "label": "Design Retainer Q2",
+      "nextAction": "pause",
+      "partnerId": "PARTNER-FIXTURE-1",
+      "rate": "120 XLM / month",
+      "recipient": "Ada Creative Studio",
+      "schedule": "Pays every 30 days",
+      "status": "active",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "email": "fixture-user-2@example.test",
+      "id": "stream-<ID>",
+      "memo": "April Support batch",
+      "nextAction": "start",
+      "rate": "32 XLM / week",
+      "recipient": "Kemi Onboarding Support",
+      "schedule": "Draft stream ready to launch",
+      "status": "draft",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "id": "stream-<ID>",
+      "nextAction": "withdraw",
+      "rate": "18 XLM / day",
+      "recipient": "Yusuf QA Partnership",
+      "schedule": "Ended yesterday with funds available",
+      "status": "ended",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+  ],
+  "links": {
+    "self": "/api/v1/streams?limit=20",
+  },
+  "meta": {
+    "hasNext": false,
+    "nextCursor": null,
+    "total": 3,
+  },
+}
+`;
+
+exports[`GET /api/streams shape matches snapshot: links.self is always present 1`] = `
+{
+  "data": [
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "email": "fixture-user-1@example.test",
+      "id": "stream-<ID>",
+      "label": "Design Retainer Q2",
+      "nextAction": "pause",
+      "partnerId": "PARTNER-FIXTURE-1",
+      "rate": "120 XLM / month",
+      "recipient": "Ada Creative Studio",
+      "schedule": "Pays every 30 days",
+      "status": "active",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "email": "fixture-user-2@example.test",
+      "id": "stream-<ID>",
+      "memo": "April Support batch",
+      "nextAction": "start",
+      "rate": "32 XLM / week",
+      "recipient": "Kemi Onboarding Support",
+      "schedule": "Draft stream ready to launch",
+      "status": "draft",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "id": "stream-<ID>",
+      "nextAction": "withdraw",
+      "rate": "18 XLM / day",
+      "recipient": "Yusuf QA Partnership",
+      "schedule": "Ended yesterday with funds available",
+      "status": "ended",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+  ],
+  "links": {
+    "self": "/api/v1/streams?limit=20",
+  },
+  "meta": {
+    "hasNext": false,
+    "nextCursor": null,
+    "total": 3,
+  },
+}
+`;
+
+exports[`GET /api/streams shape matches snapshot: list with one stream 1`] = `
+{
+  "data": [
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "email": "fixture-user-1@example.test",
+      "id": "stream-<ID>",
+      "label": "Design Retainer Q2",
+      "nextAction": "pause",
+      "partnerId": "PARTNER-FIXTURE-1",
+      "rate": "120 XLM / month",
+      "recipient": "Ada Creative Studio",
+      "schedule": "Pays every 30 days",
+      "status": "active",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "email": "fixture-user-2@example.test",
+      "id": "stream-<ID>",
+      "memo": "April Support batch",
+      "nextAction": "start",
+      "rate": "32 XLM / week",
+      "recipient": "Kemi Onboarding Support",
+      "schedule": "Draft stream ready to launch",
+      "status": "draft",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "id": "stream-<ID>",
+      "nextAction": "withdraw",
+      "rate": "18 XLM / day",
+      "recipient": "Yusuf QA Partnership",
+      "schedule": "Ended yesterday with funds available",
+      "status": "ended",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "id": "stream-<ID>",
+      "nextAction": "start",
+      "rate": "100",
+      "recipient": "GDSBCG3OKHCMMWS5EBH2X7XOYTJRWXN2YYQPCNS5OFBU4IDO4X7OFSQA",
+      "schedule": "month",
+      "status": "draft",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+  ],
+  "links": {
+    "self": "/api/v1/streams?limit=20",
+  },
+  "meta": {
+    "hasNext": false,
+    "nextCursor": null,
+    "total": 4,
+  },
+}
+`;
+
+exports[`GET /api/streams shape matches snapshot: meta fields present (hasNext, nextCursor, total) 1`] = `
+{
+  "data": [
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "email": "fixture-user-1@example.test",
+      "id": "stream-<ID>",
+      "label": "Design Retainer Q2",
+      "nextAction": "pause",
+      "partnerId": "PARTNER-FIXTURE-1",
+      "rate": "120 XLM / month",
+      "recipient": "Ada Creative Studio",
+      "schedule": "Pays every 30 days",
+      "status": "active",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "email": "fixture-user-2@example.test",
+      "id": "stream-<ID>",
+      "memo": "April Support batch",
+      "nextAction": "start",
+      "rate": "32 XLM / week",
+      "recipient": "Kemi Onboarding Support",
+      "schedule": "Draft stream ready to launch",
+      "status": "draft",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+    {
+      "createdAt": "<ISO_TIMESTAMP>",
+      "id": "stream-<ID>",
+      "nextAction": "withdraw",
+      "rate": "18 XLM / day",
+      "recipient": "Yusuf QA Partnership",
+      "schedule": "Ended yesterday with funds available",
+      "status": "ended",
+      "token": "XLM",
+      "updatedAt": "<ISO_TIMESTAMP>",
+    },
+  ],
+  "links": {
+    "self": "/api/v1/streams?limit=20",
+  },
+  "meta": {
+    "hasNext": false,
+    "nextCursor": null,
+    "total": 3,
+  },
+}
+`;
+
+exports[`POST /api/streams shape matches snapshot: 201 with data + links 1`] = `
+{
+  "data": {
+    "createdAt": "<ISO_TIMESTAMP>",
+    "id": "stream-<ID>",
+    "nextAction": "start",
+    "rate": "50",
+    "recipient": "GDSBCG3OKHCMMWS5EBH2X7XOYTJRWXN2YYQPCNS5OFBU4IDO4X7OFSQA",
+    "schedule": "month",
+    "status": "draft",
+    "token": "XLM",
+    "updatedAt": "<ISO_TIMESTAMP>",
+  },
+  "links": {
+    "self": "/api/v1/streams/stream-<ID>",
+  },
+}
+`;
+
+exports[`POST /api/streams shape matches snapshot: 400 error when body is not JSON 1`] = `
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Request body must be valid JSON",
+    "request_id": "<REQUEST_ID>",
+  },
+}
+`;
+
+exports[`POST /api/streams shape matches snapshot: 422 error envelope shape 1`] = `
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": [
+      {
+        "code": "INVALID_STELLAR_KEY",
+        "field": "recipient",
+        "message": "recipient must be a valid Stellar public key (56-char string starting with G).",
+      },
+      {
+        "code": "MISSING_FIELD",
+        "field": "rate",
+        "message": "rate is required and must be a non-empty string.",
+      },
+      {
+        "code": "MISSING_FIELD",
+        "field": "schedule",
+        "message": "schedule is required and must be a non-empty string.",
+      },
+    ],
+    "message": "One or more fields are invalid.",
+    "request_id": "<REQUEST_ID>",
+  },
+}
+`;
+
+exports[`POST /api/streams shape matches snapshot: data fields are v1 camelCase (no snake_case leakage) 1`] = `
+{
+  "data": {
+    "createdAt": "<ISO_TIMESTAMP>",
+    "id": "stream-<ID>",
+    "nextAction": "start",
+    "rate": "50",
+    "recipient": "GDSBCG3OKHCMMWS5EBH2X7XOYTJRWXN2YYQPCNS5OFBU4IDO4X7OFSQA",
+    "schedule": "week",
+    "status": "draft",
+    "token": "XLM",
+    "updatedAt": "<ISO_TIMESTAMP>",
+  },
+}
+`;
+
+exports[`shape stability across calls GET response top-level keys are stable 1`] = `
+[
+  "data",
+  "links",
+  "meta",
+]
+`;
+
+exports[`shape stability across calls POST data object keys are stable 1`] = `
+[
+  "createdAt",
+  "id",
+  "nextAction",
+  "rate",
+  "recipient",
+  "schedule",
+  "status",
+  "token",
+  "updatedAt",
+]
+`;
