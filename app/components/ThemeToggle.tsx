@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { setTheme } from '../utils/theme-noflash';
+import { setTheme, setHighContrast, getHighContrast } from '../utils/theme-noflash';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
 export function ThemeToggle() {
   const [mode, setMode] = useState<ThemeMode>('system');
+  const [highContrast, setHighContrastState] = useState(false);
 
   useEffect(() => {
     try {
@@ -19,6 +20,10 @@ export function ThemeToggle() {
     } catch (e) {
       setMode('system');
     }
+  }, []);
+
+  useEffect(() => {
+    setHighContrastState(getHighContrast());
   }, []);
 
   useEffect(() => {
@@ -49,6 +54,12 @@ export function ThemeToggle() {
     } else {
       setTheme(newMode);
     }
+  };
+
+  const handleHighContrastToggle = () => {
+    const next = !highContrast;
+    setHighContrastState(next);
+    setHighContrast(next);
   };
 
   return (
@@ -85,6 +96,16 @@ export function ThemeToggle() {
           className="theme-toggle__input"
         />
         <span>System</span>
+      </label>
+      <label className="theme-toggle__label theme-toggle__label--hc">
+        <input
+          type="checkbox"
+          checked={highContrast}
+          onChange={handleHighContrastToggle}
+          className="theme-toggle__input"
+          aria-label="High contrast mode"
+        />
+        <span>High Contrast</span>
       </label>
     </div>
   );

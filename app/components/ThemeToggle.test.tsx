@@ -49,6 +49,9 @@ describe("ThemeToggle", () => {
         dispatchEvent: jest.fn(),
       })),
     });
+
+    // Mock document.documentElement.classList
+    document.documentElement.classList.remove('high-contrast');
   });
 
   afterEach(() => {
@@ -86,5 +89,64 @@ describe("ThemeToggle", () => {
     fireEvent.click(systemRadio);
     
     expect(window.localStorage.removeItem).toHaveBeenCalledWith("streampay-theme");
+  });
+
+  describe("high-contrast", () => {
+    it("renders the high-contrast toggle checkbox", () => {
+      render(<ThemeToggle />);
+      expect(screen.getByLabelText("High contrast mode")).toBeInTheDocument();
+    });
+
+    it("defaults to unchecked when no localStorage value", () => {
+      render(<ThemeToggle />);
+      const hcCheckbox = screen.getByLabelText("High contrast mode") as HTMLInputElement;
+      expect(hcCheckbox.checked).toBe(false);
+    });
+
+    it("toggles theme state when clicked", () => {
+      const setHighContrastSpy = jest.spyOn(themeNoFlash, 'setHighContrast').mockImplementation(() => {});
+      render(<ThemeToggle />);
+      
+      const hcCheckbox = screen.getByLabelText("High contrast mode") as HTMLInputElement;
+      expect(hcCheckbox.checked).toBe(false);
+      
+      fireEvent.click(hcCheckbox);
+      expect(setHighContrastSpy).toHaveBeenCalledWith(true);
+      expect(hcCheckbox.checked).toBe(true);
+      
+      fireEvent.click(hcCheckbox);
+      expect(setHighContrastSpy).toHaveBeenCalledWith(false);
+      expect(hcCheckbox.checked).toBe(false);
+    });
+
+    it("persists state across re-renders", () => {
+      const { unmount } = render(<ThemeToggle />);
+      const hcCheckbox = screen.getByLabelText("High contrast mode") as HTMLInputElement;
+      
+      fireEvent.click(hcCheckbox);
+      expect(window.localStorage.setItem).toHaveBeenCalledWith("streampay-high-contrast", "true");
+      
+      // Simulate persisted state on next render
+      window.localStorage.getItem = jest.fn((key: string) => {
+        if (key === "streampay-high-contrast") return "true";
+        return null;
+      });
+      
+      unmount();
+      render(<ThemeToggle />);
+      const re = screen.getByLabelText("High contrast mode") as HTMLInputElement;
+      expect(re.checked).toBe(true);
+    });
+
+    it("applies high-contrast class to document element when toggled on", () => {
+      render(<ThemeToggle />);
+      const hcCheckbox = screen.getByLabelText("High contrast mode") as HTMLInputElement;
+      
+      fireEvent.click(hcCheckbox);
+      expect(document.documentElement.classList.contains('high-contrast')).toBe(true);
+      
+      fireEvent.click(hcCheckbox);
+      expect(document.documentElement.classList.contains('high-contrast')).toBe(false);
+    });
   });
 });

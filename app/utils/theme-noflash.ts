@@ -17,6 +17,8 @@ export type Theme = 'light' | 'dark';
 const THEME_STORAGE_KEY = 'streampay-theme';
 const THEME_CLASS_DARK = 'dark';
 const THEME_CLASS_LIGHT = 'light';
+const HIGH_CONTRAST_STORAGE_KEY = 'streampay-high-contrast';
+const HIGH_CONTRAST_CLASS = 'high-contrast';
 
 /**
  * Gets the user's theme preference from localStorage or system settings.
@@ -97,6 +99,54 @@ export function initTheme(): void {
 }
 
 /**
+ * Checks whether high-contrast mode was previously enabled.
+ *
+ * @returns `true` if high-contrast was persisted, `false` otherwise.
+ */
+export function getHighContrast(): boolean {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY) === 'true';
+    }
+  } catch (e) {
+    // localStorage may be unavailable
+  }
+  return false;
+}
+
+/**
+ * Applies or removes the high-contrast class on the document element.
+ *
+ * @param enabled - Whether high-contrast should be active.
+ */
+export function applyHighContrast(enabled: boolean): void {
+  if (typeof document === 'undefined') return;
+
+  const root = document.documentElement;
+  root.classList.toggle(HIGH_CONTRAST_CLASS, enabled);
+}
+
+/**
+ * Persists and applies the high-contrast preference.
+ *
+ * @param enabled - Whether high-contrast should be active.
+ */
+export function setHighContrast(enabled: boolean): void {
+  applyHighContrast(enabled);
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (enabled) {
+        window.localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, 'true');
+      } else {
+        window.localStorage.removeItem(HIGH_CONTRAST_STORAGE_KEY);
+      }
+    }
+  } catch (e) {
+    // localStorage may be unavailable or full
+  }
+}
+
+/**
  * Generates the inline script that should be placed in the head.
  * This script runs synchronously before React hydration.
  *
@@ -123,6 +173,12 @@ export function getThemeScript(): string {
       const theme = getTheme();
       document.documentElement.classList.remove('dark', 'light');
       document.documentElement.classList.add(theme);
+      
+      try {
+        if (localStorage.getItem('${HIGH_CONTRAST_STORAGE_KEY}') === 'true') {
+          document.documentElement.classList.add('${HIGH_CONTRAST_CLASS}');
+        }
+      } catch(e) {}
     })();
   `;
 }
