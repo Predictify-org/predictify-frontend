@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { StatusBadge, type StreamStatus } from "./StatusBadge";
 import { StreamProgress } from "./StreamProgress";
+import { MiniBurnDown } from "./MiniBurnDown";
 import { ErrorToast } from "./ErrorToast";
 import { fetchWithIdempotency } from "../../lib/apiClient";
 import { isStreamPayError, formatErrorForDisplay } from "../lib/errors";
@@ -127,6 +128,22 @@ export function StreamRow({ stream }: StreamRowProps) {
           <dt>Status</dt>
           <dd>{stream.status}</dd>
         </div>
+        {/* Compact burn-down sparkline — only meaningful when we have on-chain
+            amounts and the stream is in a flowing/active-ish state. */}
+        {typeof stream.totalAmount === "number" &&
+          typeof stream.accruedAmount === "number" &&
+          stream.totalAmount > 0 &&
+          stream.status !== "draft" && (
+            <div>
+              <dt>Burn-down</dt>
+              <dd className={`stream-row__burndown stream-row__burndown--${stream.status}`}>
+                <MiniBurnDown
+                  totalAmount={stream.totalAmount}
+                  accruedAmount={stream.accruedAmount}
+                />
+              </dd>
+            </div>
+          )}
       </div>
 
       {/* Burn-down progress bar — only rendered for non-draft streams */}
