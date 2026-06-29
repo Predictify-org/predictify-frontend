@@ -651,7 +651,7 @@ fn cancel_stream_emits_cancelled_event() {
     assert!(!events.is_empty(), "cancel_stream should emit events");
 
     // The last event should be the cancelled event
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -671,11 +671,10 @@ fn cancel_stream_requires_auth() {
         &1_200u64,
     );
 
-    // Mock auths off and try to cancel as a different address
+    // Mock auths off so the required sender authorisation is absent.
     data.env.mock_auths(&[]);
-    let impostor = Address::generate(&data.env);
 
-    let result = client.try_cancel_stream(&impostor, &id);
+    let result = client.try_cancel_stream(&id);
     assert!(
         result.is_err(),
         "cancel_stream should fail without auth from sender"
@@ -806,6 +805,86 @@ fn amend_stream_fails_on_invalid_end_time() {
     assert_eq!(err, Ok(Error::InvalidTimeRange));
 }
 
+/// amend_stream rejects a non-positive rate (rate-change validation, #703).
+#[test]
+fn amend_stream_rejects_non_positive_rate() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    let zero_rate = client.try_amend_stream(&id, &0i128, &1_300u64);
+    assert_eq!(
+        zero_rate.expect_err("zero rate should be rejected"),
+        Ok(Error::InvalidAmount)
+    );
+
+    let negative_rate = client.try_amend_stream(&id, &-5i128, &1_300u64);
+    assert_eq!(
+        negative_rate.expect_err("negative rate should be rejected"),
+        Ok(Error::InvalidAmount)
+    );
+}
+
+/// amend_stream extends the schedule and recomputes duration with valid input.
+#[test]
+fn amend_stream_updates_end_time_and_duration() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    let amended = client.amend_stream(&id, &10i128, &1_400u64);
+    assert_eq!(amended.end_time, 1_400u64);
+    // start_time stayed at 1_100, so the new duration is 300.
+    assert_eq!(amended.duration, 300u64);
+}
+
+/// amend_stream still rejects an end_time at or before now.
+#[test]
+fn amend_stream_rejects_end_time_not_in_future() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Advance the ledger so `now` is well past start_time, then amend with an
+    // end_time equal to `now` (not strictly in the future).
+    data.env.ledger().set_timestamp(1_500);
+    let result = client.try_amend_stream(&id, &10i128, &1_500u64);
+    assert_eq!(
+        result.expect_err("end_time == now should be rejected"),
+        Ok(Error::InvalidTimeRange)
+    );
+}
+
 #[test]
 fn pause_emits_admin_action_event() {
     let data = setup_init();
@@ -832,7 +911,7 @@ fn pause_emits_admin_action_event() {
     assert!(!events.is_empty(), "pause should emit events");
 
     // The event should have 2 topics (stream, pause)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -865,7 +944,7 @@ fn resume_emits_admin_action_event() {
     assert!(!events.is_empty(), "resume should emit events");
 
     // The event should have 2 topics (stream, resume)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -898,7 +977,7 @@ fn settle_emits_admin_action_event() {
     assert!(!events.is_empty(), "settle should emit events");
 
     // The event should have 2 topics (stream, admin_action)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 

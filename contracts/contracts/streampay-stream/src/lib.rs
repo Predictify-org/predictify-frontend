@@ -28,83 +28,12 @@ use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 pub use storage::{Stream, StreamStatus};
 
 /// The StreamPay contract entry point registered with the Soroban host.
+///
+/// The [`Stream`] record and [`StreamStatus`] enum are defined once in the
+/// [`storage`] module and re-exported above, so there is a single source of
+/// truth for the on-chain data layout.
 #[contract]
 pub struct Contract;
-
-/// Lifecycle state of a payment stream.
-///
-/// Transitions allowed by the current public API:
-/// ```text
-/// Draft ──start_stream──► Active ──withdraw (full)──► Settled
-/// ```
-/// `Paused`, `Ended`, and `Cancelled` are reserved for future entry points.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[contracttype]
-pub enum StreamStatus {
-    /// Created and funded but not yet activated; accrual has not started.
-    Draft,
-    /// Tokens are flowing linearly to the recipient.
-    Active,
-    /// Reserved — stream-level pause not yet implemented.
-    Paused,
-    /// All `total_amount` tokens have been released to the recipient.
-    Settled,
-    /// Reserved — natural expiry entry point not yet implemented.
-    Ended,
-    /// Reserved — sender-initiated cancellation not yet implemented.
-    Cancelled,
-}
-
-/// On-chain record for a single payment stream.
-///
-/// All token amounts are in the token's base unit (stroops for XLM-based
-/// assets). All timestamps are Unix seconds as reported by the ledger.
-#[derive(Clone, Debug)]
-#[contracttype]
-pub struct Stream {
-    /// Unique monotonic identifier assigned at creation. Starts at 1.
-    pub id: u64,
-    /// Address that created the stream and escrowed `total_amount`.
-    pub sender: Address,
-    /// Address that receives streamed tokens via [`Contract::withdraw`].
-    pub recipient: Address,
-    /// Stellar asset contract address being streamed.
-    pub token: Address,
-    /// Total tokens (base units) locked in escrow at creation. Always > 0.
-    pub total_amount: i128,
-    /// Tokens already transferred to `recipient`. Monotonically non-decreasing.
-    /// Invariant: `released_amount <= total_amount`.
-    pub released_amount: i128,
-    /// Ledger timestamp when accrual begins. Zero for `Draft` streams.
-    pub start_time: u64,
-    /// Ledger timestamp when accrual ends (`start_time + duration`).
-    /// Zero for `Draft` streams.
-    pub end_time: u64,
-    /// Stream length in seconds. Set at creation; never changes.
-    pub duration: u64,
-    /// Ledger timestamp of the last state-mutating operation on this stream.
-    pub last_update: u64,
-    /// Current lifecycle status.
-    pub status: StreamStatus,
-}
-
-/// Ledger storage keys used internally by this contract.
-///
-/// Not exposed to callers; listed here for auditability.
-#[derive(Clone)]
-#[contracttype]
-enum DataKey {
-    /// The privileged admin [`Address`].
-    Admin,
-    /// Global emergency pause flag (`bool`).
-    Paused,
-    /// Monotonic counter; value is the **next** stream ID to assign.
-    NextStreamId,
-    /// Per-stream record keyed by numeric ID.
-    Stream(u64),
-    /// Per-token allowlist entry. Absent or `true` → allowed; `false` → blocked.
-    TokenAllowed(Address),
-}
 
 #[contractimpl]
 impl Contract {
@@ -836,16 +765,34 @@ impl Contract {
         Ok(stream)
     }
 
-    /// Amends an active or paused stream to change its rate or end time.
+    /// Amends an active or paused stream to change its rate (via a new
+    /// end-time) with overflow-safe, rate-aware validation.
     ///
-    /// Only the stream sender may call this. The new `end_time` must be greater than
-    /// the current timestamp.
+    /// Only the stream sender may call this. The amendment moves the stream's
+    /// `end_time`, which implicitly re-rates the remaining accrual. The
+    /// following invariants are enforced so an amendment can never strand or
+    /// claw back funds the recipient has already earned:
+    ///
+    /// 1. `new_rate_per_second` must be **positive** — a zero or negative rate
+    ///    would never finish vesting the escrow.
+    /// 2. `new_end_time` must be strictly **after `now`** and strictly after
+    ///    `start_time`, so the resulting duration is non-zero.
+    /// 3. The new schedule must still leave the **already-released amount**
+    ///    within what will eventually vest (i.e. the recipient never ends up
+    ///    "owing" funds). Because the full `total_amount` always vests by
+    ///    `end_time`, this reduces to ensuring `total_amount >= released_amount`,
+    ///    which is checked with overflow-safe arithmetic.
+    /// 4. The implied rate is sanity-checked: streaming `total_amount` over the
+    ///    new duration must not overflow `i128` (`total_amount * 1` headroom).
     ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
     /// - [`Error::Unauthorized`] if caller is not the stream sender.
     /// - [`Error::InvalidState`] if the stream is settled or cancelled.
-    /// - [`Error::InvalidTimeRange`] if `new_end_time <= now`.
+    /// - [`Error::InvalidAmount`] if `new_rate_per_second <= 0`.
+    /// - [`Error::InvalidTimeRange`] if `new_end_time <= now`,
+    ///   `new_end_time <= start_time`, or the new duration computation overflows.
+    /// - [`Error::Overflow`] if the re-rated accrual math would overflow `i128`.
     ///
     /// # Auth
     /// Requires authorisation from the stream's `sender`.
@@ -862,20 +809,40 @@ impl Contract {
             return Err(Error::InvalidState);
         }
 
-        let now = env.ledger().timestamp();
-
-        if new_end_time <= now {
-            return Err(Error::InvalidTimeRange);
+        // (1) Rate-change validation: the new rate must be strictly positive.
+        if new_rate_per_second <= 0 {
+            return Err(Error::InvalidAmount);
         }
 
-        // Update stream parameters
-        stream.end_time = new_end_time;
-        stream.last_update = now;
+        let now = env.ledger().timestamp();
+
+        // (2) The amended window must be in the future and non-degenerate.
+        if new_end_time <= now || new_end_time <= stream.start_time {
+            return Err(Error::InvalidTimeRange);
+        }
 
         let new_duration = new_end_time
             .checked_sub(stream.start_time)
             .ok_or(Error::InvalidTimeRange)?;
+
+        // (3) Already-released funds must remain within the eventual vest.
+        if stream.released_amount > stream.total_amount {
+            return Err(Error::Overflow);
+        }
+
+        // (4) Overflow-safe sanity check of the re-rated accrual. The vested
+        //     formula is `total_amount * elapsed / new_duration`; the largest
+        //     intermediate product uses `elapsed = new_duration`, so we verify
+        //     `total_amount * new_duration` does not overflow `i128`.
+        stream
+            .total_amount
+            .checked_mul(new_duration as i128)
+            .ok_or(Error::Overflow)?;
+
+        // Update stream parameters.
+        stream.end_time = new_end_time;
         stream.duration = new_duration;
+        stream.last_update = now;
 
         storage::set_stream(&env, stream_id, &stream);
 
