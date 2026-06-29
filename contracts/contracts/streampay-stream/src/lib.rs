@@ -79,19 +79,6 @@ impl Contract {
         Ok(())
     }
 
-    /// Sets the global emergency pause flag.
-    ///
-    /// When `paused` is `true`, [`Contract::create_stream`],
-    /// [`Contract::start_stream`], and [`Contract::withdraw`] all return
-    /// [`Error::ContractPaused`]. Read-only calls ([`Contract::get_stream`],
-    /// [`Contract::withdrawable`]) are unaffected.
-    ///
-    /// # Parameters
-    /// - `admin`  — Must match the admin set at initialisation.
-    /// - `paused` — `true` to pause; `false` to unpause.
-    ///
-    /// # Errors
-    /// - [`Error::Unauthorized`] if `admin` does not match the initialised admin.
     /// Atomic initialisation + token allowlist.
     ///
     /// Performs the work of `initialize` and then marks each
@@ -215,8 +202,6 @@ impl Contract {
     /// - `allowed` — `true` to allow; `false` to block.
     ///
     /// # Errors
-    /// - [`Error::Unauthorized`] if `admin` does not match the initialised admin.
-    /// # Errors
     /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
     /// - [`Error::NotFound`] if the contract has not been initialised.
     ///
@@ -235,16 +220,6 @@ impl Contract {
 
     /// Creates a funded stream and escrows `total_amount` from `sender`.
     ///
-    /// Sets the maximum number of active streams a single sender may have.
-    ///
-    /// When a sender reaches this limit, `create_stream` returns
-    /// [`Error::StreamLimitExceeded`. The default is 10.
-    ///
-    /// # Errors
-    /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
-    ///
-    /// # Auth
-    /// Requires authorisation from `admin`.
     pub fn set_max_streams_per_sender(env: Env, admin: Address, limit: u64) -> Result<(), Error> {
         require_admin(&env, &admin)?;
         limits::set_max_streams_per_sender(&env, limit);
