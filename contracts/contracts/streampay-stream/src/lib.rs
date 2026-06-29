@@ -1,4 +1,4 @@
-//! # StreamPay Stream Contract
+﻿//! # StreamPay Stream Contract
 //!
 //! Soroban smart contract that manages linear payment streams on Stellar.
 //! Each stream locks a fixed token amount in escrow and releases it linearly
@@ -31,80 +31,6 @@ pub use storage::{Stream, StreamStatus};
 #[contract]
 pub struct Contract;
 
-/// Lifecycle state of a payment stream.
-///
-/// Transitions allowed by the current public API:
-/// ```text
-/// Draft ──start_stream──► Active ──withdraw (full)──► Settled
-/// ```
-/// `Paused`, `Ended`, and `Cancelled` are reserved for future entry points.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[contracttype]
-pub enum StreamStatus {
-    /// Created and funded but not yet activated; accrual has not started.
-    Draft,
-    /// Tokens are flowing linearly to the recipient.
-    Active,
-    /// Reserved — stream-level pause not yet implemented.
-    Paused,
-    /// All `total_amount` tokens have been released to the recipient.
-    Settled,
-    /// Reserved — natural expiry entry point not yet implemented.
-    Ended,
-    /// Reserved — sender-initiated cancellation not yet implemented.
-    Cancelled,
-}
-
-/// On-chain record for a single payment stream.
-///
-/// All token amounts are in the token's base unit (stroops for XLM-based
-/// assets). All timestamps are Unix seconds as reported by the ledger.
-#[derive(Clone, Debug)]
-#[contracttype]
-pub struct Stream {
-    /// Unique monotonic identifier assigned at creation. Starts at 1.
-    pub id: u64,
-    /// Address that created the stream and escrowed `total_amount`.
-    pub sender: Address,
-    /// Address that receives streamed tokens via [`Contract::withdraw`].
-    pub recipient: Address,
-    /// Stellar asset contract address being streamed.
-    pub token: Address,
-    /// Total tokens (base units) locked in escrow at creation. Always > 0.
-    pub total_amount: i128,
-    /// Tokens already transferred to `recipient`. Monotonically non-decreasing.
-    /// Invariant: `released_amount <= total_amount`.
-    pub released_amount: i128,
-    /// Ledger timestamp when accrual begins. Zero for `Draft` streams.
-    pub start_time: u64,
-    /// Ledger timestamp when accrual ends (`start_time + duration`).
-    /// Zero for `Draft` streams.
-    pub end_time: u64,
-    /// Stream length in seconds. Set at creation; never changes.
-    pub duration: u64,
-    /// Ledger timestamp of the last state-mutating operation on this stream.
-    pub last_update: u64,
-    /// Current lifecycle status.
-    pub status: StreamStatus,
-}
-
-/// Ledger storage keys used internally by this contract.
-///
-/// Not exposed to callers; listed here for auditability.
-#[derive(Clone)]
-#[contracttype]
-enum DataKey {
-    /// The privileged admin [`Address`].
-    Admin,
-    /// Global emergency pause flag (`bool`).
-    Paused,
-    /// Monotonic counter; value is the **next** stream ID to assign.
-    NextStreamId,
-    /// Per-stream record keyed by numeric ID.
-    Stream(u64),
-    /// Per-token allowlist entry. Absent or `true` → allowed; `false` → blocked.
-    TokenAllowed(Address),
-}
 
 #[contractimpl]
 impl Contract {
@@ -518,9 +444,8 @@ impl Contract {
 
     /// Returns the token amount currently accrued and available for withdrawal.
     ///
-    /// Delegates to the internal [`withdrawable_amount`] helper.
-    /// Returns `0` for `Draft` streams (accrual has not started) and for any
-    /// stream in a non-`Active` state.
+    /// Delegates to [`release::withdrawable`]. Returns `0` for `Draft` streams
+    /// (accrual has not started) and for any stream in a non-`Active` state.
     ///
     /// This is a read-only call and is never blocked by the pause flag.
     ///
@@ -529,11 +454,6 @@ impl Contract {
     ///
     /// # Returns
     /// Token amount (base units) available to withdraw right now.
-    ///
-    /// # Errors
-    /// - [`Error::NotFound`] if `stream_id` does not exist.
-    ///
-    /// Delegates to [`withdrawable_amount`]. Returns `0` for `Draft` streams.
     ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
