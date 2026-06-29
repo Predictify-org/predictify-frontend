@@ -8,6 +8,7 @@ import type {
   StreamRepository,
 } from "@/app/lib/db";
 import type { ActivityEvent, ExportJob, Stream, User } from "@/app/types/openapi";
+import { createActivityTimelineStore, type ActivityTimelineStore, activityEventToTimelineEntry } from "@/app/lib/repositories/activity-timeline";
 
 const initialUsers: User[] = [
   {
@@ -253,11 +254,24 @@ function resetKeyValueStore<K, V>(
   }
 }
 
-export function createInMemoryPersistenceStore(): PersistenceStore {
-  return {
+export function createInMemoryPersistenceStore(seedTimeline?: boolean): PersistenceStore {
+  const timeline = createActivityTimelineStore();
+  const store: PersistenceStore = {
     kind: "memory",
+    activityTimeline: timeline,
     streamRepository: new InMemoryStreamRepository(),
     idempotencyStore: new InMemoryIdempotencyStore(),
     exportRepository: new InMemoryExportRepository(),
   };
+
+  if (seedTimeline !== false) {
+    const activity = store.streamRepository.activity;
+    const entries: import("@/app/lib/repositories/activity-timeline").ActivityTimelineEntry[] = [];
+    activity.forEach((event) => {
+      entries.push(activityEventToTimelineEntry(event, event.timestamp));
+    });
+    timeline.backfill(entries);
+  }
+
+  return store;
 }
