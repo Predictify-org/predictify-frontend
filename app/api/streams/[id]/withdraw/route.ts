@@ -5,6 +5,7 @@ import { getCorrelationContext, logger } from "@/app/lib/logger";
 import { checkStreamOrgPolicy } from "@/app/lib/org-policy";
 import { recordPrivilegedStreamAuditEvent } from "@/app/lib/audit-log";
 import { evaluateWithdrawalState } from "@/app/lib/withdraw-finality";
+import { maybeFeeBump } from "@/lib/feeBump";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -57,13 +58,35 @@ export async function POST(
       }
 
       const before = structuredClone(stream);
-      const { alert, stream: updated } = await evaluateWithdrawalState(stream, new Date(), fetch);
+      let evaluationResult = await evaluateWithdrawalState(stream, new Date(), fetch);
+
+      // ── Fee-bump: if the withdrawal failed due to insufficient fees,
+      //    automatically attempt a fee-bump resubmission ─────────────────
+      const { result: finalResult, feeBump } = await maybeFeeBump(
+        { stream: evaluationResult.stream, alert: evaluationResult.alert },
+        fetch,
+      );
+
+      if (feeBump.bumped) {
+        logger.info("Fee-bump transaction submitted successfully", {
+          streamId: id,
+          newTxHash: feeBump.newTxHash,
+        });
+      } else if (feeBump.error) {
+        logger.warn("Fee-bump attempt failed", {
+          streamId: id,
+          error: feeBump.error,
+        });
+      }
+
+      const updated = finalResult.stream;
       db.streams.set(id, updated);
 
       const payload = {
-        alert,
+        alert: finalResult.alert,
         data: updated,
         withdrawal: updated.withdrawal,
+        ...(feeBump.bumped ? { feeBump: { bumped: true, newTxHash: feeBump.newTxHash } } : {}),
       };
 
       recordPrivilegedStreamAuditEvent({
