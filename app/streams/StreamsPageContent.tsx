@@ -52,34 +52,39 @@ type StreamsPageContentProps = {
 
 function StreamListSkeleton() {
   return (
-    <section aria-label={streamListCopy.loadingLabel} className="stream-list">
+    <section aria-label={streamListCopy.loadingLabel} aria-busy="true" className="stream-list">
       {Array.from({ length: 3 }).map((_, index) => (
         <article
           aria-hidden="true"
           className="stream-row stream-row--skeleton"
           data-testid="stream-row-skeleton"
           key={`stream-skeleton-${index + 1}`}
+          style={{ animationDelay: `${index * 100}ms` }}
         >
           <div className="stream-row__primary">
             <div className="stream-row__skeleton-block">
-              <div className="skeleton skeleton--title" />
-              <div className="skeleton skeleton--text" />
+              {/* Title skeleton matches StreamRow recipient text width */}
+              <div className="skeleton skeleton--title" style={{ width: "60%", height: "1.125rem" }} />
+              {/* Subtitle skeleton matches schedule text */}
+              <div className="skeleton skeleton--text" style={{ width: "40%", height: "0.875rem", marginTop: "0.25rem" }} />
             </div>
-            <div className="skeleton skeleton--badge" />
+            {/* Badge skeleton matches status badge size */}
+            <div className="skeleton skeleton--badge" style={{ width: "4.5rem", height: "1.5rem", borderRadius: "9999px" }} />
           </div>
 
           <div className="stream-row__meta stream-row__meta--skeleton">
             <div>
-              <div className="skeleton skeleton--label" />
-              <div className="skeleton skeleton--value" />
+              <div className="skeleton skeleton--label" style={{ width: "2.5rem", height: "0.75rem" }} />
+              <div className="skeleton skeleton--value" style={{ width: "5rem", height: "1rem", marginTop: "0.25rem" }} />
             </div>
             <div>
-              <div className="skeleton skeleton--label" />
-              <div className="skeleton skeleton--value" />
+              <div className="skeleton skeleton--label" style={{ width: "3rem", height: "0.75rem" }} />
+              <div className="skeleton skeleton--value" style={{ width: "4rem", height: "1rem", marginTop: "0.25rem" }} />
             </div>
           </div>
 
-          <div className="skeleton skeleton--button" />
+          {/* Action button skeleton matches button width */}
+          <div className="skeleton skeleton--button" style={{ width: "5.5rem", height: "2rem", borderRadius: "0.375rem" }} />
         </article>
       ))}
     </section>
