@@ -33,6 +33,15 @@ const activeStream: Stream = {
 };
 
 describe("StreamDetailClient", () => {
+  it("links to the contract events panel for the current stream", () => {
+    render(React.createElement(StreamDetailClient, { stream: activeStream }));
+
+    const eventsLink = screen.getByRole("link", { name: /view contract events/i });
+
+    expect(eventsLink).toBeInTheDocument();
+    expect(eventsLink).toHaveAttribute("href", "/streams/stream-ada/events");
+  });
+
   it("renders the destructive cancel action and modal flow for active streams", () => {
     render(React.createElement(StreamDetailClient, { stream: activeStream }));
 

@@ -59,6 +59,7 @@ export default async function StreamDetailPage({ params }: Props) {
 
   if (!stream) {
     notFound();
+    return null;
   }
 
   const network =
