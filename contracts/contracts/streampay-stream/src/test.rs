@@ -398,6 +398,50 @@ fn create_stream_beyond_limit_returns_stream_limit_exceeded() {
 }
 
 #[test]
+fn remaining_capacity_tracks_active_streams() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    // Full capacity before any stream exists.
+    assert_eq!(client.remaining_sender_capacity(&data.sender), 10);
+
+    client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // One stream consumed ⇒ nine remaining.
+    assert_eq!(client.remaining_sender_capacity(&data.sender), 9);
+}
+
+#[test]
+fn remaining_capacity_is_zero_at_limit() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    for i in 0..10 {
+        client.create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.tokens[i % 3],
+            &100i128,
+            &(1_100u64 + i as u64 * 100),
+            &(1_200u64 + i as u64 * 100),
+        );
+    }
+
+    assert_eq!(client.remaining_sender_capacity(&data.sender), 0);
+}
+
+#[test]
 fn settle_stream_decrements_sender_count() {
     let data = setup_init();
     let client = contract_client(&data.env);

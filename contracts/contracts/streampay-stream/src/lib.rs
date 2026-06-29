@@ -239,6 +239,12 @@ impl Contract {
         limits::get_sender_stream_count(&env, &sender)
     }
 
+    /// Returns how many more streams `sender` may create before reaching the
+    /// configured per-sender limit (`0` once the limit is reached).
+    pub fn remaining_sender_capacity(env: Env, sender: Address) -> u64 {
+        limits::remaining_sender_capacity(&env, &sender)
+    }
+
     /// Creates a funded stream and escrows `total_amount` from `sender`.
     ///
     /// **Token transfer**: `total_amount` is transferred from `sender` to the

@@ -110,3 +110,15 @@ pub fn check_sender_limit(env: &Env, sender: &Address) -> Result<(), Error> {
     }
     Ok(())
 }
+
+/// Returns how many additional streams `sender` may still create before
+/// hitting the configured per-sender limit.
+///
+/// Returns `0` once the sender is at or above the limit, so callers can
+/// surface remaining capacity in a UI without performing their own
+/// overflow-safe subtraction.
+pub fn remaining_sender_capacity(env: &Env, sender: &Address) -> u64 {
+    let limit = get_max_streams_per_sender(env);
+    let current = get_sender_stream_count(env, sender);
+    limit.saturating_sub(current)
+}
