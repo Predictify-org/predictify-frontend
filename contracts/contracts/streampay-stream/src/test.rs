@@ -651,7 +651,7 @@ fn cancel_stream_emits_cancelled_event() {
     assert!(!events.is_empty(), "cancel_stream should emit events");
 
     // The last event should be the cancelled event
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -671,11 +671,10 @@ fn cancel_stream_requires_auth() {
         &1_200u64,
     );
 
-    // Mock auths off and try to cancel as a different address
+    // Mock auths off so the required sender authorisation is absent.
     data.env.mock_auths(&[]);
-    let impostor = Address::generate(&data.env);
 
-    let result = client.try_cancel_stream(&impostor, &id);
+    let result = client.try_cancel_stream(&id);
     assert!(
         result.is_err(),
         "cancel_stream should fail without auth from sender"
@@ -832,7 +831,7 @@ fn pause_emits_admin_action_event() {
     assert!(!events.is_empty(), "pause should emit events");
 
     // The event should have 2 topics (stream, pause)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -865,7 +864,7 @@ fn resume_emits_admin_action_event() {
     assert!(!events.is_empty(), "resume should emit events");
 
     // The event should have 2 topics (stream, resume)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -898,7 +897,7 @@ fn settle_emits_admin_action_event() {
     assert!(!events.is_empty(), "settle should emit events");
 
     // The event should have 2 topics (stream, admin_action)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -1187,4 +1186,105 @@ fn pause_resume_preserves_vested_amount() {
     data.env.ledger().set_timestamp(1_300);
     let resumed_vested = client.stream_balance(&id);
     assert_eq!(resumed_vested, 1000);
+}
+
+/// Accrual freezes at the exact pause instant and carries forward on resume (#706).
+///
+/// A 1000-token stream over 100s vests 10/s. Pausing at the 30% mark should
+/// freeze the vested amount at 300 for the entire pause window, and resuming
+/// should extend `end_time` by the paused duration so the full 1000 still vests.
+#[test]
+fn pause_freezes_accrual_and_resume_carries_forward() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    // start=1_100, end=1_200 → duration 100s, rate 10/s.
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Advance to 30% (t=1_130) and pause.
+    data.env.ledger().set_timestamp(1_130);
+    let paused = client.pause(&id);
+    assert_eq!(paused.status, StreamStatus::Paused);
+    assert_eq!(client.stream_balance(&id), 300);
+
+    // Accrual must stay frozen at 300 throughout an arbitrarily long pause.
+    data.env.ledger().set_timestamp(1_180);
+    assert_eq!(client.stream_balance(&id), 300);
+    data.env.ledger().set_timestamp(1_500);
+    assert_eq!(client.stream_balance(&id), 300);
+
+    // Resume at t=1_500: the 370s pause must shift end_time from 1_200 to 1_570.
+    let resumed = client.resume(&id);
+    assert_eq!(resumed.status, StreamStatus::Active);
+    assert_eq!(resumed.end_time, 1_570);
+
+    // Right after resume accrual is still 300 (no time has elapsed unpaused).
+    assert_eq!(client.stream_balance(&id), 300);
+
+    // 35s further: 300 + 35*10 = 650.
+    data.env.ledger().set_timestamp(1_535);
+    assert_eq!(client.stream_balance(&id), 650);
+
+    // At the new end_time the full amount has vested.
+    data.env.ledger().set_timestamp(1_570);
+    assert_eq!(client.stream_balance(&id), 1000);
+}
+
+/// pause rejects a stream that is not currently Active.
+#[test]
+fn pause_rejects_non_active_stream() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    data.env.ledger().set_timestamp(1_130);
+    client.pause(&id);
+
+    // Pausing an already-paused stream must fail.
+    let result = client.try_pause(&id);
+    assert_eq!(
+        result.expect_err("double pause should fail"),
+        Ok(Error::InvalidState)
+    );
+}
+
+/// resume rejects a stream that is not currently Paused.
+#[test]
+fn resume_rejects_non_paused_stream() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // The stream is Active, not Paused.
+    let result = client.try_resume(&id);
+    assert_eq!(
+        result.expect_err("resume of active stream should fail"),
+        Ok(Error::InvalidState)
+    );
 }
