@@ -53,12 +53,41 @@ describe("Modal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /open modal/i }));
     expect(screen.getByRole("heading", { name: /confirm action/i })).toBeInTheDocument();
-    fireEvent.click(getOverlay());
-    fireEvent.animationEnd(getOverlay());
+    const overlay = getOverlay();
+    // A genuine backdrop click: press and release both land on the overlay.
+    fireEvent.mouseDown(overlay);
+    fireEvent.click(overlay);
+    fireEvent.animationEnd(overlay);
 
     await waitFor(() => {
       expect(screen.queryByRole("heading", { name: /confirm action/i })).not.toBeInTheDocument();
     });
+  });
+
+  it("does NOT close when a drag starts inside the dialog and ends on the backdrop", () => {
+    render(<ModalHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: /open modal/i }));
+    const dialog = screen.getByRole("dialog", { name: /confirm action/i });
+    const overlay = getOverlay();
+
+    // Press begins inside the dialog (e.g. selecting text), release on backdrop.
+    fireEvent.mouseDown(dialog);
+    fireEvent.click(overlay);
+
+    expect(screen.getByRole("heading", { name: /confirm action/i })).toBeInTheDocument();
+  });
+
+  it("does NOT close when interacting with content inside the dialog", () => {
+    render(<ModalHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: /open modal/i }));
+    const finalAction = screen.getByRole("button", { name: /final action/i });
+
+    fireEvent.mouseDown(finalAction);
+    fireEvent.click(finalAction);
+
+    expect(screen.getByRole("heading", { name: /confirm action/i })).toBeInTheDocument();
   });
 
   it("renders children only while open", () => {

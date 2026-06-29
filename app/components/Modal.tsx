@@ -2,6 +2,7 @@
 
 import React, {
   KeyboardEvent,
+  MouseEvent,
   PropsWithChildren,
   useEffect,
   useId,
@@ -24,6 +25,11 @@ export const Modal: React.FC<PropsWithChildren<ModalProps>> = ({
   const [shouldRender, setShouldRender] = useState(isOpen);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+  // Tracks whether the current pointer interaction *started* on the overlay.
+  // Without this, a text-selection drag that begins inside the dialog and ends
+  // on the backdrop would incorrectly close the modal. We only treat it as an
+  // outside-click when both press and release happen on the overlay itself.
+  const pointerDownOnOverlayRef = useRef(false);
   const titleId = useId();
 
   useEffect(() => {
@@ -54,6 +60,21 @@ export const Modal: React.FC<PropsWithChildren<ModalProps>> = ({
 
   const handleAnimationEnd = () => {
     if (!isOpen) setShouldRender(false);
+  };
+
+  // Record where the pointer press began so we can distinguish a genuine
+  // backdrop click from a drag that merely ended on the backdrop.
+  const handleOverlayPointerDown = (event: MouseEvent<HTMLDivElement>) => {
+    pointerDownOnOverlayRef.current = event.target === event.currentTarget;
+  };
+
+  // Close only when the click both started and ended on the overlay.
+  const handleOverlayClick = (event: MouseEvent<HTMLDivElement>) => {
+    const startedOnOverlay = pointerDownOnOverlayRef.current;
+    pointerDownOnOverlayRef.current = false;
+    if (startedOnOverlay && event.target === event.currentTarget) {
+      onClose();
+    }
   };
 
   // Keep keyboard focus inside the active dialog per WAI-ARIA dialog guidance.
@@ -123,7 +144,9 @@ export const Modal: React.FC<PropsWithChildren<ModalProps>> = ({
 
   return (
     <div
-      onClick={onClose}
+      data-modal-overlay="true"
+      onMouseDown={handleOverlayPointerDown}
+      onClick={handleOverlayClick}
       onAnimationEnd={handleAnimationEnd}
       style={{
         position: "fixed",
