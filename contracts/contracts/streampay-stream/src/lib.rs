@@ -22,89 +22,19 @@ mod events;
 mod limits;
 mod release;
 mod storage;
+mod upgrade;
 
 pub use error::Error;
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 pub use storage::{Stream, StreamStatus};
 
 /// The StreamPay contract entry point registered with the Soroban host.
+///
+/// The [`Stream`] record and [`StreamStatus`] enum are defined once in the
+/// [`storage`] module and re-exported above, so there is a single source of
+/// truth for the on-chain data layout.
 #[contract]
 pub struct Contract;
-
-/// Lifecycle state of a payment stream.
-///
-/// Transitions allowed by the current public API:
-/// ```text
-/// Draft ──start_stream──► Active ──withdraw (full)──► Settled
-/// ```
-/// `Paused`, `Ended`, and `Cancelled` are reserved for future entry points.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[contracttype]
-pub enum StreamStatus {
-    /// Created and funded but not yet activated; accrual has not started.
-    Draft,
-    /// Tokens are flowing linearly to the recipient.
-    Active,
-    /// Reserved — stream-level pause not yet implemented.
-    Paused,
-    /// All `total_amount` tokens have been released to the recipient.
-    Settled,
-    /// Reserved — natural expiry entry point not yet implemented.
-    Ended,
-    /// Reserved — sender-initiated cancellation not yet implemented.
-    Cancelled,
-}
-
-/// On-chain record for a single payment stream.
-///
-/// All token amounts are in the token's base unit (stroops for XLM-based
-/// assets). All timestamps are Unix seconds as reported by the ledger.
-#[derive(Clone, Debug)]
-#[contracttype]
-pub struct Stream {
-    /// Unique monotonic identifier assigned at creation. Starts at 1.
-    pub id: u64,
-    /// Address that created the stream and escrowed `total_amount`.
-    pub sender: Address,
-    /// Address that receives streamed tokens via [`Contract::withdraw`].
-    pub recipient: Address,
-    /// Stellar asset contract address being streamed.
-    pub token: Address,
-    /// Total tokens (base units) locked in escrow at creation. Always > 0.
-    pub total_amount: i128,
-    /// Tokens already transferred to `recipient`. Monotonically non-decreasing.
-    /// Invariant: `released_amount <= total_amount`.
-    pub released_amount: i128,
-    /// Ledger timestamp when accrual begins. Zero for `Draft` streams.
-    pub start_time: u64,
-    /// Ledger timestamp when accrual ends (`start_time + duration`).
-    /// Zero for `Draft` streams.
-    pub end_time: u64,
-    /// Stream length in seconds. Set at creation; never changes.
-    pub duration: u64,
-    /// Ledger timestamp of the last state-mutating operation on this stream.
-    pub last_update: u64,
-    /// Current lifecycle status.
-    pub status: StreamStatus,
-}
-
-/// Ledger storage keys used internally by this contract.
-///
-/// Not exposed to callers; listed here for auditability.
-#[derive(Clone)]
-#[contracttype]
-enum DataKey {
-    /// The privileged admin [`Address`].
-    Admin,
-    /// Global emergency pause flag (`bool`).
-    Paused,
-    /// Monotonic counter; value is the **next** stream ID to assign.
-    NextStreamId,
-    /// Per-stream record keyed by numeric ID.
-    Stream(u64),
-    /// Per-token allowlist entry. Absent or `true` → allowed; `false` → blocked.
-    TokenAllowed(Address),
-}
 
 #[contractimpl]
 impl Contract {
@@ -905,6 +835,76 @@ impl Contract {
             .update_current_contract_wasm(new_wasm_hash.clone());
         events::upgraded(&env, new_wasm_hash);
         Ok(())
+    }
+
+    /// Step 1 of the timelocked upgrade flow: proposes a new WASM hash.
+    ///
+    /// Records `new_wasm_hash` together with an `execute_after` timestamp of
+    /// `now + 48h` ([`upgrade::TIMELOCK_SECONDS`]). The upgrade cannot be
+    /// applied until that time has passed, giving stakeholders a 48-hour window
+    /// to review or exit. Only one proposal may be pending at a time.
+    ///
+    /// # Returns
+    /// The ledger timestamp at which [`Contract::execute_upgrade`] becomes
+    /// callable.
+    ///
+    /// # Errors
+    /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
+    /// - [`Error::InvalidState`] if an upgrade is already pending.
+    /// - [`Error::Overflow`] if the timelock timestamp overflows `u64`.
+    ///
+    /// # Auth
+    /// Requires authorisation from `admin`.
+    pub fn propose_upgrade(
+        env: Env,
+        admin: Address,
+        new_wasm_hash: BytesN<32>,
+    ) -> Result<u64, Error> {
+        require_admin(&env, &admin)?;
+        let pending = upgrade::propose(&env, new_wasm_hash)?;
+        Ok(pending.execute_after)
+    }
+
+    /// Step 2 of the timelocked upgrade flow: applies the pending upgrade.
+    ///
+    /// Executes the WASM hash recorded by [`Contract::propose_upgrade`], but
+    /// only once the 48-hour timelock has elapsed. The pending proposal is
+    /// cleared on success.
+    ///
+    /// # Errors
+    /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
+    /// - [`Error::NotFound`] if no upgrade is pending.
+    /// - [`Error::InvalidState`] if the timelock has not yet elapsed.
+    ///
+    /// # Auth
+    /// Requires authorisation from `admin`.
+    pub fn execute_upgrade(env: Env, admin: Address) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        let now = env.ledger().timestamp();
+        let wasm_hash = upgrade::consume_ready(&env, now)?;
+        env.deployer()
+            .update_current_contract_wasm(wasm_hash.clone());
+        events::upgraded(&env, wasm_hash);
+        Ok(())
+    }
+
+    /// Withdraws a pending timelocked upgrade before it is executed.
+    ///
+    /// # Errors
+    /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
+    /// - [`Error::NotFound`] if no upgrade is pending.
+    ///
+    /// # Auth
+    /// Requires authorisation from `admin`.
+    pub fn cancel_upgrade(env: Env, admin: Address) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        upgrade::cancel(&env)
+    }
+
+    /// Returns the timestamp at which the pending upgrade may be executed, or
+    /// `None` if no upgrade is pending. Read-only.
+    pub fn pending_upgrade_ready_at(env: Env) -> Option<u64> {
+        upgrade::get_pending(&env).map(|p| p.execute_after)
     }
 }
 

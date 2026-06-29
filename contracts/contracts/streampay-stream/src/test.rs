@@ -651,7 +651,7 @@ fn cancel_stream_emits_cancelled_event() {
     assert!(!events.is_empty(), "cancel_stream should emit events");
 
     // The last event should be the cancelled event
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -671,11 +671,10 @@ fn cancel_stream_requires_auth() {
         &1_200u64,
     );
 
-    // Mock auths off and try to cancel as a different address
+    // Mock auths off so the required sender authorisation is absent.
     data.env.mock_auths(&[]);
-    let impostor = Address::generate(&data.env);
 
-    let result = client.try_cancel_stream(&impostor, &id);
+    let result = client.try_cancel_stream(&id);
     assert!(
         result.is_err(),
         "cancel_stream should fail without auth from sender"
@@ -832,7 +831,7 @@ fn pause_emits_admin_action_event() {
     assert!(!events.is_empty(), "pause should emit events");
 
     // The event should have 2 topics (stream, pause)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -865,7 +864,7 @@ fn resume_emits_admin_action_event() {
     assert!(!events.is_empty(), "resume should emit events");
 
     // The event should have 2 topics (stream, resume)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -898,7 +897,7 @@ fn settle_emits_admin_action_event() {
     assert!(!events.is_empty(), "settle should emit events");
 
     // The event should have 2 topics (stream, admin_action)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -1187,4 +1186,115 @@ fn pause_resume_preserves_vested_amount() {
     data.env.ledger().set_timestamp(1_300);
     let resumed_vested = client.stream_balance(&id);
     assert_eq!(resumed_vested, 1000);
+}
+
+// ── Timelocked upgrade (#705) ─────────────────────────────────────────────────
+
+const TIMELOCK_SECONDS: u64 = 48 * 60 * 60;
+
+/// propose_upgrade returns now + 48h and pending_upgrade_ready_at reflects it.
+#[test]
+fn propose_upgrade_sets_timelock() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let now = data.env.ledger().timestamp();
+    let wasm_hash = data.env.deployer().upload_contract_wasm(&[] as &[u8]);
+
+    let ready_at = client.propose_upgrade(&data.admin, &wasm_hash);
+    assert_eq!(ready_at, now + TIMELOCK_SECONDS);
+    assert_eq!(client.pending_upgrade_ready_at(), Some(now + TIMELOCK_SECONDS));
+}
+
+/// execute_upgrade before the timelock elapses is rejected.
+#[test]
+fn execute_upgrade_before_timelock_fails() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let wasm_hash = data.env.deployer().upload_contract_wasm(&[] as &[u8]);
+    client.propose_upgrade(&data.admin, &wasm_hash);
+
+    // One second short of the timelock.
+    let now = data.env.ledger().timestamp();
+    data.env.ledger().set_timestamp(now + TIMELOCK_SECONDS - 1);
+
+    let result = client.try_execute_upgrade(&data.admin);
+    assert_eq!(
+        result.expect_err("execute before timelock should fail"),
+        Ok(Error::InvalidState)
+    );
+}
+
+/// execute_upgrade succeeds once the timelock has elapsed and clears the pending state.
+#[test]
+fn execute_upgrade_after_timelock_succeeds() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let wasm_hash = data.env.deployer().upload_contract_wasm(&[] as &[u8]);
+    client.propose_upgrade(&data.admin, &wasm_hash);
+
+    let now = data.env.ledger().timestamp();
+    data.env.ledger().set_timestamp(now + TIMELOCK_SECONDS);
+
+    client.execute_upgrade(&data.admin);
+    // Pending proposal is cleared after execution.
+    assert_eq!(client.pending_upgrade_ready_at(), None);
+}
+
+/// Only one upgrade may be pending at a time.
+#[test]
+fn propose_upgrade_twice_fails() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let wasm_hash = data.env.deployer().upload_contract_wasm(&[] as &[u8]);
+    client.propose_upgrade(&data.admin, &wasm_hash);
+
+    let result = client.try_propose_upgrade(&data.admin, &wasm_hash);
+    assert_eq!(
+        result.expect_err("second proposal should fail"),
+        Ok(Error::InvalidState)
+    );
+}
+
+/// cancel_upgrade withdraws a pending proposal; execute then fails with NotFound.
+#[test]
+fn cancel_upgrade_clears_pending() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let wasm_hash = data.env.deployer().upload_contract_wasm(&[] as &[u8]);
+    client.propose_upgrade(&data.admin, &wasm_hash);
+
+    client.cancel_upgrade(&data.admin);
+    assert_eq!(client.pending_upgrade_ready_at(), None);
+
+    let now = data.env.ledger().timestamp();
+    data.env.ledger().set_timestamp(now + TIMELOCK_SECONDS);
+    let result = client.try_execute_upgrade(&data.admin);
+    assert_eq!(
+        result.expect_err("execute after cancel should fail"),
+        Ok(Error::NotFound)
+    );
+}
+
+/// execute_upgrade with no pending proposal fails with NotFound.
+#[test]
+fn execute_upgrade_without_proposal_fails() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let result = client.try_execute_upgrade(&data.admin);
+    assert_eq!(
+        result.expect_err("execute without proposal should fail"),
+        Ok(Error::NotFound)
+    );
 }
