@@ -39,15 +39,40 @@ export const MobileBottomTabs: React.FC = () => {
           <button
             key={tab.href}
             onClick={() => handleClick(tab.href)}
-            className="flex flex-col items-center text-gray-400 hover:text-white focus:outline-none"
+            className={cn(
+              'flex flex-col items-center justify-center flex-1 py-2 px-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-1 focus-visible:ring-offset-[#060e20]',
+              isActive
+                ? 'text-purple-400'
+                : 'text-gray-400 hover:text-gray-200'
+            )}
             aria-current={isActive ? 'page' : undefined}
-            aria-label={isActive ? undefined : tab.label}
+            aria-label={`${tab.label}${isActive ? ' (current page)' : ''}`}
           >
-            <tab.Icon
-              size={24}
-              className={cn(isActive ? 'text-purple-400' : 'text-gray-400')}
+            {/* Active indicator pill above the icon */}
+            <span
+              className={cn(
+                'block h-[3px] w-6 rounded-full mb-1 transition-all duration-150',
+                isActive ? 'bg-purple-400' : 'bg-transparent'
+              )}
+              aria-hidden="true"
             />
-            {isActive && <span className="text-xs mt-1">{tab.label}</span>}
+            <tab.Icon
+              size={22}
+              aria-hidden="true"
+              className={cn(
+                'transition-transform duration-150',
+                isActive ? 'scale-110' : 'scale-100'
+              )}
+            />
+            {/* Always render label; visually prominent when active */}
+            <span
+              className={cn(
+                'text-[10px] mt-0.5 font-medium leading-none transition-colors duration-150',
+                isActive ? 'text-purple-400' : 'text-gray-500'
+              )}
+            >
+              {tab.label}
+            </span>
           </button>
         );
       })}
