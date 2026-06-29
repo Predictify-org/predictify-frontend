@@ -36,6 +36,19 @@ const TIMELOCK_MS = TIMELOCK_HOURS * 60 * 60 * 1000;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/** Supported circuit breaker targets. */
+export type CircuitBreakerTarget = "indexer" | "webhook";
+
+/** State of a single named circuit breaker. */
+export interface CircuitBreakerState {
+  /** Whether this circuit breaker is open (tripped). */
+  open: boolean;
+  /** ISO-8601 timestamp of the last toggle. */
+  updatedAt: string | null;
+  /** Admin address that last toggled this breaker. */
+  updatedBy: string | null;
+}
+
 export interface AdminState {
   /** Stellar G... address of the current admin. Never null after init. */
   adminAddress: string;
@@ -47,6 +60,8 @@ export interface AdminState {
   adminRotatedAt: string | null;
   /** Pending upgrade (if any). */
   pendingUpgrade: PendingUpgrade | null;
+  /** Per-component circuit breakers (indexer, webhook). */
+  circuitBreakers: Record<CircuitBreakerTarget, CircuitBreakerState>;
 }
 
 export interface PendingUpgrade {
@@ -96,6 +111,10 @@ const _state: AdminState = {
   pausedAt:       null,
   adminRotatedAt: null,
   pendingUpgrade: null,
+  circuitBreakers: {
+    indexer: { open: false, updatedAt: null, updatedBy: null },
+    webhook: { open: false, updatedAt: null, updatedBy: null },
+  },
 };
 
 // ── Public view ───────────────────────────────────────────────────────────────
@@ -406,6 +425,66 @@ export function checkNotPaused(operation: string): NextResponse | null {
   );
 }
 
+// ── Circuit-breaker per-component toggle ──────────────────────────────────────
+
+/** Recognized circuit breaker targets. */
+const VALID_TARGETS = new Set<CircuitBreakerTarget>(["indexer", "webhook"]);
+
+/**
+ * Toggle a named circuit breaker (indexer or webhook).
+ *
+ * Gated by admin auth. When open=true the consuming service should stop
+ * dispatching events for that subsystem; when open=false it resumes.
+ *
+ * @param request  Incoming HTTP request (used to verify admin identity).
+ * @param target   "indexer" | "webhook"
+ * @param open     true = trip the breaker; false = reset it.
+ * @returns        Updated AdminState or a NextResponse error.
+ */
+export function setCircuitBreaker(
+  request: Request,
+  target: string,
+  open: boolean,
+): AdminState | NextResponse {
+  const authResult = requireAdmin(request);
+  if (authResult instanceof NextResponse) return authResult;
+
+  if (!VALID_TARGETS.has(target as CircuitBreakerTarget)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: `Invalid target '${target}'. Must be one of: ${[...VALID_TARGETS].join(", ")}.`,
+        },
+      },
+      { status: 422 },
+    );
+  }
+
+  const t = target as CircuitBreakerTarget;
+  _state.circuitBreakers[t] = {
+    open,
+    updatedAt: new Date().toISOString(),
+    updatedBy: authResult,
+  };
+
+  return { ..._state };
+}
+
+/**
+ * Returns the current state of all circuit breakers.
+ */
+export function getCircuitBreakers(): Readonly<Record<CircuitBreakerTarget, CircuitBreakerState>> {
+  return { ..._state.circuitBreakers };
+}
+
+/**
+ * Returns true when the named circuit breaker is open (tripped).
+ */
+export function isCircuitBreakerOpen(target: CircuitBreakerTarget): boolean {
+  return _state.circuitBreakers[target]?.open ?? false;
+}
+
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
 /**
@@ -417,4 +496,8 @@ export function _resetAdminStateForTesting(adminAddress = DEV_ADMIN_PLACEHOLDER)
   _state.pausedAt       = null;
   _state.adminRotatedAt = null;
   _state.pendingUpgrade = null;
+  _state.circuitBreakers = {
+    indexer: { open: false, updatedAt: null, updatedBy: null },
+    webhook: { open: false, updatedAt: null, updatedBy: null },
+  };
 }
