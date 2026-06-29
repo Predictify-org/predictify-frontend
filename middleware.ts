@@ -62,33 +62,70 @@ export async function middleware(request: NextRequest) {
   }
 
   // ------------------------------------------------------------------
-  // 2. CORS
+  // 2. CORS — reject disallowed origins with structured error envelope
   // ------------------------------------------------------------------
   const origin = request.headers.get('origin');
-  const originAllowed = isOriginAllowed(origin, allowedOrigins);
 
-  if (request.method === 'OPTIONS') {
+  if (origin) {
+    const originAllowed = isOriginAllowed(origin, allowedOrigins);
+
     if (!originAllowed) {
-      return new NextResponse(null, { status: 204 });
+      const requestId =
+        (request.headers.get('x-request-id') as string) ??
+        `req_${Date.now().toString(36)}`;
+
+      console.warn(
+        JSON.stringify({
+          type: 'cors.rejection',
+          origin,
+          method: request.method,
+          pathname: request.nextUrl?.pathname ?? '',
+          request_id: requestId,
+        })
+      );
+
+      const errorResponse = NextResponse.json(
+        {
+          error: {
+            code: 'CORS_ORIGIN_DISALLOWED',
+            message: `Origin '${origin}' is not allowed.`,
+            request_id: requestId,
+          },
+        },
+        { status: 403 }
+      );
+      errorResponse.headers.set(REQUEST_FINGERPRINT_HEADER, fingerprint);
+      errorResponse.headers.set('Vary', 'Origin');
+      return errorResponse;
     }
 
-    return new NextResponse(null, {
-      status: 204,
-      headers: buildCorsHeaders(origin!),
+    // Origin is allowed
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, {
+        status: 204,
+        headers: buildCorsHeaders(origin),
+      });
+    }
+
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
     });
+
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Vary', 'Origin');
+    return response;
   }
 
-  const response = NextResponse.next({
+  // No origin header — no CORS processing needed
+  if (request.method === 'OPTIONS') {
+    return new NextResponse(null, { status: 204 });
+  }
+
+  return NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
-
-  if (originAllowed) {
-    const headers = response.headers;
-    headers.set('Access-Control-Allow-Origin', origin!);
-    headers.set('Vary', 'Origin');
-  }
-
-  return response;
 }

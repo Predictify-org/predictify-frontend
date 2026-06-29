@@ -34,7 +34,7 @@ describe('CORS middleware', () => {
     expect(response.headers.get('vary')).toBe('Origin');
   });
 
-  it('does not reflect a disallowed origin', async () => {
+  it('rejects disallowed origin with 403 and error envelope', async () => {
     const request = new Request('https://api.example.com/api/health', {
       method: 'GET',
       headers: { origin: 'https://evil.example.com' },
@@ -42,8 +42,16 @@ describe('CORS middleware', () => {
 
     const response = await middleware(request as any);
 
-    expect(response.headers.get('access-control-allow-origin')).toBeNull();
-    expect(response.headers.get('vary')).toBeNull();
+    expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      error: {
+        code: 'CORS_ORIGIN_DISALLOWED',
+        message: "Origin 'https://evil.example.com' is not allowed.",
+        request_id: expect.any(String),
+      },
+    });
+    expect(response.headers.get('x-request-fingerprint')).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it('returns a preflight response with explicit headers for allowed origins', async () => {
@@ -64,7 +72,7 @@ describe('CORS middleware', () => {
     expect(response.headers.get('access-control-max-age')).toBe('600');
   });
 
-  it('returns a minimal preflight response for disallowed origins', async () => {
+  it('rejects disallowed origin OPTIONS with 403 and error envelope', async () => {
     const request = new Request('https://api.example.com/api/health', {
       method: 'OPTIONS',
       headers: {
@@ -75,8 +83,103 @@ describe('CORS middleware', () => {
 
     const response = await middleware(request as any);
 
+    expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      error: {
+        code: 'CORS_ORIGIN_DISALLOWED',
+        request_id: expect.any(String),
+      },
+    });
+  });
+
+  it('passes through requests without an origin header', async () => {
+    const request = new Request('https://api.example.com/api/health', {
+      method: 'GET',
+    });
+
+    const response = await middleware(request as any);
+
+    expect(response.status).not.toBe(403);
+    expect(response.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
+  it('passes through OPTIONS requests without an origin header', async () => {
+    const request = new Request('https://api.example.com/api/health', {
+      method: 'OPTIONS',
+    });
+
+    const response = await middleware(request as any);
+
     expect(response.status).toBe(204);
     expect(response.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
+  it('rejects malformed origin header with 403', async () => {
+    const request = new Request('https://api.example.com/api/health', {
+      method: 'GET',
+      headers: { origin: 'not a valid url with spaces' },
+    });
+
+    const response = await middleware(request as any);
+
+    expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body.error.code).toBe('CORS_ORIGIN_DISALLOWED');
+  });
+
+  it('includes x-request-id in rejection error envelope when present', async () => {
+    const request = new Request('https://api.example.com/api/health', {
+      method: 'GET',
+      headers: {
+        origin: 'https://evil.example.com',
+        'x-request-id': 'req_cors_test_123',
+      },
+    });
+
+    const response = await middleware(request as any);
+
+    const body = await response.json();
+    expect(body.error.request_id).toBe('req_cors_test_123');
+  });
+});
+
+// =============================================================================
+// CORS wildcard allowlist (non-production)
+// =============================================================================
+
+describe('CORS wildcard allowlist (non-production)', () => {
+  let middleware: any;
+
+  beforeEach(async () => {
+    jest.resetModules();
+
+    (process.env as any).STELLAR_NETWORK = 'testnet';
+    (process.env as any).JWT_SECRET = 'test-secret-at-least-32-characters-long';
+    (process.env as any).NODE_ENV = 'development';
+    (process.env as any).ALLOWED_ORIGINS = '*';
+
+    const imported = await import('./middleware');
+    middleware = imported.middleware;
+  });
+
+  afterEach(() => {
+    delete (process.env as any).STELLAR_NETWORK;
+    delete (process.env as any).JWT_SECRET;
+    delete (process.env as any).NODE_ENV;
+    delete (process.env as any).ALLOWED_ORIGINS;
+  });
+
+  it('allows any origin when wildcard is configured in non-production', async () => {
+    const request = new Request('https://api.example.com/api/health', {
+      method: 'GET',
+      headers: { origin: 'https://any-origin.example.com' },
+    });
+
+    const response = await middleware(request as any);
+
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://any-origin.example.com');
+    expect(response.headers.get('vary')).toBe('Origin');
   });
 });
 
