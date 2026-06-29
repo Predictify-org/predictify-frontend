@@ -38,6 +38,8 @@ export const config = {
   matcher: ['/api/:path*'],
 };
 
+const CANARY_HEADER_NAME = 'X-Canary';
+
 function buildCorsHeaders(origin: string) {
   const headers = new Headers();
   headers.set('Access-Control-Allow-Origin', origin);
@@ -48,18 +50,90 @@ function buildCorsHeaders(origin: string) {
   return headers;
 }
 
+function getCanaryPercentage(): number {
+  const rawValue = process.env.CANARY_PERCENTAGE;
+  if (rawValue === undefined || rawValue.trim() === '') {
+    return 0;
+  }
+
+  const parsedValue = Number.parseFloat(rawValue);
+  if (!Number.isFinite(parsedValue)) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, Math.trunc(parsedValue)));
+}
+
+function getCanarySeed(request: NextRequest): string {
+  return (
+    request.headers.get('x-tenant-id') ??
+    request.headers.get('x-user-id') ??
+    request.headers.get('x-forwarded-user') ??
+    request.headers.get('authorization') ??
+    request.url
+  );
+}
+
+function hashSeed(seed: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+// Deterministically bucket requests by a stable tenant/user-derived seed so
+// the same identity consistently lands in the same canary cohort.
+function shouldRouteToCanary(request: NextRequest): boolean {
+  const percentage = getCanaryPercentage();
+  if (percentage <= 0) {
+    return false;
+  }
+
+  if (percentage >= 100) {
+    return true;
+  }
+
+  const seed = getCanarySeed(request);
+  const bucket = hashSeed(seed) % 100;
+  return bucket < percentage;
+}
+
+function setCanaryHeader(headers: Headers, isCanary: boolean) {
+  if (isCanary) {
+    headers.set(CANARY_HEADER_NAME, 'true');
+  }
+}
+
+function shouldEnforceBodySizeLimit(request: NextRequest | Request): boolean {
+  const pathname = 'nextUrl' in request && request.nextUrl?.pathname
+    ? request.nextUrl.pathname
+    : new URL(request.url).pathname;
+
+  return pathname === '/api/v2/streams' || pathname.startsWith('/api/v2/streams/') || pathname.startsWith('/api/webhooks');
+}
+
 export async function middleware(request: NextRequest) {
   const fingerprint = await captureRequestFingerprint(request);
   touchLastSeenFromRequest(request);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(REQUEST_FINGERPRINT_HEADER, fingerprint);
 
+  const isCanary = shouldRouteToCanary(request);
+  if (isCanary) {
+    requestHeaders.set(CANARY_HEADER_NAME, 'true');
+  }
+
   // ------------------------------------------------------------------
   // 1. Request body size cap (path-scoped, O(1) — reads Content-Length)
   // ------------------------------------------------------------------
-  const sizeError = checkRequestBodySize(request, bodyLimits);
+  const sizeError = shouldEnforceBodySizeLimit(request)
+    ? checkRequestBodySize(request, bodyLimits)
+    : null;
   if (sizeError !== null) {
     sizeError.headers.set(REQUEST_FINGERPRINT_HEADER, fingerprint);
+    setCanaryHeader(sizeError.headers, isCanary);
     return sizeError;
   }
 
@@ -71,12 +145,17 @@ export async function middleware(request: NextRequest) {
 
   if (request.method === 'OPTIONS') {
     if (!originAllowed) {
-      return new NextResponse(null, { status: 204 });
+      const response = new NextResponse(null, { status: 204 });
+      setCanaryHeader(response.headers, isCanary);
+      return response;
     }
+
+    const headers = buildCorsHeaders(origin!);
+    setCanaryHeader(headers, isCanary);
 
     return new NextResponse(null, {
       status: 204,
-      headers: buildCorsHeaders(origin!),
+      headers,
     });
   }
 
@@ -85,6 +164,8 @@ export async function middleware(request: NextRequest) {
       headers: requestHeaders,
     },
   });
+
+  setCanaryHeader(response.headers, isCanary);
 
   if (originAllowed) {
     const headers = response.headers;

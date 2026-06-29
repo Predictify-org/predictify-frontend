@@ -84,6 +84,75 @@ describe('CORS middleware', () => {
 // Request body size cap
 // =============================================================================
 
+describe('canary middleware', () => {
+  let middleware: any;
+
+  beforeEach(async () => {
+    jest.resetModules();
+
+    (process.env as any).STELLAR_NETWORK = 'testnet';
+    (process.env as any).JWT_SECRET = 'test-secret-at-least-32-characters-long';
+    (process.env as any).NODE_ENV = 'production';
+    (process.env as any).ALLOWED_ORIGINS = 'https://allowed.example.com';
+    delete (process.env as any).CANARY_PERCENTAGE;
+
+    const imported = await import('./middleware');
+    middleware = imported.middleware;
+  });
+
+  afterEach(() => {
+    delete (process.env as any).STELLAR_NETWORK;
+    delete (process.env as any).JWT_SECRET;
+    delete (process.env as any).NODE_ENV;
+    delete (process.env as any).ALLOWED_ORIGINS;
+    delete (process.env as any).CANARY_PERCENTAGE;
+  });
+
+  it('does not emit X-Canary when percentage is 0', async () => {
+    (process.env as any).CANARY_PERCENTAGE = '0';
+
+    const request = new Request('https://api.example.com/api/health', {
+      method: 'GET',
+      headers: { 'x-tenant-id': 'tenant-123' },
+    });
+
+    const response = await middleware(request as any);
+
+    expect(response.headers.get('x-canary')).toBeNull();
+  });
+
+  it('emits X-Canary for requests when percentage is 100', async () => {
+    (process.env as any).CANARY_PERCENTAGE = '100';
+
+    const request = new Request('https://api.example.com/api/health', {
+      method: 'GET',
+      headers: { 'x-tenant-id': 'tenant-123' },
+    });
+
+    const response = await middleware(request as any);
+
+    expect(response.headers.get('x-canary')).toBe('true');
+  });
+
+  it('uses a deterministic hash derived from the tenant id', async () => {
+    (process.env as any).CANARY_PERCENTAGE = '50';
+
+    const requestA = new Request('https://api.example.com/api/health', {
+      method: 'GET',
+      headers: { 'x-tenant-id': 'tenant-123' },
+    });
+    const requestB = new Request('https://api.example.com/api/health', {
+      method: 'GET',
+      headers: { 'x-tenant-id': 'tenant-123' },
+    });
+
+    const responseA = await middleware(requestA as any);
+    const responseB = await middleware(requestB as any);
+
+    expect(responseA.headers.get('x-canary')).toBe(responseB.headers.get('x-canary'));
+  });
+});
+
 describe('request size cap middleware', () => {
   /** The default cap enforced by the middleware (256 KB). */
   const DEFAULT_CAP = 256 * 1024; // 262 144 bytes
