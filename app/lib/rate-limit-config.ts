@@ -11,6 +11,7 @@ export const ROUTE_LIMITS: Record<string, LimitType> = {
   "GET:/api/activity": "read",
   "GET:/api/identity/me": "read",
   "POST:/api/streams": "write",
+  "POST:/api/streams/batch": "write",
   "DELETE:/api/streams/": "write",
   "POST:/api/streams/*/start": "write",
   "POST:/api/streams/*/pause": "write",

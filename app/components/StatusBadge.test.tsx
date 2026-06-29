@@ -1,3 +1,7 @@
+/**
+ * @jest-environment jsdom
+ */
+
 import { render } from "@testing-library/react";
 const { screen } = require("@testing-library/react") as any;
 import { StatusBadge } from "./StatusBadge";

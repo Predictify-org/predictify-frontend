@@ -61,6 +61,16 @@ export const onboardingCopy = {
  * DO NOT use these in production until a feature-flag issue is created
  * and analytics instrumentation is in place.
  */
+export const receiptCopy = {
+  noteLabel: "Custom Note",
+  notePlaceholder: "Add a note to this receipt (optional)",
+  noteHelper: "Your note will appear on the printed receipt.",
+  print: "Print / Save as PDF",
+  share: "Share",
+  shareCopied: "Link copied to clipboard",
+  noteSectionTitle: "Receipt Note",
+} as const;
+
 export const heroCtaVariants = {
   a: { label: "Connect Stellar wallet", hypothesis: "Naming the network signals trust and specificity for Stellar-native users" },
   b: { label: "Link wallet", hypothesis: "Shorter verb lowers perceived friction for users unfamiliar with Stellar terminology" },

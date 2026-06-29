@@ -22,7 +22,8 @@ export class WebhookDeliveryStore {
   createDelivery(
     deliveryId: string,
     endpoint: WebhookEndpoint,
-    event: WebhookEvent
+    event: WebhookEvent,
+    reissuedFrom?: string,
   ): WebhookDeliveryRecord {
     const now = new Date().toISOString();
     const record: WebhookDeliveryRecord = {
@@ -34,6 +35,9 @@ export class WebhookDeliveryStore {
       attempts: [],
       createdAt: now,
       updatedAt: now,
+      event,
+      endpoint,
+      ...(reissuedFrom !== undefined ? { reissuedFrom } : {}),
     };
 
     this.deliveries.set(deliveryId, record);

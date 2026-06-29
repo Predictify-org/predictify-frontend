@@ -195,6 +195,17 @@ To prevent cascading failures when an endpoint is permanently unavailable, Strea
 - Allows failed endpoints to recover without retry spam
 - Improves resource efficiency
 
+## Durable webhook subscription store
+
+StreamPay also supports a durable subscription store for managing webhook endpoints outside of process memory. The store validates URLs and event types at the boundary, persists subscriptions with a PostgreSQL-oriented schema, and exposes create/list/get/update/delete operations for downstream services.
+
+### Contract
+
+- `url` must be a valid absolute HTTP(S) URL.
+- `eventTypes` must contain at least one non-empty entry.
+- `status` is normalized to `active` or `inactive`.
+- The backing store writes rows to `webhook_subscriptions` so a restart does not drop registrations.
+
 ## Dead Letter Queue (DLQ)
 
 When a webhook exhausts all retries (10 attempts over ~18 minutes), it moves to the DLQ.
@@ -564,6 +575,51 @@ Response:
     "count": 5
   }
 }
+```
+
+### Admin Redeliver Endpoint
+
+```
+POST /api/admin/webhooks/redeliver
+Auth: Internal-service HMAC or admin JWT
+
+Request Body:
+{
+  "deliveryId": "del-01HZ9ABCDEF"
+}
+
+Response (200):
+{
+  "data": {
+    "deliveryId": "redeliver-<uuid>",
+    "originalDeliveryId": "del-01HZ9ABCDEF"
+  },
+  "links": {
+    "delivery": "/api/webhooks/deliveries?delivery_id=redeliver-<uuid>"
+  }
+}
+
+Error (404 - delivery not found):
+{
+  "error": {
+    "code": "DELIVERY_NOT_FOUND",
+    "message": "Delivery 'del-id' not found.",
+    "request_id": "req_..."
+  }
+}
+
+Error (400 - no snapshot data):
+{
+  "error": {
+    "code": "DELIVERY_NO_SNAPSHOT",
+    "message": "Delivery 'del-id' does not have full event/endpoint data...",
+    "request_id": "req_..."
+  }
+}
+
+**Idempotency:** Not enforced per call; each request creates a new delivery.
+**Data availability:** Requires deliveries recorded with full event/endpoint snapshots.
+Use the DLQ replay endpoint for older deliveries without snapshots.
 ```
 
 ---

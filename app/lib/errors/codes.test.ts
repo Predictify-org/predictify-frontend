@@ -6,6 +6,7 @@ import {
   ERROR_REGISTRY,
   HORIZON_ERROR_MAPPING,
   BACKEND_ERROR_CODE_MAPPING,
+  SOROBAN_ERROR_MAPPING,
   getErrorMetadata,
   isRetryableError,
   getRetryGuidance,
@@ -59,6 +60,119 @@ describe('ERROR_REGISTRY', () => {
         expect(metadata.retry.suggestedDelayMs).toBeGreaterThanOrEqual(0);
       }
     }
+  });
+});
+
+describe('Soroban error codes', () => {
+  const sorobanCodes: ErrorCode[] = [
+    'SOROBAN_SIMULATION_FAILED',
+    'SOROBAN_SIMULATION_TIMEOUT',
+    'SOROBAN_SUBMIT_TIMEOUT',
+    'SOROBAN_SUBMIT_FAILED',
+    'SOROBAN_SUBMIT_BAD_AUTH',
+    'SOROBAN_SUBMIT_INSUFFICIENT_FUNDS',
+    'SOROBAN_RPC_UNAVAILABLE',
+    'SOROBAN_RPC_TIMEOUT',
+    'SOROBAN_CONTRACT_NOT_FOUND',
+    'SOROBAN_STREAM_NOT_FOUND',
+    'SOROBAN_STREAM_ALREADY_EXISTS',
+    'SOROBAN_UNKNOWN',
+  ];
+
+  it('contains all Soroban error codes in the registry', () => {
+    for (const code of sorobanCodes) {
+      expect(ERROR_REGISTRY[code]).toBeDefined();
+      expect(ERROR_REGISTRY[code].category).toBe('blockchain');
+    }
+  });
+
+  it('assigns correct HTTP status codes to Soroban errors', () => {
+    expect(ERROR_REGISTRY.SOROBAN_SIMULATION_FAILED.httpStatus).toBe(400);
+    expect(ERROR_REGISTRY.SOROBAN_SIMULATION_TIMEOUT.httpStatus).toBe(504);
+    expect(ERROR_REGISTRY.SOROBAN_SUBMIT_TIMEOUT.httpStatus).toBe(504);
+    expect(ERROR_REGISTRY.SOROBAN_SUBMIT_FAILED.httpStatus).toBe(400);
+    expect(ERROR_REGISTRY.SOROBAN_SUBMIT_BAD_AUTH.httpStatus).toBe(400);
+    expect(ERROR_REGISTRY.SOROBAN_SUBMIT_INSUFFICIENT_FUNDS.httpStatus).toBe(400);
+    expect(ERROR_REGISTRY.SOROBAN_RPC_UNAVAILABLE.httpStatus).toBe(503);
+    expect(ERROR_REGISTRY.SOROBAN_RPC_TIMEOUT.httpStatus).toBe(504);
+    expect(ERROR_REGISTRY.SOROBAN_CONTRACT_NOT_FOUND.httpStatus).toBe(404);
+    expect(ERROR_REGISTRY.SOROBAN_STREAM_NOT_FOUND.httpStatus).toBe(404);
+    expect(ERROR_REGISTRY.SOROBAN_STREAM_ALREADY_EXISTS.httpStatus).toBe(409);
+    expect(ERROR_REGISTRY.SOROBAN_UNKNOWN.httpStatus).toBe(500);
+  });
+
+  it('marks timeout and RPC errors as retryable', () => {
+    expect(isRetryableError('SOROBAN_SIMULATION_TIMEOUT')).toBe(true);
+    expect(isRetryableError('SOROBAN_SUBMIT_TIMEOUT')).toBe(true);
+    expect(isRetryableError('SOROBAN_RPC_UNAVAILABLE')).toBe(true);
+    expect(isRetryableError('SOROBAN_RPC_TIMEOUT')).toBe(true);
+    expect(isRetryableError('SOROBAN_UNKNOWN')).toBe(true);
+  });
+
+  it('marks validation and not-found errors as non-retryable', () => {
+    expect(isRetryableError('SOROBAN_SIMULATION_FAILED')).toBe(false);
+    expect(isRetryableError('SOROBAN_SUBMIT_BAD_AUTH')).toBe(false);
+    expect(isRetryableError('SOROBAN_SUBMIT_INSUFFICIENT_FUNDS')).toBe(false);
+    expect(isRetryableError('SOROBAN_CONTRACT_NOT_FOUND')).toBe(false);
+    expect(isRetryableError('SOROBAN_STREAM_NOT_FOUND')).toBe(false);
+    expect(isRetryableError('SOROBAN_STREAM_ALREADY_EXISTS')).toBe(false);
+  });
+
+  it('provides user-friendly messages for all Soroban codes', () => {
+    for (const code of sorobanCodes) {
+      const message = getUserMessage(code);
+      expect(message).toBeTruthy();
+      expect(message.length).toBeGreaterThan(10);
+      // Messages should not contain technical jargon
+      expect(message).not.toContain('txBadSeq');
+      expect(message).not.toContain('revert');
+    }
+  });
+
+  it('has RFC 7807 type URIs for all Soroban codes', () => {
+    for (const code of sorobanCodes) {
+      const metadata = getErrorMetadata(code);
+      expect(metadata.typeUri).toMatch(/^https:\/\/api\.streampay\.io\/errors\/soroban-/);
+    }
+  });
+});
+
+describe('SOROBAN_ERROR_MAPPING', () => {
+  it('maps every SorobanError variant to a stable ErrorCode', () => {
+    const variants = [
+      'SimulationFailed',
+      'SimulationTimeout',
+      'SubmitTimeout',
+      'SubmitFailed',
+      'SubmitBadAuth',
+      'SubmitInsufficientFunds',
+      'RpcUnavailable',
+      'RpcTimeout',
+      'ContractNotFound',
+      'StreamNotFound',
+      'StreamAlreadyExists',
+      'Unknown',
+    ];
+
+    for (const variant of variants) {
+      expect(SOROBAN_ERROR_MAPPING[variant]).toBeDefined();
+      expect(ERROR_REGISTRY[SOROBAN_ERROR_MAPPING[variant]]).toBeDefined();
+    }
+  });
+
+  it('maps variants to the expected ErrorCode values', () => {
+    expect(SOROBAN_ERROR_MAPPING['SimulationFailed']).toBe('SOROBAN_SIMULATION_FAILED');
+    expect(SOROBAN_ERROR_MAPPING['SimulationTimeout']).toBe('SOROBAN_SIMULATION_TIMEOUT');
+    expect(SOROBAN_ERROR_MAPPING['SubmitTimeout']).toBe('SOROBAN_SUBMIT_TIMEOUT');
+    expect(SOROBAN_ERROR_MAPPING['SubmitFailed']).toBe('SOROBAN_SUBMIT_FAILED');
+    expect(SOROBAN_ERROR_MAPPING['SubmitBadAuth']).toBe('SOROBAN_SUBMIT_BAD_AUTH');
+    expect(SOROBAN_ERROR_MAPPING['SubmitInsufficientFunds']).toBe('SOROBAN_SUBMIT_INSUFFICIENT_FUNDS');
+    expect(SOROBAN_ERROR_MAPPING['RpcUnavailable']).toBe('SOROBAN_RPC_UNAVAILABLE');
+    expect(SOROBAN_ERROR_MAPPING['RpcTimeout']).toBe('SOROBAN_RPC_TIMEOUT');
+    expect(SOROBAN_ERROR_MAPPING['ContractNotFound']).toBe('SOROBAN_CONTRACT_NOT_FOUND');
+    expect(SOROBAN_ERROR_MAPPING['StreamNotFound']).toBe('SOROBAN_STREAM_NOT_FOUND');
+    expect(SOROBAN_ERROR_MAPPING['StreamAlreadyExists']).toBe('SOROBAN_STREAM_ALREADY_EXISTS');
+    expect(SOROBAN_ERROR_MAPPING['Unknown']).toBe('SOROBAN_UNKNOWN');
   });
 });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 /**
@@ -43,7 +44,7 @@ export default function SplashScreen() {
         {/* Logo with glow ring */}
         <div className="splash-logo-wrap">
           <div className="splash-logo-glow" aria-hidden="true" />
-          <img
+          <Image
             src="/assets/splash-icon.png"
             alt="StreamPay logo"
             className="splash-logo"

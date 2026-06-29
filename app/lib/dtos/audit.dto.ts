@@ -16,7 +16,7 @@ export const AuditActorSchema = z.object({
 });
 
 export const AuditTargetSchema = z.object({
-  type: z.enum(["stream", "account"]),
+  type: z.enum(["stream", "account", "request"]),
   id: z.string(),
   account: z.string().optional(),
 });

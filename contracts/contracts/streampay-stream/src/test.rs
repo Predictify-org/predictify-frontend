@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 //! Integration tests for the `initialize` and `init_with_token_allowlist`
 //! entrypoints.
 //!
@@ -216,10 +214,8 @@ fn init_with_token_allowlist_twice_returns_invalid_state() {
     client.init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
 
     // Second call must fail; no second admin, no extra allowlist entries.
-    let result = client.try_init_with_token_allowlist(
-        &data.admin,
-        &to_sdk_vec(&data.env, &data.tokens),
-    );
+    let result =
+        client.try_init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
     let err = result.expect_err("second init_with_token_allowlist should fail");
     assert_eq!(err, Ok(Error::InvalidState));
 }
@@ -233,10 +229,8 @@ fn init_with_token_allowlist_after_initialize_returns_invalid_state() {
 
     client.initialize(&data.admin);
 
-    let result = client.try_init_with_token_allowlist(
-        &data.admin,
-        &to_sdk_vec(&data.env, &data.tokens),
-    );
+    let result =
+        client.try_init_with_token_allowlist(&data.admin, &to_sdk_vec(&data.env, &data.tokens));
     let err = result.expect_err("init_with_token_allowlist after initialize should fail");
     assert_eq!(err, Ok(Error::InvalidState));
 }
@@ -306,10 +300,891 @@ fn init_with_token_allowlist_atomicity_leaves_no_partial_state() {
     // the auth-write for the impostor. Admin from the first call
     // still works. We `try_` so the auth failure is contained; the
     // test runner's auth mocks are not poisoned for subsequent calls.
-    let _ = client
-        .try_init_with_token_allowlist(&impostor, &to_sdk_vec(&data.env, &data.tokens));
+    let _ = client.try_init_with_token_allowlist(&impostor, &to_sdk_vec(&data.env, &data.tokens));
 
     // `mock_all_auths` was on at `setup_init` time so `set_paused`
     // still succeeds, proving the original `admin` is intact.
     client.set_paused(&data.admin, &false);
+}
+
+// ── Per-sender stream limit tests ──────────────────────────────────────────
+
+#[test]
+fn sender_stream_count_starts_at_zero() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    assert_eq!(client.sender_stream_count(&data.sender), 0);
+}
+
+#[test]
+fn create_stream_increments_sender_count() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    assert_eq!(client.sender_stream_count(&data.sender), 1);
+}
+
+#[test]
+fn default_max_streams_per_sender_is_ten() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    assert_eq!(client.max_streams_per_sender(), 10);
+}
+
+#[test]
+fn sender_can_create_up_to_default_limit() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    for i in 0..10 {
+        let id = client.create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.tokens[i % 3],
+            &100i128,
+            &(1_100u64 + i as u64 * 100),
+            &(1_200u64 + i as u64 * 100),
+        );
+        assert_eq!(id, i as u64 + 1);
+    }
+    assert_eq!(client.sender_stream_count(&data.sender), 10);
+}
+
+#[test]
+fn create_stream_beyond_limit_returns_stream_limit_exceeded() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    for i in 0..10 {
+        client.create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.tokens[i % 3],
+            &100i128,
+            &(1_100u64 + i as u64 * 100),
+            &(1_200u64 + i as u64 * 100),
+        );
+    }
+
+    let result = client.try_create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &2_100u64,
+        &2_200u64,
+    );
+    let err = result.expect_err("11th stream should exceed limit");
+    assert_eq!(err, Ok(Error::StreamLimitExceeded));
+}
+
+#[test]
+fn settle_stream_decrements_sender_count() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    assert_eq!(client.sender_stream_count(&data.sender), 1);
+
+    // Advance past end_time and settle
+    data.env.ledger().set_timestamp(1_300);
+    client.settle(&id);
+
+    assert_eq!(client.sender_stream_count(&data.sender), 0);
+}
+
+#[test]
+fn settle_frees_slot_for_new_stream() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    // Create stream, settle it, then create another
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    data.env.ledger().set_timestamp(1_300);
+    client.settle(&id);
+
+    // Should be able to create again
+    let new_id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_400u64,
+        &1_500u64,
+    );
+    assert_eq!(new_id, 2);
+    assert_eq!(client.sender_stream_count(&data.sender), 1);
+}
+
+#[test]
+fn withdraw_full_amount_decrements_sender_count() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    assert_eq!(client.sender_stream_count(&data.sender), 1);
+
+    // Advance past end_time so full amount is vested
+    data.env.ledger().set_timestamp(1_300);
+
+    // Withdraw full amount (settles the stream)
+    client.withdraw(&id, &100i128);
+
+    assert_eq!(client.sender_stream_count(&data.sender), 0);
+}
+
+#[test]
+fn admin_can_change_max_streams_per_sender() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    client.set_max_streams_per_sender(&data.admin, &3);
+    assert_eq!(client.max_streams_per_sender(), 3);
+
+    // Create 3 streams
+    for i in 0..3 {
+        client.create_stream(
+            &data.sender,
+            &data.recipient,
+            &data.tokens[i],
+            &100i128,
+            &(1_100u64 + i as u64 * 100),
+            &(1_200u64 + i as u64 * 100),
+        );
+    }
+
+    // 4th should fail
+    let result = client.try_create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_500u64,
+        &1_600u64,
+    );
+    let err = result.expect_err("4th stream should exceed new limit of 3");
+    assert_eq!(err, Ok(Error::StreamLimitExceeded));
+}
+
+#[test]
+fn different_senders_have_independent_counts() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let other_sender = Address::generate(&data.env);
+    let other_recipient = Address::generate(&data.env);
+
+    // Fund other_sender on tokens
+    for token in &data.tokens {
+        StellarAssetClient::new(&data.env, token).mint(&other_sender, &1_000_000);
+    }
+
+    client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    assert_eq!(client.sender_stream_count(&data.sender), 1);
+    assert_eq!(client.sender_stream_count(&other_sender), 0);
+
+    client.create_stream(
+        &other_sender,
+        &other_recipient,
+        &data.tokens[1],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    assert_eq!(client.sender_stream_count(&other_sender), 1);
+    assert_eq!(client.sender_stream_count(&data.sender), 1);
+}
+
+#[test]
+fn sender_can_create_up_to_custom_limit_after_settle() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    // Set limit to 2
+    client.set_max_streams_per_sender(&data.admin, &2);
+
+    let id1 = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[1],
+        &100i128,
+        &1_300u64,
+        &1_400u64,
+    );
+
+    // 3rd should fail
+    let result = client.try_create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[2],
+        &100i128,
+        &1_500u64,
+        &1_600u64,
+    );
+    assert_eq!(result, Err(Ok(Error::StreamLimitExceeded)));
+
+    // Settle one stream
+    data.env.ledger().set_timestamp(1_500);
+    client.settle(&id1);
+
+    // Now 3rd should succeed
+    let id3 = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[2],
+        &100i128,
+        &1_600u64,
+        &1_700u64,
+    );
+    assert_eq!(id3, 3);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
+fn non_admin_cannot_set_max_streams_per_sender() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    data.env.mock_auths(&[]);
+    client.set_max_streams_per_sender(&data.sender, &5);
+}
+
+// ── Event emission tests for cancel_stream, amend_stream, and admin actions ────
+
+#[test]
+fn cancel_stream_emits_cancelled_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Advance time to let some amount be vested
+    data.env.ledger().set_timestamp(1_150);
+
+    // Clear events from creation
+    data.env.events().all();
+
+    // Cancel the stream
+    client.cancel_stream(&id);
+
+    let events = data.env.events().all();
+    assert!(!events.is_empty(), "cancel_stream should emit events");
+
+    // The last event should be the cancelled event
+    let (topics, _) = events.last().unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+}
+
+#[test]
+fn cancel_stream_requires_auth() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Mock auths off and try to cancel as a different address
+    data.env.mock_auths(&[]);
+    let impostor = Address::generate(&data.env);
+
+    let result = client.try_cancel_stream(&impostor, &id);
+    assert!(
+        result.is_err(),
+        "cancel_stream should fail without auth from sender"
+    );
+}
+
+#[test]
+fn cancel_stream_fails_on_settled_stream() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Withdraw full amount to settle
+    data.env.ledger().set_timestamp(1_250);
+    client.withdraw(&id, &100i128);
+
+    // Try to cancel settled stream
+    let result = client.try_cancel_stream(&id);
+    let err = result.expect_err("Should fail on settled stream");
+    assert_eq!(err, Ok(Error::InvalidState));
+}
+
+#[test]
+fn cancel_stream_returns_unstreamed_funds() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // The stream should now exist and be cancellable
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.status, StreamStatus::Active);
+
+    // Cancel the stream
+    client.cancel_stream(&id);
+
+    // Verify stream is now cancelled
+    let cancelled_stream = client.get_stream(&id);
+    assert_eq!(cancelled_stream.status, StreamStatus::Cancelled);
+}
+
+#[test]
+fn amend_stream_emits_amended_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Clear events from creation
+    data.env.events().all();
+
+    // Amend the stream (extend end time)
+    client.amend_stream(&id, &5i128, &1_300u64);
+
+    let events = data.env.events().all();
+    assert!(!events.is_empty(), "amend_stream should emit events");
+}
+
+#[test]
+fn amend_stream_requires_auth() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Try to amend without auth
+    data.env.mock_auths(&[]);
+    let result = client.try_amend_stream(&id, &5i128, &1_300u64);
+    assert!(result.is_err(), "amend_stream should fail without auth");
+}
+
+#[test]
+fn amend_stream_fails_on_invalid_end_time() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Try to amend with end_time in the past
+    let result = client.try_amend_stream(&id, &5i128, &1_050u64);
+    let err = result.expect_err("Should fail with past end_time");
+    assert_eq!(err, Ok(Error::InvalidTimeRange));
+}
+
+#[test]
+fn pause_emits_admin_action_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Clear events from creation
+    data.env.events().all();
+
+    // Pause the stream
+    client.pause(&id);
+
+    let events = data.env.events().all();
+    assert!(!events.is_empty(), "pause should emit events");
+
+    // The event should have 2 topics (stream, pause)
+    let (topics, _) = events.last().unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+}
+
+#[test]
+fn resume_emits_admin_action_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Pause the stream
+    client.pause(&id);
+
+    // Clear events
+    data.env.events().all();
+
+    // Resume the stream
+    client.resume(&id);
+
+    let events = data.env.events().all();
+    assert!(!events.is_empty(), "resume should emit events");
+
+    // The event should have 2 topics (stream, resume)
+    let (topics, _) = events.last().unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+}
+
+#[test]
+fn settle_emits_admin_action_event() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Advance past end_time
+    data.env.ledger().set_timestamp(1_300);
+
+    // Clear events
+    data.env.events().all();
+
+    // Settle the stream
+    client.settle(&id);
+
+    let events = data.env.events().all();
+    assert!(!events.is_empty(), "settle should emit events");
+
+    // The event should have 2 topics (stream, admin_action)
+    let (topics, _) = events.last().unwrap();
+    assert_eq!(topics.len(), 2, "Event should have 2 topics");
+}
+
+#[test]
+fn no_events_on_cancel_failure() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Settle the stream first
+    data.env.ledger().set_timestamp(1_300);
+    client.settle(&id);
+
+    // Clear events
+    data.env.events().all();
+
+    // Try to cancel settled stream (should fail)
+    let _ = client.try_cancel_stream(&id);
+
+    let events = data.env.events().all();
+    assert!(
+        events.is_empty(),
+        "Failed cancel_stream should not emit events, got: {:?}",
+        events
+    );
+}
+
+#[test]
+fn cancel_stream_decrements_sender_count() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    assert_eq!(client.sender_stream_count(&data.sender), 1);
+
+    // Cancel the stream
+    client.cancel_stream(&id);
+
+    // Count should be decremented
+    assert_eq!(client.sender_stream_count(&data.sender), 0);
+}
+
+#[test]
+fn amend_stream_extends_end_time() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    let original = client.get_stream(&id);
+    assert_eq!(original.end_time, 1_200u64);
+
+    // Amend to new end_time
+    client.amend_stream(&id, &5i128, &1_400u64);
+
+    let amended = client.get_stream(&id);
+    assert_eq!(amended.end_time, 1_400u64);
+}
+
+#[test]
+fn amend_stream_fails_on_cancelled_stream() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Cancel the stream
+    client.cancel_stream(&id);
+
+    // Try to amend cancelled stream
+    let result = client.try_amend_stream(&id, &5i128, &1_300u64);
+    let err = result.expect_err("Should fail on cancelled stream");
+    assert_eq!(err, Ok(Error::InvalidState));
+}
+
+// ── Overflow safety tests ────────────────────────────────────────────────────
+
+/// Withdraw the maximum i128 value succeeds (defense-in-depth test).
+#[test]
+fn withdraw_max_amount_succeeds() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &i128::MAX,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    data.env.ledger().set_timestamp(1_300);
+    let withdrawn = client.withdraw(&id, &i128::MAX);
+    assert_eq!(withdrawn, i128::MAX);
+
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.status, StreamStatus::Settled);
+}
+
+/// Settle before any amount is released must handle checked sub correctly.
+#[test]
+fn settle_overflow_returns_overflow_error() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    data.env.ledger().set_timestamp(1_300);
+    client.settle(&id);
+
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.status, StreamStatus::Settled);
+    assert_eq!(stream.released_amount, 100);
+}
+
+/// Creating a stream with start_time == end_time must be rejected.
+#[test]
+fn create_stream_zero_duration_returns_invalid_time_range() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let result = client.try_create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_100u64,
+    );
+    let err = result.expect_err("zero duration should fail");
+    assert_eq!(err, Ok(Error::InvalidTimeRange));
+}
+
+/// Vested amount with extreme values returns `Error::Overflow`.
+#[test]
+fn vested_amount_extreme_values_overflow() {
+    use crate::release;
+    use crate::StreamStatus;
+
+    let env = soroban_sdk::Env::default();
+    let stream = Stream {
+        id: 1,
+        sender: soroban_sdk::Address::generate(&env),
+        recipient: soroban_sdk::Address::generate(&env),
+        token: soroban_sdk::Address::generate(&env),
+        total_amount: i128::MAX,
+        released_amount: 0,
+        start_time: 0,
+        end_time: 1000,
+        duration: 1000,
+        last_update: 0,
+        status: StreamStatus::Active,
+        pause_time: 0,
+        total_paused_duration: 0,
+    };
+
+    let result = release::vested_amount(&stream, 500);
+    assert_eq!(result, Err(Error::Overflow));
+}
+
+/// Withdraw all released amount should settle the stream.
+#[test]
+fn withdraw_full_amount_after_end_settles_stream() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    data.env.ledger().set_timestamp(1_300);
+    client.withdraw(&id, &100i128);
+
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.status, StreamStatus::Settled);
+    assert_eq!(stream.released_amount, 100);
+}
+
+/// Creating a stream with the maximum duration range succeeds.
+#[test]
+fn create_stream_with_large_timespan_succeeds() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_000u64,
+        &u64::MAX,
+    );
+
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.duration, u64::MAX - 1_000);
+}
+
+/// Pause + resume preserves stream balance and uses checked arithmetic.
+#[test]
+fn pause_resume_preserves_vested_amount() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Advance to midpoint
+    data.env.ledger().set_timestamp(1_150);
+    client.pause(&id);
+
+    // Check vested amount at pause
+    let vested = client.stream_balance(&id);
+    assert!(vested > 0);
+    assert!(vested <= 1000);
+
+    // Advance time while paused
+    data.env.ledger().set_timestamp(1_200);
+    let still_vested = client.stream_balance(&id);
+    // Should not have increased while paused
+    assert_eq!(still_vested, vested);
+
+    // Resume
+    client.resume(&id);
+    data.env.ledger().set_timestamp(1_300);
+    let resumed_vested = client.stream_balance(&id);
+    assert_eq!(resumed_vested, 1000);
 }
