@@ -1481,6 +1481,293 @@
         }
       }
     },
+    "/api/v2/streams/{id}/start": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Stream identifier.",
+          "schema": { "type": "string", "example": "stream_lf3k9z" }
+        }
+      ],
+      "post": {
+        "operationId": "startStreamV2",
+        "summary": "Start a payment stream",
+        "description": "Transitions a stream from `draft` to `active`, initiating payment disbursements. Only valid when the stream is in `draft` status.",
+        "tags": ["Streams"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Stream started successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreamV2" },
+                "examples": {
+                  "success": {
+                    "summary": "Stream transitioned from draft to active",
+                    "value": {
+                      "id": "stream_lf3k9z",
+                      "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                      "rate": "120 XLM/month",
+                      "status": "active",
+                      "allowed_actions": ["pause", "stop"],
+                      "created_at": "2024-01-15T10:00:00.000Z",
+                      "settlement": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/401" },
+          "404": { "$ref": "#/components/responses/404" },
+          "409": {
+            "description": "Conflict — stream is not in `draft` status.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "INVALID_STATE_TRANSITION",
+                    "message": "Cannot start a stream that is not in draft status.",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
+    "/api/v2/streams/{id}/stop": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Stream identifier.",
+          "schema": { "type": "string", "example": "stream_lf3k9z" }
+        }
+      ],
+      "post": {
+        "operationId": "stopStreamV2",
+        "summary": "Stop a payment stream",
+        "description": "Permanently stops a stream, transitioning it to `ended` status. Valid from `active` or `paused` states. This action is irreversible.",
+        "tags": ["Streams"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Stream stopped successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreamV2" },
+                "examples": {
+                  "stopped-from-active": {
+                    "summary": "Active stream stopped, now ended",
+                    "value": {
+                      "id": "stream_lf3k9z",
+                      "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                      "rate": "120 XLM/month",
+                      "status": "ended",
+                      "allowed_actions": [],
+                      "created_at": "2024-01-15T10:00:00.000Z",
+                      "settlement": null
+                    }
+                  },
+                  "stopped-from-paused": {
+                    "summary": "Paused stream stopped, now ended",
+                    "value": {
+                      "id": "stream_m7n2p1",
+                      "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                      "rate": "50 XLM/week",
+                      "status": "ended",
+                      "allowed_actions": [],
+                      "created_at": "2024-01-10T08:00:00.000Z",
+                      "settlement": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/401" },
+          "404": { "$ref": "#/components/responses/404" },
+          "409": {
+            "description": "Conflict — stream is not in `active` or `paused` status.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "INVALID_STATE_TRANSITION",
+                    "message": "Cannot stop a stream that is not active or paused.",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
+    "/api/v2/streams/{id}/pause": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Stream identifier.",
+          "schema": { "type": "string", "example": "stream_lf3k9z" }
+        }
+      ],
+      "post": {
+        "operationId": "pauseStreamV2",
+        "summary": "Pause a payment stream",
+        "description": "Temporarily suspends an active stream, transitioning it to `paused` status. Payments are halted until the stream is resumed. Only valid when the stream is `active`.",
+        "tags": ["Streams"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Stream paused successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreamV2" },
+                "examples": {
+                  "success": {
+                    "summary": "Active stream paused",
+                    "value": {
+                      "id": "stream_lf3k9z",
+                      "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                      "rate": "120 XLM/month",
+                      "status": "paused",
+                      "allowed_actions": ["start", "stop"],
+                      "created_at": "2024-01-15T10:00:00.000Z",
+                      "settlement": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/401" },
+          "404": { "$ref": "#/components/responses/404" },
+          "409": {
+            "description": "Conflict — stream is not in `active` status.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "example": {
+                  "error": {
+                    "code": "INVALID_STATE_TRANSITION",
+                    "message": "Cannot pause a stream that is not active.",
+                    "request_id": "req_01HZ9ABCDEF"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
+    "/api/v2/streams/{id}/settle": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Stream identifier.",
+          "schema": { "type": "string", "example": "stream_lf3k9z" }
+        }
+      ],
+      "post": {
+        "operationId": "settleStreamV2",
+        "summary": "Settle a payment stream",
+        "description": "Finalises the stream's payment balance and records settlement details. Can only be called on a stream in `ended` status. Populates the `settlement` field with amount, currency, and timestamp.",
+        "tags": ["Streams"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Stream settled successfully. The `settlement` field is now populated.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreamV2" },
+                "examples": {
+                  "success": {
+                    "summary": "Ended stream settled with XLM balance",
+                    "value": {
+                      "id": "stream_lf3k9z",
+                      "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                      "rate": "120 XLM/month",
+                      "status": "ended",
+                      "allowed_actions": [],
+                      "created_at": "2024-01-15T10:00:00.000Z",
+                      "settlement": {
+                        "settled_at": "2024-02-01T12:00:00.000Z",
+                        "amount": "360 XLM",
+                        "currency": "XLM"
+                      }
+                    }
+                  },
+                  "zero-balance": {
+                    "summary": "Stream settled with zero outstanding balance",
+                    "value": {
+                      "id": "stream_q8r4s5",
+                      "recipient": "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ234567890ABCDEFG",
+                      "rate": "10 XLM/day",
+                      "status": "ended",
+                      "allowed_actions": [],
+                      "created_at": "2024-01-20T09:00:00.000Z",
+                      "settlement": {
+                        "settled_at": "2024-01-20T09:05:00.000Z",
+                        "amount": "0 XLM",
+                        "currency": "XLM"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/401" },
+          "404": { "$ref": "#/components/responses/404" },
+          "409": {
+            "description": "Conflict — stream is not in `ended` status or has already been settled.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "not-ended": {
+                    "summary": "Stream must be ended before settlement",
+                    "value": {
+                      "error": {
+                        "code": "INVALID_STATE_TRANSITION",
+                        "message": "Cannot settle a stream that is not in ended status.",
+                        "request_id": "req_01HZ9ABCDEF"
+                      }
+                    }
+                  },
+                  "already-settled": {
+                    "summary": "Stream has already been settled",
+                    "value": {
+                      "error": {
+                        "code": "ALREADY_SETTLED",
+                        "message": "This stream has already been settled.",
+                        "request_id": "req_01HZ9ABCDEF"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
     "/api/webhooks/dlq": {
       "post": {
         "operationId": "receiveDlqWebhook",
