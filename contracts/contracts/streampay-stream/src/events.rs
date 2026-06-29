@@ -210,3 +210,35 @@ pub fn admin_action(env: &Env, stream_id: u64, admin: &Address, action: Symbol, 
     }
     .publish(env);
 }
+
+/// Emitted when the admin toggles the global pause flag via
+/// [`Contract::set_paused`].
+pub fn paused_set(env: &Env, admin: &Address, paused: bool, timestamp: u64) {
+    env.events().publish(
+        (symbol_short!("stream"), symbol_short!("set_pause")),
+        (admin.clone(), paused, timestamp),
+    );
+}
+
+/// Emitted when the admin role is transferred via [`Contract::set_admin`].
+pub fn admin_changed(env: &Env, admin: &Address, new_admin: &Address, timestamp: u64) {
+    env.events().publish(
+        (symbol_short!("stream"), symbol_short!("set_admin")),
+        (admin.clone(), new_admin.clone(), timestamp),
+    );
+}
+
+/// Emitted when a token's allowlist status is changed via
+/// [`Contract::set_token_allowed`].
+pub fn token_allowed_set(
+    env: &Env,
+    admin: &Address,
+    token: &Address,
+    allowed: bool,
+    timestamp: u64,
+) {
+    env.events().publish(
+        (symbol_short!("stream"), symbol_short!("set_token")),
+        (admin.clone(), token.clone(), allowed, timestamp),
+    );
+}

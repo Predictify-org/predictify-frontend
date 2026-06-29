@@ -178,6 +178,7 @@ impl Contract {
     pub fn set_paused(env: Env, admin: Address, paused: bool) -> Result<(), Error> {
         require_admin(&env, &admin)?;
         storage::set_paused(&env, paused);
+        events::paused_set(&env, &admin, paused, env.ledger().timestamp());
         Ok(())
     }
 
@@ -191,6 +192,7 @@ impl Contract {
     pub fn set_admin(env: Env, admin: Address, new_admin: Address) -> Result<(), Error> {
         require_admin(&env, &admin)?;
         storage::set_admin(&env, &new_admin);
+        events::admin_changed(&env, &admin, &new_admin, env.ledger().timestamp());
         Ok(())
     }
 
@@ -219,6 +221,7 @@ impl Contract {
     ) -> Result<(), Error> {
         require_admin(&env, &admin)?;
         storage::set_token_allowed(&env, &token, allowed);
+        events::token_allowed_set(&env, &admin, &token, allowed, env.ledger().timestamp());
         Ok(())
     }
 

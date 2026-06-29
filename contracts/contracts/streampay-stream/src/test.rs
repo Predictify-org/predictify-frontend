@@ -16,7 +16,7 @@
 
 use super::*;
 use soroban_sdk::testutils::{Address as _, Events as _, Ledger as _};
-use soroban_sdk::{token::StellarAssetClient, Address, Env};
+use soroban_sdk::{symbol_short, token::StellarAssetClient, Address, Env};
 
 /// All addresses and tokens needed by a single test. We use a
 /// fixed-size array on the stack (no `Vec`) because the contract
