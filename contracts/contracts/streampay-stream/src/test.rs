@@ -651,7 +651,7 @@ fn cancel_stream_emits_cancelled_event() {
     assert!(!events.is_empty(), "cancel_stream should emit events");
 
     // The last event should be the cancelled event
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -671,11 +671,10 @@ fn cancel_stream_requires_auth() {
         &1_200u64,
     );
 
-    // Mock auths off and try to cancel as a different address
+    // Mock auths off so the required sender authorisation is absent.
     data.env.mock_auths(&[]);
-    let impostor = Address::generate(&data.env);
 
-    let result = client.try_cancel_stream(&impostor, &id);
+    let result = client.try_cancel_stream(&id);
     assert!(
         result.is_err(),
         "cancel_stream should fail without auth from sender"
@@ -832,7 +831,7 @@ fn pause_emits_admin_action_event() {
     assert!(!events.is_empty(), "pause should emit events");
 
     // The event should have 2 topics (stream, pause)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -865,7 +864,7 @@ fn resume_emits_admin_action_event() {
     assert!(!events.is_empty(), "resume should emit events");
 
     // The event should have 2 topics (stream, resume)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -898,7 +897,7 @@ fn settle_emits_admin_action_event() {
     assert!(!events.is_empty(), "settle should emit events");
 
     // The event should have 2 topics (stream, admin_action)
-    let (topics, _) = events.last().unwrap();
+    let (_, topics, _) = events.last().unwrap();
     assert_eq!(topics.len(), 2, "Event should have 2 topics");
 }
 
@@ -1187,4 +1186,132 @@ fn pause_resume_preserves_vested_amount() {
     data.env.ledger().set_timestamp(1_300);
     let resumed_vested = client.stream_balance(&id);
     assert_eq!(resumed_vested, 1000);
+}
+
+// ── Per-org token allowlist (#704) ────────────────────────────────────────────
+
+/// An org with no allowlist entries is unrestricted (backwards compatible).
+#[test]
+fn org_without_allowlist_is_unrestricted() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let org = Address::generate(&data.env);
+
+    // No per-org entries → all globally-allowed tokens are allowed.
+    assert!(client.is_org_token_allowed(&org, &data.tokens[0]));
+
+    let id = client.create_stream_for_org(
+        &org,
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    assert_eq!(client.get_stream(&id).token, data.tokens[0]);
+}
+
+/// Once an org allowlists a token it enters whitelist mode: other tokens block.
+#[test]
+fn org_allowlist_enforces_whitelist_mode() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let org = Address::generate(&data.env);
+
+    // Allow token[0] for the org → org is now enforced.
+    client.set_org_token_allowed(&data.admin, &org, &data.tokens[0], &true);
+    assert!(client.is_org_token_allowed(&org, &data.tokens[0]));
+    // token[1] was never allowed for this org → blocked.
+    assert!(!client.is_org_token_allowed(&org, &data.tokens[1]));
+
+    // Allowed token streams fine.
+    client.create_stream_for_org(
+        &org,
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    // Non-allowed token is rejected for this org.
+    let result = client.try_create_stream_for_org(
+        &org,
+        &data.sender,
+        &data.recipient,
+        &data.tokens[1],
+        &100i128,
+        &1_300u64,
+        &1_400u64,
+    );
+    assert_eq!(
+        result.expect_err("non-allowlisted token should be blocked for org"),
+        Ok(Error::TokenNotAllowed)
+    );
+}
+
+/// An explicit per-org block overrides a global allow.
+#[test]
+fn org_allowlist_explicit_block() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let org = Address::generate(&data.env);
+
+    client.set_org_token_allowed(&data.admin, &org, &data.tokens[0], &false);
+    assert!(!client.is_org_token_allowed(&org, &data.tokens[0]));
+
+    let result = client.try_create_stream_for_org(
+        &org,
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+    assert_eq!(
+        result.expect_err("explicitly blocked token should fail for org"),
+        Ok(Error::TokenNotAllowed)
+    );
+}
+
+/// Per-org allowlists are independent across organisations.
+#[test]
+fn org_allowlist_is_per_org() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let org_a = Address::generate(&data.env);
+    let org_b = Address::generate(&data.env);
+
+    // org_a enters whitelist mode allowing only token[0].
+    client.set_org_token_allowed(&data.admin, &org_a, &data.tokens[0], &true);
+
+    // org_a: token[1] blocked; org_b: unrestricted (never opted in).
+    assert!(!client.is_org_token_allowed(&org_a, &data.tokens[1]));
+    assert!(client.is_org_token_allowed(&org_b, &data.tokens[1]));
+}
+
+/// Only the admin may configure a per-org allowlist.
+#[test]
+fn set_org_token_allowed_requires_admin() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+    client.initialize(&data.admin);
+
+    let org = Address::generate(&data.env);
+    data.env.mock_auths(&[]);
+
+    let result =
+        client.try_set_org_token_allowed(&data.admin, &org, &data.tokens[0], &true);
+    assert!(result.is_err(), "non-authorised admin call should fail");
 }

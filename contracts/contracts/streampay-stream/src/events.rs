@@ -150,8 +150,11 @@ pub fn amended(
 /// Carries the action symbol (e.g., "pause", "resume", "force_cancel") so
 /// indexers can track admin operations on behalf of senders.
 pub fn admin_action(env: &Env, stream_id: u64, admin: &Address, action: Symbol, timestamp: u64) {
+    // `symbol_short!` caps topics at 9 characters, so the admin-action topic is
+    // abbreviated to "admin_act"; the specific action ("pause"/"resume"/…) is
+    // carried in the event body for indexers.
     env.events().publish(
-        (symbol_short!("stream"), symbol_short!("admin_action")),
+        (symbol_short!("stream"), symbol_short!("admin_act")),
         (stream_id, admin.clone(), action, timestamp),
     );
 }
