@@ -107,6 +107,20 @@ describe("ToastProvider", () => {
     expect(screen.getByText("Heads up").closest("[data-severity='info']")).toBeTruthy();
   });
 
+  it("announces the severity to screen readers alongside the icon", () => {
+    renderToastHarness();
+
+    fireEvent.click(screen.getByRole("button", { name: /show success/i }));
+    fireEvent.click(screen.getByRole("button", { name: /show error/i }));
+    fireEvent.click(screen.getByRole("button", { name: /show warning/i }));
+    fireEvent.click(screen.getByRole("button", { name: /show info/i }));
+
+    expect(screen.getByText("Success:")).toBeInTheDocument();
+    expect(screen.getByText("Error:")).toBeInTheDocument();
+    expect(screen.getByText("Warning:")).toBeInTheDocument();
+    expect(screen.getByText("Information:")).toBeInTheDocument();
+  });
+
   it("dismisses a toast manually and via action click", () => {
     renderToastHarness();
 
