@@ -79,6 +79,36 @@ describe("StreamsPageContent", () => {
     expect(screen.getByText(/paused on last day; final day prorated/i)).toBeInTheDocument();
   });
 
+  it("renders the error state with heading and contact support link", () => {
+    render(<StreamsPageContent state="error" />);
+
+    expect(
+      screen.getByRole("heading", { name: /couldn't load your streams/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /contact support/i })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("renders a retry button in the error state when onRetry is provided", () => {
+    const onRetry = jest.fn();
+    render(<StreamsPageContent state="error" onRetry={onRetry} />);
+
+    const retryBtn = screen.getByRole("button", { name: /try again/i });
+    expect(retryBtn).toBeInTheDocument();
+    retryBtn.click();
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a custom errorMessage in the error panel", () => {
+    render(
+      <StreamsPageContent
+        state="error"
+        errorMessage="The API returned a 503."
+      />,
+    );
+    expect(screen.getByText(/the api returned a 503/i)).toBeInTheDocument();
+  });
+
   it("applies the animation class only to active streams", () => {
     const streams = [
       {
