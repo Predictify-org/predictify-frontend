@@ -1630,6 +1630,70 @@
         }
       }
     },
+    "/api/admin/pause-by-sender": {
+      "post": {
+        "operationId": "adminPauseBySender",
+        "summary": "Emergency-pause all streams by sender",
+        "description": "Pauses all active payment streams belonging to the given sender address. Gated by admin auth — only the configured admin address may call this.\n\nNon-active streams (draft, paused, ended) are silently skipped.\n\n**Auth:** Admin wallet address via `Actor-Wallet-Address` header or JWT.\n\n**Idempotency:** Not enforced; repeat calls are safe (already-paused streams are skipped).",
+        "tags": ["Admin"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["senderAddress"],
+                "properties": {
+                  "senderAddress": {
+                    "type": "string",
+                    "description": "Stellar wallet address of the sender whose streams should be paused.",
+                    "example": "GCVVMU4QAB7O6TZCZMF4FPL2KOHVPR2SJNX5O3H6X5Y5QK6HZ"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Streams paused.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": ["paused", "count", "senderAddress"],
+                      "properties": {
+                        "paused": {
+                          "type": "array",
+                          "description": "Array of streams that were paused by this request.",
+                          "items": { "$ref": "#/components/schemas/Stream" }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "description": "Number of streams paused."
+                        },
+                        "senderAddress": {
+                          "type": "string",
+                          "description": "The sender address that was targeted."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/400" },
+          "403": { "$ref": "#/components/responses/403" },
+          "422": { "$ref": "#/components/responses/422" },
+          "500": { "$ref": "#/components/responses/500" }
+        }
+      }
+    },
     "/api/debug/kms-sign": {
       "post": {
         "operationId": "debugKmsSign",
@@ -1687,6 +1751,7 @@
     { "name": "Streams", "description": "Payment stream management (v2)" },
     { "name": "Streams v1", "description": "Payment stream management (v1, deprecated — use Streams)" },
     { "name": "Webhooks", "description": "Webhook ingestion and delivery history" },
+    { "name": "Admin", "description": "Admin-only emergency and maintenance operations" },
     { "name": "Debug", "description": "Non-production debugging utilities" }
   ]
 }
