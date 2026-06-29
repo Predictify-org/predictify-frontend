@@ -12,6 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStrip"
 import { ActiveBets } from "@/components/active-bets/ActiveBets"
 import { ActivityTimeline } from "@/components/activity-timeline"
+import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator"
 import { useEffect, useState } from "react"
 
 interface Stat {
@@ -59,6 +60,7 @@ export default function DashboardPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
   const [stats, setStats] = useState<Stat[] | null>(null)
   const [hiddenRecommendations, setHiddenRecommendations] = useState<string[]>([])
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null)
 
   // Simulate async fetch
   useEffect(() => {
@@ -75,6 +77,7 @@ export default function DashboardPage() {
       } else {
         setStats(fetched)
         setStatus('success')
+        setLastRefreshedAt(new Date())
       }
     }, 1500)
     return () => clearTimeout(timer)
@@ -95,6 +98,7 @@ export default function DashboardPage() {
       ]
       setStats(fetched)
       setStatus('success')
+      setLastRefreshedAt(new Date())
     }, 1500)
   }
 
@@ -345,6 +349,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <div className="flex items-center gap-2">
+          <RefreshIndicator lastRefreshedAt={lastRefreshedAt} onRefresh={retry} />
           <Button asChild>
             <Link href="/events/new">Create New Event</Link>
           </Button>
