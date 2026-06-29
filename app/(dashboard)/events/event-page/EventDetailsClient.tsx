@@ -481,6 +481,12 @@ export default function EventDetailsClient() {
           </div>
         </div>
         <p className="text-muted-foreground">{eventData.description}</p>
+        <div className="mt-4 flex items-center gap-3">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            Resolution Preview
+          </span>
+          <ResolutionPreview />
+        </div>
       </div>
 
       <Separator className="my-6" />
