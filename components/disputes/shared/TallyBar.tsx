@@ -4,6 +4,8 @@ import { Check, X } from 'lucide-react';
 import { TallySide } from '@/types/disputes';
 import { cn } from '@/lib/utils';
 import { OutcomeIcon, getVariantByIndex } from '@/components/icons/OutcomeIcons';
+import { LiveRegion } from '@/components/ui/live-region';
+import { useCountUp } from '@/lib/use-count-up';
 
 interface TallyBarProps {
   tally: [TallySide, TallySide];
@@ -24,32 +26,22 @@ export function TallyBar({ tally, showAmounts = false }: TallyBarProps) {
   const animatedRightPct = useCountUp(rightPct, 0, 400);
   const animatedLeftAmount = useCountUp(left.amount, 0, 400);
   const animatedRightAmount = useCountUp(right.amount, 0, 400);
-  const [liveMessage, setLiveMessage] = React.useState('');
-  const lastAnnouncedMessage = React.useRef('');
-  const hasMountedRef = React.useRef(false);
 
   const leftPctLabel = `${animatedLeftPct.toFixed(1)}%`;
   const rightPctLabel = `${animatedRightPct.toFixed(1)}%`;
   const leftAmountLabel = `${Math.round(animatedLeftAmount).toLocaleString()} tokens`;
   const rightAmountLabel = `${Math.round(animatedRightAmount).toLocaleString()} tokens`;
 
+  // Compute aria summary from the TARGET (final) prop values, not the animated
+  // intermediates.  This keeps screen-reader announcements clean: one clear
+  // message per tally update instead of 60 fps of noisy partial values during
+  // the visual count-up animation.
+  const ariaLeftAmountLabel = `${Math.round(left.amount).toLocaleString()} tokens`;
+  const ariaRightAmountLabel = `${Math.round(right.amount).toLocaleString()} tokens`;
   const ariaSummary = showAmounts
-    ? `${left.label}: ${animatedLeftPct.toFixed(1)} percent, ${leftAmountLabel}. ` +
-      `${right.label}: ${animatedRightPct.toFixed(1)} percent, ${rightAmountLabel}.`
-    : `${left.label}: ${animatedLeftPct.toFixed(1)} percent. ${right.label}: ${animatedRightPct.toFixed(1)} percent.`;
-
-  React.useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      lastAnnouncedMessage.current = ariaSummary;
-      return;
-    }
-
-    if (ariaSummary && ariaSummary !== lastAnnouncedMessage.current) {
-      setLiveMessage(ariaSummary);
-      lastAnnouncedMessage.current = ariaSummary;
-    }
-  }, [ariaSummary]);
+    ? `${left.label}: ${leftPct.toFixed(1)} percent, ${ariaLeftAmountLabel}. ` +
+      `${right.label}: ${rightPct.toFixed(1)} percent, ${ariaRightAmountLabel}.`
+    : `${left.label}: ${leftPct.toFixed(1)} percent. ${right.label}: ${rightPct.toFixed(1)} percent.`;
 
   return (
     <div className="w-full space-y-1">
@@ -116,9 +108,7 @@ export function TallyBar({ tally, showAmounts = false }: TallyBarProps) {
         <span>{rightPctLabel}</span>
       </div>
 
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {liveMessage}
-      </div>
+      <LiveRegion message={ariaSummary} />
     </div>
   );
 }
