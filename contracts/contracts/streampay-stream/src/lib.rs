@@ -535,9 +535,8 @@ impl Contract {
 
     /// Returns the token amount currently accrued and available for withdrawal.
     ///
-    /// Delegates to the internal [`withdrawable_amount`] helper.
-    /// Returns `0` for `Draft` streams (accrual has not started) and for any
-    /// stream in a non-`Active` state.
+    /// Delegates to [`release::withdrawable`]. Returns `0` for `Draft` streams
+    /// (accrual has not started) and for any stream in a non-`Active` state.
     ///
     /// This is a read-only call and is never blocked by the pause flag.
     ///
@@ -546,11 +545,6 @@ impl Contract {
     ///
     /// # Returns
     /// Token amount (base units) available to withdraw right now.
-    ///
-    /// # Errors
-    /// - [`Error::NotFound`] if `stream_id` does not exist.
-    ///
-    /// Delegates to [`withdrawable_amount`]. Returns `0` for `Draft` streams.
     ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
