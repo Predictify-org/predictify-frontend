@@ -7,6 +7,8 @@ To ensure the reliability of StreamPay's accounting, we use property-based testi
 1. **Conservation of Value**: `deposited_amount == withdrawn_amount + escrow_balance`. Funds must always be accounted for.
 2. **Non-Negativity**: `deposited`, `withdrawn`, and `escrow` must never be less than zero.
 3. **Escrow Bound**: A withdrawal or refund can never exceed the current `escrow` balance.
+4. **Vested Amount Bound**: `0 ≤ vested_amount ≤ total_amount` at all times. Vested amount can never exceed principal or go below zero.
+5. **Vested Monotonicity**: As time passes, vested amount never decreases (accounting for pauses).
 
 ## Property Testing Setup
 
@@ -15,6 +17,12 @@ We use `fast-check` to generate randomized sequences of `deposit`, `withdraw`, a
 - **Runs**: Default 1000 iterations per test.
 - **Shrinking**: If a failure is found, `fast-check` automatically simplifies the event sequence to the minimal reproduction case.
 - **CI Stability**: Tests use deterministic seeds to ensure failures are reproducible in CI pipelines.
+
+## Vested Amount Tests
+
+The vested amount tests verify:
+- Vested amount stays between 0 and totalAmount at any time
+- Vested amount is non-decreasing with time (even with pauses)
 
 ## Security Note
 

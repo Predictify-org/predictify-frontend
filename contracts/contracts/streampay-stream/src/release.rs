@@ -48,10 +48,10 @@ pub fn vested_amount(stream: &Stream, now: u64) -> Result<i128, Error> {
     // All casts from u64 to i128 are safe because u64::MAX < i128::MAX.
     stream
         .total_amount
-        .checked_mul(elapsed as i128)  // total_amount ∈ [0, i128::MAX], elapsed cast is lossless
-        .ok_or(Error::Overflow)?        // propagate overflow
+        .checked_mul(elapsed as i128) // total_amount ∈ [0, i128::MAX], elapsed cast is lossless
+        .ok_or(Error::Overflow)? // propagate overflow
         .checked_div(stream.duration as i128) // duration > 0 at this point, cast is lossless
-        .ok_or(Error::Overflow)         // propagate overflow (shouldn't happen for division by non-zero)
+        .ok_or(Error::Overflow) // propagate overflow (shouldn't happen for division by non-zero)
 }
 
 /// Computes the amount available for withdrawal (vested - already released).
@@ -220,27 +220,33 @@ mod tests {
     fn test_table_driven_vested_amount() {
         // (total, start, end, now, expected)
         let cases: [(i128, u64, u64, u64, i128); 12] = [
-            (1000, 1000, 2000, 500, 0),    // before start
-            (1000, 1000, 2000, 1000, 0),   // at start
-            (1000, 1000, 2000, 1250, 250), // 25% through
-            (1000, 1000, 2000, 1500, 500), // 50% through
-            (1000, 1000, 2000, 1750, 750), // 75% through
+            (1000, 1000, 2000, 500, 0),     // before start
+            (1000, 1000, 2000, 1000, 0),    // at start
+            (1000, 1000, 2000, 1250, 250),  // 25% through
+            (1000, 1000, 2000, 1500, 500),  // 50% through
+            (1000, 1000, 2000, 1750, 750),  // 75% through
             (1000, 1000, 2000, 2000, 1000), // at end
             (1000, 1000, 2000, 3000, 1000), // past end
-            (100, 0, 100, 0, 0),           // zero start time
-            (100, 0, 100, 50, 50),         // zero start time, mid
-            (100, 0, 100, 100, 100),       // zero start time, at end
-            (1, 0, 1, 0, 0),               // minimal duration
-            (1, 0, 1, 1, 1),               // minimal duration, at end
+            (100, 0, 100, 0, 0),            // zero start time
+            (100, 0, 100, 50, 50),          // zero start time, mid
+            (100, 0, 100, 100, 100),        // zero start time, at end
+            (1, 0, 1, 0, 0),                // minimal duration
+            (1, 0, 1, 1, 1),                // minimal duration, at end
         ];
 
         for case in cases.iter() {
             let stream = test_stream(case.0, 0, case.1, case.2);
             let result = vested_amount(&stream, case.3);
             assert_eq!(
-                result, Ok(case.4),
+                result,
+                Ok(case.4),
                 "vested_amount failed: total={}, start={}, end={}, now={}, expected={}, got={:?}",
-                case.0, case.1, case.2, case.3, case.4, result
+                case.0,
+                case.1,
+                case.2,
+                case.3,
+                case.4,
+                result
             );
         }
     }
@@ -249,12 +255,12 @@ mod tests {
     fn test_table_driven_withdrawable() {
         // (total, released, start, end, now, expected)
         let cases: [(i128, i128, u64, u64, u64, i128); 6] = [
-            (1000, 0, 1000, 2000, 1000, 0),    // nothing vested
-            (1000, 0, 1000, 2000, 1500, 500),  // half vested
+            (1000, 0, 1000, 2000, 1000, 0),     // nothing vested
+            (1000, 0, 1000, 2000, 1500, 500),   // half vested
             (1000, 200, 1000, 2000, 1500, 300), // half vested, some released
-            (1000, 500, 1000, 2000, 1500, 0),  // half vested, more released
-            (1000, 1000, 1000, 2000, 2000, 0), // fully released
-            (1000, 0, 1000, 2000, 3000, 1000), // past end, nothing released
+            (1000, 500, 1000, 2000, 1500, 0),   // half vested, more released
+            (1000, 1000, 1000, 2000, 2000, 0),  // fully released
+            (1000, 0, 1000, 2000, 3000, 1000),  // past end, nothing released
         ];
 
         for case in cases.iter() {

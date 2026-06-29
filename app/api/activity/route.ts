@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { decodeCursor, encodeCursor, getStore } from "@/app/lib/db";
+import {
+  decodeCompositeCursor,
+  encodeCompositeCursor,
+  getStore,
+} from "@/app/lib/db";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
@@ -35,9 +39,10 @@ export async function GET(request: Request) {
   };
 
   return withCorrelationContext(context, async () => {
-    let events = Array.from(streamRepository.activity.values()).sort((a, b) =>
-      b.timestamp.localeCompare(a.timestamp),
-    );
+    let events = Array.from(streamRepository.activity.values()).sort((a, b) => {
+      const tsCmp = b.timestamp.localeCompare(a.timestamp);
+      return tsCmp !== 0 ? tsCmp : b.id.localeCompare(a.id);
+    });
 
     if (streamId) {
       events = events.filter((event) => event.streamId === streamId);
@@ -47,36 +52,44 @@ export async function GET(request: Request) {
       events = events.filter((event) => event.type === type);
     }
 
+    const totalFiltered = events.length;
+
     if (cursor) {
+      let cursorTimestamp: string;
       let cursorId: string;
       try {
-        cursorId = decodeCursor(cursor);
+        const decoded = decodeCompositeCursor(cursor);
+        cursorTimestamp = decoded.timestamp;
+        cursorId = decoded.id;
       } catch {
         return createErrorResponse("INVALID_CURSOR", "Malformed cursor", 422);
       }
 
-      const cursorIndex = events.findIndex((event) => event.id === cursorId);
-      if (cursorIndex >= 0) {
-        events = events.slice(cursorIndex + 1);
-      }
+      events = events.filter((event) => {
+        const tsCmp = event.timestamp.localeCompare(cursorTimestamp);
+        return tsCmp < 0 || (tsCmp === 0 && event.id.localeCompare(cursorId) < 0);
+      });
     }
 
     const paginatedEvents = events.slice(0, limit);
     const hasNext = events.length > limit;
     const nextCursor =
       hasNext && paginatedEvents.length > 0
-        ? encodeCursor(paginatedEvents[paginatedEvents.length - 1].id)
+        ? encodeCompositeCursor(
+            paginatedEvents[paginatedEvents.length - 1].timestamp,
+            paginatedEvents[paginatedEvents.length - 1].id,
+          )
         : null;
 
     logger.info("Activity list completed", {
       count: paginatedEvents.length,
-      total: streamRepository.activity.size,
+      total: totalFiltered,
     });
 
     return NextResponse.json({
       data: paginatedEvents,
-      meta: { hasNext, nextCursor, total: streamRepository.activity.size },
-      links: { self: `/api/v1/activity?limit=${limit}` },
+      meta: { hasNext, nextCursor, total: totalFiltered },
+      links: { self: `/api/activity?limit=${limit}` },
     });
-  }
+  });
 }

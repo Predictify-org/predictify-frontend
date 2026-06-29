@@ -5,7 +5,7 @@
  * without a real Next.js request context.
  */
 
-import { errorResponse, ErrorCode, type ErrorEnvelope } from "./index";
+import { errorResponse, ErrorCode, type ErrorEnvelope } from "./server";
 
 // ---------------------------------------------------------------------------
 // Minimal NextResponse stub — mirrors the real shape we rely on

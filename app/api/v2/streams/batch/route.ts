@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse, ErrorCode } from "@/app/lib/errors";
+import { errorResponse, ErrorCode } from "@/app/lib/errors/server";
 import { getStore, withLock } from "@/app/lib/db";
 import { toV2Stream, dbStreamToV1 } from "@/app/lib/api-version";
 import type { Stream } from "@/app/types/openapi";

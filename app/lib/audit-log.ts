@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "crypto";
 import { tryAuthenticateRequest } from "@/app/lib/auth";
+import { attachRequestFingerprintMetadata } from "@/lib/fingerprint";
 import type {
   AuditActor,
   AuditActorRole,
@@ -8,9 +9,10 @@ import type {
   AuditExportRow,
   AuditListFilters,
   AuditMetadataValue,
+  AuditPurgeResult,
 } from "@/app/types/audit";
 
-export const AUDIT_LOG_RETENTION_DAYS = 365 * 7;
+export const AUDIT_LOG_RETENTION_DAYS = 30;
 
 const VALID_ROLES = new Set<AuditActorRole>([
   "user",
@@ -85,6 +87,7 @@ function redactTargetAccount(account: string | undefined): string | null {
 
 export class AppendOnlyAuditLogStore {
   private readonly entries: AuditEntry[] = [];
+  private readonly archivedEntries: AuditEntry[] = [];
 
   append(input: AuditEntryInput): AuditEntry {
     const lastEntry = this.entries[this.entries.length - 1];
@@ -198,14 +201,45 @@ export class AppendOnlyAuditLogStore {
     }));
   }
 
+  archiveExpiredEntries(referenceTimestamp: string | Date = new Date().toISOString()): AuditEntry[] {
+    const cutoff = new Date(referenceTimestamp).getTime();
+    const expiredEntries = this.entries.filter((entry) => new Date(entry.retentionUntil).getTime() <= cutoff);
+
+    if (expiredEntries.length === 0) {
+      return [];
+    }
+
+    const remainingEntries = this.entries.filter((entry) => new Date(entry.retentionUntil).getTime() > cutoff);
+
+    this.entries.splice(0, this.entries.length, ...remainingEntries);
+    this.archivedEntries.push(...expiredEntries.map((entry) => deepFreeze(cloneValue(entry))));
+
+    return expiredEntries.map((entry) => cloneValue(entry));
+  }
+
+  restoreArchivedEntries(): AuditEntry[] {
+    if (this.archivedEntries.length === 0) {
+      return [];
+    }
+
+    const restored = this.archivedEntries.splice(0, this.archivedEntries.length).map((entry) => cloneValue(entry));
+    this.entries.splice(0, 0, ...restored);
+    return restored;
+  }
+
+  getArchivedEntries(): AuditEntry[] {
+    return this.archivedEntries.map((entry) => cloneValue(entry));
+  }
+
   count(): number {
     return this.entries.length;
   }
 
   assertIntegrity(): boolean {
+    const chain = [...this.archivedEntries, ...this.entries];
     let previousHash: string | null = null;
 
-    for (const entry of this.entries) {
+    for (const entry of chain) {
       const recalculatedHash = hashValue({
         action: entry.action,
         actor: entry.actor,
@@ -241,11 +275,61 @@ export class AppendOnlyAuditLogStore {
     throw new Error("AUDIT_LOG_APPEND_ONLY");
   }
 
+  purgeArchivedRows(cutoffTimestamp: string, execute = false): AuditPurgeResult {
+    const cutoffMs = Date.parse(cutoffTimestamp);
+    if (!Number.isFinite(cutoffMs)) {
+      throw new Error("INVALID_PURGE_CUTOFF");
+    }
+
+    const chainIntactBefore = this.assertIntegrity();
+    const purged = this.entries.filter((entry) => Date.parse(entry.timestamp) < cutoffMs);
+    const retained = this.entries.filter((entry) => Date.parse(entry.timestamp) >= cutoffMs);
+
+    if (execute && purged.length > 0) {
+      const rebased = this.rebaseChain(retained);
+      this.entries.splice(0, this.entries.length, ...rebased);
+    }
+
+    return {
+      chainIntactAfter: execute ? this.assertIntegrity() : chainIntactBefore,
+      chainIntactBefore,
+      cutoffTimestamp: new Date(cutoffMs).toISOString(),
+      executed: execute,
+      purgedEntries: purged.length,
+      purgedIds: purged.map((entry) => entry.id),
+      retainedEntries: retained.length,
+    };
+  }
+
   reset(seedEntries: AuditEntryInput[] = defaultSeedAuditEntries) {
     this.entries.splice(0, this.entries.length);
+    this.archivedEntries.splice(0, this.archivedEntries.length);
     for (const entry of seedEntries) {
       this.append(entry);
     }
+  }
+
+  private rebaseChain(entries: AuditEntry[]): AuditEntry[] {
+    let previousHash: string | null = null;
+
+    return entries.map((entry) => {
+      const nextEntry = cloneValue(entry);
+      nextEntry.prevHash = previousHash;
+      nextEntry.entryHash = hashValue({
+        action: nextEntry.action,
+        actor: nextEntry.actor,
+        afterHash: nextEntry.afterHash,
+        beforeHash: nextEntry.beforeHash,
+        diffHash: nextEntry.diffHash,
+        metadata: nextEntry.metadata ?? null,
+        prevHash: nextEntry.prevHash,
+        requestId: nextEntry.requestId,
+        target: nextEntry.target,
+        timestamp: nextEntry.timestamp,
+      });
+      previousHash = nextEntry.entryHash;
+      return deepFreeze(nextEntry);
+    });
   }
 }
 
@@ -294,7 +378,7 @@ export function recordPrivilegedStreamAuditEvent(args: {
     actor: resolveAuditActor(args.request),
     after: args.after,
     before: args.before,
-    metadata: args.metadata,
+    metadata: attachRequestFingerprintMetadata(args.request, args.metadata),
     requestId: buildRequestId(args.request),
     target: {
       account: args.targetAccount,
@@ -337,3 +421,6 @@ auditLogStore.reset();
 export function resetAuditLogStore() {
   auditLogStore.reset();
 }
+
+// Register the Node-side audit hook for middleware fingerprint capture.
+import '@/lib/fingerprint-audit';
