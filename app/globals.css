@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Focus-visible layer (WCAG 2.1 AA keyboard navigation) ===== */
+@import "./styles/focus.css";
+
 /* ===== BASE Styles ===== */
 
 html {

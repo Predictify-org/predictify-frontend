@@ -6,10 +6,9 @@ components and interaction flows.
 ## Snapshot
 
 - Campaign: `GrantFox`
-- Last updated: `2026-06-28`
+- Last updated: `2026-06-29`
 - API changes: None
-- Visible product changes: None in this update; this is a documentation and audit
-  manifest refresh.
+- Visible product changes: None in this update
 
 ## Board Status
 
@@ -21,6 +20,7 @@ components and interaction flows.
 | `ErrorRecoveryScreen` | Verified | Recovery CTAs, incident copy affordance, route escape hatches | `components/error/ErrorRecoveryScreen.tsx`, `components/error/ErrorRecoveryScreen.test.tsx`, `components/error-boundary.tsx` |
 | `VirtualizedEventsList` | Verified | Keyboard focus visibility, loading messaging, scroll restoration | `components/events/virtualized-events-list.tsx`, `components/events/__tests__/virtualized-events-list.integration.test.tsx` |
 | New event form focus order | Partial | Early tab order is covered; follow-up is still needed for the full form sequence and combobox continuation | `app/(dashboard)/events/new/page.tsx`, `app/(dashboard)/events/new/page.test.tsx`, `app/(dashboard)/settings/ACCESSIBILITY.md` |
+| `focus-visible CSS layer` | Verified | Global `:focus-visible` ring on all interactive surfaces, dark-mode contrast, inset variant, skip-link prominence | `app/styles/focus.css`, `app/globals.css`, `app/__tests__/focus-visible.test.js` |
 
 ## Notes
 
