@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import type { ActivityEvent, ExportJob, Stream, User } from "@/app/types/openapi";
+import type { ActivityTimelineStore } from "@/app/lib/repositories/activity-timeline";
 import { createInMemoryPersistenceStore } from "@/app/lib/repositories/in-memory";
 import {
   createPostgresPersistenceStore,
@@ -58,6 +59,7 @@ export interface ExportRepository {
 }
 
 export interface PersistenceStore {
+  readonly activityTimeline: ActivityTimelineStore;
   readonly exportRepository: ExportRepository;
   readonly idempotencyStore: IdempotencyStore;
   readonly kind: "memory" | "postgres";
@@ -145,6 +147,9 @@ function createStoreProxy<T>(storeGetter: () => KeyValueStore<string, T>, extraP
 export const db = {
   get activity() {
     return createStoreProxy(() => getStore().streamRepository.activity);
+  },
+  get activityTimeline() {
+    return getStore().activityTimeline;
   },
   get exportAudit() {
     return getStore().exportRepository.audit;
@@ -305,6 +310,7 @@ export function resetDb(
 ): void {
   const store = getStore();
   if (store.kind === "memory") {
+    store.activityTimeline.reset();
     store.streamRepository.reset();
     store.idempotencyStore.reset();
     store.exportRepository.reset();

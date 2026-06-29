@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  decodeCompositeCursor,
-  encodeCompositeCursor,
-  getStore,
-} from "@/app/lib/db";
+import { decodeCompositeCursor, getStore } from "@/app/lib/db";
 import { checkRateLimit, getClientIdentity, rateLimitResponse } from "@/app/lib/rate-limit";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 import { recordRequest, recordThrottle } from "@/app/lib/rate-limit-metrics";
@@ -15,7 +11,7 @@ function createErrorResponse(code: string, message: string, status: number) {
 }
 
 export async function GET(request: Request) {
-  const { streamRepository } = getStore();
+  const { activityTimeline } = getStore();
   const url = new URL(request.url);
   const limitType = getLimitForRoute("GET", url.pathname);
   const identity = getClientIdentity(request);
@@ -39,56 +35,25 @@ export async function GET(request: Request) {
   };
 
   return withCorrelationContext(context, async () => {
-    let events = Array.from(streamRepository.activity.values()).sort((a, b) => {
-      const tsCmp = b.timestamp.localeCompare(a.timestamp);
-      return tsCmp !== 0 ? tsCmp : b.id.localeCompare(a.id);
-    });
-
-    if (streamId) {
-      events = events.filter((event) => event.streamId === streamId);
-    }
-
-    if (type) {
-      events = events.filter((event) => event.type === type);
-    }
-
-    const totalFiltered = events.length;
-
     if (cursor) {
-      let cursorTimestamp: string;
-      let cursorId: string;
       try {
-        const decoded = decodeCompositeCursor(cursor);
-        cursorTimestamp = decoded.timestamp;
-        cursorId = decoded.id;
+        decodeCompositeCursor(cursor);
       } catch {
         return createErrorResponse("INVALID_CURSOR", "Malformed cursor", 422);
       }
-
-      events = events.filter((event) => {
-        const tsCmp = event.timestamp.localeCompare(cursorTimestamp);
-        return tsCmp < 0 || (tsCmp === 0 && event.id.localeCompare(cursorId) < 0);
-      });
     }
 
-    const paginatedEvents = events.slice(0, limit);
-    const hasNext = events.length > limit;
-    const nextCursor =
-      hasNext && paginatedEvents.length > 0
-        ? encodeCompositeCursor(
-            paginatedEvents[paginatedEvents.length - 1].timestamp,
-            paginatedEvents[paginatedEvents.length - 1].id,
-          )
-        : null;
+    const result = activityTimeline.query({ cursor: cursor ?? undefined, limit, streamId: streamId ?? undefined, type: type ?? undefined });
 
     logger.info("Activity list completed", {
-      count: paginatedEvents.length,
-      total: totalFiltered,
+      count: result.data.length,
+      total: result.meta.total,
+      lagMs: activityTimeline.getLagMs(),
     });
 
     return NextResponse.json({
-      data: paginatedEvents,
-      meta: { hasNext, nextCursor, total: totalFiltered },
+      data: result.data,
+      meta: result.meta,
       links: { self: `/api/activity?limit=${limit}` },
     });
   });

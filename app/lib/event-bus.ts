@@ -1,4 +1,7 @@
 import { EventEmitter } from "events";
+import { getStore } from "@/app/lib/db";
+import { activityEventToTimelineEntry } from "@/app/lib/repositories/activity-timeline";
+import type { ActivityEvent } from "@/app/types/openapi";
 
 /**
  * Server-side event bus for StreamPay events.
@@ -12,8 +15,8 @@ class StreamEventBus extends EventEmitter {
 
   private constructor() {
     super();
-    // Increase max listeners to avoid warnings during development
     this.setMaxListeners(100);
+    this.setupProjectionHandler();
   }
 
   public static getInstance(): StreamEventBus {
@@ -35,6 +38,38 @@ class StreamEventBus extends EventEmitter {
    */
   emitSettleFinished(streamId: string, data: any) {
     this.emit(`settle:finished:${streamId}`, data);
+  }
+
+  /**
+   * Emit a raw activity event to be projected onto the timeline.
+   */
+  emitActivityEvent(event: ActivityEvent) {
+    this.emit("activity:new", event);
+  }
+
+  /**
+   * Subscribe to raw activity events.
+   */
+  onActivityEvent(handler: (event: ActivityEvent) => void) {
+    this.on("activity:new", handler);
+  }
+
+  /**
+   * Set up the internal projection handler that writes to the
+   * denormalized activity_timeline store whenever a new event
+   * is emitted.
+   */
+  private setupProjectionHandler() {
+    this.onActivityEvent((event) => {
+      try {
+        const store = getStore();
+        const entry = activityEventToTimelineEntry(event);
+        store.activityTimeline.append(entry);
+      } catch (err) {
+        // If the store is not available (e.g. postgres adapter not wired),
+        // silently skip. The projection is best-effort for the in-memory store.
+      }
+    });
   }
 }
 

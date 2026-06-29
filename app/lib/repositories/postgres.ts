@@ -8,6 +8,7 @@ import type {
   StreamRepository,
 } from "@/app/lib/db";
 import type { ActivityEvent, ExportJob, Stream, User } from "@/app/types/openapi";
+import type { ActivityTimelineStore } from "@/app/lib/repositories/activity-timeline";
 
 export interface SqlExecutor {
   query<TResult = unknown>(
@@ -264,11 +265,22 @@ function unsupported(resourceName: string, methodName: string): Error {
   );
 }
 
+class UnsupportedActivityTimelineStore implements ActivityTimelineStore {
+  get length(): number { throw unsupported("activity_timeline", "length"); }
+  append(): void { throw unsupported("activity_timeline", "append"); }
+  query(): any { throw unsupported("activity_timeline", "query"); }
+  getLagMs(): number { throw unsupported("activity_timeline", "getLagMs"); }
+  backfill(): void { throw unsupported("activity_timeline", "backfill"); }
+  getLatestProjectedTimestamp(): string | null { throw unsupported("activity_timeline", "getLatestProjectedTimestamp"); }
+  reset(): void { throw unsupported("activity_timeline", "reset"); }
+}
+
 export function createPostgresPersistenceStore(
   config: PostgresStoreConfig,
 ): PersistenceStore {
   return {
     kind: "postgres",
+    activityTimeline: new UnsupportedActivityTimelineStore(),
     streamRepository: new PostgresStreamRepository(config.executor),
     idempotencyStore: new PostgresIdempotencyStore(config.executor),
     exportRepository: new PostgresExportRepository(config.executor),

@@ -7,6 +7,7 @@ import {
   setStore,
 } from "@/app/lib/db";
 import type { ActivityEvent } from "@/app/types/openapi";
+import { activityEventToTimelineEntry } from "@/app/lib/repositories/activity-timeline";
 
 jest.mock("@/app/lib/logger", () => ({
   getCorrelationContext: jest.fn(() => ({ request_id: "test-req-id" })),
@@ -29,15 +30,15 @@ const defaultEvents: ActivityEvent[] = [
 
 function seedActivity(events: ActivityEvent[] = defaultEvents) {
   const store = getStore();
-  store.streamRepository.activity.clear();
+  store.activityTimeline.reset();
   for (const event of events) {
-    store.streamRepository.activity.set(event.id, { ...event });
+    store.activityTimeline.append(activityEventToTimelineEntry(event, event.timestamp));
   }
 }
 
 describe("GET /api/activity", () => {
   beforeEach(() => {
-    setStore(createInMemoryPersistenceStore());
+    setStore(createInMemoryPersistenceStore(false));
     seedActivity();
   });
 
