@@ -8,6 +8,31 @@ API versioning follows the policy in [README.md#api-versioning](README.md#api-ve
 
 ## [Unreleased]
 
+### Added
+- `lib/chaos.ts` — fault-injection middleware for chaos tests. Lets test
+  suites inject latency, error responses, or request aborts at configurable
+  rates (defaults disabled; opt in via `CHAOS_ENABLED=true` or programmatic
+  override). Activated per-request through `withChaosMiddleware(request,
+  handler, options?)`. Honors path-prefix and HTTP-method allowlists, exposes
+  every standard env knob (`CHAOS_LATENCY_RATE`, `CHAOS_ERROR_RATE`,
+  `CHAOS_ABORT_RATE`, `CHAOS_MIN_LATENCY_MS`, `CHAOS_MAX_LATENCY_MS`,
+  `CHAOS_ERROR_STATUS`, `CHAOS_ERROR_CODE`, `CHAOS_ERROR_MESSAGE`,
+  `CHAOS_PATH_PREFIXES`, `CHAOS_METHODS`, `CHAOS_SEED`), and emits the
+  standard `{ error: { code, message, request_id } }` envelope on injected
+  errors with `x-chaos-fault` / `x-chaos-<kind>-ms` markers on the wire
+  (test-only — do not rely on in production).
+- `lib/chaos.test.ts` — Jest unit suite targeting >=90% line coverage
+  (currently 97.23% lines / 100% funcs / 90.22% branches). Locks the pure
+  decision function, the resolver priority chain, every validation branch,
+  and the middleware dispatch surface.
+
+### Security
+- Boundary validation rejects NaN/Infinity rates, negative latency, 1xx/2xx/
+  3xx status codes, malformed path prefixes (whitespace or control chars),
+  empty/whitespace `errorCode` / `errorMessage`, and non-integer seeds.
+- Disabled by default — every config is validated but no fault is ever
+  injected unless the operator explicitly opts in.
+
 ## [2.0.0] — 2026-04-28
 
 ### Added
