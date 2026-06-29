@@ -6,6 +6,7 @@ import {
   WRITE_METHODS,
   resolveMaxBodyBytes,
   isWebhookPath,
+  isStreamPath,
   getBodySizeLimit,
   extractPathname,
   createBodySizeTooLargeResponse,
@@ -161,6 +162,46 @@ describe('bodySize', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // isStreamPath
+  // ---------------------------------------------------------------------------
+
+  describe('isStreamPath', () => {
+    it('returns true for /api/v2/streams exact path', () => {
+      expect(isStreamPath('/api/v2/streams')).toBe(true);
+    });
+
+    it('returns true for /api/v2/streams/ with trailing slash', () => {
+      expect(isStreamPath('/api/v2/streams/')).toBe(true);
+    });
+
+    it('returns true for /api/v2/streams subpaths', () => {
+      expect(isStreamPath('/api/v2/streams/stream-abc-123')).toBe(true);
+      expect(isStreamPath('/api/v2/streams/stream-abc-123/pause')).toBe(true);
+    });
+
+    it('returns false for /api/v1/streams', () => {
+      expect(isStreamPath('/api/v1/streams')).toBe(false);
+    });
+
+    it('returns false for /api/v2/other', () => {
+      expect(isStreamPath('/api/v2/other')).toBe(false);
+    });
+
+    it('returns false for /api/webhooks', () => {
+      expect(isStreamPath('/api/webhooks')).toBe(false);
+    });
+
+    it('returns false for empty path', () => {
+      expect(isStreamPath('')).toBe(false);
+    });
+
+    it('returns false for path similar to streams but not exact', () => {
+      expect(isStreamPath('/api/v2/streams2')).toBe(false);
+      expect(isStreamPath('/api/v2/stream')).toBe(false); // singular
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // getBodySizeLimit
   // ---------------------------------------------------------------------------
 
@@ -172,16 +213,24 @@ describe('bodySize', () => {
       expect(getBodySizeLimit('/api/webhooks/rotate', limits)).toBe(1024);
     });
 
-    it('returns default limit for non-webhook paths', () => {
+    it('returns default limit for stream paths', () => {
       expect(getBodySizeLimit('/api/v2/streams', limits)).toBe(256);
-      expect(getBodySizeLimit('/api/other', limits)).toBe(256);
-      expect(getBodySizeLimit('/health', limits)).toBe(256);
+      expect(getBodySizeLimit('/api/v2/streams/some-id', limits)).toBe(256);
+    });
+
+    it('returns null for uncapped paths', () => {
+      expect(getBodySizeLimit('/api/v1/streams', limits)).toBeNull();
+      expect(getBodySizeLimit('/api/v2/other', limits)).toBeNull();
+      expect(getBodySizeLimit('/api/other', limits)).toBeNull();
+      expect(getBodySizeLimit('/health', limits)).toBeNull();
+      expect(getBodySizeLimit('/api/webhook', limits)).toBeNull(); // singular — not a webhook route
     });
 
     it('uses provided limit values', () => {
       const customLimits = { default: 100, webhook: 2000 };
       expect(getBodySizeLimit('/api/v2/streams', customLimits)).toBe(100);
       expect(getBodySizeLimit('/api/webhooks', customLimits)).toBe(2000);
+      expect(getBodySizeLimit('/api/other', customLimits)).toBeNull();
     });
   });
 
@@ -393,7 +442,7 @@ describe('bodySize', () => {
       expect(response).toBeNull();
     });
 
-    it('returns 413 when body size exceeds default limit', async () => {
+    it('returns 413 when body size exceeds default limit on /api/v2/streams', async () => {
       const bodySize = 300 * 1024; // 300 KB (exceeds 256 KB default)
       const request = createRequest('http://localhost/api/v2/streams', 'POST', bodySize);
       request.headers.set('x-request-id', 'req_test123');
@@ -406,6 +455,18 @@ describe('bodySize', () => {
       expect(body.error.code).toBe('REQUEST_TOO_LARGE');
       expect(body.error.message).toContain('262144-byte limit'); // 256 KB
       expect(body.error.request_id).toBe('req_test123');
+    });
+
+    it('returns null for uncapped paths even with large body', () => {
+      const bodySize = 300 * 1024; // 300 KB — exceeds stream cap, but path is uncapped
+      const request = createRequest('http://localhost/api/v1/streams', 'POST', bodySize);
+      expect(checkRequestBodySize(request, limits)).toBeNull();
+
+      const request2 = createRequest('http://localhost/api/v2/other', 'POST', bodySize);
+      expect(checkRequestBodySize(request2, limits)).toBeNull();
+
+      const request3 = createRequest('http://localhost/api/webhook', 'POST', bodySize);
+      expect(checkRequestBodySize(request3, limits)).toBeNull();
     });
 
     it('returns null when webhook body size is within webhook limit', () => {
@@ -489,12 +550,12 @@ describe('bodySize', () => {
       const customLimits = { default: 100, webhook: 200 };
       const bodySize = 150;
 
-      // Should exceed default limit
+      // Should exceed stream default limit (100 bytes)
       const defaultRequest = createRequest('http://localhost/api/v2/streams', 'POST', bodySize);
       const defaultResponse = checkRequestBodySize(defaultRequest, customLimits);
       expect(defaultResponse!.status).toBe(413);
 
-      // Should not exceed webhook limit
+      // Should not exceed webhook limit (200 bytes)
       const webhookRequest = createRequest('http://localhost/api/webhooks', 'POST', bodySize);
       const webhookResponse = checkRequestBodySize(webhookRequest, customLimits);
       expect(webhookResponse).toBeNull();
