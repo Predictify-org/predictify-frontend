@@ -150,6 +150,7 @@ body {
 
 /* ─── Accessibility ───────────────────────────────────────────────────────── */
 @import './styles/focus.css' layer(focus);
+@import './styles/icons.css';
 
 button {
   font: inherit;
