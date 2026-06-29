@@ -91,6 +91,9 @@ export const PredictionCardSkeleton: React.FC = () => (
 );
 
 const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
+  // Hook must be declared before any early return (Rules of Hooks).
+  const [isOddsExpanded, setIsOddsExpanded] = React.useState(false);
+
   // Render themed skeleton when data is not yet available (async hydration)
   if (!prediction) {
     return <PredictionCardSkeleton />;
@@ -98,10 +101,10 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
 
   const { title, description, stakeAmount, stakeToken, odds, potentialWinnings, winningsToken, eventDate, resolvedDate, status } = prediction;
   const { icon: Icon, className, label } = statusMap[status];
-  const [isOddsExpanded, setIsOddsExpanded] = React.useState(false);
 
   return (
-    <button className="w-full text-left bg-card p-4 rounded-xl shadow-lg hover:bg-muted/50 transition duration-200 cursor-pointer border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+    /* touch-target: enforces ≥44px hit area (WCAG 2.5.5 / Apple HIG). */
+    <button className="touch-target w-full text-left bg-card p-4 rounded-xl shadow-lg hover:bg-muted/50 transition duration-200 cursor-pointer border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
       <div className="flex justify-between items-start mb-3">
         <h3 className="text-lg font-semibold text-card-foreground line-clamp-2 pr-2">{title}</h3>
         <Badge variant="outline" className={`gap-1.5 shrink-0 ${className}`} aria-label={`Status: ${label}`}>
@@ -131,8 +134,9 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
         {/* Odds */}
         <Collapsible open={isOddsExpanded} onOpenChange={setIsOddsExpanded}>
           <CollapsibleTrigger asChild>
+            {/* touch-target: guarantees ≥44px tap area on the Odds trigger (WCAG 2.5.5). */}
             <button
-              className="flex w-full items-center justify-between p-2 rounded hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="touch-target flex w-full items-center justify-between px-2 rounded hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-expanded={isOddsExpanded}
               aria-controls="odds-breakdown"
             >
