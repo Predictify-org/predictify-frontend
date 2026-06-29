@@ -17,6 +17,7 @@
 //! - Allow or block individual token contracts ([`Contract::set_token_allowed`]).
 #![no_std]
 
+mod allowlist;
 mod error;
 mod events;
 mod limits;
@@ -219,6 +220,88 @@ impl Contract {
         require_admin(&env, &admin)?;
         storage::set_token_allowed(&env, &token, allowed);
         Ok(())
+    }
+
+    /// Configures the **per-organisation** token allowlist for `org`.
+    ///
+    /// This layers on top of the global allowlist ([`Contract::set_token_allowed`]):
+    /// the first time an org is granted a token (`allowed = true`) the org
+    /// switches to whitelist mode, after which any token the org has not
+    /// explicitly allowed is blocked for that org's streams created via
+    /// [`Contract::create_stream_for_org`]. Setting `allowed = false` records an
+    /// explicit per-org block.
+    ///
+    /// # Parameters
+    /// - `admin`   — Must match the admin set at initialisation.
+    /// - `org`     — Organisation address the rule applies to.
+    /// - `token`   — Token contract address being configured.
+    /// - `allowed` — `true` to allow for this org; `false` to block.
+    ///
+    /// # Errors
+    /// - [`Error::Unauthorized`] if `admin` is not the initialised admin.
+    /// - [`Error::NotFound`] if the contract has not been initialised.
+    ///
+    /// # Auth
+    /// Requires authorisation from `admin`.
+    pub fn set_org_token_allowed(
+        env: Env,
+        admin: Address,
+        org: Address,
+        token: Address,
+        allowed: bool,
+    ) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        allowlist::set_org_token_allowed(&env, &org, &token, allowed);
+        Ok(())
+    }
+
+    /// Returns `true` if `token` is allowed for `org` under the per-org
+    /// allowlist (read-only; also honours the global allowlist).
+    pub fn is_org_token_allowed(env: Env, org: Address, token: Address) -> bool {
+        !allowlist::is_org_token_blocked(&env, &org, &token)
+            && !storage::is_token_blocked(&env, &token)
+    }
+
+    /// Creates a funded stream on behalf of `org`, enforcing the per-org token
+    /// allowlist in addition to all the checks performed by
+    /// [`Contract::create_stream`].
+    ///
+    /// `org` is the organisation the stream is attributed to; the per-org
+    /// allowlist for `(org, token)` is consulted before the stream is created.
+    ///
+    /// # Errors
+    /// In addition to every error of [`Contract::create_stream`]:
+    /// - [`Error::TokenNotAllowed`] if `token` is blocked for `org` by the
+    ///   per-org allowlist.
+    ///
+    /// # Auth
+    /// Requires authorisation from `sender`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_stream_for_org(
+        env: Env,
+        org: Address,
+        sender: Address,
+        recipient: Address,
+        token: Address,
+        total_amount: i128,
+        start_time: u64,
+        end_time: u64,
+    ) -> Result<u64, Error> {
+        // Per-org allowlist gate runs first so a blocked token is rejected
+        // before any auth/escrow side effects in create_stream.
+        if allowlist::is_org_token_blocked(&env, &org, &token) {
+            return Err(Error::TokenNotAllowed);
+        }
+
+        Self::create_stream(
+            env,
+            sender,
+            recipient,
+            token,
+            total_amount,
+            start_time,
+            end_time,
+        )
     }
 
     /// Creates a funded stream and escrows `total_amount` from `sender`.
