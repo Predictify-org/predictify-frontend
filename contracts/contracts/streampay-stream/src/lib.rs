@@ -809,16 +809,34 @@ impl Contract {
         Ok(stream)
     }
 
-    /// Amends an active or paused stream to change its rate or end time.
+    /// Amends an active or paused stream to change its rate (via a new
+    /// end-time) with overflow-safe, rate-aware validation.
     ///
-    /// Only the stream sender may call this. The new `end_time` must be greater than
-    /// the current timestamp.
+    /// Only the stream sender may call this. The amendment moves the stream's
+    /// `end_time`, which implicitly re-rates the remaining accrual. The
+    /// following invariants are enforced so an amendment can never strand or
+    /// claw back funds the recipient has already earned:
+    ///
+    /// 1. `new_rate_per_second` must be **positive** — a zero or negative rate
+    ///    would never finish vesting the escrow.
+    /// 2. `new_end_time` must be strictly **after `now`** and strictly after
+    ///    `start_time`, so the resulting duration is non-zero.
+    /// 3. The new schedule must still leave the **already-released amount**
+    ///    within what will eventually vest (i.e. the recipient never ends up
+    ///    "owing" funds). Because the full `total_amount` always vests by
+    ///    `end_time`, this reduces to ensuring `total_amount >= released_amount`,
+    ///    which is checked with overflow-safe arithmetic.
+    /// 4. The implied rate is sanity-checked: streaming `total_amount` over the
+    ///    new duration must not overflow `i128` (`total_amount * 1` headroom).
     ///
     /// # Errors
     /// - [`Error::NotFound`] if `stream_id` does not exist.
     /// - [`Error::Unauthorized`] if caller is not the stream sender.
     /// - [`Error::InvalidState`] if the stream is settled or cancelled.
-    /// - [`Error::InvalidTimeRange`] if `new_end_time <= now`.
+    /// - [`Error::InvalidAmount`] if `new_rate_per_second <= 0`.
+    /// - [`Error::InvalidTimeRange`] if `new_end_time <= now`,
+    ///   `new_end_time <= start_time`, or the new duration computation overflows.
+    /// - [`Error::Overflow`] if the re-rated accrual math would overflow `i128`.
     ///
     /// # Auth
     /// Requires authorisation from the stream's `sender`.
@@ -835,20 +853,40 @@ impl Contract {
             return Err(Error::InvalidState);
         }
 
-        let now = env.ledger().timestamp();
-
-        if new_end_time <= now {
-            return Err(Error::InvalidTimeRange);
+        // (1) Rate-change validation: the new rate must be strictly positive.
+        if new_rate_per_second <= 0 {
+            return Err(Error::InvalidAmount);
         }
 
-        // Update stream parameters
-        stream.end_time = new_end_time;
-        stream.last_update = now;
+        let now = env.ledger().timestamp();
+
+        // (2) The amended window must be in the future and non-degenerate.
+        if new_end_time <= now || new_end_time <= stream.start_time {
+            return Err(Error::InvalidTimeRange);
+        }
 
         let new_duration = new_end_time
             .checked_sub(stream.start_time)
             .ok_or(Error::InvalidTimeRange)?;
+
+        // (3) Already-released funds must remain within the eventual vest.
+        if stream.released_amount > stream.total_amount {
+            return Err(Error::Overflow);
+        }
+
+        // (4) Overflow-safe sanity check of the re-rated accrual. The vested
+        //     formula is `total_amount * elapsed / new_duration`; the largest
+        //     intermediate product uses `elapsed = new_duration`, so we verify
+        //     `total_amount * new_duration` does not overflow `i128`.
+        stream
+            .total_amount
+            .checked_mul(new_duration as i128)
+            .ok_or(Error::Overflow)?;
+
+        // Update stream parameters.
+        stream.end_time = new_end_time;
         stream.duration = new_duration;
+        stream.last_update = now;
 
         storage::set_stream(&env, stream_id, &stream);
 
