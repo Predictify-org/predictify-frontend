@@ -6,6 +6,10 @@ members = [
 
 [workspace.dependencies]
 soroban-sdk = "23"
+# Criterion is a dev-only dep used only by the benchmark binary.
+# We pin a minor version so CI results are reproducible; bump
+# deliberately when upgrading.
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [profile.release]
 opt-level = "z"
@@ -21,6 +25,21 @@ lto = true
 [profile.release-with-logs]
 inherits = "release"
 debug-assertions = true
+
+# ── Benchmark profile ────────────────────────────────────────────────────────
+#
+# `bench` inherits release settings but re-enables debug info so that
+# profilers (perf, flamegraph) can resolve symbol names.  The panic
+# strategy is reverted to "unwind" because Criterion's measurement loop
+# catches panics internally; "abort" would silently swallow setup errors.
+#
+# overflow-checks stays true: we want the same arithmetic behaviour as
+# production so benchmark numbers reflect real contract execution cost.
+[profile.bench]
+inherits    = "release"
+debug       = 1        # retain DWARF symbols for profiling
+panic       = "unwind" # criterion catches panics; abort would hide errors
+lto         = false    # faster incremental bench builds
 
 # ── Workspace lint policy ────────────────────────────────────────────────────
 #
