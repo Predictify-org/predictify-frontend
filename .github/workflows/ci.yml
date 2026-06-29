@@ -60,13 +60,5 @@ jobs:
       - name: Run tests
         run: npm test
 
-      # Runs the Jest smoke suite in offline mode (no stellar CLI / no CONTRACT_ID).
-      # Network-dependent tests skip gracefully; this step verifies the smoke
-      # harness itself parses and loads correctly without a live chain.
-      # Full on-chain smoke testing happens in .github/workflows/smoke.yml.
-      - name: Run smoke tests (offline / structural validation)
+      - name: Run smoke tests
         run: npm run smoke
-        env:
-          # Explicitly unset to trigger graceful skips in the Jest suite.
-          CONTRACT_ID: ""
-          STELLAR_SEED_SECRET_KEY: ""

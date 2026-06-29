@@ -99,7 +99,7 @@ jobs:
                 e.cve_id === vuln.cwe?.[0] || 
                 e.package === name ||
                 e.advisory_id === vuln.id ||
-                (vuln.via && vuln.via.some(v => v.url?.includes(e.advisory_id)))
+                (vunn.via && vuln.via.some(v => v.url?.includes(e.advisory_id)))
               );
               
               const vulnInfo = {
