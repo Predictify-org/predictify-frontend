@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import PredictionCard, { PredictionCardSkeleton } from '../PredictionCard';
 import { Prediction } from '../../types/predictions';
 
@@ -158,5 +159,38 @@ describe('PredictionsList loading state', () => {
     render(<PredictionsList isLoading={true} />);
     
     expect(screen.queryByText(/No predictions found/)).toBeNull();
+  });
+});
+
+// --- Touch Target Tests (WCAG 2.5.5 / Apple HIG ≥44px) ---
+
+describe('PredictionCard touch targets', () => {
+  it('outer card button has touch-target class', () => {
+    render(<PredictionCard prediction={mockPrediction} />);
+    // The root interactive element must carry the touch-target utility class
+    // which enforces min-height: 44px and min-width: 44px.
+    const card = screen.getByRole('button', { name: /NBA Finals/i });
+    expect(card).toHaveClass('touch-target');
+  });
+
+  it('odds collapsible trigger has touch-target class', () => {
+    render(<PredictionCard prediction={mockPrediction} />);
+    // Query specifically by aria-controls to distinguish from the outer card button.
+    const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
+    expect(oddsTrigger).toHaveClass('touch-target');
+  });
+
+  it('odds trigger uses aria-expanded to reflect collapsed state', () => {
+    render(<PredictionCard prediction={mockPrediction} />);
+    const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
+    expect(oddsTrigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('odds trigger uses aria-expanded to reflect expanded state after click', async () => {
+    const user = userEvent.setup();
+    render(<PredictionCard prediction={mockPrediction} />);
+    const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
+    await user.click(oddsTrigger);
+    expect(oddsTrigger).toHaveAttribute('aria-expanded', 'true');
   });
 });

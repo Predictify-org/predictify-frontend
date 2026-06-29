@@ -1,0 +1,44 @@
+/**
+ * touch.css — Minimum tap-target utilities (WCAG 2.5.5 / Apple HIG / Material)
+ *
+ * All interactive elements should present a hit area of at least 44×44 px on
+ * touch devices.  Use `.touch-target` on the element itself (when its visual
+ * size meets 44 px) or `.touch-target-expand` when the element is intentionally
+ * small and needs an invisible extended hit area via a pseudo-element.
+ *
+ * Usage:
+ *   <button className="touch-target …">Save</button>
+ *   <button className="touch-target-expand relative …">×</button>
+ */
+
+@layer utilities {
+  /**
+   * .touch-target
+   * Enforces a minimum 44×44 px bounding box directly on the element.
+   * Prefer this class for buttons/links that can afford the visual space.
+   */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /**
+   * .touch-target-expand
+   * Expands the interactive hit area to 44×44 px via an absolute pseudo-element
+   * without altering the element's visual dimensions.  The parent must be
+   * `position: relative` (add the `relative` Tailwind class alongside this one).
+   *
+   * Technique follows WCAG 2.5.5 "Target Size" and the iOS HIG recommendation
+   * to extend the touch area without changing the visual design.
+   */
+  .touch-target-expand::before {
+    content: "";
+    position: absolute;
+    /* Centre the 44 px hit area over the element */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
