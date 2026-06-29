@@ -6,6 +6,7 @@ import { CheckCircle2, XCircle, Clock, Activity } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { OutcomeIcon } from '@/components/icons/OutcomeIcons';
 import type { OutcomeVariant } from '@/components/icons/OutcomeIcons';
+import { getCategoryEmojiUrl } from '@/lib/categories/emojiMap';
 
 interface PredictionCardProps {
   prediction: Prediction;
@@ -38,14 +39,34 @@ const statusOutcomeVariant: Record<PredictionStatus, OutcomeVariant> = {
 };
 
 const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
-  const { title, description, stakeAmount, stakeToken, odds, potentialWinnings, winningsToken, eventDate, resolvedDate, status } = prediction;
+  const { title, description, stakeAmount, stakeToken, odds, potentialWinnings, winningsToken, eventDate, resolvedDate, status, category, outcome } = prediction;
   const { icon: Icon, className, label } = statusMap[status];
   const [isOddsExpanded, setIsOddsExpanded] = React.useState(false);
 
   return (
     <button className="w-full text-left bg-card p-4 rounded-xl shadow-lg hover:bg-muted/50 transition duration-200 cursor-pointer border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
       <div className="flex justify-between items-start mb-3">
-        <h3 className="text-lg font-semibold text-card-foreground line-clamp-2 pr-2">{title}</h3>
+        <div className="flex flex-col items-start gap-1 pr-2">
+          <h3 className="text-lg font-semibold text-card-foreground line-clamp-2">{title}</h3>
+          {outcome && (
+            <Badge 
+              variant="outline" 
+              className={`gap-1.5 ${
+                outcome === 'Yes' 
+                  ? 'bg-outcome-yes/10 text-outcome-yes border-outcome-yes/20 dark:bg-outcome-yes/20 dark:border-outcome-yes/30' 
+                  : 'bg-outcome-no/10 text-outcome-no border-outcome-no/20 dark:bg-outcome-no/20 dark:border-outcome-no/30'
+              }`}
+            >
+              <img 
+                src={getCategoryEmojiUrl(category)} 
+                alt="" 
+                className="w-3.5 h-3.5" 
+                aria-hidden="true" 
+              />
+              {outcome}
+            </Badge>
+          )}
+        </div>
         <Badge variant="outline" className={`gap-1.5 shrink-0 ${className}`} aria-label={`Status: ${label}`}>
           {/*
            * Shape icon (color-blind safe) — rendered BEFORE the status icon.
