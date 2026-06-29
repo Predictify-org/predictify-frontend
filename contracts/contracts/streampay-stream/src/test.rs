@@ -1063,6 +1063,28 @@ fn resume_emits_admin_action_event() {
 }
 
 #[test]
+fn resume_without_pause_returns_invalid_state() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &1000i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    let result = client.try_resume(&id);
+
+    let err = result.expect_err("resume should fail for active stream");
+    assert_eq!(err, Ok(Error::InvalidState));
+}
+
+#[test]
 fn settle_emits_admin_action_event() {
     let data = setup_init();
     let client = contract_client(&data.env);
