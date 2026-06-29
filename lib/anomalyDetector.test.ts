@@ -210,18 +210,14 @@ describe("RateAnomalyDetector.recordRate — threshold behaviour", () => {
 
 describe("RateAnomalyDetector.recordRate — rolling window", () => {
   it("prunes samples older than windowMs so they cannot anchor the median", () => {
-    // Two early samples (t=0, t=100) and one recent (t=900); cutoff at
-    // t=1000 with windowMs=200 is 800, so only the t=900 sample survives.
-    RateAnomalyDetector.setConfig({ windowMs: 200 });
+    // Two early samples (t=0, t=100) lie well outside the 100ms window
+    // evaluated at t=1000 (cutoff=900). Only the new t=1000 sample
+    // should remain in the buffer.
+    RateAnomalyDetector.setConfig({ windowMs: 100 });
     RateAnomalyDetector.recordRate("stream-a", 1n, 0);
     RateAnomalyDetector.recordRate("stream-a", 1n, 100);
-    RateAnomalyDetector.recordRate("stream-a", 100n, 900);
-    // This call also drops the t=900 sample from the in-window filter
-    // (timestamp equality excluded) and appends the new 200n @ t=1000.
     RateAnomalyDetector.recordRate("stream-a", 200n, 1_000, TENANT_A);
 
-    // getHistory is the deterministic view into the post-prune buffer;
-    // only the most recent sample is retained.
     expect(RateAnomalyDetector.getHistory("stream-a")).toHaveLength(1);
     expect(RateAnomalyDetector.getHistory("stream-a")[0]).toEqual({
       rate: 200n,
@@ -232,15 +228,15 @@ describe("RateAnomalyDetector.recordRate — rolling window", () => {
   it("retains samples whose age equals windowMs (inclusive boundary)", () => {
     // Cutoff is `now - windowMs`; samples at exactly that timestamp
     // are kept because the filter is `timestamp >= windowStart`.
-    RateAnomalyDetector.setConfig({ windowMs: 100 });
-    RateAnomalyDetector.recordRate("stream-a", 100n, 500);
-    RateAnomalyDetector.recordRate("stream-a", 200n, 600, TENANT_A);
+    RateAnomalyDetector.setConfig({ windowMs: 200 });
+    RateAnomalyDetector.recordRate("stream-a", 100n, 800);
+    RateAnomalyDetector.recordRate("stream-a", 200n, 1_000, TENANT_A);
 
-    // t=600 with windowMs=100 → cutoff = 500. The earlier sample at
-    // t=500 is at the boundary and must be retained.
+    // t=1000 with windowMs=200 → cutoff = 800. The earlier sample at
+    // t=800 is at the boundary and must be retained.
     const hist = RateAnomalyDetector.getHistory("stream-a");
     expect(hist.map((s) => s.timestamp).sort((a, b) => a - b)).toEqual([
-      500, 600,
+      800, 1_000,
     ]);
   });
 
