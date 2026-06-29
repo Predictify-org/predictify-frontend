@@ -1,12 +1,19 @@
 import { NextResponse, NextRequest } from "next/server";
 import { errorResponse, ErrorCode } from "@/app/lib/errors/server";
 import { validateCsrfToken } from "@/app/lib/auth";
+import { checkIpRateLimit, rateLimitResponse } from "@/lib/rateLimitIp";
 
 /**
  * GET /api/auth/wallet
  * Issues a one-time challenge string for wallet-based authentication.
+ * Rate-limited by IP (20 req/min) to prevent abuse of challenge generation.
  */
 export async function GET(req: NextRequest) {
+  const rateCheck = await checkIpRateLimit(req, "challenge");
+  if (!rateCheck.allowed) {
+    return rateLimitResponse(rateCheck.retryAfter!);
+  }
+
   try {
     const address = req.nextUrl.searchParams.get("address");
 
@@ -34,8 +41,14 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/auth/wallet
  * Verifies double-submit CSRF token and issues a bearer token.
+ * Rate-limited by IP (5 req/min) to prevent brute-force login attempts.
  */
 export async function POST(req: NextRequest) {
+  const rateCheck = await checkIpRateLimit(req, "login");
+  if (!rateCheck.allowed) {
+    return rateLimitResponse(rateCheck.retryAfter!);
+  }
+
   try {
     // Allows manual throw simulation to pass directly into catch block
     const body = await req.json();

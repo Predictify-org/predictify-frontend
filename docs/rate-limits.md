@@ -62,6 +62,30 @@ All API endpoints are rate limited:
 | POST | `/api/streams/{id}/withdraw` | Write |
 | GET | `/api/activity` | Read |
 | GET | `/api/identity/me` | Read |
+| GET | `/api/auth/wallet` | Challenge (20 req/min per IP) |
+| POST | `/api/auth/wallet` | Login (5 req/min per IP) |
+
+## Wallet Authentication Limits
+
+The `/api/auth/wallet` endpoint uses IP-based rate limiting with stricter thresholds for login attempts:
+
+| Operation | Limit | Window | Purpose |
+|-----------|-------|--------|---------|
+| GET (challenge) | 20 requests | 1 minute | Prevent abuse of challenge generation |
+| POST (login) | 5 requests | 1 minute | Prevent brute-force login attempts |
+
+These limits apply per IP address and are independent of the general rate limiting system. Each IP is tracked separately, and limits are enforced using the same token bucket algorithm.
+
+### 429 Response for Wallet
+
+```json
+{
+  "error": {
+    "code": "rate_limit_exceeded",
+    "message": "Too many requests. Please try again later."
+  }
+}
+```
 
 ## Requesting Higher Limits
 
