@@ -9,6 +9,7 @@ import {
   checkRequestBodySize,
   buildLimitsConfig,
 } from './lib/bodySize';
+import { applyRequestIdPolicy } from './lib/requestId';
 
 // ---------------------------------------------------------------------------
 // Request body size cap
@@ -78,11 +79,21 @@ export async function middleware(request: NextRequest) {
     });
   }
 
+  // ------------------------------------------------------------------
+  // 3. Request-Id propagation
+  // ------------------------------------------------------------------
+  // Resolve (or generate) the X-Request-Id and stamp it on both the
+  // forwarded request headers and the outgoing response headers so that
+  // every log line and downstream call can be correlated back to the
+  // originating request.
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
+
+  // Apply policy: resolves / generates the ID and stamps both sides.
+  applyRequestIdPolicy(request.headers, requestHeaders, response.headers);
 
   if (originAllowed) {
     const headers = response.headers;
