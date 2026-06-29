@@ -357,6 +357,35 @@ fn create_stream_increments_sender_count() {
     assert_eq!(client.sender_stream_count(&data.sender), 1);
 }
 
+/// The trustline pre-check (#611) accepts a recipient that can hold the token.
+///
+/// A Stellar Asset Contract reports a non-negative balance for any address that
+/// has (or can establish) a trustline, so `create_stream` must succeed for a
+/// well-formed recipient and token pair.
+#[test]
+fn create_stream_succeeds_when_recipient_has_trustline() {
+    let data = setup_init();
+    let client = contract_client(&data.env);
+
+    client.initialize(&data.admin);
+
+    // Mint to the recipient as well to make the established trustline explicit.
+    StellarAssetClient::new(&data.env, &data.tokens[0]).mint(&data.recipient, &0);
+
+    let id = client.create_stream(
+        &data.sender,
+        &data.recipient,
+        &data.tokens[0],
+        &100i128,
+        &1_100u64,
+        &1_200u64,
+    );
+
+    let stream = client.get_stream(&id);
+    assert_eq!(stream.recipient, data.recipient);
+    assert_eq!(stream.status, StreamStatus::Active);
+}
+
 #[test]
 fn default_max_streams_per_sender_is_ten() {
     let data = setup_init();

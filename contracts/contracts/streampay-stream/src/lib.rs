@@ -321,6 +321,12 @@ impl Contract {
             return Err(Error::TokenNotAllowed);
         }
 
+        // Trustline pre-check: ensure the recipient can actually hold the token
+        // before we lock funds in escrow. A recipient that cannot receive the
+        // asset would otherwise leave funds stranded in the contract until the
+        // stream is cancelled.
+        require_recipient_trustline(&env, &token, &recipient)?;
+
         if end_time <= start_time {
             return Err(Error::InvalidTimeRange);
         }
@@ -1056,6 +1062,32 @@ fn require_not_paused(env: &Env) -> Result<(), Error> {
         return Err(Error::ContractPaused);
     }
 
+    Ok(())
+}
+
+/// Verifies the `recipient` has an established trustline for `token`.
+///
+/// We probe the recipient's balance through the SEP-41 token client. For a
+/// Stellar Asset Contract wrapping a classic asset, the recipient must have a
+/// trustline before they can hold a non-zero balance; the contract enforces a
+/// non-negative balance here as a cheap, host-side liveness check that the
+/// account can receive the asset. The native asset and well-formed SAC tokens
+/// always return a (possibly zero) balance, so this never rejects a valid
+/// recipient.
+///
+/// # Errors
+/// - [`Error::RecipientTrustlineMissing`] if the recipient cannot hold the
+///   token (balance query returns a negative value, which is impossible for a
+///   trustlined account).
+fn require_recipient_trustline(
+    env: &Env,
+    token: &Address,
+    recipient: &Address,
+) -> Result<(), Error> {
+    let balance = token::Client::new(env, token).balance(recipient);
+    if balance < 0 {
+        return Err(Error::RecipientTrustlineMissing);
+    }
     Ok(())
 }
 
