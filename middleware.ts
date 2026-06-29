@@ -9,6 +9,7 @@ import {
   checkRequestBodySize,
   buildLimitsConfig,
 } from './lib/bodySize';
+import { applyChaos, getChaosConfig } from './lib/chaos';
 
 // ---------------------------------------------------------------------------
 // Request body size cap
@@ -32,6 +33,10 @@ const bodyLimits = buildLimitsConfig();
 validateConfig();
 
 const allowedOrigins = buildAllowedOriginSet(process.env.ALLOWED_ORIGINS);
+
+// Chaos/fault injection config. Resolved once at module init; force-disabled in
+// production by getChaosConfig regardless of env vars.
+const chaosConfig = getChaosConfig();
 
 export const config = {
   matcher: ['/api/:path*'],
@@ -59,6 +64,33 @@ export async function middleware(request: NextRequest) {
   if (sizeError !== null) {
     sizeError.headers.set(REQUEST_FINGERPRINT_HEADER, fingerprint);
     return sizeError;
+  }
+
+  // ------------------------------------------------------------------
+  // 1b. Chaos / fault injection (dev & staging only)
+  // ------------------------------------------------------------------
+  // No-op unless CHAOS_ENABLED=true and NODE_ENV !== production. Injects
+  // random latency and/or a configurable error status to exercise client
+  // retry/timeout paths. OPTIONS preflight is excluded so CORS still works.
+  if (chaosConfig.enabled && request.method !== 'OPTIONS') {
+    const outcome = await applyChaos(chaosConfig);
+    if (outcome.injectedStatus !== undefined) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'CHAOS_INJECTED',
+            message: 'Synthetic fault injected by chaos middleware.',
+          },
+        },
+        {
+          status: outcome.injectedStatus,
+          headers: {
+            [REQUEST_FINGERPRINT_HEADER]: fingerprint,
+            'X-Chaos-Injected': 'error',
+          },
+        }
+      );
+    }
   }
 
   // ------------------------------------------------------------------
