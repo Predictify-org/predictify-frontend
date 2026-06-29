@@ -91,6 +91,16 @@ const config: Config = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
+  			},
+  			outcome: {
+  				yes: {
+  					DEFAULT: 'hsl(var(--outcome-yes))',
+  					foreground: 'hsl(var(--outcome-yes-foreground))'
+  				},
+  				no: {
+  					DEFAULT: 'hsl(var(--outcome-no))',
+  					foreground: 'hsl(var(--outcome-no-foreground))'
+  				}
   			}
   		},
   		borderRadius: {

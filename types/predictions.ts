@@ -6,6 +6,8 @@ export interface Prediction {
   id: string;
   title: string;
   description: string;
+  category?: string;
+  outcome?: 'Yes' | 'No';
   stakeAmount: number;
   stakeToken: Token;
   odds: number;
