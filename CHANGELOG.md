@@ -9,6 +9,28 @@ API versioning follows the policy in [README.md#api-versioning](README.md#api-ve
 ## [Unreleased]
 
 ### Added
+- `GET /api/internal/reconciliation/diff/:streamId` — returns a structured
+  field-by-field diff between the DB record and the on-chain state for a
+  single stream. Requires HMAC-signed internal service authentication
+  (`ops-automation` or `reconciliation-worker`). Route is concealed behind
+  a `404` on any auth failure. Response shape:
+  ```json
+  {
+    "data": {
+      "streamId": "stream_2",
+      "checkedAt": "2026-06-29T…",
+      "inSync": false,
+      "diffs": [
+        { "field": "released_amount", "dbValue": "1000000000", "onChainValue": "1100000000", "toleranceApplied": false }
+      ],
+      "db": { "id": "…", "recipient_address": "…", "total_amount": "…", "released_amount": "…", "status": "…" },
+      "onChain": { "id": "…", … } 
+    },
+    "meta": { "auth": { "keyId": "…", "timestamp": "…" } }
+  }
+  ```
+  Returns `404 STREAM_NOT_FOUND` when the stream is unknown to both DB and
+  on-chain. Structured logging with correlation IDs on every request.
 - Centralized accessible toast queue (`ToastProvider`, `useToast`) with
   severity icons, auto-dismiss, queue limits, and `role="status"` live
   region announcements per WCAG 2.1 AA.
