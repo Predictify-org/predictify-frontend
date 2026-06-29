@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { GasOnRecipientToggle } from '../../components/GasOnRecipientToggle';
+import { RecentRecipients } from './components/RecentRecipients';
+import { addRecentRecipient } from '../../state/recentRecipients';
 
 /**
  * New Stream page (single-recipient).
@@ -24,6 +26,7 @@ export default function NewStreamPage() {
     setIsSubmitting(true);
     // TODO: call stream creation API with { recipient, amount, token, gasOnRecipient }
     await new Promise((resolve) => setTimeout(resolve, 800));
+    addRecentRecipient(recipient);
     setIsSubmitting(false);
     setSuccess(true);
   };
@@ -78,6 +81,10 @@ export default function NewStreamPage() {
             >
               Recipient address
             </label>
+            <RecentRecipients
+              onSelect={setRecipient}
+              className="recent-recipients--inline"
+            />
             <input
               id="recipient"
               type="text"
@@ -85,7 +92,7 @@ export default function NewStreamPage() {
               value={recipient}
               onChange={(e) => setRecipient(e.target.value)}
               placeholder="GABC..."
-              style={fieldStyle}
+              style={{ ...fieldStyle, marginTop: '0.5rem' }}
             />
           </div>
 
