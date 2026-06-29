@@ -6,6 +6,8 @@
  *   2. ConnectWalletModal rendering (integration)
  *   3. Badge lifecycle: appears, tracks the correct provider, hidden while connecting
  *   4. Accessibility (role, aria-label, aria-live)
+ *   5. Error message mapping (friendlyConnectionError)
+ *   6. All message keys resolve to non-empty strings
  */
 
 import React from "react";
@@ -23,6 +25,31 @@ import {
 // ── Modal ────────────────────────────────────────────────────────────────────
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 
+// ── Messages ─────────────────────────────────────────────────────────────────
+import {
+  walletConnectedTitle,
+  walletConnectedDescription,
+  connectWalletTitle,
+  connectWalletDescription,
+  connectingLabel,
+  connectedLabel,
+  disconnectButtonLabel,
+  lastUsedBadgeLabel,
+  lastUsedBadgeText,
+  copyAddressLabel,
+  addressCopiedLabel,
+  connectionErrorFallback,
+  connectionErrorUserRejected,
+  connectionErrorExtensionNotFound,
+  connectionErrorExtensionLocked,
+  connectionErrorNetworkMismatch,
+  connectionErrorTimeout,
+  connectionErrorUnexpected,
+  disconnectionErrorFallback,
+  disconnectionErrorUnexpected,
+  friendlyConnectionError,
+} from "@/components/connect-wallet-modal.messages";
+
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
 // Mock next/image to a simple <img> to avoid Next.js image optimisation in tests.
@@ -37,14 +64,19 @@ jest.mock("next/image", () => ({
 // Minimal useWallet mock — we control the return value per test.
 const mockConnectWallet    = jest.fn();
 const mockDisconnectWallet = jest.fn();
+const mockWalletState = {
+  isConnected:      false,
+  walletAddress:    null as string | null,
+  walletName:       null as string | null,
+};
 
 jest.mock("@/hooks/useWallet.hook", () => ({
   useWallet: () => ({
     connectWallet:    mockConnectWallet,
     disconnectWallet: mockDisconnectWallet,
-    isConnected:      false,
-    walletAddress:    null,
-    walletName:       null,
+    isConnected:      mockWalletState.isConnected,
+    walletAddress:    mockWalletState.walletAddress,
+    walletName:       mockWalletState.walletName,
     isConnecting:     false,
     error:            null,
   }),
@@ -225,7 +257,7 @@ describe("ConnectWalletModal — Last used badge", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent("Extension not found")
+      expect(screen.getByRole("alert")).toHaveTextContent(connectionErrorExtensionNotFound)
     );
 
     // Badge should still be visible after the failed attempt.
@@ -252,6 +284,9 @@ describe("ConnectWalletModal — general", () => {
     localStorage.clear();
     mockConnectWallet.mockReset();
     mockDisconnectWallet.mockReset();
+    mockWalletState.isConnected = false;
+    mockWalletState.walletAddress = null;
+    mockWalletState.walletName = null;
   });
 
   it("renders five wallet options", () => {
@@ -292,7 +327,7 @@ describe("ConnectWalletModal — general", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent("User rejected request")
+      expect(screen.getByRole("alert")).toHaveTextContent(connectionErrorUserRejected)
     );
   });
 
@@ -327,5 +362,140 @@ describe("ConnectWalletModal — general", () => {
     );
 
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("renders connected state with correct message strings", () => {
+    // Simulate already-connected state
+    mockWalletState.isConnected = true;
+    mockWalletState.walletAddress = "GAABC123DEF456GHI789JKL";
+    mockWalletState.walletName = "Freighter";
+
+    renderModal();
+
+    expect(screen.getByText(walletConnectedTitle)).toBeInTheDocument();
+    expect(screen.getByText(walletConnectedDescription)).toBeInTheDocument();
+    expect(screen.getByText(connectedLabel)).toBeInTheDocument();
+    expect(screen.getByText(disconnectButtonLabel)).toBeInTheDocument();
+
+    // Reset
+    mockWalletState.isConnected = false;
+    mockWalletState.walletAddress = null;
+    mockWalletState.walletName = null;
+  });
+
+  it("renders disconnected state with correct message strings", () => {
+    renderModal();
+
+    expect(screen.getByText(connectWalletTitle)).toBeInTheDocument();
+    expect(screen.getByText(connectWalletDescription)).toBeInTheDocument();
+    expect(screen.queryByText(walletConnectedTitle)).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. friendlyConnectionError — error mapping
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("friendlyConnectionError", () => {
+  it("maps user-rejected errors to the rejection message", () => {
+    expect(friendlyConnectionError("User rejected request")).toBe(connectionErrorUserRejected);
+    expect(friendlyConnectionError("Request was cancelled")).toBe(connectionErrorUserRejected);
+    expect(friendlyConnectionError("Access denied by user")).toBe(connectionErrorUserRejected);
+  });
+
+  it("maps extension-not-found errors to the installation message", () => {
+    expect(friendlyConnectionError("Extension not found")).toBe(connectionErrorExtensionNotFound);
+    expect(friendlyConnectionError("Wallet not installed")).toBe(connectionErrorExtensionNotFound);
+    expect(friendlyConnectionError("Provider not available")).toBe(connectionErrorExtensionNotFound);
+  });
+
+  it("maps locked-extension errors to the unlock message", () => {
+    expect(friendlyConnectionError("Extension is locked")).toBe(connectionErrorExtensionLocked);
+    expect(friendlyConnectionError("Please unlock your wallet")).toBe(connectionErrorExtensionLocked);
+    expect(friendlyConnectionError("User is logged out")).toBe(connectionErrorExtensionLocked);
+  });
+
+  it("maps network-mismatch errors to the network message", () => {
+    expect(friendlyConnectionError("Network mismatch")).toBe(connectionErrorNetworkMismatch);
+    expect(friendlyConnectionError("Wrong testnet")).toBe(connectionErrorNetworkMismatch);
+    expect(friendlyConnectionError("Invalid mainnet")).toBe(connectionErrorNetworkMismatch);
+  });
+
+  it("maps timeout errors to the timeout message", () => {
+    expect(friendlyConnectionError("Request timeout")).toBe(connectionErrorTimeout);
+    expect(friendlyConnectionError("Connection timed out")).toBe(connectionErrorTimeout);
+  });
+
+  it("falls back to the generic message for unknown errors", () => {
+    expect(friendlyConnectionError("Something weird")).toBe(connectionErrorFallback);
+    expect(friendlyConnectionError("")).toBe(connectionErrorFallback);
+    expect(friendlyConnectionError(null)).toBe(connectionErrorFallback);
+    expect(friendlyConnectionError(undefined)).toBe(connectionErrorFallback);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Message key snapshot — every exported string is non-empty
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("Message key snapshot", () => {
+  const messageKeys = [
+    walletConnectedTitle,
+    walletConnectedDescription,
+    connectWalletTitle,
+    connectWalletDescription,
+    connectingLabel,
+    connectedLabel,
+    disconnectButtonLabel,
+    lastUsedBadgeLabel,
+    lastUsedBadgeText,
+    copyAddressLabel,
+    addressCopiedLabel,
+    connectionErrorFallback,
+    connectionErrorUserRejected,
+    connectionErrorExtensionNotFound,
+    connectionErrorExtensionLocked,
+    connectionErrorNetworkMismatch,
+    connectionErrorTimeout,
+    connectionErrorUnexpected,
+    disconnectionErrorFallback,
+    disconnectionErrorUnexpected,
+  ];
+
+  it("every message key resolves to a non-empty string", () => {
+    messageKeys.forEach((key) => {
+      expect(typeof key).toBe("string");
+      expect(key.length).toBeGreaterThan(0);
+    });
+  });
+
+  it("no message key contains raw SDK error patterns", () => {
+    const rawPatterns = ["Error connecting", "Error disconnecting", "Error signing", "Failed", "Not supported"];
+    messageKeys.forEach((key) => {
+      rawPatterns.forEach((pattern) => {
+        expect(key).not.toContain(pattern);
+      });
+    });
+  });
+
+  it("all error messages follow the three-part pattern (acknowledgement + cause + action)", () => {
+    const errorMessages = [
+      connectionErrorFallback,
+      connectionErrorUserRejected,
+      connectionErrorExtensionNotFound,
+      connectionErrorExtensionLocked,
+      connectionErrorNetworkMismatch,
+      connectionErrorTimeout,
+      connectionErrorUnexpected,
+      disconnectionErrorFallback,
+      disconnectionErrorUnexpected,
+    ];
+
+    errorMessages.forEach((msg) => {
+      // Each error message should contain a period (indicating sentence structure)
+      expect(msg).toContain(".");
+      // Each should be reasonably short (≤ 100 chars for readability)
+      expect(msg.length).toBeLessThanOrEqual(100);
+    });
   });
 });

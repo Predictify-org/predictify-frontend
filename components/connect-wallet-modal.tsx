@@ -15,6 +15,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  walletConnectedTitle,
+  walletConnectedDescription,
+  connectWalletTitle,
+  connectWalletDescription,
+  connectingLabel,
+  connectedLabel,
+  disconnectButtonLabel,
+  lastUsedBadgeLabel,
+  lastUsedBadgeText,
+  copyAddressLabel,
+  addressCopiedLabel,
+  connectionErrorUnexpected,
+  disconnectionErrorUnexpected,
+  friendlyConnectionError,
+} from "@/components/connect-wallet-modal.messages";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,12 +69,12 @@ function LastUsedBadge() {
     <Badge
       variant="secondary"
       className="ml-auto flex items-center gap-1 text-xs font-medium"
-      aria-label="Last used wallet"
+      aria-label={lastUsedBadgeLabel}
       data-testid="last-used-badge"
     >
       {/* Clock icon communicates "recent" without relying on colour alone (WCAG 1.4.1) */}
       <Clock className="h-3 w-3" aria-hidden="true" />
-      Last used
+      {lastUsedBadgeText}
     </Badge>
   );
 }
@@ -82,6 +98,8 @@ export function ConnectWalletModal({
   const [connectionError, setConnectionError]     = useState<string | null>(null);
   const [connectingWalletId, setConnectingWalletId] = useState<string | null>(null);
   const [copied, setCopied]                       = useState(false);
+  const [walletsAvailability, setWalletsAvailability] = useState<Record<string, boolean>>({});
+  const [hasCheckedAvailability, setHasCheckedAvailability] = useState(false);
 
   /**
    * Read the last-used ID from localStorage on mount (client-only).
@@ -141,11 +159,11 @@ export function ConnectWalletModal({
         }
         onOpenChange(false);
       } else {
-        setConnectionError(result.error ?? "Error connecting wallet");
+        setConnectionError(friendlyConnectionError(result.error));
       }
     } catch (err) {
       console.error("Unexpected error:", err);
-      setConnectionError("Unexpected error connecting the wallet");
+      setConnectionError(connectionErrorUnexpected);
     } finally {
       setConnectingWalletId(null);
     }
@@ -154,7 +172,7 @@ export function ConnectWalletModal({
   const handleDisconnect = async () => {
     const result = await disconnectWallet();
     if (!result.success) {
-      setConnectionError(result.error ?? "Unexpected error disconnecting the wallet");
+      setConnectionError(result.error ? friendlyConnectionError(result.error) : disconnectionErrorUnexpected);
     } else {
       onWalletDisconnect?.();
       onOpenChange(false);
@@ -179,12 +197,10 @@ export function ConnectWalletModal({
       <DialogContent className="sm:max-w-md rounded-lg">
         <DialogHeader>
           <DialogTitle className="font-bold">
-            {isConnected ? "Wallet Connected" : "Connect Your Wallet"}
+            {isConnected ? walletConnectedTitle : connectWalletTitle}
           </DialogTitle>
           <DialogDescription>
-            {isConnected
-              ? "Your wallet is successfully connected."
-              : "Choose a wallet to enable secure transactions on SRust"}
+            {isConnected ? walletConnectedDescription : connectWalletDescription}
           </DialogDescription>
         </DialogHeader>
 
@@ -212,7 +228,7 @@ export function ConnectWalletModal({
                   <button
                     type="button"
                     onClick={copyAddress}
-                    aria-label={copied ? "Address copied" : "Copy wallet address"}
+                    aria-label={copied ? addressCopiedLabel : copyAddressLabel}
                     className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 p-0"
                   >
                     {copied ? (
@@ -264,12 +280,12 @@ export function ConnectWalletModal({
                 {/* Right-side indicators — only one is shown at a time */}
                 {connectingWalletId === wallet.id && (
                   <span className="ml-auto text-sm text-muted-foreground" aria-live="polite">
-                    Connecting…
+                    {connectingLabel}
                   </span>
                 )}
 
                 {isCurrentlyConnected && connectingWalletId !== wallet.id && (
-                  <span className="ml-auto text-primary text-sm">Connected</span>
+                  <span className="ml-auto text-primary text-sm">{connectedLabel}</span>
                 )}
 
                 {/*
@@ -295,7 +311,7 @@ export function ConnectWalletModal({
               className="text-destructive cursor-pointer hover:text-destructive hover:bg-destructive/10"
             >
               <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
-              Disconnect
+              {disconnectButtonLabel}
             </Button>
           </DialogFooter>
         )}

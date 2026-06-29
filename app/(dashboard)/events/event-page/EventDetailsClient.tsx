@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MechanicHelp } from "@/components/patterns/MechanicHelp";
-import { oracleDelayHelp, platformFeesHelp } from "@/components/patterns/mechanic-help-content";
+import { LongPressHelp } from "@/components/patterns/LongPressHelp";
+import { oracleDelayHelp, platformFeesHelp, oddsHelp } from "@/components/patterns/mechanic-help-content";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -227,7 +228,7 @@ export default function EventDetailsClient() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <CardTitle>Event Status</CardTitle>
-            <MechanicHelp content={oracleDelayHelp} />
+            <LongPressHelp content={oracleDelayHelp} />
           </div>
           <CardDescription>
             Markets may stay in resolving while oracle confirmations arrive after the betting window closes.
@@ -312,8 +313,9 @@ export default function EventDetailsClient() {
                   />
                   <span>{option.text}</span>
                 </div>
-                <Badge variant="secondary">
+                <Badge variant="secondary" className="gap-1">
                   Odds: {eventData.odds[option.id]?.toFixed(1) ?? "N/A"}x
+                  <LongPressHelp content={oddsHelp} />
                 </Badge>
               </Label>
             ))}
@@ -387,7 +389,7 @@ export default function EventDetailsClient() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Label htmlFor="bet-amount">Bet Amount ($)</Label>
-            <MechanicHelp content={platformFeesHelp} />
+            <LongPressHelp content={platformFeesHelp} />
           </div>
           <Input
             id="bet-amount"
