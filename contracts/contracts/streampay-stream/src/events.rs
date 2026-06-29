@@ -1,4 +1,4 @@
-//! # StreamPay contract events
+//! # `StreamPay` contract events
 //!
 //! All events use a two-topic scheme: `("stream", "<event>")`.
 //!
@@ -139,6 +139,7 @@ pub fn settled(env: &Env, stream_id: u64, recipient: &Address, total_amount: i12
     .publish(env);
 }
 
+#[allow(dead_code)]
 pub fn paused(env: &Env, stream_id: u64, sender: &Address, pause_time: u64, timestamp: u64) {
     StreamPaused {
         stream_id,

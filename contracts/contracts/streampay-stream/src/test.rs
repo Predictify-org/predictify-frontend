@@ -275,8 +275,7 @@ fn init_with_token_allowlist_emits_no_events() {
     let events = data.env.events().all();
     assert!(
         events.is_empty(),
-        "init_with_token_allowlist should emit zero events, got: {:?}",
-        events
+        "init_with_token_allowlist should emit zero events, got: {events:?}",
     );
 }
 
@@ -1125,8 +1124,7 @@ fn no_events_on_cancel_failure() {
     let events = data.env.events().all();
     assert!(
         events.is_empty(),
-        "Failed cancel_stream should not emit events, got: {:?}",
-        events
+        "Failed cancel_stream should not emit events, got: {events:?}",
     );
 }
 
@@ -1319,7 +1317,7 @@ fn settle_overflow_returns_overflow_error() {
     assert_eq!(stream.released_amount, 100);
 }
 
-/// Creating a stream with start_time == end_time must be rejected.
+/// Creating a stream with `start_time` == `end_time` must be rejected.
 #[test]
 fn create_stream_zero_duration_returns_invalid_time_range() {
     let data = setup_init();

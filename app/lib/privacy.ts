@@ -4,7 +4,7 @@ import { getStore } from "./db";
 export function redact(data: any): any {
   if (typeof data !== 'object' || data === null) return data;
   const redacted = { ...data };
-  const keysToRedact = ['signature', 'publicKey', 'secret', 'password', 'token', 'email'];
+  const keysToRedact = ['signature', 'publickey', 'secret', 'password', 'token', 'email'];
   for (const key in redacted) {
     if (keysToRedact.includes(key.toLowerCase())) {
       redacted[key] = '[REDACTED]';

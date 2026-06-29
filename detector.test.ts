@@ -14,7 +14,7 @@ describe("AnomalyDetector", () => {
 
   beforeEach(() => {
     AnomalyDetector.resetCancelHistory();
-    auditLogStore.reset();
+    auditLogStore.reset([]);
   });
 
   const createSnapshot = (

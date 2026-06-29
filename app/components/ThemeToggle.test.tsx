@@ -4,10 +4,16 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeToggle } from "./ThemeToggle";
-import * as themeNoFlash from "../utils/theme-noflash";
+
+const mockSetTheme = jest.fn();
+jest.mock("../utils/theme-noflash", () => ({
+  ...jest.requireActual("../utils/theme-noflash"),
+  setTheme: (...args: any[]) => mockSetTheme(...args),
+}));
 
 describe("ThemeToggle", () => {
   beforeEach(() => {
+    mockSetTheme.mockClear();
     // Mock localStorage
     const store: Record<string, string> = {};
     const localStorageMock = {
@@ -63,13 +69,12 @@ describe("ThemeToggle", () => {
   });
 
   it("calls setTheme and updates state when selecting dark", () => {
-    const setThemeSpy = jest.spyOn(themeNoFlash, 'setTheme').mockImplementation(() => {});
     render(<ThemeToggle />);
     
     const darkRadio = screen.getByLabelText("Dark");
     fireEvent.click(darkRadio);
     
-    expect(setThemeSpy).toHaveBeenCalledWith("dark");
+    expect(mockSetTheme).toHaveBeenCalledWith("dark");
     expect((darkRadio as HTMLInputElement).checked).toBe(true);
   });
   

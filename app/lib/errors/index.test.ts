@@ -79,7 +79,7 @@ describe("errorResponse()", () => {
     }));
 
     // Re-import after resetting modules
-    const { errorResponse: er } = await import("./index");
+    const { errorResponse: er } = await import("./server");
     const res = er(ErrorCode.INTERNAL_SERVER_ERROR, "Oops.");
     const body = (res as unknown as { body: ErrorEnvelope }).body;
     expect(typeof body.error.request_id).toBe("string");
@@ -97,7 +97,7 @@ describe("errorResponse()", () => {
       },
     }));
 
-    const { errorResponse: er } = await import("./index");
+    const { errorResponse: er } = await import("./server");
     const res = er(ErrorCode.NOT_FOUND, "Not found.", 404);
     const body = (res as unknown as { body: ErrorEnvelope }).body;
     expect(body.error.request_id).toBe("req_abc123");

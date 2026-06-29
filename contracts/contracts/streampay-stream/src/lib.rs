@@ -1,4 +1,4 @@
-//! # StreamPay Stream Contract
+//! # `StreamPay` Stream Contract
 //!
 //! Soroban smart contract that manages linear payment streams on Stellar.
 //! Each stream locks a fixed token amount in escrow and releases it linearly
@@ -22,13 +22,15 @@ mod events;
 mod limits;
 mod release;
 mod storage;
+mod views;
 
 pub use error::Error;
 use soroban_sdk::contracttype;
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 pub use storage::{Stream, StreamStatus};
+pub use views::{StreamPage, MAX_PAGE_SIZE};
 
-/// The StreamPay contract entry point registered with the Soroban host.
+/// The `StreamPay` contract entry point registered with the Soroban host.
 #[contract]
 pub struct Contract;
 
@@ -50,6 +52,7 @@ enum DataKey {
     TokenAllowed(Address),
 }
 
+#[allow(clippy::needless_pass_by_value, clippy::must_use_candidate)]
 #[contractimpl]
 impl Contract {
     /// One-time contract initialisation.
@@ -465,7 +468,7 @@ impl Contract {
     /// Returns the stream balance (vested amount) at a given ledger timestamp.
     ///
     /// This is a view function that computes how much of the stream has vested
-    /// based on linear accrual from start_time to end_time. It uses overflow-safe
+    /// based on linear accrual from `start_time` to `end_time`. It uses overflow-safe
     /// checked arithmetic to ensure correctness even with large amounts.
     ///
     /// # Arguments
@@ -476,6 +479,10 @@ impl Contract {
     ///
     /// The vested amount as an i128, always in the range `[0, total_amount]`.
     /// Returns `Err(Error::Overflow)` if arithmetic overflows on extreme inputs.
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::Overflow`] if the vested-amount computation overflows.
     pub fn stream_balance(env: Env, stream_id: u64) -> Result<i128, Error> {
         let stream = get_existing_stream(&env, stream_id)?;
         release::vested_amount(&stream, env.ledger().timestamp())
@@ -568,8 +575,13 @@ impl Contract {
     /// Pauses an active stream, freezing accrual while preserving vested funds.
     ///
     /// Only the stream sender may call this. On pause, status is set to Paused
-    /// and pause_time is recorded. Vested amount remains withdrawable but does
+    /// and `pause_time` is recorded. Vested amount remains withdrawable but does
     /// not increase while paused.
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::Unauthorized`] if caller is not the stream sender.
+    /// - [`Error::InvalidState`] if the stream is not `Active`.
     pub fn pause(env: Env, stream_id: u64) -> Result<Stream, Error> {
         let mut stream = get_existing_stream(&env, stream_id)?;
         stream.sender.require_auth();
@@ -596,9 +608,15 @@ impl Contract {
     /// Requires authorisation from the stream's `sender`.
     /// Resumes a paused stream, extending end_time to preserve unstreamed time.
     ///
-    /// Only the stream sender may call this. On resume, the end_time is extended
+    /// Only the stream sender may call this. On resume, the `end_time` is extended
     /// by the paused duration so the remaining streamable amount is preserved.
     /// Status is set back to Active.
+    ///
+    /// # Errors
+    /// - [`Error::NotFound`] if `stream_id` does not exist.
+    /// - [`Error::Unauthorized`] if caller is not the stream sender.
+    /// - [`Error::InvalidState`] if the stream is not `Paused`.
+    /// - [`Error::InvalidTimeRange`] if time calculation overflows.
     pub fn resume(env: Env, stream_id: u64) -> Result<Stream, Error> {
         let mut stream = get_existing_stream(&env, stream_id)?;
         stream.sender.require_auth();
@@ -865,6 +883,144 @@ impl Contract {
         events::upgraded(&env, new_wasm_hash);
         Ok(())
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Read-only paginated enumeration views
+    // ──────────────────────────────────────────────────────────────────────
+
+    /// Returns a paginated list of all streams, ordered by ascending stream ID.
+    ///
+    /// This is a read-only view that never mutates state or requires auth.
+    /// The global pause flag does not affect this call.
+    ///
+    /// # Parameters
+    ///
+    /// - `start_after` — Exclusive cursor: return streams with `id > start_after`.
+    ///   Pass `None` to start from the beginning (stream ID 1).
+    /// - `limit` — Maximum number of streams to return. Capped at [`MAX_PAGE_SIZE`].
+    ///
+    /// # Returns
+    ///
+    /// A [`StreamPage`] with up to `limit` streams. If `next_cursor` is `Some(id)`,
+    /// there are more streams; pass `id` as `start_after` to the next call.
+    pub fn list_streams(env: Env, start_after: Option<u64>, limit: u64) -> views::StreamPage {
+        views::list_streams(&env, start_after, limit)
+    }
+
+    /// Returns a paginated list of streams sent by a given address.
+    ///
+    /// This is a read-only view that never mutates state or requires auth.
+    ///
+    /// # Parameters
+    ///
+    /// - `sender` — Filter: only return streams where `stream.sender == sender`.
+    /// - `start_after` — Exclusive cursor: return streams with `id > start_after`.
+    /// - `limit` — Maximum number of streams to return. Capped at [`MAX_PAGE_SIZE`].
+    ///
+    /// # Returns
+    ///
+    /// A [`StreamPage`] with up to `limit` streams sent by `sender`.
+    pub fn list_streams_by_sender(
+        env: Env,
+        sender: Address,
+        start_after: Option<u64>,
+        limit: u64,
+    ) -> views::StreamPage {
+        views::list_streams_by_sender(&env, &sender, start_after, limit)
+    }
+
+    /// Returns a paginated list of streams received by a given address.
+    ///
+    /// This is a read-only view that never mutates state or requires auth.
+    ///
+    /// # Parameters
+    ///
+    /// - `recipient` — Filter: only return streams where `stream.recipient == recipient`.
+    /// - `start_after` — Exclusive cursor: return streams with `id > start_after`.
+    /// - `limit` — Maximum number of streams to return. Capped at [`MAX_PAGE_SIZE`].
+    ///
+    /// # Returns
+    ///
+    /// A [`StreamPage`] with up to `limit` streams received by `recipient`.
+    pub fn list_streams_by_recipient(
+        env: Env,
+        recipient: Address,
+        start_after: Option<u64>,
+        limit: u64,
+    ) -> views::StreamPage {
+        views::list_streams_by_recipient(&env, &recipient, start_after, limit)
+    }
+
+    /// Returns a paginated list of streams filtered by status.
+    ///
+    /// This is a read-only view that never mutates state or requires auth.
+    ///
+    /// # Parameters
+    ///
+    /// - `status` — Filter: only return streams where `stream.status == status`.
+    /// - `start_after` — Exclusive cursor: return streams with `id > start_after`.
+    /// - `limit` — Maximum number of streams to return. Capped at [`MAX_PAGE_SIZE`].
+    ///
+    /// # Returns
+    ///
+    /// A [`StreamPage`] with up to `limit` streams in the given status.
+    pub fn list_streams_by_status(
+        env: Env,
+        status: StreamStatus,
+        start_after: Option<u64>,
+        limit: u64,
+    ) -> views::StreamPage {
+        views::list_streams_by_status(&env, status, start_after, limit)
+    }
+
+    /// Returns a paginated list of streams filtered by recipient and status.
+    ///
+    /// This is a read-only view commonly used by frontends to show a user's
+    /// active/paused/settled streams.
+    ///
+    /// # Parameters
+    ///
+    /// - `recipient` — Filter: only return streams where `stream.recipient == recipient`.
+    /// - `status` — Filter: only return streams where `stream.status == status`.
+    /// - `start_after` — Exclusive cursor: return streams with `id > start_after`.
+    /// - `limit` — Maximum number of streams to return. Capped at [`MAX_PAGE_SIZE`].
+    ///
+    /// # Returns
+    ///
+    /// A [`StreamPage`] with up to `limit` streams matching both filters.
+    pub fn list_streams_recipient_status(
+        env: Env,
+        recipient: Address,
+        status: StreamStatus,
+        start_after: Option<u64>,
+        limit: u64,
+    ) -> views::StreamPage {
+        views::list_streams_by_recipient_and_status(&env, &recipient, status, start_after, limit)
+    }
+
+    /// Returns a paginated list of streams filtered by sender and status.
+    ///
+    /// This is a read-only view that never mutates state or requires auth.
+    ///
+    /// # Parameters
+    ///
+    /// - `sender` — Filter: only return streams where `stream.sender == sender`.
+    /// - `status` — Filter: only return streams where `stream.status == status`.
+    /// - `start_after` — Exclusive cursor: return streams with `id > start_after`.
+    /// - `limit` — Maximum number of streams to return. Capped at [`MAX_PAGE_SIZE`].
+    ///
+    /// # Returns
+    ///
+    /// A [`StreamPage`] with up to `limit` streams matching both filters.
+    pub fn list_streams_sender_status(
+        env: Env,
+        sender: Address,
+        status: StreamStatus,
+        start_after: Option<u64>,
+        limit: u64,
+    ) -> views::StreamPage {
+        views::list_streams_by_sender_and_status(&env, &sender, status, start_after, limit)
+    }
 }
 
 fn get_existing_stream(env: &Env, stream_id: u64) -> Result<Stream, Error> {
@@ -908,6 +1064,9 @@ mod prop_test;
 /// See `src/coverage_test.rs` for the full test matrix.
 #[cfg(test)]
 mod coverage_test;
+
+#[cfg(test)]
+mod views_integration_test;
 
 #[cfg(test)]
 mod upgrade_test {
