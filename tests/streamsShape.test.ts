@@ -21,8 +21,9 @@
 
 import { resetDb } from "@/app/lib/db";
 import { GET as getStreams, POST as createStream } from "@/app/api/streams/route";
+import { resetRateLimitStore, InMemoryRateLimitStore, setRateLimitStore } from "@/app/lib/rate-limit-store";
 
-// A valid Stellar public key used across tests.
+// A valid-format Stellar public key used as a test fixture — not a real key.
 const STELLAR_KEY =
   "GDSBCG3OKHCMMWS5EBH2X7XOYTJRWXN2YYQPCNS5OFBU4IDO4X7OFSQA";
 
@@ -90,7 +91,23 @@ function stabilise(obj: unknown): unknown {
 // Setup
 // ---------------------------------------------------------------------------
 
-beforeEach(() => resetDb());
+// A fresh store with a very high limit ensures POST tests are never throttled
+// and the interval handle is owned by this suite so afterAll can destroy it.
+let rateLimitStore: InMemoryRateLimitStore;
+
+beforeEach(() => {
+  resetDb();
+  rateLimitStore = new InMemoryRateLimitStore(/* maxTokensPerBucket */ 10_000);
+  setRateLimitStore(rateLimitStore);
+});
+
+afterEach(() => {
+  rateLimitStore.destroy();
+});
+
+afterAll(() => {
+  resetRateLimitStore();
+});
 
 // ---------------------------------------------------------------------------
 // GET /api/streams — empty store

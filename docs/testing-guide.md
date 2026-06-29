@@ -48,6 +48,29 @@ npm run test:e2e
 - `--detectOpenHandles` — diagnose hanging processes after a run.
 - `--coverage` — emit `coverage/` for CI.
 
+## Shape stability tests (issue #597)
+
+`tests/streamsShape.test.ts` pins the exact JSON envelope returned by
+`GET /api/streams` and `POST /api/streams` using Jest snapshots.
+
+| Concern | How it is covered |
+|---------|------------------|
+| Envelope keys (`data`, `links`, `meta`) | `Object.keys` snapshot |
+| camelCase field names (no snake_case leakage) | explicit `toHaveProperty` guards before snapshot |
+| Error envelope shape (`error.code`, `.message`, `.request_id`, `.details`) | 422 and 400 snapshots |
+| Volatile values | replaced with `<ISO_TIMESTAMP>`, `stream-<ID>`, `<CURSOR>`, `<REQUEST_ID>` by `stabilise()` before snapshotting |
+
+```bash
+# Run only the shape stability suite
+npm test -- tests/streamsShape.test.ts
+
+# Intentionally update snapshots after a deliberate v1 shape change
+npx jest tests/streamsShape.test.ts --updateSnapshot
+```
+
+> Only run `--updateSnapshot` after confirming the change is
+> backwards-compatible with wallet partners still on v1 (sunset: 2026-12-31).
+
 ## See also
 
 - `jest.config.js` and `jest.setup.ts` for the runtime configuration.

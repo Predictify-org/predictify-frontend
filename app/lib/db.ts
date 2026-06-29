@@ -358,10 +358,17 @@ export function decodeCompositeCursor(cursor: string): { timestamp: string; id: 
   if (separatorIndex === -1) {
     throw new Error("Invalid cursor: malformed composite key");
   }
-  return {
-    timestamp: decoded.slice(0, separatorIndex),
-    id: decoded.slice(separatorIndex + 1),
-  };
+  const timestamp = decoded.slice(0, separatorIndex);
+  const id = decoded.slice(separatorIndex + 1);
+  // Guard: timestamp must be ISO-8601 and id must match the stream-id format
+  // to prevent cursor-injection with crafted payloads.
+  if (!/^\d{4}-\d{2}-\d{2}T[\d:.Z+-]+$/.test(timestamp)) {
+    throw new Error("Invalid cursor: timestamp segment is not a valid ISO-8601 string");
+  }
+  if (!/^[\w-]{1,128}$/.test(id)) {
+    throw new Error("Invalid cursor: id segment contains disallowed characters");
+  }
+  return { timestamp, id };
 }
 
 export { createInMemoryPersistenceStore, createPostgresPersistenceStore, POSTGRES_SCHEMA_SKETCH, POSTGRES_ROLLOUT_NOTES };

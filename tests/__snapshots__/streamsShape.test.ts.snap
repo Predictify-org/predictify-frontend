@@ -5,11 +5,11 @@ exports[`GET /api/streams shape matches snapshot: empty list 1`] = `
   "data": [
     {
       "createdAt": "<ISO_TIMESTAMP>",
-      "email": "ada@creativestudio.io",
+      "email": "fixture-user-1@example.test",
       "id": "stream-<ID>",
       "label": "Design Retainer Q2",
       "nextAction": "pause",
-      "partnerId": "PARTNER-123",
+      "partnerId": "PARTNER-FIXTURE-1",
       "rate": "120 XLM / month",
       "recipient": "Ada Creative Studio",
       "schedule": "Pays every 30 days",
@@ -19,7 +19,7 @@ exports[`GET /api/streams shape matches snapshot: empty list 1`] = `
     },
     {
       "createdAt": "<ISO_TIMESTAMP>",
-      "email": "kemi@onboarding.io",
+      "email": "fixture-user-2@example.test",
       "id": "stream-<ID>",
       "memo": "April Support batch",
       "nextAction": "start",
@@ -58,11 +58,11 @@ exports[`GET /api/streams shape matches snapshot: links.self is always present 1
   "data": [
     {
       "createdAt": "<ISO_TIMESTAMP>",
-      "email": "ada@creativestudio.io",
+      "email": "fixture-user-1@example.test",
       "id": "stream-<ID>",
       "label": "Design Retainer Q2",
       "nextAction": "pause",
-      "partnerId": "PARTNER-123",
+      "partnerId": "PARTNER-FIXTURE-1",
       "rate": "120 XLM / month",
       "recipient": "Ada Creative Studio",
       "schedule": "Pays every 30 days",
@@ -72,7 +72,7 @@ exports[`GET /api/streams shape matches snapshot: links.self is always present 1
     },
     {
       "createdAt": "<ISO_TIMESTAMP>",
-      "email": "kemi@onboarding.io",
+      "email": "fixture-user-2@example.test",
       "id": "stream-<ID>",
       "memo": "April Support batch",
       "nextAction": "start",
@@ -111,11 +111,11 @@ exports[`GET /api/streams shape matches snapshot: list with one stream 1`] = `
   "data": [
     {
       "createdAt": "<ISO_TIMESTAMP>",
-      "email": "ada@creativestudio.io",
+      "email": "fixture-user-1@example.test",
       "id": "stream-<ID>",
       "label": "Design Retainer Q2",
       "nextAction": "pause",
-      "partnerId": "PARTNER-123",
+      "partnerId": "PARTNER-FIXTURE-1",
       "rate": "120 XLM / month",
       "recipient": "Ada Creative Studio",
       "schedule": "Pays every 30 days",
@@ -125,7 +125,7 @@ exports[`GET /api/streams shape matches snapshot: list with one stream 1`] = `
     },
     {
       "createdAt": "<ISO_TIMESTAMP>",
-      "email": "kemi@onboarding.io",
+      "email": "fixture-user-2@example.test",
       "id": "stream-<ID>",
       "memo": "April Support batch",
       "nextAction": "start",
@@ -175,11 +175,11 @@ exports[`GET /api/streams shape matches snapshot: meta fields present (hasNext, 
   "data": [
     {
       "createdAt": "<ISO_TIMESTAMP>",
-      "email": "ada@creativestudio.io",
+      "email": "fixture-user-1@example.test",
       "id": "stream-<ID>",
       "label": "Design Retainer Q2",
       "nextAction": "pause",
-      "partnerId": "PARTNER-123",
+      "partnerId": "PARTNER-FIXTURE-1",
       "rate": "120 XLM / month",
       "recipient": "Ada Creative Studio",
       "schedule": "Pays every 30 days",
@@ -189,7 +189,7 @@ exports[`GET /api/streams shape matches snapshot: meta fields present (hasNext, 
     },
     {
       "createdAt": "<ISO_TIMESTAMP>",
-      "email": "kemi@onboarding.io",
+      "email": "fixture-user-2@example.test",
       "id": "stream-<ID>",
       "memo": "April Support batch",
       "nextAction": "start",
