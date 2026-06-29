@@ -1,12 +1,14 @@
 "use client"
 
 import { type SyntheticEvent, useMemo, useState, useEffect } from "react"
+import Link from "next/link"
 import {
   Bell,
   Eye,
   LayoutGrid,
   ShieldCheck,
   Sparkles,
+  User,
   Wallet,
   Table2,
   LayoutList,
@@ -15,6 +17,7 @@ import {
   ArrowDown,
 } from "lucide-react"
 import { getPinnedActions, savePinnedActions, ALL_AVAILABLE_ACTIONS } from "@/lib/command-palette/pins"
+import { DEFAULT_QUIET_HOURS, useQuietHours, type QuietHoursSettings } from "@/lib/quiet-hours"
 
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -35,6 +38,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { useDensity, densityTokens, type Density, type DensityTokens } from "@/hooks/useDensity"
 import { useSoundEnabled } from "@/hooks/useSoundEnabled"
+import { usePrivacy } from '@/context/PrivacyContext';
 import { cn } from "@/lib/utils"
 
 type TimeFormat = "local-12h" | "local-24h" | "utc"
@@ -122,6 +126,9 @@ export default function SettingsPage() {
   const [priceMovementAlerts, setPriceMovementAlerts] = useState(false)
   const [weeklyDigest, setWeeklyDigest] = useState(true)
   const { hideBalances, setHideBalances } = usePrivacy();
+  const { settings: storedQuietHours, active: quietHoursActive, saveSettings: saveQuietHoursSettings } = useQuietHours()
+  const [quietHours, setQuietHours] = useState<QuietHoursSettings>(DEFAULT_QUIET_HOURS)
+  const [quietHoursDirty, setQuietHoursDirty] = useState(false)
   const [walletAlias, setWalletAlias] = useState(true)
   const [copyWarning, setCopyWarning] = useState(true)
   const { soundEnabled, setSoundEnabled } = useSoundEnabled()
@@ -141,6 +148,12 @@ export default function SettingsPage() {
     }
     localStorage.setItem("force-high-contrast", forceHighContrast.toString())
   }, [forceHighContrast])
+
+  useEffect(() => {
+    if (!quietHoursDirty) {
+      setQuietHours(storedQuietHours)
+    }
+  }, [quietHoursDirty, storedQuietHours])
 
   // Declare missing publicActivity state to resolve compilation reference error
   const [publicActivity, setPublicActivity] = useState(false)
@@ -166,6 +179,8 @@ export default function SettingsPage() {
     event.preventDefault()
     // Persist pinned actions configure
     savePinnedActions(pinnedActionIds)
+    saveQuietHoursSettings(quietHours)
+    setQuietHoursDirty(false)
     setSaveState("saved")
     window.setTimeout(() => setSaveState("idle"), 2500)
   }
@@ -185,6 +200,13 @@ export default function SettingsPage() {
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="privacy">Privacy</TabsTrigger>
+          {/* Account tab links to the dedicated Settings → Account page */}
+          <TabsTrigger value="account" asChild>
+            <Link href="/settings/account" className="flex items-center gap-1">
+              <User className="h-4 w-4" aria-hidden="true" />
+              Account
+            </Link>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="preferences">
@@ -464,6 +486,64 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Quiet hours</Label>
+                        <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                          Suppresses non-critical toasts and pauses ambient motion between these local times. Wallet errors, claim failures, disputes, and actionable warnings still appear.
+                        </p>
+                      </div>
+                      <Badge variant={quietHoursActive ? "secondary" : "outline"}>
+                        {quietHoursActive ? "Active now" : "Inactive now"}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_1.1fr]">
+                      <QuietHoursTimeField
+                        id="quiet-hours-start"
+                        label="Start"
+                        value={quietHours.start}
+                        onChange={(start) => {
+                          setQuietHoursDirty(true)
+                          setQuietHours((current) => ({ ...current, start }))
+                        }}
+                      />
+                      <QuietHoursTimeField
+                        id="quiet-hours-end"
+                        label="End"
+                        value={quietHours.end}
+                        onChange={(end) => {
+                          setQuietHoursDirty(true)
+                          setQuietHours((current) => ({ ...current, end }))
+                        }}
+                      />
+                      <div className="space-y-2">
+                        <Label htmlFor="quiet-hours-timezone">Timezone</Label>
+                        <Select
+                          value={quietHours.tz}
+                          onValueChange={(tz) => {
+                            setQuietHoursDirty(true)
+                            setQuietHours((current) => ({ ...current, tz }))
+                          }}
+                        >
+                          <SelectTrigger id="quiet-hours-timezone">
+                            <SelectValue placeholder="Choose timezone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Auto from device</SelectItem>
+                            <SelectItem value="UTC">UTC</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          Stored as {`{ start: "${quietHours.start}", end: "${quietHours.end}", tz: "${quietHours.tz}" }`}.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
                   <div className="space-y-3">
                     <Label>Notification intensity</Label>
                     <div className="grid gap-3 md:grid-cols-3">
@@ -744,7 +824,31 @@ function PreferenceSwitch({
   )
 }
 
-import { usePrivacy } from '@/context/PrivacyContext';
+function QuietHoursTimeField({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <input
+        id={id}
+        type="time"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      />
+    </div>
+  )
+}
+
 function PreferenceSelect({
   id,
   label,

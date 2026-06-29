@@ -12,12 +12,12 @@ import {
 
 // --- 1. Type Definitions ---
 
-type PredictionStatus = "active" | "pending" | "won" | "lost";
+export type PredictionStatus = "active" | "pending" | "won" | "lost";
 type FilterTab = "All" | "Active" | "Pending" | "Completed";
 type MainTab = "My Predictions" | "Transaction history";
 type Token = "XLM" | "USDC";
 
-interface Prediction {
+export interface Prediction {
   id: string;
   title: string;
   description: string;
@@ -46,7 +46,7 @@ const MOCK_STATS: Stat[] = [
   { title: "Net Profit", value: 30.2, color: "bg-white" },
 ];
 
-const MOCK_PREDICTIONS: Prediction[] = [
+export const MOCK_PREDICTIONS: Prediction[] = [
   {
     id: "1",
     title: "NBA Finals: Lakers vs Heat",
@@ -211,7 +211,6 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
           <h3 className="text-[17px] font-semibold text-[#111827] truncate">
             {title}
           </h3>
-          div
           <div>
             <p className="text-[#6B7280] text-[15px]">{description}</p>
           </div>
@@ -266,46 +265,129 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
 /**
  * PredictionsList component handles the internal filtering and rendering of cards.
  */
-const PredictionsList: React.FC = () => {
+interface PredictionsListProps {
+  predictions?: Prediction[];
+}
+
+const getPredictionsByTab = (
+  predictions: Prediction[],
+  activeTab: FilterTab
+) => {
+  if (activeTab === "All") {
+    return predictions;
+  }
+
+  if (activeTab === "Completed") {
+    return predictions.filter((p) => p.status === "won" || p.status === "lost");
+  }
+
+  const status: PredictionStatus = activeTab.toLowerCase() as PredictionStatus;
+  return predictions.filter((p) => p.status === status);
+};
+
+const FilteredPredictionsEmptyState: React.FC<{
+  activeTab: FilterTab;
+  searchQuery: string;
+  onReset: () => void;
+}> = ({ activeTab, searchQuery, onReset }) => {
+  const hasSearch = searchQuery.trim().length > 0;
+  const activeLabel = hasSearch
+    ? `No predictions match "${searchQuery.trim()}".`
+    : `No predictions match the ${activeTab} filter.`;
+
+  return (
+    <section
+      role="status"
+      aria-live="polite"
+      className="col-span-full rounded-2xl border border-white/20 bg-white/10 px-6 py-12 text-center shadow-xl"
+    >
+      <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-white">
+        <Search size={26} aria-hidden="true" />
+      </div>
+      <h2 className="text-xl font-semibold text-white">
+        No predictions match your filters
+      </h2>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-purple-100">
+        {activeLabel} Reset filters to return to the full predictions list.
+      </p>
+      <button
+        type="button"
+        onClick={onReset}
+        className="mt-6 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#540D8D] transition hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#540D8D]"
+      >
+        Reset filters
+      </button>
+    </section>
+  );
+};
+
+export const PredictionsList: React.FC<PredictionsListProps> = ({
+  predictions = MOCK_PREDICTIONS,
+}) => {
   const TABS: FilterTab[] = ["All", "Active", "Pending", "Completed"];
   const [activeTab, setActiveTab] = useState<FilterTab>("All");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredPredictions = useMemo(() => {
-    if (activeTab === "All") {
-      return MOCK_PREDICTIONS;
+    const tabbedPredictions = getPredictionsByTab(predictions, activeTab);
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return tabbedPredictions;
     }
 
-    if (activeTab === "Completed") {
-      return MOCK_PREDICTIONS.filter(
-        (p) => p.status === "won" || p.status === "lost"
-      );
-    }
+    return tabbedPredictions.filter((prediction) =>
+      [prediction.title, prediction.description]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [activeTab, predictions, searchQuery]);
 
-    const status: PredictionStatus =
-      activeTab.toLowerCase() as PredictionStatus;
-    return MOCK_PREDICTIONS.filter((p) => p.status === status);
-  }, [activeTab]);
+  const resetFilters = () => {
+    setActiveTab("All");
+    setSearchQuery("");
+  };
 
   return (
     <div className="space-y-6">
       {/* Tab Navigation for Status Filtering */}
-      <div className="flex space-x-2 pb-2">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`
-              px-4 py-2 text-sm font-medium rounded-lg transition duration-200
-              ${
-                activeTab === tab
-                  ? "bg-[#6C17B0] text-white border-b-4 border-white p-3 rounded-lg"
-                  : "text-[#6B7280] hover:bg-gray-700 hover:text-white active:bg-gray-600"
-              }
-            `}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap gap-2 pb-2 md:pb-0">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              aria-pressed={activeTab === tab}
+              className={`
+                rounded-lg px-4 py-2 text-sm font-medium transition duration-200
+                ${
+                  activeTab === tab
+                    ? "bg-[#6C17B0] text-white border-b-4 border-white"
+                    : "text-[#E9D5FF] hover:bg-gray-700 hover:text-white active:bg-gray-600"
+                }
+              `}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <label className="relative block w-full md:max-w-xs">
+          <span className="sr-only">Search predictions</span>
+          <Search
+            size={16}
+            aria-hidden="true"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]"
+          />
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search predictions"
+            className="w-full rounded-lg border border-white/20 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-white"
+          />
+        </label>
       </div>
 
       {/* Predictions Grid */}
@@ -315,9 +397,11 @@ const PredictionsList: React.FC = () => {
             <PredictionCard key={prediction.id} prediction={prediction} />
           ))
         ) : (
-          <p className="text-gray-400 text-center col-span-full py-10 text-lg">
-            No predictions found for the "{activeTab}" status.
-          </p>
+          <FilteredPredictionsEmptyState
+            activeTab={activeTab}
+            searchQuery={searchQuery}
+            onReset={resetFilters}
+          />
         )}
       </div>
     </div>

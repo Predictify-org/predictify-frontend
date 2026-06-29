@@ -1,12 +1,56 @@
 "use client"
 
+import { useEffect } from "react"
 import { useTheme } from "next-themes"
-import { Toaster as Sonner } from "sonner"
+import { toast, Toaster as Sonner } from "sonner"
+import { shouldShowToastDuringQuietHours, useQuietHours, type ToastSeverity } from "@/lib/quiet-hours"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
+type SonnerMethod = "message" | "success" | "info" | "warning" | "error" | "custom"
+type PatchableSonnerToast = Record<SonnerMethod, (...args: unknown[]) => unknown>
+
+const criticalMethods = new Set<SonnerMethod>(["error", "warning"])
+const patchedMethods = new Set<SonnerMethod>([
+  "message",
+  "success",
+  "info",
+  "warning",
+  "error",
+  "custom",
+])
+let sonnerPatched = false
+
+function patchSonnerQuietHours() {
+  if (sonnerPatched) return
+
+  patchedMethods.forEach((method) => {
+    const original = (toast as unknown as PatchableSonnerToast)[method]
+
+    if (typeof original !== "function") return
+
+    ;(toast as unknown as PatchableSonnerToast)[method] = (...args: unknown[]) => {
+      const options = args[1] as { severity?: ToastSeverity } | undefined
+      const severity = options?.severity ?? (criticalMethods.has(method) ? "critical" : undefined)
+
+      if (!shouldShowToastDuringQuietHours({ severity })) {
+        return undefined
+      }
+
+      return original(...args)
+    }
+  })
+
+  sonnerPatched = true
+}
+
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
+  useQuietHours()
+
+  useEffect(() => {
+    patchSonnerQuietHours()
+  }, [])
 
   return (
     <Sonner

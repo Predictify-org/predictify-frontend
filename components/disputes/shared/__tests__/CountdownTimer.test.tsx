@@ -1,9 +1,23 @@
 import { render, screen, act } from '@testing-library/react';
 import { CountdownTimer } from '../CountdownTimer';
 
+const setReducedMotion = (matches: boolean) => {
+  window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+    matches: query === '(prefers-reduced-motion: reduce)' ? matches : false,
+    media: query,
+    onchange: null,
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  }));
+};
+
 describe('CountdownTimer', () => {
   beforeEach(() => {
     jest.useFakeTimers();
+    setReducedMotion(false);
   });
 
   afterEach(() => {
@@ -185,6 +199,29 @@ describe('CountdownTimer', () => {
       });
       const liveRegion = container.querySelector('[aria-live="polite"]');
       expect(liveRegion?.textContent).toBe('Deadline passed');
+    });
+  });
+
+  describe('reduced motion', () => {
+    it('renders a static remaining-time label instead of a ticking numeric countdown', () => {
+      setReducedMotion(true);
+      const deadline = new Date(Date.now() + (2 * 86400 + 3 * 3600) * 1000);
+
+      render(<CountdownTimer deadline={deadline} />);
+
+      expect(screen.getByText('2 days, 3 hours remaining')).toBeInTheDocument();
+      expect(screen.queryByText(/\d+d \d+h \d+m \d+s/)).not.toBeInTheDocument();
+    });
+
+    it('does not apply pulse animation when reduced motion is preferred', () => {
+      setReducedMotion(true);
+      const deadline = new Date(Date.now() + 30 * 1000);
+
+      render(<CountdownTimer deadline={deadline} />);
+
+      const countdownEl = screen.getByText(/seconds remaining/);
+      expect(countdownEl).toHaveClass('text-destructive');
+      expect(countdownEl).not.toHaveClass('animate-pulse');
     });
   });
 });

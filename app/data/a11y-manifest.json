@@ -1,9 +1,9 @@
 {
   "board": "grantfox-accessibility-audit",
   "campaign": "GrantFox",
-  "lastUpdated": "2026-06-28",
+  "lastUpdated": "2026-06-29",
   "summary": {
-    "verified": 5,
+    "verified": 6,
     "partial": 1,
     "followUpRequired": 0
   },
@@ -107,6 +107,24 @@
         "app/(dashboard)/settings/ACCESSIBILITY.md"
       ],
       "notes": "Initial focus-order coverage exists, but the test currently verifies only the early tab sequence and should be expanded during the next audit pass."
+    },
+    {
+      "id": "focus-visible-css-layer",
+      "name": "focus-visible CSS layer",
+      "status": "verified",
+      "area": "Global keyboard navigation",
+      "auditScope": [
+        "focus-visible ring on all interactive surfaces",
+        "dark-mode contrast separation",
+        "inset variant for overflow-clipped containers",
+        "skip-link prominence"
+      ],
+      "evidence": [
+        "app/styles/focus.css",
+        "app/globals.css",
+        "app/__tests__/focus-visible.test.js"
+      ],
+      "notes": "Low-priority @layer ensures component-level overrides win without !important. Uses --ring design token for dark-mode and theming consistency. WCAG 2.1 AA SC 1.4.11 satisfied via 3 px outline with 2 px offset."
     }
   ]
 }

@@ -30,6 +30,16 @@ See the [README.md](./README.md) for detailed setup instructions.
 - Keep components small and focused (single responsibility)
 - Use TypeScript interfaces for props
 
+### Microcopy and Tone
+
+User-facing strings must follow the wallet microcopy tone guide:
+- [Wallet Microcopy Tone Guide](./docs/microcopy-wallet.md)
+
+Key principles:
+1. Empathic acknowledgement ("We couldn't …")
+2. Concrete cause ("Your … extension isn't installed")
+3. Next action ("Install … and try again")
+
 ### File Organization
 
 - Group related files in the same directory

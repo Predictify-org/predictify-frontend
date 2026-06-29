@@ -7,12 +7,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ReactNode } from "react";
 import { useHideBalancesShortcut } from "@/hooks/useHideBalancesShortcut";
+import { ClaimShareProvider } from "@/context/ClaimShareContext";
+import { RouteDocumentTitle } from "@/app/hooks/useDocumentTitle";
 
 interface ProvidersProps {
   children: ReactNode;
 }
-
-import { ClaimShareProvider } from "@/context/ClaimShareContext";
 
 /**
  * Client-side providers wrapper
@@ -23,6 +23,7 @@ export function Providers({ children }: ProvidersProps) {
   useHideBalancesShortcut();
   return (
     <ErrorBoundary>
+      <RouteDocumentTitle />
       <ThemeProvider
         attribute="class"
         defaultTheme="dark"

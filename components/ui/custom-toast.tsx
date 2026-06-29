@@ -5,6 +5,9 @@ import { toast as sonnerToast } from 'sonner';
 import { CheckCircle, Info, AlertTriangle, XCircle, X, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const criticalToastOptions = { severity: "critical" } as Parameters<typeof sonnerToast.custom>[1];
+const warningToastOptions = { severity: "warning" } as Parameters<typeof sonnerToast.custom>[1];
+
 // Custom toast variants that match the app theme
 export const customToast = {
   success: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void }; onShare?: () => void }) => {
@@ -29,7 +32,7 @@ export const customToast = {
         description={options?.description}
         action={options?.action}
       />
-    ));
+    ), criticalToastOptions);
   },
 
   info: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void } }) => {
@@ -53,7 +56,7 @@ export const customToast = {
         description={options?.description}
         action={options?.action}
       />
-    ));
+    ), warningToastOptions);
   },
 };
 

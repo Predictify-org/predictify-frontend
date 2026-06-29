@@ -75,7 +75,43 @@ function getAnnounceKey(t: TimeLeft): string {
   return `s:${Math.floor(t.seconds / 10) * 10}`;
 }
 
+function getPrefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
+function usePrefersReducedMotion(): boolean {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    getPrefersReducedMotion
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    updatePreference();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', updatePreference);
+      return () => mediaQuery.removeEventListener('change', updatePreference);
+    }
+
+    mediaQuery.addListener(updatePreference);
+    return () => mediaQuery.removeListener(updatePreference);
+  }, []);
+
+  return prefersReducedMotion;
+}
+
 export function CountdownTimer({ deadline, label }: CountdownTimerProps) {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(() => {
     if (!isValidDate(deadline)) return null;
     return computeTimeLeft(deadline);
@@ -121,9 +157,11 @@ export function CountdownTimer({ deadline, label }: CountdownTimerProps) {
     };
 
     tick();
+    if (prefersReducedMotion) return;
+
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [deadline]);
+  }, [deadline, prefersReducedMotion]);
 
   if (!isValidDate(deadline)) {
     return <span className="text-muted-foreground">—</span>;
@@ -154,18 +192,23 @@ export function CountdownTimer({ deadline, label }: CountdownTimerProps) {
   const isUrgent = totalHoursLeft < 24;
 
   const accessibleLabel = label ? `${label}: ${announcement}` : announcement;
+  const visibleLabel = prefersReducedMotion
+    ? announcement
+    : `${timeLeft.days}d ${timeLeft.hours}h ${timeLeft.minutes}m ${timeLeft.seconds}s`;
 
   return (
     <div className="flex flex-col gap-0.5" role="timer" aria-label={accessibleLabel}>
       {label && <span className="text-xs text-muted-foreground">{label}</span>}
       <span
         className={cn(
-          'text-sm font-medium tabular-nums',
-          isUrgent && 'text-destructive animate-pulse'
+          'text-sm font-medium',
+          !prefersReducedMotion && 'tabular-nums',
+          isUrgent && 'text-destructive',
+          isUrgent && !prefersReducedMotion && 'animate-pulse'
         )}
         aria-hidden="true"
       >
-        {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s
+        {visibleLabel}
       </span>
       <span className="sr-only" aria-live="polite" aria-atomic="true">
         {announcement}

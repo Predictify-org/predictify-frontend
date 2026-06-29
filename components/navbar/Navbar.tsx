@@ -16,6 +16,7 @@ import { mockUser as user, mockNavbarState as navbarState } from "./navbar.mock"
 import { WhatsNewDrawer } from "@/components/changelog/WhatsNewDrawer";
 import { getNetworkTint } from "@/lib/network-tint";
 import { useEffect } from "react";
+import { useQuietHours } from "@/lib/quiet-hours";
 
 const NAV_ITEMS = [
   { name: "Markets", href: "/markets", icon: "trending_up" },
@@ -34,6 +35,7 @@ export function Navbar() {
   });
   const { theme, setTheme } = useTheme();
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const { active: quietHoursActive } = useQuietHours();
 
   useEffect(() => {
     localStorage.setItem("predictify_network", network);
@@ -111,10 +113,14 @@ export function Navbar() {
             
             <button
               onClick={toggleTheme}
-              className="text-slate-400 hover:text-white transition-colors flex items-center justify-center p-2 rounded-lg hover:bg-slate-800"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="relative text-slate-400 hover:text-white transition-colors flex items-center justify-center p-2 rounded-lg hover:bg-slate-800"
+              aria-label={`${theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}${quietHoursActive ? '. Quiet hours active' : ''}`}
             >
               <span className="material-symbols-outlined" aria-hidden="true">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+              {quietHoursActive ? (
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-cyan-300 ring-2 ring-slate-950" aria-hidden="true" />
+              ) : null}
+              <span className="sr-only">{quietHoursActive ? "Quiet hours active" : ""}</span>
             </button>
           </div>
         </div>

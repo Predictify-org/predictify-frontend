@@ -107,9 +107,16 @@ describe('TallyBar', () => {
       expect(label).toMatch(/40\.0/);
     });
 
-    it('renders a polite live region that announces updated totals', async () => {
+    it('renders a polite live region that announces the final tally (not animated intermediates)', async () => {
       const tally: [TallySide, TallySide] = [makeSide('Yes', 500, 60), makeSide('No', 333, 40)];
       const { rerender } = render(<TallyBar tally={tally} showAmounts />);
+
+      // LiveRegion has a 50 ms dedup delay before the message appears.
+      await waitFor(() => {
+        const liveRegion = screen.getByText(/Yes: 60\.0 percent, 500 tokens/);
+        expect(liveRegion).toHaveAttribute('aria-live', 'polite');
+        expect(liveRegion).toHaveAttribute('role', 'status');
+      });
 
       rerender(<TallyBar tally={[makeSide('Yes', 700, 70), makeSide('No', 300, 30)]} showAmounts />);
 
@@ -117,6 +124,35 @@ describe('TallyBar', () => {
         const liveRegion = screen.getByText(/Yes: 70\.0 percent, 700 tokens/);
         expect(liveRegion).toHaveAttribute('aria-live', 'polite');
       });
+    });
+
+    it('announces final values on mount, not mid-animation values', async () => {
+      // Even with a large delta that would animate, the aria-live region
+      // should announce the target values right away using final prop data.
+      const tally: [TallySide, TallySide] = [makeSide('Yes', 9999, 85), makeSide('No', 1765, 15)];
+      render(<TallyBar tally={tally} showAmounts />);
+
+      await waitFor(() => {
+        // The live region should contain the final target values even
+        // while the visual numbers are still counting up.
+        const liveRegion = screen.getByText(/Yes: 85\.0 percent, 9,999 tokens/);
+        expect(liveRegion).toHaveAttribute('aria-live', 'polite');
+      });
+    });
+
+    it('count-up animation settles at target values within the animation duration', async () => {
+      // The visual labels animate from 0 to the target, settling at
+      // the final value after the 400 ms animation completes.
+      const tally: [TallySide, TallySide] = [makeSide('Yes', 500, 60), makeSide('No', 333, 40)];
+      render(<TallyBar tally={tally} />);
+
+      await waitFor(
+        () => {
+          expect(screen.getByText('60.0%')).toBeInTheDocument();
+          expect(screen.getByText('40.0%')).toBeInTheDocument();
+        },
+        { timeout: 1000 }
+      );
     });
 
     it('uses the finalized values immediately when reduced motion is preferred', () => {

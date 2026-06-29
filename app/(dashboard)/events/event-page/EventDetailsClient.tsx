@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MechanicHelp } from "@/components/patterns/MechanicHelp";
-import { oracleDelayHelp, platformFeesHelp } from "@/components/patterns/mechanic-help-content";
+import { LongPressHelp } from "@/components/patterns/LongPressHelp";
+import { oracleDelayHelp, platformFeesHelp, oddsHelp } from "@/components/patterns/mechanic-help-content";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,9 +19,10 @@ import {
 } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { Clock, DollarSign, Users, BarChart2, Loader2 } from "lucide-react";
+import { Clock, DollarSign, Users, BarChart2, Loader2, Share2 } from "lucide-react";
 import { formatDistanceToNowStrict, parseISO, isValid } from "date-fns";
 import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
+import { ShareSheet } from "@/app/components/ShareSheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Drawer,
@@ -227,7 +229,7 @@ export default function EventDetailsClient() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <CardTitle>Event Status</CardTitle>
-            <MechanicHelp content={oracleDelayHelp} />
+            <LongPressHelp content={oracleDelayHelp} />
           </div>
           <CardDescription>
             Markets may stay in resolving while oracle confirmations arrive after the betting window closes.
@@ -312,8 +314,9 @@ export default function EventDetailsClient() {
                   />
                   <span>{option.text}</span>
                 </div>
-                <Badge variant="secondary">
+                <Badge variant="secondary" className="gap-1">
                   Odds: {eventData.odds[option.id]?.toFixed(1) ?? "N/A"}x
+                  <LongPressHelp content={oddsHelp} />
                 </Badge>
               </Label>
             ))}
@@ -387,7 +390,7 @@ export default function EventDetailsClient() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Label htmlFor="bet-amount">Bet Amount ($)</Label>
-            <MechanicHelp content={platformFeesHelp} />
+            <LongPressHelp content={platformFeesHelp} />
           </div>
           <Input
             id="bet-amount"
@@ -462,9 +465,28 @@ export default function EventDetailsClient() {
           <h1 className="text-3xl font-bold tracking-tight">
             {eventData.title}
           </h1>
-          <Badge variant="outline">{eventData.category}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{eventData.category}</Badge>
+            <ShareSheet
+              title={eventData.title}
+              text={`Check out "${eventData.title}" on Predictify!`}
+              url={typeof window !== "undefined" ? window.location.href : `https://predictify.app/events/${eventData.id}`}
+              trigger={
+                <Button variant="outline" size="sm" className="gap-2" aria-label="Share this event">
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </Button>
+              }
+            />
+          </div>
         </div>
         <p className="text-muted-foreground">{eventData.description}</p>
+        <div className="mt-4 flex items-center gap-3">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            Resolution Preview
+          </span>
+          <ResolutionPreview />
+        </div>
       </div>
 
       <Separator className="my-6" />

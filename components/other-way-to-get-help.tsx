@@ -1,5 +1,6 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { ExternalLink } from "@/components/ExternalLink";
 
 export function OtherWaysToGetHelp() {
   return (
@@ -17,15 +18,12 @@ export function OtherWaysToGetHelp() {
             <p className="text-gray-600 mb-6">
               Join our Discord server for community support and discussions.
             </p>
-            <a
+            <ExternalLink
               href="#"
-              target="_blank"
-              rel="noopener noreferrer"
               className="inline-block text-blue-600 hover:text-blue-700 font-medium transition-colors"
-              aria-label="Join Discord community"
             >
               Join Discord
-            </a>
+            </ExternalLink>
           </CardContent>
         </Card>
 
@@ -35,7 +33,7 @@ export function OtherWaysToGetHelp() {
               Email Support
             </h3>
             <p className="text-gray-600 mb-6">
-              Send us an email and we'll get back to you within 24 hours.
+              Send us an email and we&apos;ll get back to you within 24 hours.
             </p>
             <a
               href="mailto:support@predictify.com"
