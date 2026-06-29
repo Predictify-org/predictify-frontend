@@ -24,7 +24,45 @@
 
 "use client";
 
+import { useEffect, useState } from "react";
 import type { StreamStatus } from "@/app/types/openapi";
+
+// ── Reduced-motion ─────────────────────────────────────────────────────────────
+
+/**
+ * Tracks the user's `prefers-reduced-motion` setting.
+ *
+ * Returns `true` when the user has requested reduced motion. SSR-safe: defaults
+ * to `false` on the server (and before hydration) and updates live if the
+ * preference changes. Used to swap the animated fill transition for a static,
+ * instantly-positioned bar.
+ */
+function usePrefersReducedMotion(): boolean {
+  const [prefersReduced, setPrefersReduced] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setPrefersReduced(query.matches);
+
+    const onChange = (event: MediaQueryListEvent) => setPrefersReduced(event.matches);
+
+    // addEventListener is the modern API; fall back to addListener for older
+    // engines (e.g. Safari < 14) so the hook degrades gracefully.
+    if (typeof query.addEventListener === "function") {
+      query.addEventListener("change", onChange);
+      return () => query.removeEventListener("change", onChange);
+    }
+
+    query.addListener(onChange);
+    return () => query.removeListener(onChange);
+  }, []);
+
+  return prefersReduced;
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,6 +167,7 @@ export function StreamProgress({
 }: StreamProgressProps) {
   const percent = derivePercent({ status, accruedAmount, totalAmount, startedAt, endsAt });
   const label   = deriveLabel(status, percent);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   // Map status to BEM modifier for color tokens
   const modifier =
@@ -138,8 +177,16 @@ export function StreamProgress({
     status === "cancelled" ? "cancelled" :
     "draft";
 
+  // When the user prefers reduced motion we render a static bar: the fill is
+  // positioned instantly with no width transition. This is also exposed as a
+  // modifier class so external CSS can opt out of any keyframe animations.
+  const motionModifier = prefersReducedMotion ? "static" : "animated";
+
   return (
-    <div className={`stream-progress ${className}`.trim()}>
+    <div
+      className={`stream-progress stream-progress--${motionModifier} ${className}`.trim()}
+      data-reduced-motion={prefersReducedMotion ? "true" : "false"}
+    >
       {/* Track */}
       <div
         role="progressbar"
@@ -150,10 +197,13 @@ export function StreamProgress({
         aria-label={`Stream progress: ${label}`}
         className={`stream-progress__track stream-progress__track--${modifier}`}
       >
-        {/* Fill */}
+        {/* Fill — transitions width unless reduced motion is requested. */}
         <div
           className={`stream-progress__fill stream-progress__fill--${modifier}`}
-          style={{ width: `${percent}%` }}
+          style={{
+            width: `${percent}%`,
+            transition: prefersReducedMotion ? "none" : "width 400ms ease",
+          }}
         />
       </div>
 
