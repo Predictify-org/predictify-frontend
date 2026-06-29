@@ -1,12 +1,14 @@
 "use client"
 
 import { type SyntheticEvent, useMemo, useState, useEffect } from "react"
+import Link from "next/link"
 import {
   Bell,
   Eye,
   LayoutGrid,
   ShieldCheck,
   Sparkles,
+  User,
   Wallet,
   Table2,
   LayoutList,
@@ -198,6 +200,13 @@ export default function SettingsPage() {
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="privacy">Privacy</TabsTrigger>
+          {/* Account tab links to the dedicated Settings → Account page */}
+          <TabsTrigger value="account" asChild>
+            <Link href="/settings/account" className="flex items-center gap-1">
+              <User className="h-4 w-4" aria-hidden="true" />
+              Account
+            </Link>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="preferences">
