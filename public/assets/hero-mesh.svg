@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" fill="none">
+  <defs>
+    <!-- Radial stops replace hard linear bands with smooth noise-like falloff -->
+    <radialGradient id="mesh-a" cx="20%" cy="15%" r="55%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#7C3AED" stop-opacity="0.55"/>
+      <stop offset="60%"  stop-color="#5B21B6" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#3B0764" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mesh-b" cx="80%" cy="80%" r="50%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#4F46E5" stop-opacity="0.45"/>
+      <stop offset="55%"  stop-color="#312E81" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#1E1B4B" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mesh-c" cx="55%" cy="45%" r="40%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#9333EA" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#6D28D9" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Subtle grid lines to add depth without banding -->
+    <pattern id="grid" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path d="M 80 0 L 0 0 0 80" fill="none" stroke="white" stroke-width="0.35" stroke-opacity="0.06"/>
+    </pattern>
+  </defs>
+
+  <!-- Base fill prevents any transparent gaps -->
+  <rect width="1440" height="900" fill="#3B0764"/>
+
+  <!-- Layered radial mesh — each ellipse is offset so no two share the same
+       colour boundary, which is what causes visible banding in linear gradients -->
+  <ellipse cx="290"  cy="135" rx="620" ry="480" fill="url(#mesh-a)"/>
+  <ellipse cx="1150" cy="720" rx="580" ry="440" fill="url(#mesh-b)"/>
+  <ellipse cx="790"  cy="405" rx="420" ry="360" fill="url(#mesh-c)"/>
+
+  <!-- Fine grid overlay for texture depth -->
+  <rect width="1440" height="900" fill="url(#grid)"/>
+</svg>
