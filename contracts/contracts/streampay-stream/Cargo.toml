@@ -1,0 +1,40 @@
+[package]
+name = "streampay-stream"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["lib", "cdylib"]
+doctest = false
+
+# ── Criterion benchmark binary ───────────────────────────────────────────────
+#
+# Located at benches/entrypoints.rs.  Cargo builds this as a native binary
+# (not WASM) so Criterion's timing harness and the Soroban test host both
+# work without any special target flags.
+#
+# Run with:
+#   cargo bench                         # all groups
+#   cargo bench -- create_stream        # single group (substring match)
+#   cargo bench -- --save-baseline main # save a named baseline
+#   cargo bench -- --load-baseline main # compare against saved baseline
+[[bench]]
+name    = "entrypoints"
+harness = false          # use Criterion's own harness, not libtest
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk  = { workspace = true, features = ["testutils"] }
+criterion    = { workspace = true }
+proptest     = "1.0"
+
+# Inherit workspace lints so the panic-free policy is enforced here too.
+# The workspace comment notes that cfg(test) units are exempt from the
+# deny-level lints because proptest and test helpers legitimately use
+# unwrap/expect; module-level #[allow] attributes in test files handle
+# those specific cases.
+[lints]
+workspace = true

@@ -1,0 +1,15 @@
+# .clippy.toml — workspace-level Clippy pedantic configuration
+#
+# This file tunes rules that are enabled via `#![warn(clippy::pedantic)]`
+# in each crate. Lints that are impractical for Soroban no_std contracts
+# are suppressed here so they do not need per-file allow attributes.
+
+# Allow missing docs inside crate (private items). Pedantic enforces docs
+# on all pub items; we handle that through CI warnings, letting the workspace
+# gradually improve coverage without blocking every commit.
+missing-docs-in-crate-items = false
+
+# Complexity thresholds — Soroban entry-points are inherently argument-heavy.
+cognitive-complexity-threshold = 30
+too-many-arguments-threshold = 8
+too-many-lines-threshold = 200

@@ -1,0 +1,10 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "ignorePatterns": [
+    ".next/",
+    "node_modules/",
+    "eslint.config.mjs",
+    "jest.config.js",
+    "next-env.d.ts"
+  ]
+}

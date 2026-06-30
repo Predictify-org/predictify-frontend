@@ -1,0 +1,62 @@
+[workspace]
+resolver = "2"
+members = [
+  "contracts/*",
+]
+
+[workspace.dependencies]
+soroban-sdk = "23"
+# Criterion is a dev-only dep used only by the benchmark binary.
+# We pin a minor version so CI results are reproducible; bump
+# deliberately when upgrading.
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+# For more information about this profile see https://soroban.stellar.org/docs/basic-tutorials/logging#cargotoml-profile
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true
+
+# ── Benchmark profile ────────────────────────────────────────────────────────
+#
+# `bench` inherits release settings but re-enables debug info so that
+# profilers (perf, flamegraph) can resolve symbol names.  The panic
+# strategy is reverted to "unwind" because Criterion's measurement loop
+# catches panics internally; "abort" would silently swallow setup errors.
+#
+# overflow-checks stays true: we want the same arithmetic behaviour as
+# production so benchmark numbers reflect real contract execution cost.
+[profile.bench]
+inherits    = "release"
+debug       = 1        # retain DWARF symbols for profiling
+panic       = "unwind" # criterion catches panics; abort would hide errors
+lto         = false    # faster incremental bench builds
+
+# ── Workspace lint policy ────────────────────────────────────────────────────
+#
+# These lints enforce panic-free contract code across the entire workspace.
+# Rationale: Soroban WASM contracts have no runtime panic handler — a panic
+# traps the WASM execution and halts the transaction with an opaque error.
+# All fallible operations must use Result/Option and propagate errors cleanly.
+#
+# Test modules (#[cfg(test)]) are automatically exempt; Cargo does not apply
+# workspace lints to test compilation units.
+# ─────────────────────────────────────────────────────────────────────────────
+[workspace.lints.rust]
+unwrap_used = "deny"
+expect_used = "deny"
+panic       = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic       = "deny"

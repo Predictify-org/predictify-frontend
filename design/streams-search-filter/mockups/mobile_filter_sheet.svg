@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="375" height="812">
+  <rect width="100%" height="100%" fill="#fff"/>
+  <rect x="0" y="0" width="375" height="60" fill="#111827"/>
+  <text x="20" y="38" font-family="Arial" font-size="16" fill="#fff">Filters</text>
+  <g transform="translate(16,80)">
+    <text x="0" y="18" font-family="Arial" font-size="13" fill="#374151">Status</text>
+    <rect x="0" y="28" width="120" height="40" rx="20" fill="#fff" stroke="#e5e7eb"/>
+    <text x="16" y="54" font-family="Arial" font-size="14" fill="#111827">Paused</text>
+  </g>
+  <g transform="translate(16,140)">
+    <text x="0" y="18" font-family="Arial" font-size="13" fill="#374151">Asset</text>
+    <rect x="0" y="28" width="120" height="40" rx="20" fill="#fff" stroke="#e5e7eb"/>
+    <text x="16" y="54" font-family="Arial" font-size="14" fill="#111827">USD</text>
+  </g>
+  <g transform="translate(16,220)">
+    <rect x="0" y="0" width="343" height="48" rx="8" fill="#111827"/>
+    <text x="140" y="32" font-family="Arial" font-size="14" fill="#fff">Apply</text>
+  </g>
+</svg>

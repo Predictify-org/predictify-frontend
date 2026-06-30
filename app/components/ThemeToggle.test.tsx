@@ -1,0 +1,152 @@
+/**
+ * @jest-environment jsdom
+ */
+
+import { fireEvent, render, screen } from "@testing-library/react";
+import { ThemeToggle } from "./ThemeToggle";
+
+const mockSetTheme = jest.fn();
+jest.mock("../utils/theme-noflash", () => ({
+  ...jest.requireActual("../utils/theme-noflash"),
+  setTheme: (...args: any[]) => mockSetTheme(...args),
+}));
+
+describe("ThemeToggle", () => {
+  beforeEach(() => {
+    mockSetTheme.mockClear();
+    // Mock localStorage
+    const store: Record<string, string> = {};
+    const localStorageMock = {
+      getItem: jest.fn((key: string) => store[key] || null),
+      setItem: jest.fn((key: string, value: string) => {
+        store[key] = value.toString();
+      }),
+      removeItem: jest.fn((key: string) => {
+        delete store[key];
+      }),
+      clear: jest.fn(() => {
+        for (const key in store) {
+          delete store[key];
+        }
+      })
+    };
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true
+    });
+    
+    // Mock matchMedia
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: jest.fn().mockImplementation(query => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: jest.fn(), // Deprecated
+        removeListener: jest.fn(), // Deprecated
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      })),
+    });
+
+    // Mock document.documentElement.classList
+    document.documentElement.classList.remove('high-contrast');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("renders with system as default when no localStorage value", () => {
+    render(<ThemeToggle />);
+    const systemRadio = screen.getByLabelText("System") as HTMLInputElement;
+    expect(systemRadio.checked).toBe(true);
+  });
+
+  it("renders with light when light is in localStorage", () => {
+    window.localStorage.setItem("streampay-theme", "light");
+    render(<ThemeToggle />);
+    const lightRadio = screen.getByLabelText("Light") as HTMLInputElement;
+    expect(lightRadio.checked).toBe(true);
+  });
+
+  it("calls setTheme and updates state when selecting dark", () => {
+    render(<ThemeToggle />);
+    
+    const darkRadio = screen.getByLabelText("Dark");
+    fireEvent.click(darkRadio);
+    
+    expect(mockSetTheme).toHaveBeenCalledWith("dark");
+    expect((darkRadio as HTMLInputElement).checked).toBe(true);
+  });
+  
+  it("removes localStorage item when system is selected", () => {
+    window.localStorage.setItem("streampay-theme", "light");
+    render(<ThemeToggle />);
+    
+    const systemRadio = screen.getByLabelText("System");
+    fireEvent.click(systemRadio);
+    
+    expect(window.localStorage.removeItem).toHaveBeenCalledWith("streampay-theme");
+  });
+
+  describe("high-contrast", () => {
+    it("renders the high-contrast toggle checkbox", () => {
+      render(<ThemeToggle />);
+      expect(screen.getByLabelText("High contrast mode")).toBeInTheDocument();
+    });
+
+    it("defaults to unchecked when no localStorage value", () => {
+      render(<ThemeToggle />);
+      const hcCheckbox = screen.getByLabelText("High contrast mode") as HTMLInputElement;
+      expect(hcCheckbox.checked).toBe(false);
+    });
+
+    it("toggles theme state when clicked", () => {
+      const setHighContrastSpy = jest.spyOn(themeNoFlash, 'setHighContrast').mockImplementation(() => {});
+      render(<ThemeToggle />);
+      
+      const hcCheckbox = screen.getByLabelText("High contrast mode") as HTMLInputElement;
+      expect(hcCheckbox.checked).toBe(false);
+      
+      fireEvent.click(hcCheckbox);
+      expect(setHighContrastSpy).toHaveBeenCalledWith(true);
+      expect(hcCheckbox.checked).toBe(true);
+      
+      fireEvent.click(hcCheckbox);
+      expect(setHighContrastSpy).toHaveBeenCalledWith(false);
+      expect(hcCheckbox.checked).toBe(false);
+    });
+
+    it("persists state across re-renders", () => {
+      const { unmount } = render(<ThemeToggle />);
+      const hcCheckbox = screen.getByLabelText("High contrast mode") as HTMLInputElement;
+      
+      fireEvent.click(hcCheckbox);
+      expect(window.localStorage.setItem).toHaveBeenCalledWith("streampay-high-contrast", "true");
+      
+      // Simulate persisted state on next render
+      window.localStorage.getItem = jest.fn((key: string) => {
+        if (key === "streampay-high-contrast") return "true";
+        return null;
+      });
+      
+      unmount();
+      render(<ThemeToggle />);
+      const re = screen.getByLabelText("High contrast mode") as HTMLInputElement;
+      expect(re.checked).toBe(true);
+    });
+
+    it("applies high-contrast class to document element when toggled on", () => {
+      render(<ThemeToggle />);
+      const hcCheckbox = screen.getByLabelText("High contrast mode") as HTMLInputElement;
+      
+      fireEvent.click(hcCheckbox);
+      expect(document.documentElement.classList.contains('high-contrast')).toBe(true);
+      
+      fireEvent.click(hcCheckbox);
+      expect(document.documentElement.classList.contains('high-contrast')).toBe(false);
+    });
+  });
+});

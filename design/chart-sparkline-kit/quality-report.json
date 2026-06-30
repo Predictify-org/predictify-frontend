@@ -1,0 +1,87 @@
+{
+  "generatedAt": "2026-04-28T12:22:21.087233+00:00",
+  "pdf": "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\chart-sparkline-kit\\chart-sparkline-kit.pdf",
+  "previews": [
+    "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\chart-sparkline-kit\\chart-sparkline-kit-overview.png",
+    "C:\\Users\\hp\\Documents\\clone\\StreamPay-Frontend\\design\\chart-sparkline-kit\\chart-sparkline-kit-states-a11y.png"
+  ],
+  "pdfBytes": 241168,
+  "pngBytes": [
+    83442,
+    96356
+  ],
+  "previewsInspection": [
+    {
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 759,
+      "nonBlank": true
+    },
+    {
+      "width": 1600,
+      "height": 900,
+      "sampledUniqueColors": 552,
+      "nonBlank": true
+    }
+  ],
+  "contrast": [
+    {
+      "name": "body on page",
+      "foreground": "#101827",
+      "background": "#F6F8FB",
+      "ratio": 16.7,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "muted on page",
+      "foreground": "#475569",
+      "background": "#F6F8FB",
+      "ratio": 7.12,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "app text on app",
+      "foreground": "#E4E4E7",
+      "background": "#17171F",
+      "ratio": 14.04,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "app muted on app",
+      "foreground": "#A1A1AA",
+      "background": "#17171F",
+      "ratio": 6.95,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "deferred text",
+      "foreground": "#7C2D12",
+      "background": "#FFF7ED",
+      "ratio": 8.83,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "name": "warning annotation",
+      "foreground": "#FDE68A",
+      "background": "#2A210F",
+      "ratio": 12.75,
+      "threshold": 4.5,
+      "pass": true
+    }
+  ],
+  "checks": {
+    "previewsNonBlank": true,
+    "previewDimensionsExpected": true,
+    "contrastPairsPass": true
+  },
+  "notes": [
+    "Quick contrast check only; not a full WCAG audit.",
+    "Interactive focus and keyboard behavior require Figma/prototype review.",
+    "Design crit with product and engineering remains pending outside this local export."
+  ]
+}

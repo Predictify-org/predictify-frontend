@@ -1,0 +1,46 @@
+name: Clippy Lint Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/clippy.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/clippy.yml"
+
+jobs:
+  clippy:
+    name: clippy pedantic
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable with clippy
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Cargo registry + build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Run Clippy (pedantic, warnings as errors)
+        working-directory: contracts
+        run: |
+          cargo clippy \
+            --all-targets \
+            --all-features \
+            -- \
+            -W clippy::pedantic \
+            -D warnings
