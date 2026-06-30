@@ -14,6 +14,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { MechanicHelp } from "@/components/patterns/MechanicHelp"
 import { platformFeesHelp } from "@/components/patterns/mechanic-help-content"
 import { format } from "date-fns"
+import { FinancesEmptyState } from "@/components/empty-states/finances"
 
 // Mock data for financial overview
 const financialData = {
@@ -188,6 +189,14 @@ export default function FinancesPage() {
           <TabsTrigger value="distribution">Fee Distribution</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
+          {financialData.totalFees === 0 ? (
+            /* Empty state: no deposits/revenue — prompt user to connect wallet */
+            <Card>
+              <CardContent className="pt-6">
+                <FinancesEmptyState variant="deposits" />
+              </CardContent>
+            </Card>
+          ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
               <CardHeader>
@@ -212,6 +221,7 @@ export default function FinancesPage() {
               </CardContent>
             </Card>
           </div>
+          )}
         </TabsContent>
         <TabsContent value="transactions" className="space-y-4">
           <Card>
@@ -220,26 +230,31 @@ export default function FinancesPage() {
               <CardDescription>Platform fee transactions for the selected period</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Event</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {financialData.transactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
-                      <TableCell className="font-medium">{transaction.eventTitle}</TableCell>
-                      <TableCell>{transaction.type === "platform_fee" ? "Platform Fee" : transaction.type}</TableCell>
-                      <TableCell className="text-right">{hideBalances ? maskAmount(transaction.amount) : transaction.amount.toLocaleString()}</TableCell>
+              {financialData.transactions.length === 0 ? (
+                /* Empty state: no trades/transactions in the selected period */
+                <FinancesEmptyState variant="trades" />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {financialData.transactions.map((transaction) => (
+                      <TableRow key={transaction.id}>
+                        <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
+                        <TableCell className="font-medium">{transaction.eventTitle}</TableCell>
+                        <TableCell>{transaction.type === "platform_fee" ? "Platform Fee" : transaction.type}</TableCell>
+                        <TableCell className="text-right">{hideBalances ? maskAmount(transaction.amount) : transaction.amount.toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -253,24 +268,29 @@ export default function FinancesPage() {
               <CardDescription>Breakdown of platform fees by prediction category</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Percentage</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {financialData.feeDistribution.map((item) => (
-                    <TableRow key={item.category}>
-                      <TableCell className="font-medium">{item.category}</TableCell>
-                      <TableCell>{item.percentage}%</TableCell>
-                      <TableCell className="text-right">${item.amount.toLocaleString()}</TableCell>
+              {financialData.feeDistribution.length === 0 ? (
+                /* Empty state: no fee distribution data — prompt user to check claims */
+                <FinancesEmptyState variant="distribution" />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Percentage</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {financialData.feeDistribution.map((item) => (
+                      <TableRow key={item.category}>
+                        <TableCell className="font-medium">{item.category}</TableCell>
+                        <TableCell>{item.percentage}%</TableCell>
+                        <TableCell className="text-right">${item.amount.toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
