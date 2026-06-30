@@ -3,6 +3,7 @@
 import { ThemeProvider } from "@/components/theme-provider";
 import { WalletProvider } from "@/context/WalletContext";
 import { PrivacyProvider } from "@/context/PrivacyContext";
+import { AccessibilityProvider } from "@/context/AccessibilityContext";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ReactNode } from "react";
@@ -31,11 +32,13 @@ export function Providers({ children }: ProvidersProps) {
         disableTransitionOnChange
       >
         <PrivacyProvider>
-          <WalletProvider>
-            <ClaimShareProvider>
-              {children}
-            </ClaimShareProvider>
-          </WalletProvider>
+          <AccessibilityProvider>
+            <WalletProvider>
+              <ClaimShareProvider>
+                {children}
+              </ClaimShareProvider>
+            </WalletProvider>
+          </AccessibilityProvider>
         </PrivacyProvider>
         <Toaster />
       </ThemeProvider>
