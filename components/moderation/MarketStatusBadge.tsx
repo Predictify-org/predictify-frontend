@@ -37,6 +37,7 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
     removed: 'neutral',
     resolving: 'info',
   };
+
   const badge = (
     <Badge
       role="status"
@@ -45,7 +46,9 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
       size="md"
       className={cn(
         config.badgeClass,
-        isResolving && 'animate-status-live-pulse',
+        // motion-safe: ensures the pulse is suppressed for users who have
+        // enabled "reduce motion" in their OS — required for WCAG 2.1 AA §2.3.3.
+        isResolving && 'motion-safe:animate-status-live-pulse',
         className
       )}
     >
