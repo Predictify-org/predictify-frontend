@@ -270,6 +270,56 @@ body {
   }
 }
 
+/* ── Per-user accessibility overrides ────────────────────────────────────────
+ * Applied via data attributes set by AccessibilityContext on <html>.
+ * These take effect regardless of OS-level media queries so user preferences
+ * always win.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/* Reduce motion: kill ALL decorative animations when the user opts in */
+[data-reduce-motion="true"] *,
+[data-reduce-motion="true"] *::before,
+[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Disable parallax: override translate transforms applied to parallax layers */
+[data-disable-parallax="true"] [data-parallax] {
+  transform: none !important;
+  will-change: auto !important;
+}
+
+/* Increase contrast: override CSS custom-property token values.
+ * Targets both light and dark modes so the swap is always applied on top.
+ *
+ * Token strategy (WCAG AAA targets where feasible):
+ *  - foreground      → near-pure black/white for max legibility
+ *  - muted-foreground → darkened to meet 7:1 contrast on typical backgrounds
+ *  - border          → strengthened so UI chrome is clearly visible
+ *  - primary         → deepened to ensure interactive affordances stand out
+ */
+[data-increase-contrast="true"] {
+  --foreground: 0 0% 2%;
+  --muted-foreground: 0 0% 20%;
+  --border: 0 0% 30%;
+  --primary: 0 0% 4%;
+  --card-foreground: 0 0% 2%;
+  --popover-foreground: 0 0% 2%;
+}
+
+[data-increase-contrast="true"].dark,
+.dark [data-increase-contrast="true"] {
+  --foreground: 0 0% 100%;
+  --muted-foreground: 0 0% 85%;
+  --border: 0 0% 70%;
+  --primary: 0 0% 98%;
+  --card-foreground: 0 0% 100%;
+  --popover-foreground: 0 0% 100%;
+}
+
 /* ===== PRINT STYLES ===== */
 
 @media print {

@@ -13,6 +13,7 @@ import {
   Pin,
   ArrowUp,
   ArrowDown,
+  Accessibility,
 } from "lucide-react"
 import { getPinnedActions, savePinnedActions, ALL_AVAILABLE_ACTIONS } from "@/lib/command-palette/pins"
 
@@ -35,6 +36,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { useDensity, densityTokens, type Density, type DensityTokens } from "@/hooks/useDensity"
 import { useSoundEnabled } from "@/hooks/useSoundEnabled"
+import { useAccessibility } from "@/context/AccessibilityContext"
 import { cn } from "@/lib/utils"
 
 type TimeFormat = "local-12h" | "local-24h" | "utc"
@@ -111,10 +113,21 @@ export default function SettingsPage() {
   // Density from global hook
   const { density, setDensity, tokens: densityTokensCurrent } = useDensity()
   
+  // Accessibility preferences from global context (persisted to localStorage)
+  const {
+    reduceMotion,
+    setReduceMotion,
+    disableParallax,
+    setDisableParallax,
+    disableAutoplay,
+    setDisableAutoplay,
+    increaseContrast,
+    setIncreaseContrast,
+  } = useAccessibility()
+  
   const [timeFormat, setTimeFormat] = useState<TimeFormat>("local-24h")
   const [currencyDisplay, setCurrencyDisplay] = useState<CurrencyDisplay>("both")
   const [notificationPreset, setNotificationPreset] = useState<NotificationIntensity>("important")
-  const [reduceMotion, setReduceMotion] = useState(false)
   const [showNetPayouts, setShowNetPayouts] = useState(true)
   const [showWalletBadge, setShowWalletBadge] = useState(true)
   const [disputeAlerts, setDisputeAlerts] = useState(true)
@@ -169,6 +182,7 @@ export default function SettingsPage() {
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="privacy">Privacy</TabsTrigger>
+          <TabsTrigger value="accessibility">Accessibility</TabsTrigger>
         </TabsList>
 
         <TabsContent value="preferences">
@@ -689,6 +703,94 @@ export default function SettingsPage() {
               <p className="text-muted-foreground">Privacy settings are managed in the Preferences tab.</p>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Accessibility Tab ──────────────────────────────────────────────── */}
+        <TabsContent value="accessibility">
+          <div className="grid gap-6 lg:grid-cols-[1.5fr_0.85fr]">
+            {/* Main controls card */}
+            <Card className="border-border/70">
+              <CardHeader className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Accessibility className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-xl">Accessibility controls</CardTitle>
+                </div>
+                <CardDescription>
+                  Per-user preferences that override OS-level settings. All toggles persist across sessions.
+                  The OS <code className="text-xs bg-muted rounded px-1">prefers-reduced-motion</code> setting
+                  is used as the default for Reduce motion when no explicit preference is stored.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <PreferenceSwitch
+                  id="a11y-reduce-motion"
+                  label="Reduce motion"
+                  description="Stops decorative animations across the entire app. Overrides OS reduced-motion when toggled on. Affects animated backgrounds, entrance transitions, and live-pulse indicators."
+                  checked={reduceMotion}
+                  onCheckedChange={setReduceMotion}
+                />
+                <PreferenceSwitch
+                  id="a11y-disable-parallax"
+                  label="Disable parallax effects"
+                  description="Removes depth and scroll-linked translate effects from hero and banner sections. Useful if parallax causes discomfort or motion sickness independent of general animation."
+                  checked={disableParallax}
+                  onCheckedChange={setDisableParallax}
+                />
+                <PreferenceSwitch
+                  id="a11y-disable-autoplay"
+                  label="Disable auto-playing carousels"
+                  description="Prevents carousels from advancing automatically. Slides only move when you interact with the Previous / Next controls. Does not affect manually triggered navigation."
+                  checked={disableAutoplay}
+                  onCheckedChange={setDisableAutoplay}
+                />
+                <PreferenceSwitch
+                  id="a11y-increase-contrast"
+                  label="Increase contrast"
+                  description="Swaps the foreground, muted text, and border colour tokens for higher-contrast values. Targets WCAG AAA (7:1) contrast ratios where feasible. Works in both light and dark mode."
+                  checked={increaseContrast}
+                  onCheckedChange={setIncreaseContrast}
+                />
+              </CardContent>
+              <CardFooter>
+                <Button type="submit" className="w-full sm:w-auto">
+                  Save settings
+                </Button>
+              </CardFooter>
+            </Card>
+
+            {/* Info / status card */}
+            <Card className="border-border/70 h-fit">
+              <CardHeader className="space-y-2">
+                <CardTitle className="text-lg">Current state</CardTitle>
+                <CardDescription>Live readout of active accessibility overrides.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <PreferencePill
+                  label="Reduce motion"
+                  value={reduceMotion ? "On" : "Off (OS default)"}
+                />
+                <PreferencePill
+                  label="Parallax"
+                  value={disableParallax ? "Disabled" : "Enabled"}
+                />
+                <PreferencePill
+                  label="Carousels"
+                  value={disableAutoplay ? "Manual only" : "Auto-advance on"}
+                />
+                <PreferencePill
+                  label="Contrast"
+                  value={increaseContrast ? "High contrast" : "Default"}
+                />
+                <div className="rounded-2xl border border-dashed border-border/80 bg-muted/40 p-4 mt-2">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    These settings are stored locally in your browser. They are never sent to a server.
+                    Clearing site data will reset them to OS defaults.
+                    See <code className="bg-background rounded px-1">docs/ACCESSIBILITY.md</code> for token mapping details.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </form>

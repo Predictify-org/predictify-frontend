@@ -1,151 +1,102 @@
-# Pull Request
+## Security Changes
 
-## Description
-<!-- Provide a brief description of what this PR accomplishes -->
+### Type of Security Change
+- [ ] SAST rule update
+- [ ] Dependency vulnerability fix
+- [ ] Exemption addition/renewal
+- [ ] Security workflow modification
+- [ ] Container image update
+- [ ] Other: _______________
 
-## Type of Change
-<!-- Mark the appropriate option(s) with an 'x' -->
+### Vulnerability Details (if applicable)
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
-- [ ] Performance improvement
-- [ ] Refactoring (no functional changes)
-- [ ] Style/UI changes
-- [ ] Test updates
-- [ ] CI/CD changes
-- [ ] Security improvements
+**CVE/Advisory ID:** 
+- CVE-ID: 
+- GHSA-ID: 
 
-## Related Issues
-<!-- Link to related issues using keywords like "Closes", "Fixes", "Resolves" -->
+**Affected Package:**
+- Name: 
+- Version: 
+- Severity: [ ] Critical [ ] High [ ] Medium [ ] Low
 
-Closes #[issue-number]
-Related to #[issue-number]
+**Fix Applied:**
+- [ ] Package version bump
+- [ ] Code change to mitigate
+- [ ] Configuration update
+- [ ] Exemption granted (see below)
 
-## Changes Made
-<!-- Provide a detailed list of changes made -->
+### Exemption Request (if applicable)
 
-### Files Modified
-- [List specific files and changes made]
-- [Include file paths and line numbers if relevant]
+**Exemption ID:** EXEMPT-___
 
-### Key Changes
-- [Describe the main changes and their impact]
-- [Include any architectural decisions made]
+**Justification:**
+<!-- Detailed reason why this vulnerability can be temporarily exempted -->
 
-## Testing
-<!-- Describe how you tested your changes -->
+**Mitigation Applied:**
+<!-- What compensating controls or workarounds are in place -->
 
-- [ ] Unit tests added/updated
-- [ ] Integration tests added/updated
-- [ ] Manual testing completed
-- [ ] Cross-browser testing (if applicable)
-- [ ] Mobile responsiveness tested (if applicable)
-- [ ] Accessibility testing completed
-- [ ] Performance testing (if applicable)
+**Expiry Date:** YYYY-MM-DD (max 90 days from now)
 
-### Test Coverage
-- [ ] New code is covered by tests
-- [ ] Existing tests still pass
-- [ ] Test coverage meets project standards
+**Review Plan:**
+<!-- How and when this will be re-evaluated -->
 
-## Screenshots/Videos
-<!-- Add screenshots or videos showing the changes (if applicable) -->
+### Testing
 
-### Minimum screenshots for UI/design PRs
-- [ ] Desktop default state
-- [ ] Mobile default state
-- [ ] One stressed state: error, empty, loading, success, validation, open menu, or open modal
-- [ ] Focus-visible screenshot for the primary interactive element (required when focus behavior changed)
-- [ ] Open overlay screenshot for modal, drawer, popover, select, or date picker (required when applicable)
-- [ ] Quick actions closed and open states (required for toolbar, FAB, or bottom-sheet action changes)
-- [ ] Keyboard-open mobile screenshot and desktop sticky state (required for sticky action panel changes)
+- [ ] Ran `npm audit` locally - output attached or no new vulnerabilities
+- [ ] Security workflow passes on this branch
+- [ ] Test suite passes: `npm test`
+- [ ] Build succeeds: `npm run build`
 
-### Before
-<!-- Screenshot of the current state -->
+### Security Impact Analysis
 
-### After
-<!-- Screenshot of the new state -->
+**Affected Components:**
+- [ ] Authentication/Authorization
+- [ ] Payment processing
+- [ ] Data encryption
+- [ ] API endpoints
+- [ ] Dependencies
+- [ ] Container images
+- [ ] CI/CD pipeline
+- [ ] Other: _______________
 
-## Pre-submission Checklist
-<!-- Complete all items before submitting -->
+**Risk Assessment:**
+<!-- Describe any potential security risks introduced or mitigated by this change -->
 
-### Code Quality
-- [ ] Code follows project style guidelines
-- [ ] Self-review completed
-- [ ] Code is self-documenting
-- [ ] No console errors or warnings
-- [ ] No linting errors
-- [ ] No TypeScript errors (if applicable)
+### Documentation Updates
 
-### Functionality
-- [ ] All tests pass
-- [ ] Feature works as expected
-- [ ] No breaking changes introduced
-- [ ] Performance impact assessed
+- [ ] Updated README.md (if workflow changed)
+- [ ] Updated SECURITY-CI-SETUP.md (if process changed)
+- [ ] Updated security-exemptions.json (if applicable)
+- [ ] Added security notes to code comments
 
-### Documentation
-- [ ] README updated (if applicable)
-- [ ] Code comments added where necessary
-- [ ] API documentation updated (if applicable)
-- [ ] Changelog updated (if applicable)
+### Checklist
 
-### Security & Accessibility
-- [ ] Security considerations addressed
-- [ ] Accessibility standards met
-- [ ] No sensitive data exposed
-- [ ] Input validation implemented
+- [ ] No secrets or keys committed
+- [ ] No PII or sensitive data in logs
+- [ ] All security scans pass (or exemptions documented)
+- [ ] Branch protection requirements met
+- [ ] Code review from security team (for critical changes)
 
-## Breaking Changes
-<!-- Describe any breaking changes and migration steps -->
+### Additional Notes
 
-**Breaking Changes:**
-- [List any breaking changes]
+<!-- Any additional context, links to advisories, or relevant discussions -->
 
-**Migration Steps:**
-- [Provide steps for users to migrate]
+### Test Output
 
-## Additional Notes
-<!-- Any other information that reviewers should know -->
+```
+# Paste npm test output here
+npm test
 
-### Dependencies
-- [ ] No new dependencies added
-- [ ] Dependencies updated (list changes)
-- [ ] Security vulnerabilities addressed
+# Paste npm audit output here (if relevant)
+npm audit
+```
 
-### Performance Impact
-- [ ] No performance impact
-- [ ] Performance improved
-- [ ] Performance impact documented
+### CI Run Link
 
-### Browser/Device Support
-- [ ] Tested on Chrome
-- [ ] Tested on Firefox
-- [ ] Tested on Safari
-- [ ] Tested on Edge
-- [ ] Tested on mobile devices
-
-## Labels
-<!-- Add appropriate labels for this PR -->
-
-- `feature` - for new features
-- `bugfix` - for bug fixes
-- `documentation` - for documentation changes
-- `enhancement` - for improvements
-- `breaking-change` - for breaking changes
-- `frontend` - for frontend changes
-- `backend` - for backend changes
-- `ui/ux` - for design changes
-
-## Reviewers
-<!-- Tag relevant team members for review -->
-
-- [ ] Frontend team review
-- [ ] Backend team review (if applicable)
-- [ ] Design team review (if applicable)
-- [ ] Security review (if applicable)
+<!-- Link to passing GitHub Actions run -->
+Workflow Run: 
 
 ---
 
-**Note:** Please ensure all checkboxes are completed before submitting this PR. This helps maintain code quality and speeds up the review process.
+**Security Review Required:** @security-team
+**Compliance Impact:** [Yes/No - explain if yes]

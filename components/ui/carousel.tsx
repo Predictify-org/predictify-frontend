@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useAccessibility } from "@/context/AccessibilityContext"
 
 type CarouselApi = UseEmblaCarouselType[1]
 type UseCarouselParameters = Parameters<typeof useEmblaCarousel>
@@ -58,12 +59,23 @@ const Carousel = React.forwardRef<
     },
     ref
   ) => {
+    // Strip autoplay-style plugins when the user has disabled autoplay.
+    // Embla plugin names containing "autoplay" or "autoscroll" are matched
+    // case-insensitively so any Embla autoplay variant is caught.
+    const { disableAutoplay } = useAccessibility()
+    const activePlugins = React.useMemo(() => {
+      if (!disableAutoplay || !plugins) return plugins
+      return (plugins as Array<{ name?: string }>).filter(
+        (p) => !/auto(?:play|scroll)/i.test(p?.name ?? "")
+      ) as CarouselPlugin
+    }, [plugins, disableAutoplay])
+
     const [carouselRef, api] = useEmblaCarousel(
       {
         ...opts,
         axis: orientation === "horizontal" ? "x" : "y",
       },
-      plugins
+      activePlugins
     )
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
