@@ -124,11 +124,21 @@ const config: Config = {
   				to: {
   					height: '0'
   				}
-  			}
+  			},
+  			// Subtle glow-pulse used by MarketStatusBadge on the `resolving` state.
+  			// Respects prefers-reduced-motion via the Tailwind motion-safe variant.
+  			'status-live-pulse': {
+  				'0%, 100%': { opacity: '1', boxShadow: '0 0 0 0 transparent' },
+  				'50%': { opacity: '0.75', boxShadow: '0 0 0 4px hsl(var(--ring) / 0.35)' },
+  			},
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			// 2 s loop, ease-in-out — intentionally gentle so it doesn't distract.
+  			// The `motion-safe:` prefix in the component ensures it is skipped when
+  			// the user has "reduce motion" enabled in their OS accessibility settings.
+  			'status-live-pulse': 'status-live-pulse 2s ease-in-out infinite',
   		}
   	}
   },
