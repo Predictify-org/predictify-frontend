@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowRight, TrendingUp, Globe, BarChart3, CheckCircle2, Coins, Bell } from "lucide-react";
-import LanguageBadge from "@/components/LanguageBadge";
+import { TrendingUp, Globe, BarChart3, CheckCircle2, Coins, Bell, Info, type LucideIcon } from "lucide-react";
+import { Tooltip } from "@/app/components/Tooltip";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { sampleMarkets, winNotifications, type Market } from "@/content/markets.sample";
@@ -108,7 +108,7 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
 
 interface MarketCardProps {
   market: Market;
-  IconComponent: any;
+  IconComponent: LucideIcon;
   colors: { bg: string; icon: string };
   index: number;
   reducedMotion: boolean;
@@ -129,6 +129,10 @@ interface MarketCardProps {
  */
 function MarketCard({ market, IconComponent, colors, index, reducedMotion }: MarketCardProps) {
   const isFollowing = useFollowsStore((s) => s.isFollowing(market.id));
+  const yesTooltip = `Current implied probability for the Yes outcome in ${market.title}.`;
+  const noTooltip = `Current implied probability for the No outcome in ${market.title}.`;
+  const poolTooltip = `${market.poolAmount.toLocaleString()} USDC has been committed to this market pool.`;
+  const endsTooltip = `Approximate time remaining before ${market.title} stops accepting predictions.`;
 
   return (
     <Card
@@ -166,8 +170,22 @@ function MarketCard({ market, IconComponent, colors, index, reducedMotion }: Mar
           </div>
         </div>
         <div className="text-right">
-          <div className="text-sm font-medium text-green-400">Yes: {market.yesOdds}%</div>
-          <div className="text-sm text-red-400">No: {market.noOdds}%</div>
+          <Tooltip
+            content={yesTooltip}
+            data-testid={`market-${market.id}-yes-trigger`}
+            className="justify-end gap-1 rounded-sm text-sm font-medium text-green-400"
+          >
+            <span>Yes: {market.yesOdds}%</span>
+            <Info className="h-3 w-3" aria-hidden="true" />
+          </Tooltip>
+          <Tooltip
+            content={noTooltip}
+            data-testid={`market-${market.id}-no-trigger`}
+            className="mt-1 justify-end gap-1 rounded-sm text-sm text-red-400"
+          >
+            <span>No: {market.noOdds}%</span>
+            <Info className="h-3 w-3" aria-hidden="true" />
+          </Tooltip>
         </div>
       </div>
 
@@ -179,9 +197,21 @@ function MarketCard({ market, IconComponent, colors, index, reducedMotion }: Mar
         />
       </div>
 
-      <div className="flex justify-between text-xs text-white/60">
-        <span>Pool: {market.poolAmount.toLocaleString()} USDC</span>
-        <span>Ends in {market.endsIn}</span>
+      <div className="flex justify-between gap-3 text-xs text-white/60">
+        <Tooltip
+          content={poolTooltip}
+          data-testid={`market-${market.id}-pool-trigger`}
+          className="rounded-sm"
+        >
+          <span>Pool: {market.poolAmount.toLocaleString()} USDC</span>
+        </Tooltip>
+        <Tooltip
+          content={endsTooltip}
+          data-testid={`market-${market.id}-ends-trigger`}
+          className="rounded-sm text-right"
+        >
+          <span>Ends in {market.endsIn}</span>
+        </Tooltip>
       </div>
     </Card>
   );
