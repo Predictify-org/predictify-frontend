@@ -19,10 +19,12 @@ import {
 } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { Clock, DollarSign, Users, BarChart2, Loader2, Share2 } from "lucide-react";
+import { Clock, DollarSign, Users, BarChart2, Loader2, Share2, GitCompareArrows } from "lucide-react";
 import { formatDistanceToNowStrict, parseISO, isValid } from "date-fns";
 import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
+import { ResolutionPreview } from "@/components/market/ResolutionPreview";
 import { ShareSheet } from "@/app/components/ShareSheet";
+import { CompareMarketsModal, type CompareMarket } from "@/app/components/CompareMarketsModal";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Drawer,
@@ -83,6 +85,20 @@ const initialMockEventData: EventData = {
     { year: 2024, winner: "Kansas City Chiefs", pool: 12000 },
     { year: 2023, winner: "Kansas City Chiefs", pool: 10500 },
   ],
+};
+
+const comparisonMarket: CompareMarket = {
+  id: "comparison-afc-championship",
+  title: "AFC Championship Winner",
+  category: "Sports",
+  deadline: "2025-01-26T23:00:00Z",
+  totalPool: 9800,
+  participants: 842,
+  topOutcome: "Baltimore Ravens",
+  topOdds: 3.1,
+  resolutionCriteria:
+    "Resolves to the team officially declared winner of the AFC Championship game.",
+  status: "closing",
 };
 
 const calculateTimeLeft = (deadlineISO: string | undefined): string => {
@@ -222,6 +238,32 @@ export default function EventDetailsClient() {
     : undefined;
   const potentialPayout =
     currentOdds && betAmount ? parseFloat(betAmount || "0") * currentOdds : 0;
+  const leadingOption = eventData.options.reduce<EventOption | null>(
+    (best, option) => {
+      if (!best) return option;
+
+      return (eventData.odds[option.id] ?? Number.POSITIVE_INFINITY) <
+        (eventData.odds[best.id] ?? Number.POSITIVE_INFINITY)
+        ? option
+        : best;
+    },
+    null
+  );
+  const comparisonMarkets: CompareMarket[] = [
+    {
+      id: eventData.id,
+      title: eventData.title,
+      category: eventData.category,
+      deadline: eventData.deadline,
+      totalPool: eventData.totalPool,
+      participants: eventData.participants,
+      topOutcome: leadingOption?.text ?? "No outcome available",
+      topOdds: leadingOption ? eventData.odds[leadingOption.id] ?? 0 : 0,
+      resolutionCriteria: eventData.description,
+      status: isEventClosed ? "closed" : "open",
+    },
+    comparisonMarket,
+  ];
 
   const overviewTab = (
     <div className="space-y-6">
@@ -475,6 +517,15 @@ export default function EventDetailsClient() {
                 <Button variant="outline" size="sm" className="gap-2" aria-label="Share this event">
                   <Share2 className="h-4 w-4" />
                   Share
+                </Button>
+              }
+            />
+            <CompareMarketsModal
+              markets={comparisonMarkets}
+              trigger={
+                <Button variant="outline" size="sm" className="gap-2" aria-label="Compare markets">
+                  <GitCompareArrows className="h-4 w-4" />
+                  Compare
                 </Button>
               }
             />
