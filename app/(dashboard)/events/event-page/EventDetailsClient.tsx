@@ -22,6 +22,8 @@ import { Separator } from "@/components/ui/separator";
 import { Clock, DollarSign, Users, BarChart2, Loader2, Share2 } from "lucide-react";
 import { formatDistanceToNowStrict, parseISO, isValid } from "date-fns";
 import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
+import { ResolutionPreview } from "@/components/market/ResolutionPreview";
+import { AboutMarketModal } from "@/app/components/AboutMarketModal";
 import { ShareSheet } from "@/app/components/ShareSheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
@@ -222,6 +224,15 @@ export default function EventDetailsClient() {
     : undefined;
   const potentialPayout =
     currentOdds && betAmount ? parseFloat(betAmount || "0") * currentOdds : 0;
+  const parsedDeadline = parseISO(eventData.deadline);
+  const deadlineLabel = isValid(parsedDeadline)
+    ? parsedDeadline.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : "No deadline set";
+  const resolutionCriteria = `This market resolves after the betting deadline using verified public outcome sources. The winning outcome must match the final result described by the market premise: ${eventData.description}`;
 
   const overviewTab = (
     <div className="space-y-6">
@@ -467,6 +478,13 @@ export default function EventDetailsClient() {
           </h1>
           <div className="flex items-center gap-2">
             <Badge variant="outline">{eventData.category}</Badge>
+            <AboutMarketModal
+              marketTitle={eventData.title}
+              category={eventData.category}
+              description={eventData.description}
+              resolutionCriteria={resolutionCriteria}
+              deadlineLabel={deadlineLabel}
+            />
             <ShareSheet
               title={eventData.title}
               text={`Check out "${eventData.title}" on Predictify!`}

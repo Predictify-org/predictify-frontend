@@ -136,7 +136,7 @@ const DialogContentWithFocusReturn = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, onOpenAutoFocus, ...props }, ref) => {
-  const triggerRef = useRef<HTMLElement | null>(null);
+  const triggerRef = React.useRef<HTMLElement | null>(null);
 
   // Store the trigger element when the dialog opens
   const handleOpenAutoFocus = (event: Event) => {
