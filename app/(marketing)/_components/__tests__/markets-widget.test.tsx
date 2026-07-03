@@ -9,6 +9,7 @@
 import React from "react";
 import { render, screen, act } from "@testing-library/react";
 import { useFollowsStore } from "@/app/state/follows";
+import { useUserLimitsStore } from "@/app/state/userLimits";
 
 // ── minimal stub for the Card component ─────────────────────────────────────
 jest.mock("@/components/ui/card", () => ({
@@ -24,12 +25,36 @@ function resetFollows() {
   });
 }
 
+function resetUserLimits() {
+  act(() => {
+    useUserLimitsStore.setState({ limitsByMarket: {} });
+  });
+}
+
 // We import the file under test AFTER mocks are in place.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { MarketsWidget } = require("../markets-widget");
 
 describe("MarketsWidget – following indicator", () => {
-  beforeEach(resetFollows);
+  beforeAll(() => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: jest.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      })),
+    });
+  });
+
+  beforeEach(() => {
+    resetFollows();
+    resetUserLimits();
+  });
 
   it("does not show any following indicator when no markets are followed", () => {
     render(<MarketsWidget />);
@@ -63,5 +88,25 @@ describe("MarketsWidget – following indicator", () => {
     // There should be exactly one indicator (not one per card)
     const indicators = screen.getAllByTestId("following-indicator");
     expect(indicators).toHaveLength(1);
+  });
+
+  it("shows remaining daily betting allowance on market cards", () => {
+    act(() => {
+      useUserLimitsStore.getState().setLimit("btc-price", {
+        dailyLimit: 500,
+        usedToday: 120,
+        currency: "USDC",
+      });
+    });
+
+    render(<MarketsWidget />);
+
+    expect(screen.getByText("Daily allowance")).toBeInTheDocument();
+    expect(screen.getByText("380 USDC left today")).toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", {
+        name: "Daily betting allowance remaining for Bitcoin Price",
+      })
+    ).toHaveAttribute("aria-valuenow", "76");
   });
 });

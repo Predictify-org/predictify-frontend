@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowRight, TrendingUp, Globe, BarChart3, CheckCircle2, Coins, Bell } from "lucide-react";
-import LanguageBadge from "@/components/LanguageBadge";
+import { TrendingUp, Globe, BarChart3, CheckCircle2, Coins, Bell, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { sampleMarkets, winNotifications, type Market } from "@/content/markets.sample";
 import { useState, useEffect } from "react";
 import { useFollowsStore } from "@/app/state/follows";
+import { useUserLimitsStore } from "@/app/state/userLimits";
 
 interface MarketsWidgetProps {
   className?: string;
@@ -129,6 +129,9 @@ interface MarketCardProps {
  */
 function MarketCard({ market, IconComponent, colors, index, reducedMotion }: MarketCardProps) {
   const isFollowing = useFollowsStore((s) => s.isFollowing(market.id));
+  const limit = useUserLimitsStore((s) => s.getLimit(market.id));
+  const remaining = useUserLimitsStore((s) => s.getRemaining(market.id));
+  const remainingPercent = useUserLimitsStore((s) => s.getRemainingPercent(market.id));
 
   return (
     <Card
@@ -178,6 +181,36 @@ function MarketCard({ market, IconComponent, colors, index, reducedMotion }: Mar
           style={{ width: `${market.yesOdds}%` }}
         />
       </div>
+
+      {limit && remaining !== null && remainingPercent !== null && (
+        <div
+          className="mb-3 rounded-lg border border-cyan-300/20 bg-cyan-400/10 p-2 text-white"
+          data-testid="daily-allowance-nudge"
+        >
+          <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+            <span className="inline-flex items-center gap-1 font-medium text-cyan-100">
+              <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+              Daily allowance
+            </span>
+            <span className="text-white/80">
+              {remaining.toLocaleString()} {limit.currency} left today
+            </span>
+          </div>
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-white/15"
+            role="progressbar"
+            aria-label={`Daily betting allowance remaining for ${market.title}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={remainingPercent}
+          >
+            <div
+              className="h-full rounded-full bg-cyan-300 transition-all duration-300"
+              style={{ width: `${remainingPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-between text-xs text-white/60">
         <span>Pool: {market.poolAmount.toLocaleString()} USDC</span>
