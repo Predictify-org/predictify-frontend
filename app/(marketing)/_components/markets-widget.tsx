@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowRight, TrendingUp, Globe, BarChart3, CheckCircle2, Coins, Bell } from "lucide-react";
-import LanguageBadge from "@/components/LanguageBadge";
+import { TrendingUp, Globe, BarChart3, CheckCircle2, Coins, Bell, Bookmark, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { BookmarkButton } from "@/app/components/BookmarkButton";
 import { sampleMarkets, winNotifications, type Market } from "@/content/markets.sample";
 import { useState, useEffect } from "react";
 import { useFollowsStore } from "@/app/state/follows";
+import { useBookmarksStore } from "@/app/state/bookmarks";
 
 interface MarketsWidgetProps {
   className?: string;
@@ -35,6 +36,9 @@ const colorMap = {
 
 export function MarketsWidget({ className }: MarketsWidgetProps) {
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [savedListOpen, setSavedListOpen] = useState(false);
+  const bookmarkedIds = useBookmarksStore((state) => state.bookmarkedIds);
+  const savedMarkets = sampleMarkets.filter((market) => bookmarkedIds.has(market.id));
 
   useEffect(() => {
     setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -60,12 +64,38 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
 
       {/* Markets Card */}
       <Card className="w-full max-w-md border-white/10 bg-gradient-to-b from-[#48097B] to-[#111827] p-6 backdrop-blur-xl">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-white">Popular Prediction Markets</h2>
-          <button className="text-sm text-purple-300 hover:text-purple-200 transition-colors">
-            View All
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label={`Saved markets, ${savedMarkets.length} saved`}
+              aria-controls="saved-markets-list"
+              aria-expanded={savedMarkets.length > 0 && savedListOpen}
+              disabled={savedMarkets.length === 0}
+              onClick={() => setSavedListOpen((open) => !open)}
+              className="inline-flex items-center gap-1 rounded-md border border-purple-300/30 px-2.5 py-1.5 text-sm font-medium text-purple-200 transition-colors hover:bg-purple-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
+            >
+              <Bookmark className="h-4 w-4" aria-hidden="true" />
+              Saved {savedMarkets.length}
+            </button>
+            <button className="text-sm text-purple-300 transition-colors hover:text-purple-200">
+              View All
+            </button>
+          </div>
         </div>
+
+        {savedMarkets.length > 0 && savedListOpen && (
+          <ul
+            id="saved-markets-list"
+            aria-label="Saved markets"
+            className="mb-4 space-y-1 rounded-md border border-purple-300/20 bg-purple-500/10 px-3 py-2 text-sm text-purple-100"
+          >
+            {savedMarkets.map((market) => (
+              <li key={market.id}>Saved: {market.title}</li>
+            ))}
+          </ul>
+        )}
 
         <div className="space-y-4">
           {sampleMarkets.map((market, index) => {
@@ -108,7 +138,7 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
 
 interface MarketCardProps {
   market: Market;
-  IconComponent: any;
+  IconComponent: LucideIcon;
   colors: { bg: string; icon: string };
   index: number;
   reducedMotion: boolean;
@@ -165,9 +195,12 @@ function MarketCard({ market, IconComponent, colors, index, reducedMotion }: Mar
             )}
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-sm font-medium text-green-400">Yes: {market.yesOdds}%</div>
-          <div className="text-sm text-red-400">No: {market.noOdds}%</div>
+        <div className="flex items-start gap-2">
+          <div className="text-right">
+            <div className="text-sm font-medium text-green-400">Yes: {market.yesOdds}%</div>
+            <div className="text-sm text-red-400">No: {market.noOdds}%</div>
+          </div>
+          <BookmarkButton marketId={market.id} marketTitle={market.title} />
         </div>
       </div>
 

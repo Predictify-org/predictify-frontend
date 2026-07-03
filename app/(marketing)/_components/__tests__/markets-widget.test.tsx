@@ -7,8 +7,9 @@
  */
 
 import React from "react";
-import { render, screen, act } from "@testing-library/react";
+import { fireEvent, render, screen, act } from "@testing-library/react";
 import { useFollowsStore } from "@/app/state/follows";
+import { useBookmarksStore } from "@/app/state/bookmarks";
 
 // ── minimal stub for the Card component ─────────────────────────────────────
 jest.mock("@/components/ui/card", () => ({
@@ -24,12 +25,36 @@ function resetFollows() {
   });
 }
 
+function resetBookmarks() {
+  act(() => {
+    useBookmarksStore.setState({ bookmarkedIds: new Set() });
+  });
+}
+
 // We import the file under test AFTER mocks are in place.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { MarketsWidget } = require("../markets-widget");
 
 describe("MarketsWidget – following indicator", () => {
-  beforeEach(resetFollows);
+  beforeAll(() => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: jest.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      })),
+    });
+  });
+
+  beforeEach(() => {
+    resetFollows();
+    resetBookmarks();
+  });
 
   it("does not show any following indicator when no markets are followed", () => {
     render(<MarketsWidget />);
@@ -63,5 +88,23 @@ describe("MarketsWidget – following indicator", () => {
     // There should be exactly one indicator (not one per card)
     const indicators = screen.getAllByTestId("following-indicator");
     expect(indicators).toHaveLength(1);
+  });
+
+  it("lets users save markets and review the saved list from the widget header", () => {
+    render(<MarketsWidget />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Bitcoin Price for later" }));
+
+    expect(screen.getByRole("button", { name: "Remove Bitcoin Price from saved markets" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    const savedHeaderButton = screen.getByRole("button", { name: "Saved markets, 1 saved" });
+    expect(savedHeaderButton).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(savedHeaderButton);
+
+    expect(savedHeaderButton).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Saved: Bitcoin Price")).toBeInTheDocument();
   });
 });
