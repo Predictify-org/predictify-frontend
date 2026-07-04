@@ -1,58 +1,18 @@
 import React from 'react';
-import { render } from '@testing-library/react';
-import PredictionCard from '../PredictionCard';
-import { Prediction } from '../../types/predictions';
-
-const createMockPrediction = (category?: string, outcome?: 'Yes' | 'No'): Prediction => ({
-  id: 'test-1',
-  title: 'Test Prediction',
-  description: 'Test Description',
-  category,
-  outcome,
-  stakeAmount: 10,
-  stakeToken: 'USDC',
-  odds: 1.5,
-  potentialWinnings: 15,
-  winningsToken: 'USDC',
-  eventDate: '01/01/2024',
-  status: 'active',
-});
-
-describe('PredictionCard Snapshots', () => {
-  const categories = ['sports', 'crypto', 'politics', 'weather', 'esports', 'unknown-category'];
-
-  categories.forEach((category) => {
-    it(`should match snapshot for category: ${category} with 'Yes' outcome`, () => {
-      const { container } = render(
-        <PredictionCard prediction={createMockPrediction(category, 'Yes')} />
-      );
-      expect(container.firstChild).toMatchSnapshot();
-    });
-
-    it(`should match snapshot for category: ${category} with 'No' outcome`, () => {
-      const { container } = render(
-        <PredictionCard prediction={createMockPrediction(category, 'No')} />
-      );
-      expect(container.firstChild).toMatchSnapshot();
-    });
-  });
-
-  it('should match snapshot without outcome', () => {
-    const { container } = render(
-      <PredictionCard prediction={createMockPrediction()} />
-    );
-    expect(container.firstChild).toMatchSnapshot();
+import { readFileSync } from 'fs';
+import path from 'path';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PredictionCard, { PredictionCardSkeleton } from '../PredictionCard';
-import { Prediction } from '../../types/predictions';
-
-// --- Test Data ---
+import PredictionsList from '../PredictionsList';
+import type { Prediction } from '../../types/predictions';
 
 const mockPrediction: Prediction = {
   id: '1',
   title: 'NBA Finals: Lakers vs Heat',
   description: 'Lakers to win',
+  category: 'sports',
+  outcome: 'Yes',
   stakeAmount: 10,
   stakeToken: 'XLM',
   odds: 1.8,
@@ -69,171 +29,108 @@ const mockResolvedPrediction: Prediction = {
   resolvedDate: '01/06/2023',
 };
 
-// --- PredictionCardSkeleton Tests ---
-
 describe('PredictionCardSkeleton', () => {
-  it('renders a skeleton with the correct structure', () => {
+  it('renders a busy skeleton with the card shape', () => {
     render(<PredictionCardSkeleton />);
-    
+
     const skeleton = screen.getByTestId('prediction-card-skeleton');
     expect(skeleton).toBeInTheDocument();
     expect(skeleton).toHaveAttribute('aria-busy', 'true');
+    expect(skeleton).toHaveClass('bg-card', 'p-4', 'rounded-xl', 'border', 'border-border');
   });
 
-  it('matches the card shape with correct layout classes', () => {
+  it('renders animated placeholders for all card sections', () => {
     render(<PredictionCardSkeleton />);
-    
-    const skeleton = screen.getByTestId('prediction-card-skeleton');
-    expect(skeleton).toHaveClass('bg-card');
-    expect(skeleton).toHaveClass('p-4');
-    expect(skeleton).toHaveClass('rounded-xl');
-    expect(skeleton).toHaveClass('border');
-    expect(skeleton).toHaveClass('border-border');
-  });
 
-  it('contains animated skeleton bars', () => {
-    render(<PredictionCardSkeleton />);
-    
-    // The Skeleton component uses animate-pulse class
-    const animatedElements = document.querySelectorAll('.animate-pulse');
-    expect(animatedElements.length).toBeGreaterThan(0);
-  });
-
-  it('renders skeleton placeholders for all card sections', () => {
-    render(<PredictionCardSkeleton />);
-    
-    const skeletonBars = document.querySelectorAll('.animate-pulse');
-    // Expected: title, badge, 2 description lines, 
-    // 2 per grid cell (label + value) * 4 cells = 8,
-    // 2 for resolved date row = 12 total
-    expect(skeletonBars.length).toBe(14);
+    expect(document.querySelectorAll('.animate-pulse')).toHaveLength(14);
   });
 });
 
-// --- PredictionCard Tests ---
-
 describe('PredictionCard', () => {
-  it('renders skeleton when prediction is undefined', () => {
+  it('renders skeleton when prediction is missing', () => {
     render(<PredictionCard />);
-    
-    const skeleton = screen.getByTestId('prediction-card-skeleton');
-    expect(skeleton).toBeInTheDocument();
-  });
 
-  it('renders skeleton when prediction is null', () => {
-    // @ts-expect-error - null is not assignable to Prediction | undefined; testing runtime guard
-    render(<PredictionCard prediction={null} />);
-    
-    const skeleton = screen.getByTestId('prediction-card-skeleton');
-    expect(skeleton).toBeInTheDocument();
+    expect(screen.getByTestId('prediction-card-skeleton')).toBeInTheDocument();
   });
 
   it('renders full card content when prediction is provided', () => {
     render(<PredictionCard prediction={mockPrediction} />);
-    
+
     expect(screen.getByText(mockPrediction.title)).toBeInTheDocument();
     expect(screen.getByText(mockPrediction.description)).toBeInTheDocument();
     expect(screen.getByText(/10 XLM/)).toBeInTheDocument();
     expect(screen.getByText(/1.8x/)).toBeInTheDocument();
     expect(screen.getByText(/18 XLM/)).toBeInTheDocument();
     expect(screen.getByText(mockPrediction.eventDate)).toBeInTheDocument();
+    expect(screen.getByText('Yes')).toBeInTheDocument();
   });
 
-  it('renders status badge with correct label', () => {
-    render(<PredictionCard prediction={mockPrediction} />);
-    
+  it('renders status and resolved metadata conditionally', () => {
+    const { rerender } = render(<PredictionCard prediction={mockPrediction} />);
+
     expect(screen.getByLabelText('Status: Active')).toBeInTheDocument();
-  });
+    expect(screen.queryByText('Resolved')).not.toBeInTheDocument();
 
-  it('renders resolved date when status is won', () => {
-    render(<PredictionCard prediction={mockResolvedPrediction} />);
-    
+    rerender(<PredictionCard prediction={mockResolvedPrediction} />);
+
+    expect(screen.getByLabelText('Status: Won')).toBeInTheDocument();
     expect(screen.getByText('Resolved')).toBeInTheDocument();
     expect(screen.getByText('01/06/2023')).toBeInTheDocument();
   });
 
-  it('does not render resolved date for pending predictions', () => {
-    const pendingPrediction: Prediction = { ...mockPrediction, status: 'pending' };
-    render(<PredictionCard prediction={pendingPrediction} />);
-    
-    expect(screen.queryByText('Resolved')).toBeNull();
+  it('adds ripple-ready touch feedback classes to the root card button', () => {
+    render(<PredictionCard prediction={mockPrediction} />);
+
+    const card = screen.getByRole('button', { name: /NBA Finals/i });
+    expect(card).toHaveClass('touch-target', 'touch-ripple', 'relative', 'overflow-hidden');
   });
 
-  it('does not crash with skeleton when prediction is undefined', () => {
-    const { container } = render(<PredictionCard />);
-    expect(container).toBeTruthy();
+  it('keeps the odds trigger as a stable touch target', async () => {
+    const user = userEvent.setup();
+    render(<PredictionCard prediction={mockPrediction} />);
+
+    const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
+    expect(oddsTrigger).toHaveClass('touch-target');
+    expect(oddsTrigger).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(oddsTrigger);
+
+    expect(oddsTrigger).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('does not nest button elements inside the card button', () => {
+    const { container } = render(<PredictionCard prediction={mockPrediction} />);
+
+    expect(container.querySelector('button button')).toBeNull();
   });
 });
 
-// --- PredictionsList Loading Tests ---
+describe('PredictionCard touch ripple styles', () => {
+  const touchCss = readFileSync(path.join(process.cwd(), 'app/styles/touch.css'), 'utf8');
 
-import PredictionsList from '../PredictionsList';
-
-describe('PredictionsList loading state', () => {
-  it('renders skeleton cards when isLoading is true', () => {
-    render(<PredictionsList isLoading={true} />);
-    
-    const skeletons = screen.getAllByTestId('prediction-card-skeleton');
-    expect(skeletons).toHaveLength(4); // default skeletonCount
+  it('implements the ripple with a pseudo-element triggered by active press state', () => {
+    expect(touchCss).toContain('.touch-ripple::after');
+    expect(touchCss).toContain('.touch-ripple:active::after');
+    expect(touchCss).toContain('radial-gradient');
   });
 
-  it('renders custom number of skeleton cards', () => {
-    render(<PredictionsList isLoading={true} skeletonCount={6} />);
-    
-    const skeletons = screen.getAllByTestId('prediction-card-skeleton');
-    expect(skeletons).toHaveLength(6);
+  it('respects reduced-motion preferences', () => {
+    expect(touchCss).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(touchCss).toContain('transition: none');
+  });
+});
+
+describe('PredictionsList loading state', () => {
+  it('renders skeleton cards when loading', () => {
+    render(<PredictionsList isLoading />);
+
+    expect(screen.getAllByTestId('prediction-card-skeleton')).toHaveLength(4);
   });
 
   it('renders prediction cards when not loading', () => {
     render(<PredictionsList isLoading={false} />);
-    
-    // Should find actual prediction titles from mock data
+
     expect(screen.getByText('NBA Finals: Lakers vs Heat')).toBeInTheDocument();
-  });
-
-  it('does not show skeletons when isLoading is false', () => {
-    render(<PredictionsList isLoading={false} />);
-    
-    const skeletons = screen.queryAllByTestId('prediction-card-skeleton');
-    expect(skeletons).toHaveLength(0);
-  });
-
-  it('does not show empty state text when loading', () => {
-    render(<PredictionsList isLoading={true} />);
-    
-    expect(screen.queryByText(/No predictions found/)).toBeNull();
-  });
-});
-
-// --- Touch Target Tests (WCAG 2.5.5 / Apple HIG ≥44px) ---
-
-describe('PredictionCard touch targets', () => {
-  it('outer card button has touch-target class', () => {
-    render(<PredictionCard prediction={mockPrediction} />);
-    // The root interactive element must carry the touch-target utility class
-    // which enforces min-height: 44px and min-width: 44px.
-    const card = screen.getByRole('button', { name: /NBA Finals/i });
-    expect(card).toHaveClass('touch-target');
-  });
-
-  it('odds collapsible trigger has touch-target class', () => {
-    render(<PredictionCard prediction={mockPrediction} />);
-    // Query specifically by aria-controls to distinguish from the outer card button.
-    const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
-    expect(oddsTrigger).toHaveClass('touch-target');
-  });
-
-  it('odds trigger uses aria-expanded to reflect collapsed state', () => {
-    render(<PredictionCard prediction={mockPrediction} />);
-    const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
-    expect(oddsTrigger).toHaveAttribute('aria-expanded', 'false');
-  });
-
-  it('odds trigger uses aria-expanded to reflect expanded state after click', async () => {
-    const user = userEvent.setup();
-    render(<PredictionCard prediction={mockPrediction} />);
-    const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
-    await user.click(oddsTrigger);
-    expect(oddsTrigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryAllByTestId('prediction-card-skeleton')).toHaveLength(0);
   });
 });

@@ -3,11 +3,13 @@
  *
  * All interactive elements should present a hit area of at least 44×44 px on
  * touch devices.  Use `.touch-target` on the element itself (when its visual
- * size meets 44 px) or `.touch-target-expand` when the element is intentionally
- * small and needs an invisible extended hit area via a pseudo-element.
+ * size meets 44 px), `.touch-ripple` for press feedback, or
+ * `.touch-target-expand` when the element is intentionally small and needs an
+ * invisible extended hit area via a pseudo-element.
  *
  * Usage:
  *   <button className="touch-target …">Save</button>
+ *   <button className="touch-target touch-ripple …">Card</button>
  *   <button className="touch-target-expand relative …">×</button>
  */
 
@@ -20,6 +22,48 @@
   .touch-target {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  /**
+   * .touch-ripple
+   * Adds subtle tactile feedback for touch/click presses without extra markup.
+   * The pseudo-element only animates transform and opacity, so layout remains
+   * stable across breakpoints and dark mode.
+   */
+  .touch-ripple {
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .touch-ripple::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at center, hsl(var(--primary) / 0.16), transparent 68%);
+    opacity: 0;
+    transform: scale(0.92);
+    transition:
+      opacity 180ms ease-out,
+      transform 220ms ease-out;
+  }
+
+  .touch-ripple:active::after {
+    opacity: 1;
+    transform: scale(1);
+    transition-duration: 120ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .touch-ripple::after {
+      transform: none;
+      transition: none;
+    }
+
+    .touch-ripple:active::after {
+      transform: none;
+    }
   }
 
   /**
