@@ -8,7 +8,10 @@ import {
   XCircle,
   Clock,
   Activity,
+  RotateCcw,
+  Sparkles,
 } from "lucide-react";
+import Image from "next/image";
 
 // --- 1. Type Definitions ---
 
@@ -211,7 +214,6 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
           <h3 className="text-[17px] font-semibold text-[#111827] truncate">
             {title}
           </h3>
-          div
           <div>
             <p className="text-[#6B7280] text-[15px]">{description}</p>
           </div>
@@ -264,48 +266,156 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
 };
 
 /**
+ * Themed empty state for the predictions list. Rendered when a status
+ * filter (or the combined search + filter state) yields zero matches.
+ *
+ * Provides a themed illustration, copy that names the active filter so
+ * the user knows why the list is empty, and a "Reset filters" CTA that
+ * restores the default view. Honour the existing dark/light surface via
+ * Tailwind tokens (no hard-coded colors).
+ */
+function PredictionsEmptyState({
+  activeTab,
+  hasActiveSearch,
+  onReset,
+}: {
+  activeTab: FilterTab;
+  /** When true, the empty state copy mentions the active search term. */
+  hasActiveSearch: boolean;
+  onReset: () => void;
+}) {
+  // Dark/light tokens — bg and text use Tailwind's `dark:` variants so
+  // the empty state respects the existing theme.
+  const headingClass = "text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100";
+  const bodyClass = "text-sm sm:text-base text-gray-600 dark:text-gray-300 max-w-sm";
+
+  // The empty state copy adapts to the active filter so the user
+  // immediately knows whether the list is empty because nothing exists
+  // for that status, or because the search/filter is too narrow.
+  const headline =
+    activeTab === "All"
+      ? "No predictions yet"
+      : `No "${activeTab}" predictions`;
+  const description = hasActiveSearch
+    ? `Nothing matches your search in the "${activeTab}" tab. Try a broader search or clear the active filters.`
+    : activeTab === "All"
+      ? "Start predicting on events to see your activity here."
+      : `You have no predictions in the "${activeTab}" tab right now. Switch tabs to see other predictions, or reset the filter.`;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="col-span-full flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E5E7EB] dark:border-[#374151] bg-white/60 dark:bg-[#1F2937]/60 px-6 py-10 sm:py-14 text-center"
+    >
+      <div className="w-24 h-24 sm:w-28 sm:h-28 mb-4 opacity-90">
+        <Image
+          src="/assets/empty-states/dashboard/predictions.svg"
+          alt=""
+          width={112}
+          height={112}
+          className="w-full h-full"
+          aria-hidden="true"
+        />
+      </div>
+
+      <h3 className={headingClass}>{headline}</h3>
+      <p className={bodyClass}>{description}</p>
+
+      <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
+        <button
+          type="button"
+          onClick={onReset}
+          className="inline-flex items-center gap-2 rounded-lg bg-[#6C17B0] hover:bg-[#5A1196] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white px-4 py-2 text-sm font-semibold text-white transition"
+        >
+          <RotateCcw size={16} aria-hidden="true" />
+          Reset filters
+        </button>
+        {activeTab !== "Active" && (
+          <a
+            href="/events"
+            className="inline-flex items-center gap-2 rounded-lg border border-[#E5E7EB] dark:border-[#374151] hover:bg-white/80 dark:hover:bg-[#111827]/60 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 transition"
+          >
+            <Sparkles size={16} aria-hidden="true" />
+            Browse events
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * PredictionsList component handles the internal filtering and rendering of cards.
  */
 const PredictionsList: React.FC = () => {
   const TABS: FilterTab[] = ["All", "Active", "Pending", "Completed"];
   const [activeTab, setActiveTab] = useState<FilterTab>("All");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredPredictions = useMemo(() => {
-    if (activeTab === "All") {
-      return MOCK_PREDICTIONS;
-    }
+    const needle = searchQuery.trim().toLowerCase();
+    const list = (() => {
+      if (activeTab === "All") return MOCK_PREDICTIONS;
+      if (activeTab === "Completed") {
+        return MOCK_PREDICTIONS.filter(
+          (p) => p.status === "won" || p.status === "lost"
+        );
+      }
+      const status: PredictionStatus =
+        activeTab.toLowerCase() as PredictionStatus;
+      return MOCK_PREDICTIONS.filter((p) => p.status === status);
+    })();
+    if (!needle) return list;
+    return list.filter(
+      (p) =>
+        p.title.toLowerCase().includes(needle) ||
+        p.description.toLowerCase().includes(needle)
+    );
+  }, [activeTab, searchQuery]);
 
-    if (activeTab === "Completed") {
-      return MOCK_PREDICTIONS.filter(
-        (p) => p.status === "won" || p.status === "lost"
-      );
-    }
-
-    const status: PredictionStatus =
-      activeTab.toLowerCase() as PredictionStatus;
-    return MOCK_PREDICTIONS.filter((p) => p.status === status);
-  }, [activeTab]);
+  const resetFilters = () => {
+    setActiveTab("All");
+    setSearchQuery("");
+  };
 
   return (
     <div className="space-y-6">
       {/* Tab Navigation for Status Filtering */}
-      <div className="flex space-x-2 pb-2">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`
-              px-4 py-2 text-sm font-medium rounded-lg transition duration-200
-              ${
-                activeTab === tab
-                  ? "bg-[#6C17B0] text-white border-b-4 border-white p-3 rounded-lg"
-                  : "text-[#6B7280] hover:bg-gray-700 hover:text-white active:bg-gray-600"
-              }
-            `}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex space-x-2 pb-2 overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`
+                px-4 py-2 text-sm font-medium rounded-lg transition duration-200 whitespace-nowrap
+                ${
+                  activeTab === tab
+                    ? "bg-[#6C17B0] text-white border-b-4 border-white p-3 rounded-lg"
+                    : "text-[#6B7280] hover:bg-gray-700 hover:text-white active:bg-gray-600"
+                }
+              `}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        <div className="relative w-full sm:w-72">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            role="searchbox"
+            aria-label="Search predictions"
+            placeholder="Search predictions…"
+            className="w-full rounded-lg border border-[#E5E7EB] bg-white py-2 pl-8 pr-3 text-sm text-gray-900 placeholder:text-[#9CA3AF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C17B0]"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Predictions Grid */}
@@ -315,9 +425,11 @@ const PredictionsList: React.FC = () => {
             <PredictionCard key={prediction.id} prediction={prediction} />
           ))
         ) : (
-          <p className="text-gray-400 text-center col-span-full py-10 text-lg">
-            No predictions found for the "{activeTab}" status.
-          </p>
+          <PredictionsEmptyState
+            activeTab={activeTab}
+            hasActiveSearch={searchQuery.trim().length > 0}
+            onReset={resetFilters}
+          />
         )}
       </div>
     </div>
