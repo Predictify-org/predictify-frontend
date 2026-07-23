@@ -17,6 +17,7 @@ Built with Next.js 15, React 19, TypeScript, and the Stellar Wallets Kit, Predic
 - **Advanced Analytics**: Track your prediction performance with detailed analytics and insights.
 - **Create Your Markets**: Anyone can create prediction markets on virtually any verifiable future event.
 - **Verified Oracles**: Multiple oracle sources ensure accurate and tamper-proof event outcomes.
+- **Daily Betting Limit Nudge**: Market cards now surface each user’s remaining daily betting allowance.
 
 ## Tech Stack
 
@@ -112,8 +113,9 @@ pnpm test:coverage
 Predictify currently supports the Stellar Testnet by default. To switch to Mainnet:
 
 1. Update `constants/wallet-kits.constant.ts`:
+
    ```typescript
-   network: WalletNetwork.MAINNET
+   network: WalletNetwork.MAINNET;
    ```
 
 2. Update your `.env.local`:
@@ -166,6 +168,7 @@ Quick start:
 ### Development Workflow
 
 1. **Fork the repository** and create your feature branch:
+
    ```bash
    git checkout -b feature/amazing-feature
    ```
@@ -177,17 +180,20 @@ Quick start:
    - Add tests for new features
 
 3. **Test your changes**:
+
    ```bash
    pnpm test
    pnpm lint
    ```
 
 4. **Commit your changes**:
+
    ```bash
    git commit -m "Add amazing feature"
    ```
 
 5. **Push to your fork**:
+
    ```bash
    git push origin feature/amazing-feature
    ```
@@ -225,11 +231,13 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 ## Network Information
 
 ### Stellar Testnet
+
 - **Horizon URL**: `https://horizon-testnet.stellar.org`
 - **Network Passphrase**: `Test SDF Network ; September 2015`
 - **Friendbot**: Available for test account funding
 
 ### Stellar Mainnet
+
 - **Horizon URL**: `https://horizon.stellar.org`
 - **Network Passphrase**: `Public Global Stellar Network ; September 2015`
 
@@ -260,6 +268,7 @@ If you encounter build errors:
 ## Contributors
 
 <!-- Add contributors here -->
+
 - [Your Name](https://github.com/yourusername)
 
 ## Support
