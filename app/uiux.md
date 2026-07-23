@@ -2,6 +2,10 @@
 
 this is the UI/UX design for the application
 
+## Route transition feedback
+
+Route changes now display a thin top-of-page progress indicator during navigation transitions to make page loads feel more responsive and predictable.
+
 https://www.figma.com/design/0WWKE7970cnVtuuTFv8lSI/Predictify?t=VtGum6YTIzVaWKEC-1
 
 
