@@ -16,6 +16,7 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Where real API calls should be introduced
   - Mocked-vs-real status
 - **[a11y-status.md](./a11y-status.md)** - Accessibility audit board status
+- **[app/a11y-audit/page.tsx](../app/a11y-audit/page.tsx)** - Internal GrantFox accessibility audit board page
   - Latest GrantFox component audit snapshot
   - Verified vs. partial follow-up status
   - Evidence paths for recent component work
