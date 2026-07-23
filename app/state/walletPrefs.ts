@@ -30,10 +30,13 @@ export function getWalletPrefs(): WalletPrefs {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_PREFS };
 
-    const parsed = JSON.parse(raw) as Partial<WalletPrefs>;
+    const parsed = JSON.parse(raw) as Partial<WalletPrefs> & Record<string, unknown>;
     return {
       lastUsedWalletId: parsed.lastUsedWalletId ?? null,
-    };
+      // Preserve unknown future fields so setWalletPrefs round-trips safely
+      ...parsed,
+      lastUsedWalletId: parsed.lastUsedWalletId ?? null,
+    } as WalletPrefs;
   } catch {
     // Corrupted storage entry — fall back to defaults.
     return { ...DEFAULT_PREFS };

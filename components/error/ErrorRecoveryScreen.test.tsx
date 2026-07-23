@@ -49,14 +49,14 @@ describe('ErrorRecoveryScreen', () => {
   it('copies incident ID and shows toast', async () => {
     render(<ErrorRecoveryScreen error={new Error('Test error')} incidentId="test-id-123" resetErrorBoundary={mockReset} />);
     
-    const copyButton = screen.getByLabelText('Copy Incident ID');
+    const copyButton = screen.getByLabelText('Copy test-id-123');
     fireEvent.click(copyButton);
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('test-id-123');
     
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'Incident ID Copied'
+        title: 'Copied!'
       }));
     });
   });

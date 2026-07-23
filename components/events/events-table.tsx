@@ -393,7 +393,7 @@ export function EventsTable({ className }: EventsTableProps) {
             </TableHeader>
             <TableBody>
               {paginatedEvents.map((event, index) => (
-                <TableRow
+                <EventRow
                   key={event.id}
                   event={event}
                   index={index}
