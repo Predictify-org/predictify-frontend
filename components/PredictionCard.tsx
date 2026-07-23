@@ -149,7 +149,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
         {/* Stake */}
         <div>
           <p className="text-muted-foreground">Stake</p>
-          <p className="text-card-foreground font-medium">{stakeAmount} {stakeToken}</p>
+          <p className="text-card-foreground font-medium tabular-nums">{stakeAmount} {stakeToken}</p>
         </div>
 
         {/* Odds */}
@@ -162,11 +162,11 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
               aria-controls="odds-breakdown"
             >
               <p className="text-muted-foreground">Odds</p>
-              <p className="text-card-foreground font-medium">{odds.toFixed(1)}x</p>
+              <p className="text-card-foreground font-medium tabular-nums">{odds.toFixed(1)}x</p>
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent id="odds-breakdown" className="mt-2 text-sm text-muted-foreground">
-            <p>Implied probability: {(1 / odds * 100).toFixed(1)}%</p>
+            <p className="tabular-nums">Implied probability: {(1 / odds * 100).toFixed(1)}%</p>
             <p>Last move: N/A</p>
             <p>24h volume: N/A</p>
           </CollapsibleContent>
@@ -175,7 +175,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
         {/* Potential Winnings */}
         <div>
           <p className="text-muted-foreground">Potential Winnings</p>
-          <p className="text-card-foreground font-medium">{potentialWinnings} {winningsToken}</p>
+          <p className="text-card-foreground font-medium tabular-nums">{potentialWinnings} {winningsToken}</p>
         </div>
 
         {/* Event Date */}

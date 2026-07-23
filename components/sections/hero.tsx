@@ -115,7 +115,7 @@ export function Hero() {
               <div className="rounded-full bg-white/20 p-1.5">
                 <Coins className="h-4 w-4 text-white" />
               </div>
-              <span className="text-label font-semibold text-white">+250 USDC Won!</span>
+              <span className="text-label font-semibold text-white tabular-nums">+250 USDC Won!</span>
             </div>
           </div>
 
@@ -149,7 +149,7 @@ export function Hero() {
                     <div className="h-full w-[68%] bg-gradient-to-r from-green-500 to-green-400" />
                   </div>
                   <div className="flex justify-between text-caption text-white/60">
-                    <span>Pool: 1,245 USDC</span>
+                    <span className="tabular-nums">Pool: 1,245 USDC</span>
                     <span>Ends in 3 days</span>
                   </div>
                 </Card>
@@ -175,7 +175,7 @@ export function Hero() {
                     <div className="h-full w-[53%] bg-gradient-to-r from-green-500 to-green-400" />
                   </div>
                   <div className="flex justify-between text-caption text-white/60">
-                    <span>Pool: 5,890 USDC</span>
+                    <span className="tabular-nums">Pool: 5,890 USDC</span>
                     <span>Ends in 8 months</span>
                   </div>
                 </Card>
@@ -201,7 +201,7 @@ export function Hero() {
                     <div className="h-full w-[72%] bg-gradient-to-r from-green-500 to-green-400" />
                   </div>
                   <div className="flex justify-between text-caption text-white/60">
-                    <span>Pool: 2,456 USDC</span>
+                    <span className="tabular-nums">Pool: 2,456 USDC</span>
                     <span>Ends in 14 days</span>
                   </div>
                 </Card>

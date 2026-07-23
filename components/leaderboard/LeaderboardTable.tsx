@@ -83,13 +83,13 @@ export function LeaderboardTable({ users, onUserVisibilityChange }: LeaderboardT
                     {user.name}
                   </span>
                 </div>
-                <div className="px-6 w-36 text-sm font-semibold text-emerald-400">
+                <div className="px-6 w-36 text-sm font-semibold text-emerald-400 tabular-nums">
                   +{user.profit.toLocaleString()}
                 </div>
-                <div className="px-6 w-32 text-sm text-slate-300">
+                <div className="px-6 w-32 text-sm text-slate-300 tabular-nums">
                   {user.winRate}%
                 </div>
-                <div className="px-6 w-32 text-sm text-slate-400">
+                <div className="px-6 w-32 text-sm text-slate-400 tabular-nums">
                   {user.predictions}
                 </div>
               </div>

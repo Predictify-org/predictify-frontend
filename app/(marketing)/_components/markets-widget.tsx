@@ -52,7 +52,7 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
           <div className="rounded-full bg-white/20 p-2">
             <Coins className="h-5 w-5 text-white" />
           </div>
-          <span className="text-lg font-semibold text-white">
+          <span className="text-lg font-semibold text-white tabular-nums">
             +{winNotifications[0].amount} {winNotifications[0].currency} Won!
           </span>
         </div>
@@ -166,8 +166,8 @@ function MarketCard({ market, IconComponent, colors, index, reducedMotion }: Mar
           </div>
         </div>
         <div className="text-right">
-          <div className="text-sm font-medium text-green-400">Yes: {market.yesOdds}%</div>
-          <div className="text-sm text-red-400">No: {market.noOdds}%</div>
+          <div className="text-sm font-medium text-green-400 tabular-nums">Yes: {market.yesOdds}%</div>
+          <div className="text-sm text-red-400 tabular-nums">No: {market.noOdds}%</div>
         </div>
       </div>
 
@@ -180,7 +180,7 @@ function MarketCard({ market, IconComponent, colors, index, reducedMotion }: Mar
       </div>
 
       <div className="flex justify-between text-xs text-white/60">
-        <span>Pool: {market.poolAmount.toLocaleString()} USDC</span>
+        <span className="tabular-nums">Pool: {market.poolAmount.toLocaleString()} USDC</span>
         <span>Ends in {market.endsIn}</span>
       </div>
     </Card>

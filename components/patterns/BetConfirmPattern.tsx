@@ -246,7 +246,7 @@ function BetForm({ className }: React.ComponentProps<"form">) {
       <div className="bg-[#192540]/50 rounded-xl p-4 space-y-2 border border-[#40485d]/30">
          <div className="flex justify-between items-center text-sm">
             <span className="text-[#a3aac4]">Potential Payout</span>
-            <span className="font-headline font-bold text-[#29fcf3]">$136.50</span>
+            <span className="font-headline font-bold text-[#29fcf3] tabular-nums">$136.50</span>
          </div>
          <div className="flex justify-between items-center text-xs">
             <span className="text-[#a3aac4]">Est. Slippage</span>
