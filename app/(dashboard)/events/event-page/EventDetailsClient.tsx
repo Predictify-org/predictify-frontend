@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { Clock, DollarSign, Users, BarChart2, Loader2, Share2 } from "lucide-react";
 import { formatDistanceToNowStrict, parseISO, isValid } from "date-fns";
 import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
+import { MarketTimeline } from "@/components/market/MarketTimeline";
 import { ShareSheet } from "@/app/components/ShareSheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
@@ -497,6 +498,7 @@ export default function EventDetailsClient() {
             overview={overviewTab}
             activity={activityTab}
             resolution={resolutionTab}
+            timeline={<MarketTimeline />}
           />
         </div>
 
