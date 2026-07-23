@@ -29,6 +29,7 @@ export function Providers({ children }: ProvidersProps) {
         defaultTheme="dark"
         enableSystem
         disableTransitionOnChange
+        themes={["light", "dark", "high-contrast"]}
       >
         <PrivacyProvider>
           <WalletProvider>
