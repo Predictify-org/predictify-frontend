@@ -105,7 +105,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
 
   return (
     /* touch-target: enforces ≥44px hit area (WCAG 2.5.5 / Apple HIG). */
-    <button className="touch-target w-full text-left bg-card p-4 rounded-xl shadow-lg hover:bg-muted/50 transition duration-200 cursor-pointer border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+    <button className="touch-target touch-ripple w-full text-left bg-card p-4 rounded-xl shadow-lg hover:bg-muted/50 transition duration-200 cursor-pointer border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
       <div className="flex justify-between items-start mb-3">
         <div className="flex flex-col items-start gap-1 pr-2">
           <h3 className="text-lg font-semibold text-card-foreground line-clamp-2">{title}</h3>
@@ -157,7 +157,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
           <CollapsibleTrigger asChild>
             {/* touch-target: guarantees ≥44px tap area on the Odds trigger (WCAG 2.5.5). */}
             <button
-              className="touch-target flex w-full items-center justify-between px-2 rounded hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="touch-target touch-ripple flex w-full items-center justify-between px-2 rounded hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-expanded={isOddsExpanded}
               aria-controls="odds-breakdown"
             >

@@ -208,19 +208,21 @@ describe('PredictionsList loading state', () => {
 // --- Touch Target Tests (WCAG 2.5.5 / Apple HIG ≥44px) ---
 
 describe('PredictionCard touch targets', () => {
-  it('outer card button has touch-target class', () => {
+  it('outer card button has touch-target and touch-ripple classes', () => {
     render(<PredictionCard prediction={mockPrediction} />);
     // The root interactive element must carry the touch-target utility class
     // which enforces min-height: 44px and min-width: 44px.
     const card = screen.getByRole('button', { name: /NBA Finals/i });
     expect(card).toHaveClass('touch-target');
+    expect(card).toHaveClass('touch-ripple');
   });
 
-  it('odds collapsible trigger has touch-target class', () => {
+  it('odds collapsible trigger has touch-target and touch-ripple classes', () => {
     render(<PredictionCard prediction={mockPrediction} />);
     // Query specifically by aria-controls to distinguish from the outer card button.
     const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
     expect(oddsTrigger).toHaveClass('touch-target');
+    expect(oddsTrigger).toHaveClass('touch-ripple');
   });
 
   it('odds trigger uses aria-expanded to reflect collapsed state', () => {
