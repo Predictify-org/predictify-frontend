@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { ReactNode } from "react";
 import { useHideBalancesShortcut } from "@/hooks/useHideBalancesShortcut";
 import { ClaimShareProvider } from "@/context/ClaimShareContext";
+import { GlobalLiveRegion } from "@/app/components/GlobalLiveRegion";
 import { RouteDocumentTitle } from "@/app/hooks/useDocumentTitle";
 
 interface ProvidersProps {
@@ -37,6 +38,7 @@ export function Providers({ children }: ProvidersProps) {
             </ClaimShareProvider>
           </WalletProvider>
         </PrivacyProvider>
+        <GlobalLiveRegion />
         <Toaster />
       </ThemeProvider>
     </ErrorBoundary>
