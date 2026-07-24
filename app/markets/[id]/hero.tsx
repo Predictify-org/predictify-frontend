@@ -84,6 +84,13 @@ export interface MarketHeroProps {
  * Stat pill — a small labelled figure used in the stat strip.
  * Kept internal to this file; exported only for testing via a named export
  * lower in this module.
+ *
+ * Tabular-nums contract (issue #556): the value span wears `text-stat-sm`,
+ * which is bound to `font-variant-numeric: tabular-nums` in
+ * `styles/globals.css`.  An explicit `tabular-nums` is also applied here
+ * for redundancy and so the DOM-level contract is straightforward to
+ * assert in tests — both layers resolve to the same CSS property and
+ * there is no visual conflict.
  */
 interface StatPillProps {
   icon: React.ReactNode;
@@ -220,6 +227,15 @@ export function MarketHero({
         <div className="mb-5" data-testid="probability-section">
           {/* Outcome labels */}
           <div className="mb-1.5 flex justify-between text-body-sm font-medium">
+            {/*
+             * Tabular-nums contract (issue #556): the parent `<span>` uses
+             * `text-body-sm`, which is NOT one of the stat tokens bound to
+             * `font-variant-numeric: tabular-nums` by `styles/globals.css`,
+             * so the property is absent in the cascade for this subtree.
+             * An explicit `tabular-nums` on the inner span is therefore
+             * required, and it keeps the digits column-aligned regardless
+             * of the leading label or trailing "%" spacing.
+             */}
             <span className="text-emerald-600 dark:text-emerald-400">
               {leadOutcome.label}{" "}
               <span className="tabular-nums">{leadOutcome.probability}%</span>
