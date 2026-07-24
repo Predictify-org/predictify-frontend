@@ -203,7 +203,7 @@ describe("EventsTable — accessibility", () => {
   })
 
   describe("Empty state", () => {
-    it("renders an informative empty-state message when no events", () => {
+    it("renders the no-match empty state when filteredEvents is empty", () => {
       const { useEventsStore } = require("@/lib/events-store")
       const emptyState = { ...mockStoreState(), filteredEvents: [] }
       useEventsStore.mockImplementation(
@@ -211,7 +211,31 @@ describe("EventsTable — accessibility", () => {
           selector ? selector(emptyState) : emptyState
       )
       render(<EventsTable />)
-      expect(screen.getByText(/no events found/i)).toBeInTheDocument()
+      // Heading rendered by NoMatchEmptyState
+      expect(screen.getByRole("heading", { name: /no matching markets/i })).toBeInTheDocument()
+    })
+
+    it("renders a 'Clear all filters' button in the empty state", () => {
+      const { useEventsStore } = require("@/lib/events-store")
+      const emptyState = { ...mockStoreState(), filteredEvents: [] }
+      useEventsStore.mockImplementation(
+        (selector?: (s: typeof emptyState) => unknown) =>
+          selector ? selector(emptyState) : emptyState
+      )
+      render(<EventsTable />)
+      expect(screen.getByRole("button", { name: /clear all filters/i })).toBeInTheDocument()
+    })
+
+    it("renders a live status region in the empty state", () => {
+      const { useEventsStore } = require("@/lib/events-store")
+      const emptyState = { ...mockStoreState(), filteredEvents: [] }
+      useEventsStore.mockImplementation(
+        (selector?: (s: typeof emptyState) => unknown) =>
+          selector ? selector(emptyState) : emptyState
+      )
+      render(<EventsTable />)
+      const status = screen.getByRole("status")
+      expect(status).toHaveAttribute("aria-live", "polite")
     })
   })
 })
