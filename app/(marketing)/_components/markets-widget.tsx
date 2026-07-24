@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { sampleMarkets, winNotifications, type Market } from "@/content/markets.sample";
 import { useState, useEffect } from "react";
 import { useFollowsStore } from "@/app/state/follows";
+import Sparkline from "@/components/Sparkline";
 
 interface MarketsWidgetProps {
   className?: string;
@@ -148,6 +149,12 @@ function MarketCard({ market, IconComponent, colors, index, reducedMotion }: Mar
           <div>
             <h3 className="font-semibold text-white">{market.title}</h3>
             <p className="text-sm text-white/70">{market.description}</p>
+            {/* Sparkline preview */}
+            <Sparkline
+              data={market.sparklineData}
+              className="mt-2 text-white/60"
+              data-testid={`sparkline-${market.id}`}
+            />
 
             {/* Following indicator — visible only for followed markets */}
             {isFollowing && (
