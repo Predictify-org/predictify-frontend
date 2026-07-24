@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 interface CountdownTimerProps {
   deadline: Date;
   label?: string;
+
 }
 
 interface TimeLeft {
@@ -13,6 +14,7 @@ interface TimeLeft {
   hours: number;
   minutes: number;
   seconds: number;
+  
 }
 
 function computeTimeLeft(deadline: Date): TimeLeft | null {

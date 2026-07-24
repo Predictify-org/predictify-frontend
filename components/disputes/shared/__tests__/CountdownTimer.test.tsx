@@ -200,6 +200,7 @@ describe('CountdownTimer', () => {
       const liveRegion = container.querySelector('[aria-live="polite"]');
       expect(liveRegion?.textContent).toBe('Deadline passed');
     });
+    
   });
 
   describe('reduced motion', () => {
