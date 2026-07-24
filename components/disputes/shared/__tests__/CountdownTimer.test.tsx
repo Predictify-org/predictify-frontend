@@ -200,7 +200,7 @@ describe('CountdownTimer', () => {
       const liveRegion = container.querySelector('[aria-live="polite"]');
       expect(liveRegion?.textContent).toBe('Deadline passed');
     });
-    
+
   });
 
   describe('reduced motion', () => {
@@ -226,6 +226,7 @@ describe('CountdownTimer', () => {
       const countdownEl = countdownEls[0];
       expect(countdownEl).toHaveClass('text-destructive');
       expect(countdownEl).not.toHaveClass('animate-pulse');
+      
     });
   });
 });

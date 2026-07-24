@@ -17,6 +17,7 @@ import { HowItWorks } from "./_sections/how-it-works";
 import { WalletsTokens } from "@/components/sections/wallets-token";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import Navbar from "./_components/navbar";
+import { LiveTicker } from "@/app/components/LiveTicker";
 import KpiStrip from "./_sections/kpi-strip";
 import { CTA } from "./_sections/cta";
 import { useParallax } from "@/hooks/use-parallax";
@@ -35,6 +36,7 @@ export default function MarketingRoute() {
       </div>
       <AnimatedBackground />
       <Navbar />
+      <LiveTicker />
       <Hero />
       <TrendingRail />
       <KpiStrip />
