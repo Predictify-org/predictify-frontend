@@ -13,6 +13,7 @@ import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStri
 import { ActiveBets } from "@/components/active-bets/ActiveBets"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator"
+import { RecentlyViewedRail } from "@/app/components/RecentlyViewedRail"
 import { useEffect, useState } from "react"
 
 interface Stat {
@@ -364,6 +365,7 @@ export default function DashboardPage() {
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           {renderCards()}
+          <RecentlyViewedRail />
           <ActiveBets 
             bets={status === 'empty' ? [] : []} 
             isLoading={status === 'loading'}

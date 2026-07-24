@@ -25,6 +25,7 @@ import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
 import { MarketTimeline } from "@/components/market/MarketTimeline";
 import { ShareSheet } from "@/app/components/ShareSheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import {
   Drawer,
   DrawerContent,
@@ -134,6 +135,17 @@ export default function EventDetailsClient() {
       );
     }
   }, [eventId, eventData.id]);
+
+  const { addRecentlyViewed } = useRecentlyViewed()
+
+  useEffect(() => {
+    addRecentlyViewed({
+      id: eventData.id,
+      title: eventData.title,
+      category: eventData.category,
+      href: `/events/event-page/${eventData.id}`,
+    })
+  }, [eventData.id, eventData.title, eventData.category, addRecentlyViewed])
 
   useEffect(() => {
     if (!eventData.deadline || !isValid(parseISO(eventData.deadline))) return;
