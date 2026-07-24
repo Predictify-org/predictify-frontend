@@ -18,6 +18,7 @@ export function notifyClaimSuccess(options?: {
 export function notifyBetPlaced(options?: {
   title?: string
   description?: string
+  onSuccess?: () => void
 }) {
   playSound("confirm")
   toast.success(options?.title ?? "Prediction placed", {
@@ -25,4 +26,7 @@ export function notifyBetPlaced(options?: {
       options?.description ?? "Your prediction has been confirmed and staked.",
     duration: 5000,
   })
+  
+  // Trigger success callback for confetti or other success effects
+  options?.onSuccess?.()
 }
