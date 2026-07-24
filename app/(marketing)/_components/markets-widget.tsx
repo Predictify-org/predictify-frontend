@@ -1,12 +1,25 @@
 "use client";
 
-import { ArrowRight, TrendingUp, Globe, BarChart3, CheckCircle2, Coins, Bell } from "lucide-react";
+import {
+  ArrowRight,
+  TrendingUp,
+  Globe,
+  BarChart3,
+  CheckCircle2,
+  Coins,
+  Bell,
+} from "lucide-react";
 import LanguageBadge from "@/components/LanguageBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { sampleMarkets, winNotifications, type Market } from "@/content/markets.sample";
+import {
+  sampleMarkets,
+  winNotifications,
+  type Market,
+} from "@/content/markets.sample";
 import { useState, useEffect } from "react";
 import { useFollowsStore } from "@/app/state/follows";
+import { useUserLimitsStore } from "@/app/state/userLimits";
 
 interface MarketsWidgetProps {
   className?: string;
@@ -37,15 +50,17 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
-    setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    setReducedMotion(
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    );
   }, []);
 
   return (
     <div className={`relative flex items-center justify-center ${className}`}>
       {/* Win Notification Badge */}
-      <div 
+      <div
         className={`absolute right-0 -top-4 z-20 rounded-2xl bg-gradient-to-r from-[#4F46E533] to-[#9333EA] p-4 shadow-2xl ${
-          reducedMotion ? '' : 'animate-fade-in'
+          reducedMotion ? "" : "animate-fade-in"
         }`}
       >
         <div className="flex items-center gap-3">
@@ -61,7 +76,9 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
       {/* Markets Card */}
       <Card className="w-full max-w-md border-white/10 bg-gradient-to-b from-[#48097B] to-[#111827] p-6 backdrop-blur-xl">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">Popular Prediction Markets</h2>
+          <h2 className="text-xl font-semibold text-white">
+            Popular Prediction Markets
+          </h2>
           <button className="text-sm text-purple-300 hover:text-purple-200 transition-colors">
             View All
           </button>
@@ -71,11 +88,11 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
           {sampleMarkets.map((market, index) => {
             const IconComponent = iconMap[market.icon as keyof typeof iconMap];
             const colors = colorMap[market.iconColor as keyof typeof colorMap];
-            
+
             return (
-              <MarketCard 
-                key={market.id} 
-                market={market} 
+              <MarketCard
+                key={market.id}
+                market={market}
                 IconComponent={IconComponent}
                 colors={colors}
                 index={index}
@@ -92,14 +109,16 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
       </Card>
 
       {/* Success Notification Badge */}
-      <div 
+      <div
         className={`absolute bottom-4 left-0 z-20 rounded-2xl bg-green-500 p-4 shadow-2xl ${
-          reducedMotion ? '' : 'animate-fade-in'
+          reducedMotion ? "" : "animate-fade-in"
         }`}
       >
         <div className="flex items-center gap-3">
           <CheckCircle2 className="h-5 w-5 text-white" />
-          <span className="font-semibold text-white">{winNotifications[1].message}</span>
+          <span className="font-semibold text-white">
+            {winNotifications[1].message}
+          </span>
         </div>
       </div>
     </div>
@@ -127,17 +146,26 @@ interface MarketCardProps {
  *     (WCAG 2.1 AA 1.3.1 / 4.1.2).
  *   - Animated only when the user has not opted into prefers-reduced-motion.
  */
-function MarketCard({ market, IconComponent, colors, index, reducedMotion }: MarketCardProps) {
+function MarketCard({
+  market,
+  IconComponent,
+  colors,
+  index,
+  reducedMotion,
+}: MarketCardProps) {
   const isFollowing = useFollowsStore((s) => s.isFollowing(market.id));
+  const remainingAllowance = useUserLimitsStore((s) =>
+    s.getRemainingDailyAllowance(market.id),
+  );
 
   return (
     <Card
       className={`border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm transition-all duration-300 hover:bg-[#201F3780]/80 ${
-        reducedMotion ? '' : 'animate-slide-up'
+        reducedMotion ? "" : "animate-slide-up"
       }`}
       style={{
-        animationDelay: reducedMotion ? '0ms' : `${index * 150}ms`,
-        animationFillMode: 'both'
+        animationDelay: reducedMotion ? "0ms" : `${index * 150}ms`,
+        animationFillMode: "both",
       }}
     >
       <div className="mb-3 flex items-start justify-between">
@@ -149,24 +177,36 @@ function MarketCard({ market, IconComponent, colors, index, reducedMotion }: Mar
             <h3 className="font-semibold text-white">{market.title}</h3>
             <p className="text-sm text-white/70">{market.description}</p>
 
-            {/* Following indicator — visible only for followed markets */}
-            {isFollowing && (
-              <span
-                className="mt-1 inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-400/30"
-                data-testid="following-indicator"
+            <div className="mt-2 space-y-2">
+              {/* Following indicator — visible only for followed markets */}
+              {isFollowing && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-400/30"
+                  data-testid="following-indicator"
+                >
+                  <Bell className="h-3 w-3" aria-hidden="true" />
+                  You&apos;re following this
+                  <span className="sr-only">
+                    {" "}
+                    — you are following this market
+                  </span>
+                </span>
+              )}
+
+              <p
+                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs leading-5 text-white/85"
+                data-testid="betting-limit-nudge"
               >
-                {/* Bell icon: shape-based cue (colour-blind safe) */}
-                <Bell className="h-3 w-3" aria-hidden="true" />
-                {/* Visible text */}
-                You&apos;re following this
-                {/* SR-only reinforcement so the badge meaning is unambiguous */}
-                <span className="sr-only"> — you are following this market</span>
-              </span>
-            )}
+                Daily betting allowance remaining:{" "}
+                <strong>{remainingAllowance} USDC</strong>
+              </p>
+            </div>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-sm font-medium text-green-400">Yes: {market.yesOdds}%</div>
+          <div className="text-sm font-medium text-green-400">
+            Yes: {market.yesOdds}%
+          </div>
           <div className="text-sm text-red-400">No: {market.noOdds}%</div>
         </div>
       </div>
