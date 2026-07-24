@@ -19,7 +19,7 @@ import {
 } from "@/content/markets.sample";
 import { useState, useEffect } from "react";
 import { useFollowsStore } from "@/app/state/follows";
-import { useUserLimitsStore } from "@/app/state/userLimits";
+import Sparkline from "@/components/Sparkline";
 
 interface MarketsWidgetProps {
   className?: string;
@@ -176,6 +176,12 @@ function MarketCard({
           <div>
             <h3 className="font-semibold text-white">{market.title}</h3>
             <p className="text-sm text-white/70">{market.description}</p>
+            {/* Sparkline preview */}
+            <Sparkline
+              data={market.sparklineData}
+              className="mt-2 text-white/60"
+              data-testid={`sparkline-${market.id}`}
+            />
 
             <div className="mt-2 space-y-2">
               {/* Following indicator — visible only for followed markets */}
