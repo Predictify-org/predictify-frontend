@@ -189,14 +189,17 @@ export function BetConfirmPattern() {
               <BetForm />
             </div>
             <DrawerFooter className="pt-4 flex flex-col gap-2">
-              <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc] w-full" onClick={handleConfirm}>
-                Confirm Prediction
-              </Button>
+              {/* Cancel is rendered BEFORE the primary action so DOM,
+                  visual, and Tab order match (WCAG 2.4.3). On mobile the
+                  primary action sits at the bottom for thumb reach. */}
               <DrawerClose asChild>
                 <Button variant="outline" className="text-[#a3aac4] border-[#40485d] hover:bg-[#192540] w-full">
                   Cancel
                 </Button>
               </DrawerClose>
+              <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc] w-full" onClick={handleConfirm}>
+                Confirm Prediction
+              </Button>
             </DrawerFooter>
           </>
         ) : (
