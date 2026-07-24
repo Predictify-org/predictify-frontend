@@ -14,7 +14,7 @@ interface TimeLeft {
   hours: number;
   minutes: number;
   seconds: number;
-  
+
 }
 
 function computeTimeLeft(deadline: Date): TimeLeft | null {
@@ -57,6 +57,7 @@ function buildAnnouncement(t: TimeLeft): string {
 
   if (parts.length === 0) return 'Less than one second remaining';
   return `${parts.join(', ')} remaining`;
+
 }
 
 /**
@@ -121,6 +122,7 @@ export function CountdownTimer({ deadline, label }: CountdownTimerProps) {
   const [expired, setExpired] = useState<boolean>(() => {
     if (!isValidDate(deadline)) return false;
     return deadline.getTime() <= Date.now();
+    
   });
 
   // The string the aria-live region currently shows. Updates only at coarse
