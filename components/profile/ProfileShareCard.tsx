@@ -501,7 +501,7 @@ function StatBox({
         {label}
       </span>
       <span
-        className="text-2xl font-bold"
+        className="text-2xl font-bold tabular-nums"
         style={{
           background: "linear-gradient(135deg, #06b6d4, #10b981)",
           WebkitBackgroundClip: "text",

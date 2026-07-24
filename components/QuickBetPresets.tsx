@@ -68,10 +68,10 @@ const QuickBetPresets: React.FC<QuickBetPresetsProps> = ({
               // Active vs. inactive appearance using design-system tokens
               isActive
                 ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background text-foreground border-border hover:bg-muted",
+                :               "bg-background text-foreground border-border hover:bg-muted",
             ].join(" ")}
           >
-            {amount} XLM
+            <span className="tabular-nums">{amount}</span> XLM
           </button>
         );
       })}

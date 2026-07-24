@@ -70,13 +70,13 @@ export function LeaderboardCards({ users, onUserVisibilityChange }: LeaderboardC
                   <p className={cn("text-sm font-bold truncate", user.isCurrentUser ? "text-cyan-400" : "text-white")}>
                     {user.name}
                   </p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                   <p className="text-[10px] text-slate-500 uppercase tracking-wider tabular-nums">
                     {user.predictions} predictions
                   </p>
                 </div>
                 <div className="text-right text-sm">
-                   <p className="font-bold text-emerald-400">+{user.profit}</p>
-                   <p className="text-[10px] text-slate-400">{user.winRate}% SR</p>
+                   <p className="font-bold text-emerald-400 tabular-nums">+{user.profit}</p>
+                   <p className="text-[10px] text-slate-400 tabular-nums">{user.winRate}% SR</p>
                 </div>
               </div>
             </div>

@@ -22,6 +22,22 @@ Object.defineProperty(window, 'scrollTo', {
   writable: true
 })
 
+// Mock window.matchMedia (not available in jsdom).
+// Tests that need specific values can override this via jest.spyOn or re-mock.
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: jest.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+})
+
 // Mock requestAnimationFrame for count-up / animation hooks.
 // Each call advances the timestamp by 500 ms so animations complete
 // within two frames (500 ms > the hook's 400 ms default duration).

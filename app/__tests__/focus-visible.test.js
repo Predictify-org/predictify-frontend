@@ -18,6 +18,11 @@ describe("focus-visible CSS layer", () => {
     expect(css).toContain("outline-offset:");
   });
 
+  it("focus.css targets rows marked as actively focused", () => {
+    const css = fs.readFileSync(focusCssPath, "utf8");
+    expect(css).toContain('[data-focus-visible="true"]');
+  });
+
   it("focus.css provides a dark-mode adjustment rule", () => {
     const css = fs.readFileSync(focusCssPath, "utf8");
     expect(css).toContain(".dark :focus-visible");

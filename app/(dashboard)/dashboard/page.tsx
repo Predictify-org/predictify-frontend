@@ -20,6 +20,8 @@ import { useEffect, useMemo, useState } from "react"
 
 // TODO: replace with the authenticated user's id once auth context exposes it.
 const CURRENT_USER_ID = "current-user"
+import { RecentlyViewedRail } from "@/app/components/RecentlyViewedRail"
+import { useEffect, useState } from "react"
 
 interface Stat {
   label: string
@@ -397,6 +399,7 @@ export default function DashboardPage() {
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           {renderCards()}
+          <RecentlyViewedRail />
           <ActiveBets 
             bets={status === 'empty' ? [] : []} 
             isLoading={status === 'loading'}

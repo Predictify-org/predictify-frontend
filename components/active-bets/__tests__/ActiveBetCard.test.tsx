@@ -9,6 +9,11 @@ jest.mock('next/image', () => ({
   default: (props: any) => <img {...props} alt={props.alt} />,
 }));
 
+// Mock useCountdownTick to prevent infinite rAF recursion
+jest.mock('@/hooks/use-countdown-tick', () => ({
+  useCountdownTick: () => Date.now(),
+}));
+
 describe('ActiveBetCard', () => {
   const mockBet: Bet = {
     id: '1',

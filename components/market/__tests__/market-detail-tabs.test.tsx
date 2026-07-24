@@ -19,23 +19,25 @@ beforeEach(() => {
   ;(useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams())
 })
 
-function renderTabs(props?: { defaultValue?: "overview" | "activity" | "resolution" }) {
+function renderTabs(props?: { defaultValue?: "overview" | "activity" | "resolution" | "timeline" }) {
   return render(
     <MarketDetailTabs
       overview={<div>Overview Content</div>}
       activity={<div>Activity Content</div>}
       resolution={<div>Resolution Content</div>}
+      timeline={<div>Timeline Content</div>}
       {...props}
     />
   )
 }
 
 describe("MarketDetailTabs", () => {
-  it("renders three tab triggers", () => {
+  it("renders four tab triggers", () => {
     renderTabs()
     expect(screen.getByRole("tab", { name: /overview/i })).toBeInTheDocument()
     expect(screen.getByRole("tab", { name: /activity/i })).toBeInTheDocument()
     expect(screen.getByRole("tab", { name: /resolution/i })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /timeline/i })).toBeInTheDocument()
   })
 
   it("defaults to Overview tab when no URL param", () => {
@@ -83,5 +85,33 @@ describe("MarketDetailTabs", () => {
     renderTabs()
     expect(screen.getByText("Resolution Content")).toBeInTheDocument()
     expect(screen.queryByText("Overview Content")).not.toBeInTheDocument()
+  })
+
+  it("switches to timeline tab on click", async () => {
+    const user = userEvent.setup()
+    renderTabs()
+    await user.click(screen.getByRole("tab", { name: /timeline/i }))
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        expect.stringContaining("tab=timeline"),
+        { scroll: false }
+      )
+    })
+  })
+
+  it("renders timeline tab from URL param", () => {
+    ;(useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams("tab=timeline")
+    )
+    renderTabs()
+    expect(screen.getByText("Timeline Content")).toBeInTheDocument()
+    expect(screen.queryByText("Overview Content")).not.toBeInTheDocument()
+  })
+
+  it("defaults to timeline tab when specified", () => {
+    renderTabs({ defaultValue: "timeline" })
+    const timelineTab = screen.getByRole("tab", { name: /timeline/i })
+    expect(timelineTab).toHaveAttribute("data-state", "active")
+    expect(screen.getByText("Timeline Content")).toBeInTheDocument()
   })
 })
