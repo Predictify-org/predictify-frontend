@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { AlertCircle, CheckCircle, HelpCircle, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,12 +17,12 @@ import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator"
 import { NotifDigest } from "@/app/dashboard/NotifDigest"
 import { generateMockNotifications } from "@/lib/notifications"
 import { NotificationItem } from "@/types/notifications"
-import { useEffect, useMemo, useState } from "react"
+import { Kbd } from "@/components/ui/kbd"
+import { useEffect, useMemo, useCallback, useState } from "react"
 
 // TODO: replace with the authenticated user's id once auth context exposes it.
 const CURRENT_USER_ID = "current-user"
 import { RecentlyViewedRail } from "@/app/components/RecentlyViewedRail"
-import { useEffect, useState } from "react"
 
 interface Stat {
   label: string
@@ -73,10 +74,33 @@ export default function DashboardPage() {
     generateMockNotifications(CURRENT_USER_ID)
   )
 
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState("overview")
+
   const userNotifications = useMemo(
     () => notifications.filter((item) => item.userId === CURRENT_USER_ID),
     [notifications]
   )
+
+  const handleKeyboardShortcut = useCallback((e: KeyboardEvent) => {
+    const isMac = navigator.userAgent.toLowerCase().includes("mac")
+    const meta = isMac ? e.metaKey : e.ctrlKey
+
+    if (meta && e.shiftKey && e.key.toLowerCase() === "n") {
+      e.preventDefault()
+      router.push("/events/new")
+    }
+
+    if (meta && e.shiftKey && e.key.toLowerCase() === "a") {
+      e.preventDefault()
+      setActiveTab("analytics")
+    }
+  }, [router])
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyboardShortcut)
+    return () => window.removeEventListener("keydown", handleKeyboardShortcut)
+  }, [handleKeyboardShortcut])
 
   const handleMarkAsRead = (id: string) => {
     setNotifications((current) =>
@@ -385,13 +409,16 @@ export default function DashboardPage() {
             onMarkAllAsRead={handleMarkAllAsRead}
           />
           <RefreshIndicator lastRefreshedAt={lastRefreshedAt} onRefresh={retry} />
-          <Button asChild>
-            <Link href="/events/new">Create New Event</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild>
+              <Link href="/events/new">Create New Event</Link>
+            </Button>
+            <Kbd shortcut="newEvent" className="hidden sm:inline-flex" />
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
