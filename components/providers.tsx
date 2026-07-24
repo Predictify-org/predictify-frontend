@@ -10,6 +10,7 @@ import { useHideBalancesShortcut } from "@/hooks/useHideBalancesShortcut";
 import { ClaimShareProvider } from "@/context/ClaimShareContext";
 import { GlobalLiveRegion } from "@/app/components/GlobalLiveRegion";
 import { RouteDocumentTitle } from "@/app/hooks/useDocumentTitle";
+import { RouteProgressBar } from "@/app/components/RouteProgressBar";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -25,6 +26,7 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <ErrorBoundary>
       <RouteDocumentTitle />
+      <RouteProgressBar />
       <ThemeProvider
         attribute="class"
         defaultTheme="dark"
