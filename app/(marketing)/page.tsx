@@ -20,6 +20,7 @@ import Navbar from "./_components/navbar";
 import KpiStrip from "./_sections/kpi-strip";
 import { CTA } from "./_sections/cta";
 import { useParallax } from "@/hooks/use-parallax";
+import { TrendingRail } from "@/app/components/TrendingRail";
 
 export default function MarketingRoute() {
   const orbRef1 = useParallax({ depth: -20 });
@@ -35,6 +36,7 @@ export default function MarketingRoute() {
       <AnimatedBackground />
       <Navbar />
       <Hero />
+      <TrendingRail />
       <KpiStrip />
       <Features />
       <HowItWorks />
