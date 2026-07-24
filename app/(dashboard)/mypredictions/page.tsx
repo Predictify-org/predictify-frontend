@@ -9,6 +9,7 @@ import {
   Clock,
   Activity,
 } from "lucide-react";
+import { PortfolioPie, STATUS_COLORS } from "@/components/PortfolioPie";
 
 // --- 1. Type Definitions ---
 
@@ -415,6 +416,30 @@ const MyPredictionsAndHistoryPage: React.FC = () => {
   const MAIN_TABS: MainTab[] = ["My Predictions", "Transaction history"];
   const [activeMainTab, setActiveMainTab] = useState<MainTab>("My Predictions");
 
+  /**
+   * Derive portfolio slice data from MOCK_PREDICTIONS.
+   * Each slice aggregates stakeAmount for a given status.
+   * Replace MOCK_PREDICTIONS with real data when the API is ready.
+   */
+  const pieData = useMemo(() => {
+    const statusOrder: Array<Prediction["status"]> = ["active", "pending", "won", "lost"];
+    const labelMap: Record<Prediction["status"], string> = {
+      active: "Active",
+      pending: "Pending",
+      won: "Won",
+      lost: "Lost",
+    };
+
+    return statusOrder.map((status) => ({
+      label: labelMap[status],
+      value: MOCK_PREDICTIONS.filter((p) => p.status === status).reduce(
+        (sum, p) => sum + p.stakeAmount,
+        0
+      ),
+      color: STATUS_COLORS[labelMap[status]] ?? "#6B7280",
+    }));
+  }, []);
+
   const renderContent = () => {
     switch (activeMainTab) {
       case "My Predictions":
@@ -425,6 +450,9 @@ const MyPredictionsAndHistoryPage: React.FC = () => {
                 <StatBox key={index} stat={stat} />
               ))}
             </div>
+
+            {/* Portfolio distribution pie chart */}
+            <PortfolioPie data={pieData} token="XLM" />
 
             <PredictionsList />
           </div>
