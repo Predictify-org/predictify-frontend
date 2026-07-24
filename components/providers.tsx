@@ -10,7 +10,7 @@ import { useHideBalancesShortcut } from "@/hooks/useHideBalancesShortcut";
 import { ClaimShareProvider } from "@/context/ClaimShareContext";
 import { GlobalLiveRegion } from "@/app/components/GlobalLiveRegion";
 import { RouteDocumentTitle } from "@/app/hooks/useDocumentTitle";
-import { RouteProgressBar } from "@/app/components/RouteProgressBar";
+import { LangAttribute } from "@/app/i18n/LangAttribute";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -26,7 +26,8 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <ErrorBoundary>
       <RouteDocumentTitle />
-      <RouteProgressBar />
+      {/* Keeps <html lang> in sync with the user's language preference. */}
+      <LangAttribute />
       <ThemeProvider
         attribute="class"
         defaultTheme="dark"
