@@ -383,7 +383,7 @@ export default function VerificationPage() {
                       className="flex items-center justify-between rounded-md border p-3"
                     >
                       <span>{option.text}</span>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-sm text-muted-foreground tabular-nums">
                         {(option.probability * 100).toFixed(0)}%
                       </span>
                     </div>

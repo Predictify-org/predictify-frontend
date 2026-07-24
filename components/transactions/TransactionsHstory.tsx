@@ -322,7 +322,7 @@ export default function TransactionHistory() {
                                                     <span className="text-sm text-gray-900 font-medium">{transaction.type}</span>
                                                 </div>
                                             </td>
-                                            <td className={`text-sm py-8 px-8 font-semibold ${transaction.amountColor}`}>
+                                            <td className={`text-sm py-8 px-8 font-semibold tabular-nums ${transaction.amountColor}`}>
                                                 {transaction.amount}
                                             </td>
                                             <td className="py-8 px-8">

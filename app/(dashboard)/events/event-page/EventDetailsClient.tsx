@@ -254,7 +254,7 @@ export default function EventDetailsClient() {
             <DollarSign className="h-5 w-5 text-primary" />
             <div>
               <p className="text-muted-foreground">Total Pool</p>
-              <p className="font-medium">
+              <p className="font-medium tabular-nums">
                 $
                 {eventData.totalPool.toLocaleString(undefined, {
                   minimumFractionDigits: 2,
@@ -267,7 +267,7 @@ export default function EventDetailsClient() {
             <Users className="h-5 w-5 text-primary" />
             <div>
               <p className="text-muted-foreground">Participants</p>
-              <p className="font-medium">
+              <p className="font-medium tabular-nums">
                 {eventData.participants.toLocaleString()}
               </p>
             </div>
@@ -316,7 +316,7 @@ export default function EventDetailsClient() {
                   <span>{option.text}</span>
                 </div>
                 <Badge variant="secondary" className="gap-1">
-                  Odds: {eventData.odds[option.id]?.toFixed(1) ?? "N/A"}x
+                  Odds: <span className="tabular-nums">{eventData.odds[option.id]?.toFixed(1) ?? "N/A"}</span>x
                   <LongPressHelp content={oddsHelp} />
                 </Badge>
               </Label>
@@ -358,7 +358,7 @@ export default function EventDetailsClient() {
                     {data.year}:{" "}
                     <span className="font-medium">{data.winner}</span>
                   </span>
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground tabular-nums">
                     Pool: ${data.pool.toLocaleString()}
                   </span>
                 </li>
@@ -412,7 +412,7 @@ export default function EventDetailsClient() {
           />
         </div>
         {selectedOption && currentOdds !== undefined && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground tabular-nums">
             Potential Payout: $
             {potentialPayout.toLocaleString(undefined, {
               minimumFractionDigits: 2,

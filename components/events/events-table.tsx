@@ -203,8 +203,8 @@ function EventRow({
               <p className="font-bold text-xs uppercase tracking-wider text-purple-300">Event Details</p>
               <div className="text-xs space-y-1 text-white/90">
                 <div><span className="text-white/50">Category:</span> {event.category}</div>
-                <div><span className="text-white/50">Odds:</span> {event.odds}</div>
-                <div><span className="text-white/50">Participants:</span> {event.participants.toLocaleString()}</div>
+                <div><span className="text-white/50">Odds:</span> <span className="tabular-nums">{event.odds}</span></div>
+                <div><span className="text-white/50">Participants:</span> <span className="tabular-nums">{event.participants.toLocaleString()}</span></div>
                 <div><span className="text-white/50">Ends:</span> {formatDate(new Date(event.endDate))}</div>
               </div>
             </div>
@@ -225,7 +225,7 @@ function EventRow({
       </TableCell>
 
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0">
-        <div className="font-medium text-sm text-white">{event.odds}</div>
+        <div className="font-medium text-sm text-white tabular-nums">{event.odds}</div>
       </TableCell>
 
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[180px] sm:min-w-0 text-white">
@@ -248,7 +248,7 @@ function EventRow({
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[120px] sm:min-w-0">
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Users className="h-4 w-4" />
-          <span className="font-medium text-foreground">{event.participants.toLocaleString()}</span>
+          <span className="font-medium text-foreground tabular-nums">{event.participants.toLocaleString()}</span>
         </div>
       </TableCell>
 

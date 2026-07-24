@@ -138,7 +138,7 @@ const StatBox: React.FC<{ stat: Stat }> = ({ stat }) => {
       </p>
       {/* Value text color */}
       <p
-        className={`text-[22px] font-bold mt-1 leading-none ${primaryTextColor}`}
+        className={`text-[22px] font-bold mt-1 leading-none tabular-nums ${primaryTextColor}`}
       >
         {stat.value.toFixed(2)}
       </p>
@@ -223,7 +223,7 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
         {/* Stake */}
         <div>
           <p className="text-[#6B7280] text-[15px]">Stake</p>
-          <p className="text-gray-900 font-medium text-[15px]">
+          <p className="text-gray-900 font-medium text-[15px] tabular-nums">
             {stakeAmount} {stakeToken}
           </p>
         </div>
@@ -231,7 +231,7 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
         {/* Odds */}
         <div>
           <p className="text-gray-600 text-[15px]">Odds</p>
-          <p className="text-gray-900 font-medium text-[15px]">
+          <p className="text-gray-900 font-medium text-[15px] tabular-nums">
             {odds.toFixed(1)}x
           </p>
         </div>
@@ -239,7 +239,7 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
         {/* Potential Winnings */}
         <div>
           <p className="text-[#6B7280] text-[15px]">Potential Winnings</p>
-          <p className="text-gray-900 font-medium text-[15px]">
+          <p className="text-gray-900 font-medium text-[15px] tabular-nums">
             {potentialWinnings} {winningsToken}
           </p>
         </div>

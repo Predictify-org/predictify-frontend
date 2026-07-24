@@ -32,7 +32,7 @@ export function YourRankChip({ user, isVisible }: YourRankChipProps) {
           <div className="bg-cyan-500 text-slate-950 px-4 py-2 rounded-full shadow-[0_0_20px_rgba(34,211,238,0.4)] flex items-center gap-3 border border-cyan-300">
             <div className="flex items-center gap-2 pr-2 border-r border-slate-900/20">
               <span className="text-xs font-bold uppercase tracking-tighter">Your Rank</span>
-              <span className="text-lg font-black italic">#{user.rank}</span>
+              <span className="text-lg font-black italic tabular-nums">#{user.rank}</span>
             </div>
             
             <div className="flex items-center gap-2">
@@ -40,7 +40,7 @@ export function YourRankChip({ user, isVisible }: YourRankChipProps) {
                 <AvatarImage src={user.avatarUrl} alt={user.name} />
                 <AvatarFallback>{user.name[0]}</AvatarFallback>
               </Avatar>
-              <span className="text-xs font-bold">+{user.profit} XLM</span>
+              <span className="text-xs font-bold tabular-nums">+{user.profit} XLM</span>
             </div>
 
             <button 

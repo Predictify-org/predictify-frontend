@@ -72,7 +72,7 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
               <span className="text-xs font-semibold text-muted-foreground print:text-gray-400 uppercase tracking-wider">
                 Total Amount
               </span>
-              <span className="text-xl font-black text-foreground print:text-black">
+              <span className="text-xl font-black text-foreground print:text-black tabular-nums">
                 {amount}
               </span>
             </div>

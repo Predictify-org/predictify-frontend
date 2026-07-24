@@ -27,10 +27,10 @@ export function TallyBar({ tally, showAmounts = false }: TallyBarProps) {
   const animatedLeftAmount = useCountUp(left.amount, 0, 400);
   const animatedRightAmount = useCountUp(right.amount, 0, 400);
 
-  const leftPctLabel = `${animatedLeftPct.toFixed(1)}%`;
-  const rightPctLabel = `${animatedRightPct.toFixed(1)}%`;
-  const leftAmountLabel = `${Math.round(animatedLeftAmount).toLocaleString()} tokens`;
-  const rightAmountLabel = `${Math.round(animatedRightAmount).toLocaleString()} tokens`;
+  const leftPctLabel = <><span className="tabular-nums">{animatedLeftPct.toFixed(1)}</span>%</>;
+  const rightPctLabel = <><span className="tabular-nums">{animatedRightPct.toFixed(1)}</span>%</>;
+  const leftAmountLabel = <><span className="tabular-nums">{Math.round(animatedLeftAmount).toLocaleString()}</span> tokens</>;
+  const rightAmountLabel = <><span className="tabular-nums">{Math.round(animatedRightAmount).toLocaleString()}</span> tokens</>;
 
   // Compute aria summary from the TARGET (final) prop values, not the animated
   // intermediates.  This keeps screen-reader announcements clean: one clear

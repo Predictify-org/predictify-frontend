@@ -32,7 +32,7 @@ export function LeaderboardPodium({ topThree }: LeaderboardPodiumProps) {
         </div>
         <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-t-lg w-20 h-24 flex flex-col items-center justify-center p-2 text-center">
           <span className="text-xs font-semibold text-white truncate w-full">{second?.name}</span>
-          <span className="text-[10px] text-cyan-400">+{second?.profit}</span>
+          <span className="text-[10px] text-cyan-400 tabular-nums">+{second?.profit}</span>
         </div>
       </motion.div>
 
@@ -54,8 +54,8 @@ export function LeaderboardPodium({ topThree }: LeaderboardPodiumProps) {
         </div>
         <div className="bg-slate-800/60 backdrop-blur-md border border-yellow-500/30 rounded-t-lg w-28 h-40 flex flex-col items-center justify-center p-3 text-center shadow-xl">
           <span className="text-sm font-bold text-white truncate w-full">{first?.name}</span>
-          <span className="text-xs text-yellow-400 font-semibold">+{first?.profit} XLM</span>
-          <div className="mt-2 text-[10px] text-slate-400">
+          <span className="text-xs text-yellow-400 font-semibold tabular-nums">+{first?.profit} XLM</span>
+          <div className="mt-2 text-[10px] text-slate-400 tabular-nums">
             {first?.winRate}% Win Rate
           </div>
         </div>
@@ -79,7 +79,7 @@ export function LeaderboardPodium({ topThree }: LeaderboardPodiumProps) {
         </div>
         <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-t-lg w-20 h-20 flex flex-col items-center justify-center p-2 text-center">
           <span className="text-xs font-semibold text-white truncate w-full">{third?.name}</span>
-          <span className="text-[10px] text-cyan-400">+{third?.profit}</span>
+          <span className="text-[10px] text-cyan-400 tabular-nums">+{third?.profit}</span>
         </div>
       </motion.div>
     </div>

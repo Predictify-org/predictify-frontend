@@ -120,7 +120,7 @@ const ChartContainer = React.forwardRef<
                   {accessibilityData.map((row, i) => (
                     <tr key={i} className="border-b border-border/50 last:border-0">
                       {Object.values(row).map((val, j) => (
-                        <td key={j} className="p-2">
+                        <td key={j} className="p-2 tabular-nums">
                           {typeof val === "number" ? val.toLocaleString() : String(val)}
                         </td>
                       ))}

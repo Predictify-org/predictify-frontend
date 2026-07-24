@@ -385,7 +385,7 @@ export function SearchInput({
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="text-xs font-semibold text-green-400">{market.odds}% Yes</div>
+                            <div className="text-xs font-semibold text-green-400 tabular-nums">{market.odds}% Yes</div>
                           </div>
                         </button>
                       );
@@ -471,7 +471,7 @@ export function SearchInput({
                       </div>
                     </div>
                     <div className="text-right shrink-0 flex items-center gap-2">
-                      <span className="text-xs font-semibold text-green-400">{event.odds}% Yes</span>
+                      <span className="text-xs font-semibold text-green-400 tabular-nums">{event.odds}% Yes</span>
                       {isActive && <CornerDownLeft className="h-3 w-3 text-white/40" />}
                     </div>
                   </button>
