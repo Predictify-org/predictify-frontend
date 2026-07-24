@@ -14,6 +14,7 @@ Built with Next.js 15, React 19, TypeScript, and the Stellar Wallets Kit, Predic
 - **Instant Payouts**: Smart contracts automatically distribute winnings immediately after event resolution. No waiting periods.
 - **Multi-Wallet Support**: Connect with your preferred Stellar wallet (Freighter, LOBSTR, XBull, Albedo, Rabet).
 - **Real-Time Markets**: Access live prediction markets with real-time updates on odds, stakes, and participant activity.
+- **Side-by-Side Market Comparison**: Compare up to two selected prediction markets in a responsive modal with accessible keyboard and focus support.
 - **Advanced Analytics**: Track your prediction performance with detailed analytics and insights.
 - **Create Your Markets**: Anyone can create prediction markets on virtually any verifiable future event.
 - **Verified Oracles**: Multiple oracle sources ensure accurate and tamper-proof event outcomes.
