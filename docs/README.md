@@ -31,6 +31,12 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Network configuration
   - Known limitations and troubleshooting
 
+- **[ONBOARDING_TOUR.md](./ONBOARDING_TOUR.md)** - Onboarding tour overlay
+  - Controlled `OnboardingTour` API (`steps`, `open`, `onStepChange`)
+  - Anchored spotlight with centered-card fallback
+  - Step transitions and reduced-motion behaviour
+  - Focus flow, keyboard map, and WCAG 2.1 AA criteria
+
 ### Quick Start
 - **[QUICKSTART.md](./QUICKSTART.md)** - Get up and running in 5 minutes
   - Installation (3 steps)
