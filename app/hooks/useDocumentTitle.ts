@@ -27,6 +27,9 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/moderation-demo": "Moderation Demo | Predictify",
   "/mypredictions": "My Predictions | Predictify",
   "/profile": "Profile | Predictify",
+  "/settings/account": "Account Settings | Predictify",
+  "/settings/language": "Language Settings | Predictify",
+  "/settings/motion": "Motion Settings | Predictify",
   "/settings": "Settings | Predictify",
   "/verification": "Verification | Predictify",
 };
