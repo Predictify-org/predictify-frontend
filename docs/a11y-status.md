@@ -6,9 +6,9 @@ components and interaction flows.
 ## Snapshot
 
 - Campaign: `GrantFox`
-- Last updated: `2026-06-29`
+- Last updated: `2026-07-23`
 - API changes: None
-- Visible product changes: None in this update
+- Visible product changes: Added a dedicated internal accessibility board at `app/a11y-audit/page.tsx`
 
 ## Board Status
 
