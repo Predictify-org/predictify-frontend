@@ -209,7 +209,9 @@ describe('CountdownTimer', () => {
 
       render(<CountdownTimer deadline={deadline} />);
 
-      expect(screen.getByText('2 days, 3 hours remaining')).toBeInTheDocument();
+      // Multiple elements may match (visible + sr-only); use getAllByText
+      const matches = screen.getAllByText('2 days, 3 hours remaining');
+      expect(matches.length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText(/\d+d \d+h \d+m \d+s/)).not.toBeInTheDocument();
     });
 
@@ -219,7 +221,8 @@ describe('CountdownTimer', () => {
 
       render(<CountdownTimer deadline={deadline} />);
 
-      const countdownEl = screen.getByText(/seconds remaining/);
+      const countdownEls = screen.getAllByText(/seconds remaining/);
+      const countdownEl = countdownEls[0];
       expect(countdownEl).toHaveClass('text-destructive');
       expect(countdownEl).not.toHaveClass('animate-pulse');
     });

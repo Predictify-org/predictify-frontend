@@ -100,7 +100,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
     return <PredictionCardSkeleton />;
   }
 
-  const { title, description, stakeAmount, stakeToken, odds, potentialWinnings, winningsToken, eventDate, resolvedDate, status } = prediction;
+  const { title, description, stakeAmount, stakeToken, odds, potentialWinnings, winningsToken, eventDate, resolvedDate, status, outcome, category } = prediction;
   const { icon: Icon, className, label } = statusMap[status];
 
   return (

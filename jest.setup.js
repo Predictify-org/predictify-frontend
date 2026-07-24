@@ -22,17 +22,18 @@ Object.defineProperty(window, 'scrollTo', {
   writable: true
 })
 
-// Mock window.matchMedia for next-themes (and any media-query hooks)
+// Mock window.matchMedia (not available in jsdom).
+// Tests that need specific values can override this via jest.spyOn or re-mock.
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
     addEventListener: jest.fn(),
     removeEventListener: jest.fn(),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
     dispatchEvent: jest.fn(),
   })),
 })
