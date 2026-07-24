@@ -18,6 +18,7 @@ Built with Next.js 15, React 19, TypeScript, and the Stellar Wallets Kit, Predic
 - **Create Your Markets**: Anyone can create prediction markets on virtually any verifiable future event.
 - **Verified Oracles**: Multiple oracle sources ensure accurate and tamper-proof event outcomes.
 - **Accessible Leaderboards**: Sort leaderboard columns with keyboard-friendly controls for profit, win rate, and predictions.
+- **Per-Market Audit Trails**: Persist ordered, serializable audit events for off-chain reads and indexers.
 
 ## Tech Stack
 
