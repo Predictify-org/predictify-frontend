@@ -22,31 +22,20 @@ Object.defineProperty(window, 'scrollTo', {
   writable: true
 })
 
-// Mock performance for framer-motion (uses performance.now() internally).
-// Must use Object.defineProperty because Node may already have a read-only
-// performance global that prevents simple assignment.
-Object.defineProperty(globalThis, 'performance', {
-  value: {
-    now: () => Date.now(),
-    mark: () => {},
-    measure: () => {},
-    getEntriesByName: () => [],
-    getEntriesByType: () => [],
-    clearMarks: () => {},
-    clearMeasures: () => {},
-  },
+// Mock window.matchMedia for next-themes (and any media-query hooks)
+Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  configurable: true,
-});
-
-Object.defineProperty(globalThis, 'PerformanceObserver', {
-  value: class {
-    observe() {}
-    disconnect() {}
-  },
-  writable: true,
-  configurable: true,
-});
+  value: jest.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+})
 
 // Mock requestAnimationFrame for count-up / animation hooks.
 // Each call advances the timestamp by 500 ms so animations complete
