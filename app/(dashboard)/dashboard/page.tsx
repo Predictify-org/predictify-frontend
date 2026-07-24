@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { AlertCircle, CheckCircle, HelpCircle, PauseCircle, TrendingUp } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { AlertCircle, CheckCircle, HelpCircle, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -16,24 +17,12 @@ import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator"
 import { NotifDigest } from "@/app/dashboard/NotifDigest"
 import { generateMockNotifications } from "@/lib/notifications"
 import { NotificationItem } from "@/types/notifications"
-import { RecentlyViewedRail } from "@/app/components/RecentlyViewedRail"
-import { useEffect, useMemo, useState } from "react"
-import { useReducedMotion } from "@/hooks/useReducedMotion"
+import { Kbd } from "@/components/ui/kbd"
+import { useEffect, useMemo, useCallback, useState } from "react"
 
 // TODO: replace with the authenticated user's id once auth context exposes it.
 const CURRENT_USER_ID = "current-user"
-
-/**
- * Demo stat fixtures used as the synchronous / reduced-motion fallback data
- * set. Kept as a module-level constant so the value is stable across renders
- * (prevents `useEffect` from being retriggered by an unstable reference).
- */
-const DEMO_STATS: Stat[] = [
-  { label: "Active Events", value: "24" },
-  { label: "Total Predictions", value: "12,543" },
-  { label: "Platform Fees", value: "$4,325.49" },
-  { label: "Active Users", value: "573" },
-]
+import { RecentlyViewedRail } from "@/app/components/RecentlyViewedRail"
 
 interface Stat {
   label: string
@@ -115,10 +104,33 @@ export default function DashboardPage() {
   )
   const reducedMotion = useReducedMotion()
 
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState("overview")
+
   const userNotifications = useMemo(
     () => notifications.filter((item) => item.userId === CURRENT_USER_ID),
     [notifications]
   )
+
+  const handleKeyboardShortcut = useCallback((e: KeyboardEvent) => {
+    const isMac = navigator.userAgent.toLowerCase().includes("mac")
+    const meta = isMac ? e.metaKey : e.ctrlKey
+
+    if (meta && e.shiftKey && e.key.toLowerCase() === "n") {
+      e.preventDefault()
+      router.push("/events/new")
+    }
+
+    if (meta && e.shiftKey && e.key.toLowerCase() === "a") {
+      e.preventDefault()
+      setActiveTab("analytics")
+    }
+  }, [router])
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyboardShortcut)
+    return () => window.removeEventListener("keydown", handleKeyboardShortcut)
+  }, [handleKeyboardShortcut])
 
   const handleMarkAsRead = (id: string) => {
     setNotifications((current) =>
@@ -460,13 +472,16 @@ export default function DashboardPage() {
             onMarkAllAsRead={handleMarkAllAsRead}
           />
           <RefreshIndicator lastRefreshedAt={lastRefreshedAt} onRefresh={retry} />
-          <Button asChild>
-            <Link href="/events/new">Create New Event</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild>
+              <Link href="/events/new">Create New Event</Link>
+            </Button>
+            <Kbd shortcut="newEvent" className="hidden sm:inline-flex" />
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
