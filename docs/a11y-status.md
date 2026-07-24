@@ -6,9 +6,9 @@ components and interaction flows.
 ## Snapshot
 
 - Campaign: `GrantFox`
-- Last updated: `2026-06-29`
+- Last updated: `2026-07-23`
 - API changes: None
-- Visible product changes: None in this update
+- Visible product changes: Added a dedicated internal accessibility board at `app/a11y-audit/page.tsx`
 
 ## Board Status
 
@@ -21,6 +21,7 @@ components and interaction flows.
 | `VirtualizedEventsList` | Verified | Keyboard focus visibility, loading messaging, scroll restoration | `components/events/virtualized-events-list.tsx`, `components/events/__tests__/virtualized-events-list.integration.test.tsx` |
 | New event form focus order | Partial | Early tab order is covered; follow-up is still needed for the full form sequence and combobox continuation | `app/(dashboard)/events/new/page.tsx`, `app/(dashboard)/events/new/page.test.tsx`, `app/(dashboard)/settings/ACCESSIBILITY.md` |
 | `focus-visible CSS layer` | Verified | Global `:focus-visible` ring on all interactive surfaces, dark-mode contrast, inset variant, skip-link prominence | `app/styles/focus.css`, `app/globals.css`, `app/__tests__/focus-visible.test.js` |
+| `Confirm/Cancel button order (#474)` | Verified | DOM order matches Tab order (`flex-col`, no `flex-col-reverse`) across `Dialog`, `AlertDialog`, and mobile `Drawer`. Visual ↔ keyboard consistency. Rule documented in `docs/BUTTON_ORDER.md`. | `components/ui/alert-dialog.tsx`, `components/ui/dialog.tsx`, `components/patterns/BetConfirmPattern.tsx`, `components/patterns/DisputeActionPattern.tsx`, `components/ui/__tests__/dialog-footer.test.tsx`, `docs/BUTTON_ORDER.md` |
 
 ## Notes
 
@@ -39,3 +40,5 @@ navigation, but it should receive a broader end-to-end tab sequence audit in a l
 1. Extend the new event form keyboard test to cover the full submit path.
 2. Keep this board in sync whenever new GrantFox components land with a11y-impacting UI.
 3. Add the matching status update to future PR descriptions so review evidence stays easy to trace.
+4. When adding a new `Dialog` / `AlertDialog` / `Drawer`, follow [`docs/BUTTON_ORDER.md`](./BUTTON_ORDER.md) so this audit row stays accurate.
+5. Audit remaining ad-hoc footer layouts (`components/connect-wallet-modal.tsx`, `app/(dashboard)/disputes/page.tsx`) on a future pass — they currently use a single primary button so are trivially compliant, but should be re-checked if any cancel affordance is added.

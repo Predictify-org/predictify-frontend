@@ -22,8 +22,10 @@ import { Separator } from "@/components/ui/separator";
 import { Clock, DollarSign, Users, BarChart2, Loader2, Share2 } from "lucide-react";
 import { formatDistanceToNowStrict, parseISO, isValid } from "date-fns";
 import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
+import { MarketTimeline } from "@/components/market/MarketTimeline";
 import { ShareSheet } from "@/app/components/ShareSheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import {
   Drawer,
   DrawerContent,
@@ -133,6 +135,17 @@ export default function EventDetailsClient() {
       );
     }
   }, [eventId, eventData.id]);
+
+  const { addRecentlyViewed } = useRecentlyViewed()
+
+  useEffect(() => {
+    addRecentlyViewed({
+      id: eventData.id,
+      title: eventData.title,
+      category: eventData.category,
+      href: `/events/event-page/${eventData.id}`,
+    })
+  }, [eventData.id, eventData.title, eventData.category, addRecentlyViewed])
 
   useEffect(() => {
     if (!eventData.deadline || !isValid(parseISO(eventData.deadline))) return;
@@ -253,7 +266,7 @@ export default function EventDetailsClient() {
             <DollarSign className="h-5 w-5 text-primary" />
             <div>
               <p className="text-muted-foreground">Total Pool</p>
-              <p className="font-medium">
+              <p className="font-medium tabular-nums">
                 $
                 {eventData.totalPool.toLocaleString(undefined, {
                   minimumFractionDigits: 2,
@@ -266,7 +279,7 @@ export default function EventDetailsClient() {
             <Users className="h-5 w-5 text-primary" />
             <div>
               <p className="text-muted-foreground">Participants</p>
-              <p className="font-medium">
+              <p className="font-medium tabular-nums">
                 {eventData.participants.toLocaleString()}
               </p>
             </div>
@@ -315,7 +328,7 @@ export default function EventDetailsClient() {
                   <span>{option.text}</span>
                 </div>
                 <Badge variant="secondary" className="gap-1">
-                  Odds: {eventData.odds[option.id]?.toFixed(1) ?? "N/A"}x
+                  Odds: <span className="tabular-nums">{eventData.odds[option.id]?.toFixed(1) ?? "N/A"}</span>x
                   <LongPressHelp content={oddsHelp} />
                 </Badge>
               </Label>
@@ -357,7 +370,7 @@ export default function EventDetailsClient() {
                     {data.year}:{" "}
                     <span className="font-medium">{data.winner}</span>
                   </span>
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground tabular-nums">
                     Pool: ${data.pool.toLocaleString()}
                   </span>
                 </li>
@@ -411,7 +424,7 @@ export default function EventDetailsClient() {
           />
         </div>
         {selectedOption && currentOdds !== undefined && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground tabular-nums">
             Potential Payout: $
             {potentialPayout.toLocaleString(undefined, {
               minimumFractionDigits: 2,
@@ -497,6 +510,7 @@ export default function EventDetailsClient() {
             overview={overviewTab}
             activity={activityTab}
             resolution={resolutionTab}
+            timeline={<MarketTimeline />}
           />
         </div>
 

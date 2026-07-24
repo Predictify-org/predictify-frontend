@@ -54,7 +54,7 @@ export default function DashboardLayout({
       <Navbar />
 
       {/* Main Content */}
-      <main className="flex-1 pb-24 md:pb-12 pt-20">
+      <main id="main-content" className="flex-1 pb-24 md:pb-12 pt-20">
         {breadcrumbItems.length > 0 && (
           <div className="px-6 pt-4">
             <Breadcrumbs items={breadcrumbItems} />

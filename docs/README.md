@@ -16,6 +16,7 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Where real API calls should be introduced
   - Mocked-vs-real status
 - **[a11y-status.md](./a11y-status.md)** - Accessibility audit board status
+- **[app/a11y-audit/page.tsx](../app/a11y-audit/page.tsx)** - Internal GrantFox accessibility audit board page
   - Latest GrantFox component audit snapshot
   - Verified vs. partial follow-up status
   - Evidence paths for recent component work
@@ -29,6 +30,12 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Persistence and automatic reconnection
   - Network configuration
   - Known limitations and troubleshooting
+
+- **[ONBOARDING_TOUR.md](./ONBOARDING_TOUR.md)** - Onboarding tour overlay
+  - Controlled `OnboardingTour` API (`steps`, `open`, `onStepChange`)
+  - Anchored spotlight with centered-card fallback
+  - Step transitions and reduced-motion behaviour
+  - Focus flow, keyboard map, and WCAG 2.1 AA criteria
 
 ### Quick Start
 - **[QUICKSTART.md](./QUICKSTART.md)** - Get up and running in 5 minutes

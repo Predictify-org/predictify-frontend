@@ -9,6 +9,7 @@ import {
   Clock,
   Activity,
 } from "lucide-react";
+import { PortfolioPie, STATUS_COLORS } from "@/components/PortfolioPie";
 
 // --- 1. Type Definitions ---
 
@@ -138,7 +139,7 @@ const StatBox: React.FC<{ stat: Stat }> = ({ stat }) => {
       </p>
       {/* Value text color */}
       <p
-        className={`text-[22px] font-bold mt-1 leading-none ${primaryTextColor}`}
+        className={`text-[22px] font-bold mt-1 leading-none tabular-nums ${primaryTextColor}`}
       >
         {stat.value.toFixed(2)}
       </p>
@@ -223,7 +224,7 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
         {/* Stake */}
         <div>
           <p className="text-[#6B7280] text-[15px]">Stake</p>
-          <p className="text-gray-900 font-medium text-[15px]">
+          <p className="text-gray-900 font-medium text-[15px] tabular-nums">
             {stakeAmount} {stakeToken}
           </p>
         </div>
@@ -231,7 +232,7 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
         {/* Odds */}
         <div>
           <p className="text-gray-600 text-[15px]">Odds</p>
-          <p className="text-gray-900 font-medium text-[15px]">
+          <p className="text-gray-900 font-medium text-[15px] tabular-nums">
             {odds.toFixed(1)}x
           </p>
         </div>
@@ -239,7 +240,7 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
         {/* Potential Winnings */}
         <div>
           <p className="text-[#6B7280] text-[15px]">Potential Winnings</p>
-          <p className="text-gray-900 font-medium text-[15px]">
+          <p className="text-gray-900 font-medium text-[15px] tabular-nums">
             {potentialWinnings} {winningsToken}
           </p>
         </div>
@@ -415,6 +416,30 @@ const MyPredictionsAndHistoryPage: React.FC = () => {
   const MAIN_TABS: MainTab[] = ["My Predictions", "Transaction history"];
   const [activeMainTab, setActiveMainTab] = useState<MainTab>("My Predictions");
 
+  /**
+   * Derive portfolio slice data from MOCK_PREDICTIONS.
+   * Each slice aggregates stakeAmount for a given status.
+   * Replace MOCK_PREDICTIONS with real data when the API is ready.
+   */
+  const pieData = useMemo(() => {
+    const statusOrder: Array<Prediction["status"]> = ["active", "pending", "won", "lost"];
+    const labelMap: Record<Prediction["status"], string> = {
+      active: "Active",
+      pending: "Pending",
+      won: "Won",
+      lost: "Lost",
+    };
+
+    return statusOrder.map((status) => ({
+      label: labelMap[status],
+      value: MOCK_PREDICTIONS.filter((p) => p.status === status).reduce(
+        (sum, p) => sum + p.stakeAmount,
+        0
+      ),
+      color: STATUS_COLORS[labelMap[status]] ?? "#6B7280",
+    }));
+  }, []);
+
   const renderContent = () => {
     switch (activeMainTab) {
       case "My Predictions":
@@ -425,6 +450,9 @@ const MyPredictionsAndHistoryPage: React.FC = () => {
                 <StatBox key={index} stat={stat} />
               ))}
             </div>
+
+            {/* Portfolio distribution pie chart */}
+            <PortfolioPie data={pieData} token="XLM" />
 
             <PredictionsList />
           </div>

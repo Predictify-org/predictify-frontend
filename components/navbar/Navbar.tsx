@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { SearchInput } from "./SearchInput";
 import { NetworkSwitcher } from "./NetworkSwitcher";
 import { WalletMenu } from "./WalletMenu";
+import { WalletBalance } from "./WalletBalance";
 import { ConnectWalletAction } from "./ConnectWalletAction";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { useWalletContext } from "@/context/WalletContext";
@@ -101,7 +102,10 @@ export function Navbar() {
                 Loading...
               </button>
             ) : connected ? (
-              <WalletMenu network={network} />
+              <div className="flex items-center gap-2">
+                <WalletBalance />
+                <WalletMenu network={network} />
+              </div>
             ) : (
               <button 
                 onClick={() => setIsWalletModalOpen(true)}
@@ -138,10 +142,13 @@ export function Navbar() {
               <span aria-hidden="true">...</span>
             </button>
           ) : connected ? (
-             <Avatar className="h-8 w-8 border border-slate-600">
-               <AvatarImage src={user?.avatarUrl} alt={user?.name} />
-               <AvatarFallback>{user?.name?.[0] || "U"}</AvatarFallback>
-             </Avatar>
+             <div className="flex items-center gap-2">
+               <WalletBalance className="hidden sm:flex" />
+               <Avatar className="h-8 w-8 border border-slate-600">
+                 <AvatarImage src={user?.avatarUrl} alt={user?.name} />
+                 <AvatarFallback>{user?.name?.[0] || "U"}</AvatarFallback>
+               </Avatar>
+             </div>
           ) : (
             <button
               onClick={() => setIsWalletModalOpen(true)}

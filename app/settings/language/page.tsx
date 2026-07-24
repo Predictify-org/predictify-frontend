@@ -16,22 +16,29 @@
  */
 
 import { useLanguage } from "@/hooks/useLanguage";
+import { useTranslation } from "@/app/i18n";
 
 export default function LanguageSettingsPage() {
   const { languageCode, setLanguage, isReady, languages } = useLanguage();
+  const { t } = useTranslation();
 
   return (
     <main className="min-h-screen bg-[#060e20] text-[#dee5ff] px-4 py-10 sm:px-8">
       <div className="mx-auto max-w-xl">
         {/* Page heading */}
-        <h1 className="text-2xl font-semibold mb-1">Language</h1>
+        <h1 className="text-2xl font-semibold mb-1">
+          {t("settings.language.title")}
+        </h1>
         <p className="text-sm text-[#8892b0] mb-8">
-          Choose the language used throughout the Predictify interface.
+          {t("settings.language.description")}
         </p>
 
         {/* Language selector */}
-        <fieldset aria-label="Select UI language" disabled={!isReady}>
-          <legend className="sr-only">UI language preference</legend>
+        <fieldset
+          aria-label={t("a11y.language_select")}
+          disabled={!isReady}
+        >
+          <legend className="sr-only">{t("a11y.language_select")}</legend>
           <ul className="space-y-2" role="list">
             {languages.map((lang) => {
               const isSelected = lang.code === languageCode;
@@ -74,7 +81,9 @@ export default function LanguageSettingsPage() {
                       )}
                     </span>
                     {isSelected && (
-                      <span className="text-xs text-cyan-400 font-medium">Active</span>
+                      <span className="text-xs text-cyan-400 font-medium">
+                        {t("settings.language.active")}
+                      </span>
                     )}
                   </label>
                 </li>
@@ -85,8 +94,7 @@ export default function LanguageSettingsPage() {
 
         {/* Helper note */}
         <p className="mt-6 text-xs text-[#8892b0]">
-          Your preference is saved locally and applied immediately. A full
-          translation rollout will follow in a future release.
+          {t("settings.language.saved_note")}
         </p>
       </div>
     </main>

@@ -11,14 +11,15 @@ Built with Next.js 15, React 19, TypeScript, and the Stellar Wallets Kit, Predic
 ## Features
 
 - **Decentralized & Transparent**: All predictions are recorded on-chain with complete transparency. No central authority controls the outcomes.
+- **Shareable Prediction Receipts**: Completed predictions can now be shared with a polished receipt summary for campaigns such as GrantFox FWC26.
 - **Instant Payouts**: Smart contracts automatically distribute winnings immediately after event resolution. No waiting periods.
 - **Multi-Wallet Support**: Connect with your preferred Stellar wallet (Freighter, LOBSTR, XBull, Albedo, Rabet).
 - **Real-Time Markets**: Access live prediction markets with real-time updates on odds, stakes, and participant activity.
+- **Side-by-Side Market Comparison**: Compare up to two selected prediction markets in a responsive modal with accessible keyboard and focus support.
 - **Advanced Analytics**: Track your prediction performance with detailed analytics and insights.
 - **Create Your Markets**: Anyone can create prediction markets on virtually any verifiable future event.
 - **Verified Oracles**: Multiple oracle sources ensure accurate and tamper-proof event outcomes.
-- **Accessible Leaderboards**: Sort leaderboard columns with keyboard-friendly controls for profit, win rate, and predictions.
-- **Per-Market Audit Trails**: Persist ordered, serializable audit events for off-chain reads and indexers.
+- **Daily Betting Limit Nudge**: Market cards now surface each user’s remaining daily betting allowance.
 
 ## Tech Stack
 
@@ -114,8 +115,9 @@ pnpm test:coverage
 Predictify currently supports the Stellar Testnet by default. To switch to Mainnet:
 
 1. Update `constants/wallet-kits.constant.ts`:
+
    ```typescript
-   network: WalletNetwork.MAINNET
+   network: WalletNetwork.MAINNET;
    ```
 
 2. Update your `.env.local`:
@@ -168,6 +170,7 @@ Quick start:
 ### Development Workflow
 
 1. **Fork the repository** and create your feature branch:
+
    ```bash
    git checkout -b feature/amazing-feature
    ```
@@ -179,17 +182,20 @@ Quick start:
    - Add tests for new features
 
 3. **Test your changes**:
+
    ```bash
    pnpm test
    pnpm lint
    ```
 
 4. **Commit your changes**:
+
    ```bash
    git commit -m "Add amazing feature"
    ```
 
 5. **Push to your fork**:
+
    ```bash
    git push origin feature/amazing-feature
    ```
@@ -227,11 +233,13 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 ## Network Information
 
 ### Stellar Testnet
+
 - **Horizon URL**: `https://horizon-testnet.stellar.org`
 - **Network Passphrase**: `Test SDF Network ; September 2015`
 - **Friendbot**: Available for test account funding
 
 ### Stellar Mainnet
+
 - **Horizon URL**: `https://horizon.stellar.org`
 - **Network Passphrase**: `Public Global Stellar Network ; September 2015`
 
@@ -262,6 +270,7 @@ If you encounter build errors:
 ## Contributors
 
 <!-- Add contributors here -->
+
 - [Your Name](https://github.com/yourusername)
 
 ## Support

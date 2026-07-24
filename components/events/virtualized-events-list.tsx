@@ -414,7 +414,7 @@ export function VirtualizedEventsList({
                         {event.category}
                       </Badge>
 
-                      <div className="font-medium text-sm text-white min-w-[60px]">
+                      <div className="font-medium text-sm text-white min-w-[60px] tabular-nums">
                         {event.odds}
                       </div>
 
@@ -427,7 +427,7 @@ export function VirtualizedEventsList({
 
                       <div className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-[100px]">
                         <Users className="h-4 w-4" />
-                        <span className="font-medium text-foreground">
+                        <span className="font-medium text-foreground tabular-nums">
                           {event.participants.toLocaleString()}
                         </span>
                       </div>
