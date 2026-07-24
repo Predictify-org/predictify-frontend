@@ -20,23 +20,23 @@ export default function Sparkline({ data, className = '', 'data-testid': testId 
     .map((value, i) => {
       const x = (i / (data.length - 1)) * 100;
       const y = 100 - ((value - min) / range) * 100;
-      return ${x},;
+      return `${x},${y}`;
     })
     .join(' ');
   return (
     <svg
-      viewBox= 0 0 100 100
-      preserveAspectRatio=none
-      className={h-4 w-full }
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      className={`h-4 w-full ${className}`}
       data-testid={testId}
     >
       <polyline
-        fill=none
-        stroke=currentColor
-        strokeWidth=8
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="8"
         points={points}
-        strokeLinecap=round
-        strokeLinejoin=round
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
