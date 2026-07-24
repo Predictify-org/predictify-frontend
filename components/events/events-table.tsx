@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { EventsTableSkeleton } from "./events-table-skeleton"
+import { NoMatchEmptyState } from "./NoMatchEmptyState"
 import { useEventsStore, formatTimeRemaining, getTimeRemainingColor } from "@/lib/events-store"
 import { useCompareStore, MAX_COMPARE } from "@/lib/compare-store"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -203,8 +204,8 @@ function EventRow({
               <p className="font-bold text-xs uppercase tracking-wider text-purple-300">Event Details</p>
               <div className="text-xs space-y-1 text-white/90">
                 <div><span className="text-white/50">Category:</span> {event.category}</div>
-                <div><span className="text-white/50">Odds:</span> {event.odds}</div>
-                <div><span className="text-white/50">Participants:</span> {event.participants.toLocaleString()}</div>
+                <div><span className="text-white/50">Odds:</span> <span className="tabular-nums">{event.odds}</span></div>
+                <div><span className="text-white/50">Participants:</span> <span className="tabular-nums">{event.participants.toLocaleString()}</span></div>
                 <div><span className="text-white/50">Ends:</span> {formatDate(new Date(event.endDate))}</div>
               </div>
             </div>
@@ -225,7 +226,7 @@ function EventRow({
       </TableCell>
 
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0">
-        <div className="font-medium text-sm text-white">{event.odds}</div>
+        <div className="font-medium text-sm text-white tabular-nums">{event.odds}</div>
       </TableCell>
 
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[180px] sm:min-w-0 text-white">
@@ -248,7 +249,7 @@ function EventRow({
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[120px] sm:min-w-0">
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Users className="h-4 w-4" />
-          <span className="font-medium text-foreground">{event.participants.toLocaleString()}</span>
+          <span className="font-medium text-foreground tabular-nums">{event.participants.toLocaleString()}</span>
         </div>
       </TableCell>
 
@@ -286,7 +287,7 @@ function EventRow({
 
 export function EventsTable({ className }: EventsTableProps) {
   /* MODIFIED: Added deleteEvent from store */
-  const { filteredEvents, loading, pagination, deleteEvent } = useEventsStore()
+  const { filteredEvents, loading, pagination, deleteEvent, filters, setFilters, setSearch } = useEventsStore()
   /* Compare store */
   const { selectedIds, toggle } = useCompareStore()
 
@@ -311,18 +312,24 @@ export function EventsTable({ className }: EventsTableProps) {
     return <EventsTableSkeleton />
   }
 
-  {/* NEW: Enhanced empty state with icon illustration and contextual messaging */}
+  {/* MODIFIED: Replaced inline empty state with NoMatchEmptyState component */}
   if (filteredEvents.length === 0) {
+    const handleClearFilters = () => {
+      setSearch("")
+      setFilters({
+        category: [],
+        oddsRange: [0, 10],
+        dateRange: { from: null, to: null },
+      })
+    }
+
     return (
-      <div className="flex flex-col items-center bg-black text-white justify-center py-16 px-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-black text-white mb-4">
-          <Calendar className="h-8 w-8 text-[#540D8D]" />
-        </div>
-        <h3 className="text-lg font-semibold text-foreground mb-1">No events found</h3>
-        <p className="text-sm text-muted-foreground text-center max-w-sm">
-          {"There are no prediction events matching your current filters. Try adjusting your search or filter criteria."}
-        </p>
-      </div>
+      <NoMatchEmptyState
+        hasSearch={!!filters.search}
+        hasCategories={filters.category.length > 0}
+        hasDateRange={!!(filters.dateRange.from || filters.dateRange.to)}
+        onClearFilters={handleClearFilters}
+      />
     )
   }
 
@@ -393,7 +400,7 @@ export function EventsTable({ className }: EventsTableProps) {
             </TableHeader>
             <TableBody>
               {paginatedEvents.map((event, index) => (
-                <TableRow
+                <EventRow
                   key={event.id}
                   event={event}
                   index={index}

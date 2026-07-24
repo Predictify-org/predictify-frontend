@@ -3,13 +3,14 @@
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
-const TAB_VALUES = ["overview", "activity", "resolution"] as const;
+const TAB_VALUES = ["overview", "activity", "resolution", "timeline"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 interface MarketDetailTabsProps {
   overview: React.ReactNode;
   activity: React.ReactNode;
   resolution: React.ReactNode;
+  timeline: React.ReactNode;
   defaultValue?: TabValue;
 }
 
@@ -17,6 +18,7 @@ export function MarketDetailTabs({
   overview,
   activity,
   resolution,
+  timeline,
   defaultValue = "overview",
 }: MarketDetailTabsProps) {
   const searchParams = useSearchParams();
@@ -40,11 +42,13 @@ export function MarketDetailTabs({
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="activity">Activity</TabsTrigger>
         <TabsTrigger value="resolution">Resolution</TabsTrigger>
+        <TabsTrigger value="timeline">Timeline</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview">{overview}</TabsContent>
       <TabsContent value="activity">{activity}</TabsContent>
       <TabsContent value="resolution">{resolution}</TabsContent>
+      <TabsContent value="timeline">{timeline}</TabsContent>
     </Tabs>
   );
 }

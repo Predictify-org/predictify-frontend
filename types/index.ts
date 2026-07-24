@@ -3,6 +3,9 @@ import type { LucideIcon } from "lucide-react";
 export type { ActivityEvent, ActivityEventType, ActivityGroupType, GroupedActivity, ActivityTimelineState } from "./activity";
 export { ACTIVITY_GROUPING_RULES, ACTIVITY_GROUP_CONFIG, ACTIVITY_EVENT_ICONS, GROUPING_STRATEGY, DEFAULT_ACTIVITY_TIMEFRAME } from "./activity";
 
+export type { MarketEvent, MarketEventType, MarketEventGroup } from "./market-timeline";
+export { MARKET_EVENT_CONFIG, getMarketEventIcon, getMarketEventColor, getMarketEventLabel } from "./market-timeline";
+
 export interface Feature {
   icon: LucideIcon;
   title: string;

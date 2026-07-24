@@ -100,7 +100,7 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
                   Current Odds
                 </span>
                 <div className="flex items-baseline gap-4">
-                  <span className="text-[96px] font-bold text-emerald-400 leading-none">
+                  <span className="text-[96px] font-bold text-emerald-400 leading-none tabular-nums">
                     {probability}%
                   </span>
                   <span className="text-h2 font-semibold text-white/80">
@@ -116,7 +116,7 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
                   <span className="text-caption text-white/40 uppercase tracking-widest block mb-1">
                     Volume
                   </span>
-                  <span className="text-stat-md text-white font-bold">{volume}</span>
+                  <span className="text-stat-md text-white font-bold tabular-nums">{volume}</span>
                 </div>
                 <div className="flex items-center gap-2 text-amber-400">
                   <Timer className="w-5 h-5" />
@@ -150,7 +150,7 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
                   <span className="text-caption text-white/40 uppercase tracking-widest block mb-1">
                     Total Volume
                   </span>
-                  <span className="text-stat-md text-white font-bold">{volume}</span>
+                  <span className="text-stat-md text-white font-bold tabular-nums">{volume}</span>
                 </div>
               )}
             </div>

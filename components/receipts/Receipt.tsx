@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { CheckCircle2, Download, ArrowLeft } from 'lucide-react';
+import { ReceiptShare } from '@/app/components/ReceiptShare';
 
 interface ReceiptProps {
   receiptId: string;
@@ -71,7 +72,7 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
               <span className="text-xs font-semibold text-muted-foreground print:text-gray-400 uppercase tracking-wider">
                 Total Amount
               </span>
-              <span className="text-xl font-black text-foreground print:text-black">
+              <span className="text-xl font-black text-foreground print:text-black tabular-nums">
                 {amount}
               </span>
             </div>
@@ -129,6 +130,15 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
           <Download className="w-4 h-4" />
           Download Receipt
         </button>
+        <ReceiptShare
+          receiptId={receiptId}
+          marketTitle={partyA}
+          outcome={partyB ? `${partyA} vs ${partyB}` : partyA}
+          amount={amount}
+          timestamp={timestamp}
+          campaign="GrantFox FWC26"
+          className="w-full justify-center"
+        />
         <button 
           className="w-full flex items-center justify-center gap-2 bg-transparent text-muted-foreground py-3.5 px-4 rounded-xl font-semibold hover:bg-muted/50 transition-colors"
           onClick={() => window.history.back()}

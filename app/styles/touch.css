@@ -41,4 +41,24 @@
     min-height: 44px;
     min-width: 44px;
   }
+
+  .touch-ripple {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .touch-ripple:active::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(148, 163, 184, 0.18);
+    border-radius: inherit;
+    pointer-events: none;
+    animation: touch-ripple 220ms ease-out;
+  }
+
+  @keyframes touch-ripple {
+    from { opacity: 1; transform: scale(0.96); }
+    to { opacity: 0; transform: scale(1); }
+  }
 }

@@ -7,7 +7,9 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen">
       <MarketingCursorFollower />
       <ErrorBoundary>
-        {children}
+        <main id="main-content">
+          {children}
+        </main>
       </ErrorBoundary>
     </div>
   )

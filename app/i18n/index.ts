@@ -1,10 +1,29 @@
 /**
- * i18n — Language preference module
+ * i18n — Localization foundation
  *
- * Provides the list of supported UI languages, a localStorage-backed hook for
- * reading/writing the active language, and a thin helper layer so other modules
- * can access the current language without mounting a React component.
+ * Public surface of the i18n module.  Consumers should import from here rather
+ * than from sub-modules directly so that internal structure can change freely.
+ *
+ * Exports:
+ *  - Language types and the list of supported UI languages.
+ *  - localStorage-backed helpers for reading/writing the active language.
+ *  - Message catalog types (`Messages`, `InterpolationValues`).
+ *  - `getMessages()` — returns the flat key→string catalog for a locale.
+ *  - `createTranslator()` — builds a `t()` function from a catalog.
+ *  - `getTranslator()` — server-safe `t()` for the current/given locale.
+ *  - `useTranslation()` — React hook; returns a reactive `t()` function.
+ *  - `interpolate()` — standalone `{variable}` interpolation helper.
  */
+
+// ── Re-export translation utilities ──────────────────────────────────────────
+export type { Messages, InterpolationValues } from "./types";
+export { getMessages, AVAILABLE_LOCALES, defaultMessages } from "./messages/index";
+export {
+  interpolate,
+  createTranslator,
+  getTranslator,
+  useTranslation,
+} from "./t";
 
 export type Language = {
   /** BCP-47 language tag used as the stored key and <html lang> value. */

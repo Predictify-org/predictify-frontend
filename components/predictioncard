@@ -108,7 +108,7 @@ export default function PredictionCard({
         <div className="space-y-1">
           <Progress value={progressPercent} className={t.progressHeight} aria-label="Prediction progress" />
           <div className={cn("flex justify-between text-muted-foreground", t.captionSize)}>
-            <span>{progressPercent}% funded</span>
+            <span className="tabular-nums">{progressPercent}% funded</span>
             <span>{isEnded ? "Ended" : formatTimeRemaining(timeRemaining)}</span>
           </div>
         </div>

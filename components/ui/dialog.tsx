@@ -67,13 +67,24 @@ const DialogHeader = ({
 )
 DialogHeader.displayName = "DialogHeader"
 
+/**
+ * Footer for `Dialog`. Stacks children vertically on small viewports
+ * (Cancel on top → primary at the bottom, thumb-friendly) and horizontally
+ * on `sm+` viewports (Cancel on the left → primary on the right, right-aligned).
+ *
+ * The DOM order matches both the visual and Tab orders, so keyboard
+ * navigation follows what the user sees (WCAG 2.4.3 Focus Order).
+ *
+ * Consumers MUST place the `Cancel`-equivalent element BEFORE the primary
+ * (potentially destructive) `Action` element. See `docs/BUTTON_ORDER.md`.
+ */
 const DialogFooter = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      "flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3",
       className
     )}
     {...props}

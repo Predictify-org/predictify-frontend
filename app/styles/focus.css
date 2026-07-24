@@ -29,7 +29,7 @@
    * offset so it remains visible on both light and dark backgrounds.
    */
   :focus-visible,
-  [data-focus-visible] {
+  [data-focus-visible="true"] {
     outline: 3px solid hsl(var(--ring, 210 100% 56%));
     outline-offset: 2px;
     border-radius: var(--radius, 0.375rem);
@@ -44,7 +44,7 @@
    * white inner shadow acts as a separator without adding DOM nodes.
    */
   .dark :focus-visible,
-  .dark [data-focus-visible] {
+  .dark [data-focus-visible="true"] {
     box-shadow: 0 0 0 2px hsl(var(--background, 222 47% 11%));
   }
 
