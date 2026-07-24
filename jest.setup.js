@@ -22,6 +22,32 @@ Object.defineProperty(window, 'scrollTo', {
   writable: true
 })
 
+// Mock performance for framer-motion (uses performance.now() internally).
+// Must use Object.defineProperty because Node may already have a read-only
+// performance global that prevents simple assignment.
+Object.defineProperty(globalThis, 'performance', {
+  value: {
+    now: () => Date.now(),
+    mark: () => {},
+    measure: () => {},
+    getEntriesByName: () => [],
+    getEntriesByType: () => [],
+    clearMarks: () => {},
+    clearMeasures: () => {},
+  },
+  writable: true,
+  configurable: true,
+});
+
+Object.defineProperty(globalThis, 'PerformanceObserver', {
+  value: class {
+    observe() {}
+    disconnect() {}
+  },
+  writable: true,
+  configurable: true,
+});
+
 // Mock requestAnimationFrame for count-up / animation hooks.
 // Each call advances the timestamp by 500 ms so animations complete
 // within two frames (500 ms > the hook's 400 ms default duration).
