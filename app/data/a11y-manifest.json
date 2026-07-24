@@ -1,9 +1,9 @@
 {
   "board": "grantfox-accessibility-audit",
   "campaign": "GrantFox",
-  "lastUpdated": "2026-06-29",
+  "lastUpdated": "2026-07-24",
   "summary": {
-    "verified": 6,
+    "verified": 7,
     "partial": 1,
     "followUpRequired": 0
   },
@@ -125,6 +125,27 @@
         "app/__tests__/focus-visible.test.js"
       ],
       "notes": "Low-priority @layer ensures component-level overrides win without !important. Uses --ring design token for dark-mode and theming consistency. WCAG 2.1 AA SC 1.4.11 satisfied via 3 px outline with 2 px offset."
+    },
+    {
+      "id": "skip-to-content",
+      "name": "SkipToContent",
+      "status": "verified",
+      "area": "Global keyboard navigation",
+      "auditScope": [
+        "visually hidden until focused",
+        "first focusable element in document",
+        "correct anchor target on all layouts",
+        "design-token and dark-mode consistency",
+        "enhanced focus ring via .skip-link class"
+      ],
+      "evidence": [
+        "app/components/SkipToContent.tsx",
+        "app/components/__tests__/SkipToContent.test.tsx",
+        "app/layout.tsx",
+        "app/(dashboard)/layout.tsx",
+        "app/(marketing)/layout.tsx"
+      ],
+      "notes": "WCAG 2.1 AA SC 2.4.1 (Bypass Blocks). Rendered as the first child of <body> in the root layout, so it precedes navigation on every page. Uses sr-only / focus:not-sr-only pattern with fixed positioning when focused. Target anchor id=\"main-content\" is present on the <main> element in both the dashboard and marketing layouts."
     }
   ]
 }
