@@ -13,7 +13,13 @@ import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStri
 import { ActiveBets } from "@/components/active-bets/ActiveBets"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator"
-import { useEffect, useState } from "react"
+import { NotifDigest } from "@/app/dashboard/NotifDigest"
+import { generateMockNotifications } from "@/lib/notifications"
+import { NotificationItem } from "@/types/notifications"
+import { useEffect, useMemo, useState } from "react"
+
+// TODO: replace with the authenticated user's id once auth context exposes it.
+const CURRENT_USER_ID = "current-user"
 
 interface Stat {
   label: string
@@ -61,6 +67,28 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stat[] | null>(null)
   const [hiddenRecommendations, setHiddenRecommendations] = useState<string[]>([])
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null)
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
+    generateMockNotifications(CURRENT_USER_ID)
+  )
+
+  const userNotifications = useMemo(
+    () => notifications.filter((item) => item.userId === CURRENT_USER_ID),
+    [notifications]
+  )
+
+  const handleMarkAsRead = (id: string) => {
+    setNotifications((current) =>
+      current.map((item) => (item.id === id ? { ...item, read: true } : item))
+    )
+  }
+
+  const handleMarkAllAsRead = () => {
+    setNotifications((current) =>
+      current.map((item) =>
+        item.userId === CURRENT_USER_ID ? { ...item, read: true } : item
+      )
+    )
+  }
 
   // Simulate async fetch
   useEffect(() => {
@@ -349,6 +377,11 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <div className="flex items-center gap-2">
+          <NotifDigest
+            notifications={userNotifications}
+            onMarkAsRead={handleMarkAsRead}
+            onMarkAllAsRead={handleMarkAllAsRead}
+          />
           <RefreshIndicator lastRefreshedAt={lastRefreshedAt} onRefresh={retry} />
           <Button asChild>
             <Link href="/events/new">Create New Event</Link>
