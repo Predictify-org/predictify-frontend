@@ -1,19 +1,22 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CheckCircle,
   Clock,
   Gift,
+  Loader2,
   TrendingUp,
   AlertCircle,
 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
+import KbdHint from "@/components/KbdHint";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { cn } from "@/lib/utils";
 
 // ── Type Definitions ────────────────────────────────────────────────────────
@@ -98,7 +101,7 @@ const STATUS_CONFIG: Record<
 
 // ── Mock Data ────────────────────────────────────────────────────────────────
 
-const MOCK_CLAIMS: Claim[] = [
+export const MOCK_CLAIMS: Claim[] = [
   {
     id: "claim-1",
     marketTitle: "NBA Finals: Lakers vs Heat",
@@ -156,6 +159,9 @@ const MOCK_CLAIMS: Claim[] = [
   },
 ];
 
+/** Simulated claim latency (ms). Exported for tests. */
+export const CLAIM_LATENCY_MS = 600;
+
 // ── Color-Blind Safe Status Badge ───────────────────────────────────────────
 
 /**
@@ -186,7 +192,7 @@ const StatusBadge: React.FC<{ status: ClaimStatus }> = ({ status }) => {
       role="status"
       aria-label={`Claim status: ${config.label}`}
     >
-      <Icon className="relative z-10 h-3.5 w-3.5" aria-hidden="true" />
+      <Icon className="relative z-10 h-3.5 w-3.5" aria-hidden={true} />
       <span className="relative z-10">{config.label}</span>
     </span>
   );
@@ -194,7 +200,28 @@ const StatusBadge: React.FC<{ status: ClaimStatus }> = ({ status }) => {
 
 // ── Claim Card ──────────────────────────────────────────────────────────────
 
-const ClaimCard: React.FC<{ claim: Claim }> = ({ claim }) => {
+export interface ClaimCardProps {
+  claim: Claim;
+  onClaim?: (claim: Claim) => void;
+  isClaiming?: boolean;
+  reducedMotion?: boolean;
+}
+
+/**
+ * ClaimCard — single claimable-winnings card with an accessible claim action.
+ *
+ * Buffer #4 polish:
+ *  - Wired Claim button with busy/disabled states
+ *  - Keyboard shortcut hint (⌘↵) on the primary action
+ *  - Reduced-motion aware hover/transition treatment
+ *  - focus-visible ring on the claim control (WCAG 2.1 SC 2.4.7)
+ */
+export const ClaimCard: React.FC<ClaimCardProps> = ({
+  claim,
+  onClaim,
+  isClaiming = false,
+  reducedMotion = false,
+}) => {
   const {
     marketTitle,
     prediction,
@@ -209,7 +236,13 @@ const ClaimCard: React.FC<{ claim: Claim }> = ({ claim }) => {
   const isActionable = status === "available";
 
   return (
-    <Card className="overflow-hidden transition-all duration-150 hover:shadow-md">
+    <Card
+      className={cn(
+        "overflow-hidden",
+        !reducedMotion && "transition-all duration-150 hover:shadow-md"
+      )}
+      data-testid={`claim-card-${claim.id}`}
+    >
       <CardContent className="flex flex-col gap-4 p-5">
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
@@ -250,11 +283,35 @@ const ClaimCard: React.FC<{ claim: Claim }> = ({ claim }) => {
             {isActionable && (
               <Button
                 size="sm"
-                className="w-full"
-                aria-label={`Claim ${winnings} ${winningsToken} for ${marketTitle}`}
+                className="w-full gap-1.5"
+                disabled={isClaiming}
+                aria-busy={isClaiming}
+                aria-label={
+                  isClaiming
+                    ? `Claiming ${winnings} ${winningsToken} for ${marketTitle}`
+                    : `Claim ${winnings} ${winningsToken} for ${marketTitle}`
+                }
+                onClick={() => onClaim?.(claim)}
               >
-                <Gift className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                Claim
+                {isClaiming ? (
+                  <Loader2
+                    className="h-3.5 w-3.5 animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Gift className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                <span>{isClaiming ? "Claiming…" : "Claim"}</span>
+                {!isClaiming && (
+                  <span className="ml-auto flex items-center gap-0.5 opacity-80">
+                    <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">
+                      ⌘
+                    </KbdHint>
+                    <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">
+                      ↵
+                    </KbdHint>
+                  </span>
+                )}
               </Button>
             )}
           </div>
@@ -348,6 +405,8 @@ const ClaimFlowError: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
  *  - Filterable tabs by claim status.
  *  - Loading skeleton for first paint.
  *  - Error state with retry.
+ *  - Claim action with busy state, success announcement, and ⌘↵ shortcut
+ *    (GrantFox FWC26 buffer #4 polish).
  *
  * WCAG 2.1 AA:
  *  - Proper heading hierarchy (h1 → h2 → h3)
@@ -360,18 +419,19 @@ const ClaimFlowPage: React.FC = () => {
   const TABS = ["All", "Available", "Pending", "Claimed", "Disputed"] as const;
   type TabValue = (typeof TABS)[number];
 
+  const reducedMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState<TabValue>("All");
   const [status, setStatus] = useState<"loading" | "success" | "empty" | "error">(
     "loading"
   );
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState("");
 
   // Simulate data fetch on mount
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
-      // Toggle this to test empty state:
       const data = MOCK_CLAIMS;
-      // const data: Claim[] = []; // ← uncomment to test empty state
       setClaims(data);
       setStatus(data.length === 0 ? "empty" : "success");
     }, 1200);
@@ -383,6 +443,47 @@ const ClaimFlowPage: React.FC = () => {
     const statusKey = activeTab.toLowerCase() as ClaimStatus;
     return claims.filter((c) => c.status === statusKey);
   }, [activeTab, claims]);
+
+  const handleClaim = useCallback(
+    async (claim: Claim) => {
+      if (claim.status !== "available" || claimingId) return;
+
+      setClaimingId(claim.id);
+      setAnnouncement(
+        `Claiming ${claim.winnings} ${claim.winningsToken} for ${claim.marketTitle}.`
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, CLAIM_LATENCY_MS));
+
+      setClaims((prev) =>
+        prev.map((c) =>
+          c.id === claim.id ? { ...c, status: "claimed" as const } : c
+        )
+      );
+      setClaimingId(null);
+      setAnnouncement(
+        `Successfully claimed ${claim.winnings} ${claim.winningsToken} for ${claim.marketTitle}.`
+      );
+    },
+    [claimingId]
+  );
+
+  // ⌘↵ / Ctrl+↵ claims the first available winnings (mirrors BetForm shortcut)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== "Enter") return;
+      if (claimingId) return;
+
+      const nextAvailable = claims.find((c) => c.status === "available");
+      if (!nextAvailable) return;
+
+      e.preventDefault();
+      void handleClaim(nextAvailable);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [claims, claimingId, handleClaim]);
 
   const handleRetry = () => {
     setStatus("loading");
@@ -436,7 +537,13 @@ const ClaimFlowPage: React.FC = () => {
         return (
           <div className="grid gap-4 sm:grid-cols-2">
             {filteredClaims.map((claim) => (
-              <ClaimCard key={claim.id} claim={claim} />
+              <ClaimCard
+                key={claim.id}
+                claim={claim}
+                onClaim={handleClaim}
+                isClaiming={claimingId === claim.id}
+                reducedMotion={reducedMotion}
+              />
             ))}
           </div>
         );
@@ -501,12 +608,15 @@ const ClaimFlowPage: React.FC = () => {
             aria-live="polite"
             aria-atomic="true"
             className="sr-only"
+            data-testid="claim-flow-live-region"
           >
-            {status === "loading" && "Loading claims..."}
-            {status === "success" &&
-              `Showing ${filteredClaims.length} claims in ${activeTab}.`}
-            {status === "empty" && "No claims to display."}
-            {status === "error" && "Failed to load claims."}
+            {announcement ||
+              (status === "loading" && "Loading claims...") ||
+              (status === "success" &&
+                `Showing ${filteredClaims.length} claims in ${activeTab}.`) ||
+              (status === "empty" && "No claims to display.") ||
+              (status === "error" && "Failed to load claims.") ||
+              ""}
           </div>
 
           {renderContent()}

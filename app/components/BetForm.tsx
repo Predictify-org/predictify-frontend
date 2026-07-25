@@ -15,6 +15,7 @@
 
 import React, { useState, useEffect } from "react";
 import QuickBetPresets from "@/components/QuickBetPresets";
+import KbdHint from "@/components/KbdHint";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 export interface BetFormProps {
