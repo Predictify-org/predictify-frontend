@@ -22,6 +22,9 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Evidence paths for recent component work
 
 ### Core Features
+- **[EVENTS_RESPONSIVE_LAYOUT.md](./EVENTS_RESPONSIVE_LAYOUT.md)** - Events results responsive-layout contract
+  - One-column narrow layout, two-column tablet layout, and desktop table
+  - Accessibility, theme-token, and manual verification notes
 - **[WALLET.md](./WALLET.md)** - Wallet Integration Guide
   - Supported wallets (Freighter, LOBSTR, XBull, Albedo, Rabet)
   - SSR-safe wallet kit initialization
