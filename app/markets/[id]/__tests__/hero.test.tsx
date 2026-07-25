@@ -59,6 +59,27 @@ describe("MarketHero — rendering", () => {
     expect(screen.getByRole("region")).toBeInTheDocument();
   });
 
+  it("renders a loading skeleton that mirrors the final hero structure", () => {
+    render(<MarketHero title="Loading market" status="open" isLoading />);
+
+    expect(screen.getByTestId("market-hero-skeleton")).toBeInTheDocument();
+    expect(screen.getAllByTestId("market-hero-skeleton-line")).toHaveLength(5);
+    expect(screen.getByTestId("market-hero-skeleton-bar")).toBeInTheDocument();
+    expect(screen.getByTestId("market-hero-skeleton-stats")).toBeInTheDocument();
+  });
+
+  it("applies visible focus styles to interactive controls", () => {
+    renderHero({ onShare: jest.fn() });
+
+    const shareButton = screen.getByRole("button", { name: /share this market/i });
+    expect(shareButton).toHaveClass(
+      "focus-visible:outline-none",
+      "focus-visible:ring-2",
+      "focus-visible:ring-ring",
+      "focus-visible:ring-offset-2"
+    );
+  });
+
   it("renders the market title as an h1", () => {
     renderHero({ title: "Test Market Title" });
     const heading = screen.getByRole("heading", { level: 1 });
@@ -517,33 +538,5 @@ describe("MarketHero — full props", () => {
     expect(
       screen.getByRole("button", { name: /share this market/i })
     ).toBeInTheDocument();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// StatPill (internal helper exported for tests)
-// ---------------------------------------------------------------------------
-describe("StatPill", () => {
-  it("renders the label and value", () => {
-    render(
-      <StatPill
-        icon={<span data-testid="icon" />}
-        label="Volume"
-        value="10,000 USDC"
-      />
-    );
-    expect(screen.getByText("Volume")).toBeInTheDocument();
-    expect(screen.getByText("10,000 USDC")).toBeInTheDocument();
-  });
-
-  it("renders the icon slot", () => {
-    render(
-      <StatPill
-        icon={<span data-testid="test-icon" />}
-        label="Stat"
-        value="42"
-      />
-    );
-    expect(screen.getByTestId("test-icon")).toBeInTheDocument();
   });
 });

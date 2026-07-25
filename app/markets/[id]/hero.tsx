@@ -175,6 +175,9 @@ export function MarketHero({
         "w-full rounded-2xl border border-border bg-card px-5 py-6 sm:px-8 sm:py-8",
         // Subtle gradient tint that respects dark mode via Tailwind's `dark:` prefix
         "bg-gradient-to-br from-card to-muted/30 dark:from-card dark:to-muted/10",
+        // Ensure keyboard users can see a clear focus outline when the hero
+        // itself receives focus, such as when used in a composite surface.
+        "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
         className
       )}
     >
@@ -312,7 +315,7 @@ export function MarketHero({
             variant="outline"
             size="sm"
             onClick={onShare}
-            className="gap-2"
+            className="gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label="Share this market"
           >
             <Share2 className="h-4 w-4" aria-hidden="true" />
