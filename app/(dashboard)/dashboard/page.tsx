@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { AlertCircle, CheckCircle, HelpCircle, TrendingUp } from "lucide-react"
+import { AlertCircle, CheckCircle, HelpCircle, PauseCircle, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -15,10 +15,11 @@ import { ActiveBets } from "@/components/active-bets/ActiveBets"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator"
 import { NotifDigest } from "@/app/dashboard/NotifDigest"
-import { generateMockNotifications } from "@/lib/notifications"
+import { useNotificationsStore } from "@/app/state/notifications"
 import { NotificationItem } from "@/types/notifications"
 import { Kbd } from "@/components/ui/kbd"
 import { useEffect, useMemo, useCallback, useState } from "react"
+import { useReducedMotion } from "@/hooks/useReducedMotion"
 
 // TODO: replace with the authenticated user's id once auth context exposes it.
 const CURRENT_USER_ID = "current-user"
@@ -37,6 +38,13 @@ interface RecommendedMarket {
   signalKey: RecommendationSignalKey
   volume: string
 }
+
+const DEMO_STATS: Stat[] = [
+  { label: "Volume", value: "$4,325.49" },
+  { label: "Predictions", value: "24" },
+  { label: "Win rate", value: "12,543" },
+  { label: "Leaderboard", value: "573" },
+]
 
 const recommendedMarkets: RecommendedMarket[] = [
   {
@@ -96,16 +104,33 @@ const recommendedMarkets: RecommendedMarket[] = [
  */
 export default function DashboardPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
+  const [statusAnnouncement, setStatusAnnouncement] = useState("")
   const [stats, setStats] = useState<Stat[] | null>(null)
   const [hiddenRecommendations, setHiddenRecommendations] = useState<string[]>([])
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null)
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
-    generateMockNotifications(CURRENT_USER_ID)
-  )
+  const [liveMessage, setLiveMessage] = useState("")
+  const { notifications, markAsRead: handleMarkAsRead, markAllAsRead: handleMarkAllAsRead } = useNotificationsStore()
   const reducedMotion = useReducedMotion()
 
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("overview")
+
+  useEffect(() => {
+    const nextMessage =
+      status === "loading"
+        ? "Loading dashboard data."
+        : status === "success"
+          ? "Dashboard data loaded."
+          : status === "empty"
+            ? "Dashboard has no data to show."
+            : "Dashboard data failed to load."
+
+    // Keep the announcement deterministic for assistive tech by clearing the
+    // prior message first and then re-inserting the next status update.
+    setStatusAnnouncement("")
+    const timer = window.setTimeout(() => setStatusAnnouncement(nextMessage), 50)
+    return () => window.clearTimeout(timer)
+  }, [status])
 
   const userNotifications = useMemo(
     () => notifications.filter((item) => item.userId === CURRENT_USER_ID),
@@ -131,20 +156,6 @@ export default function DashboardPage() {
     window.addEventListener("keydown", handleKeyboardShortcut)
     return () => window.removeEventListener("keydown", handleKeyboardShortcut)
   }, [handleKeyboardShortcut])
-
-  const handleMarkAsRead = (id: string) => {
-    setNotifications((current) =>
-      current.map((item) => (item.id === id ? { ...item, read: true } : item))
-    )
-  }
-
-  const handleMarkAllAsRead = () => {
-    setNotifications((current) =>
-      current.map((item) =>
-        item.userId === CURRENT_USER_ID ? { ...item, read: true } : item
-      )
-    )
-  }
 
   /**
    * Simulate async fetch.
@@ -174,6 +185,7 @@ export default function DashboardPage() {
   }, [reducedMotion])
 
   const retry = () => {
+    setLiveMessage("Refreshing dashboard")
     // Honor the static fallback under reduced-motion preferences: skip
     // the 1500ms loading transition and present data immediately. This
     // keeps the manual retry path consistent with the initial load.
@@ -377,6 +389,23 @@ export default function DashboardPage() {
     }
   }
 
+  useEffect(() => {
+    switch (status) {
+      case 'loading':
+        setLiveMessage('Loading dashboard')
+        break
+      case 'success':
+        setLiveMessage(`Dashboard loaded. Showing ${stats?.length ?? 0} key metrics in ${activeTab}.`)
+        break
+      case 'empty':
+        setLiveMessage(`Dashboard is empty in ${activeTab}.`)
+        break
+      case 'error':
+        setLiveMessage(`Dashboard failed to load in ${activeTab}.`)
+        break
+    }
+  }, [activeTab, stats?.length, status])
+
   const renderReportsPanel = () => {
     switch (status) {
       case 'loading':
@@ -439,6 +468,17 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label="Dashboard status"
+        data-testid="dashboard-status-live-region"
+        className="sr-only"
+      >
+        {statusAnnouncement}
+      </div>
+
       {reducedMotion && (
         // Accessible inline notice: role="status" + aria-live="polite" means
         // screen-readers announce the static mode without interrupting other
@@ -463,9 +503,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div
+        data-testid="dashboard-header"
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      >
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <div className="flex items-center gap-2">
+        <div
+          data-testid="dashboard-header-actions"
+          className="flex flex-wrap items-center justify-end gap-2"
+        >
           <NotifDigest
             notifications={userNotifications}
             onMarkAsRead={handleMarkAsRead}
@@ -482,7 +528,7 @@ export default function DashboardPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>

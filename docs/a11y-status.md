@@ -6,9 +6,9 @@ components and interaction flows.
 ## Snapshot
 
 - Campaign: `GrantFox`
-- Last updated: `2026-07-23`
+- Last updated: `2026-07-25`
 - API changes: None
-- Visible product changes: Added a dedicated internal accessibility board at `app/a11y-audit/page.tsx`
+- Visible product changes: Added a dedicated internal accessibility board at `app/a11y-audit/page.tsx`, added SkipToContent link, and added MobileBottomTabs badge
 
 ## Board Status
 
@@ -22,6 +22,9 @@ components and interaction flows.
 | New event form focus order | Partial | Early tab order is covered; follow-up is still needed for the full form sequence and combobox continuation | `app/(dashboard)/events/new/page.tsx`, `app/(dashboard)/events/new/page.test.tsx`, `app/(dashboard)/settings/ACCESSIBILITY.md` |
 | `focus-visible CSS layer` | Verified | Global `:focus-visible` ring on all interactive surfaces, dark-mode contrast, inset variant, skip-link prominence | `app/styles/focus.css`, `app/globals.css`, `app/__tests__/focus-visible.test.js` |
 | `Confirm/Cancel button order (#474)` | Verified | DOM order matches Tab order (`flex-col`, no `flex-col-reverse`) across `Dialog`, `AlertDialog`, and mobile `Drawer`. Visual ↔ keyboard consistency. Rule documented in `docs/BUTTON_ORDER.md`. | `components/ui/alert-dialog.tsx`, `components/ui/dialog.tsx`, `components/patterns/BetConfirmPattern.tsx`, `components/patterns/DisputeActionPattern.tsx`, `components/ui/__tests__/dialog-footer.test.tsx`, `docs/BUTTON_ORDER.md` |
+| `SkipToContent` | Verified | First focusable link on pages, bypasses standard headers to main content | `app/components/SkipToContent.tsx`, `app/components/__tests__/SkipToContent.test.tsx`, `app/layout.tsx`, `app/(dashboard)/layout.tsx`, `app/(marketing)/layout.tsx` |
+| `MobileBottomTabs badge` | Verified | Custom red badge shows unread counts visually while aria-labels announce unread status | `components/navbar/MobileBottomTabs.tsx`, `components/navbar/__tests__/MobileBottomTabs.test.tsx` |
+| `AboutMarketModal` | Verified | Focus restoration via DialogContentWithFocusReturn, screen-reader text, and Tailwind color-contrast consistency | `app/components/AboutMarketModal.tsx`, `app/components/__tests__/AboutMarketModal.test.tsx` |
 
 ## Notes
 

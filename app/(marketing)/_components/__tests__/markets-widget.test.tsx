@@ -113,12 +113,22 @@ describe("MarketsWidget – following indicator", () => {
     expect(indicators).toHaveLength(1);
   });
 
-  it("shows a keyboard shortcut hint on each market card", () => {
-    render(<MarketsWidget />);
+  it("renders the responsive layout classes for the market card content", () => {
+    const { container } = render(<MarketsWidget />);
+    const markup = container.innerHTML;
 
-    const hints = screen.getAllByTestId("market-card-kbd-hint");
-    expect(hints).toHaveLength(3);
-    expect(hints[0]).toHaveTextContent("Press");
-    expect(hints[0]).toHaveTextContent("Enter");
+    expect(markup).toContain("p-3 sm:p-4");
+    expect(markup).toContain(
+      "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
+    );
+    expect(markup).toContain("flex min-w-0 items-start gap-3");
+    expect(markup).toContain("min-w-0 flex-1");
+    expect(markup).toContain("break-words font-semibold text-white");
+    expect(markup).toContain(
+      "flex shrink-0 gap-4 text-left sm:block sm:text-right",
+    );
+    expect(markup).toContain(
+      "flex flex-col gap-1 text-xs text-white/60 sm:flex-row sm:justify-between",
+    );
   });
 });

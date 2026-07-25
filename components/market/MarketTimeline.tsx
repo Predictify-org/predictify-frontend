@@ -106,16 +106,20 @@ export function MarketTimeline({
         return (
           <div key={group.date}>
             <div className="flex items-center gap-2 mb-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              {/* text-caption: 12px design token — replaces bare text-sm for date
+                  group headers. The uppercase + tracking-wider treatment remains for
+                  visual hierarchy; only the base size class is tokenised. */}
+              <h3 className="text-caption font-semibold text-muted-foreground uppercase tracking-wider">
                 {group.label}
               </h3>
-              <span className="text-xs text-muted-foreground/60">
+              {/* text-caption: consistent caption token for secondary metadata. */}
+              <span className="text-caption text-muted-foreground/60">
                 ({group.events.length} event{group.events.length !== 1 ? "s" : ""})
               </span>
               {showCollapse && (
                 <button
                   onClick={() => toggleGroup(group.date)}
-                  className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  className="ml-auto text-caption text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                   aria-label={isExpanded ? "Collapse events" : "Expand events"}
                 >
                   {isExpanded ? "Show less" : `Show all ${group.events.length}`}
@@ -145,7 +149,7 @@ export function MarketTimeline({
                 <div className="relative pl-10 py-2">
                   <button
                     onClick={() => toggleGroup(group.date)}
-                    className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+                    className="text-caption text-primary hover:text-primary/80 transition-colors font-medium"
                   >
                     +{group.events.length - 3} more event{group.events.length - 3 !== 1 ? "s" : ""}
                   </button>
@@ -185,16 +189,19 @@ function MarketTimelineItem({ event }: { event: MarketEvent }) {
       <div className="flex-1 min-w-0 pt-0.5">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-0.5">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">{event.title}</p>
+            {/* text-body-sm: 14px design token — replaces bare text-sm for event titles. */}
+            <p className="text-body-sm font-medium text-foreground">{event.title}</p>
             {event.description && (
-              <p className="text-xs text-muted-foreground mt-0.5">
+              // text-caption: 12px design token — replaces bare text-xs for event descriptions.
+              <p className="text-caption text-muted-foreground mt-0.5">
                 {event.description}
               </p>
             )}
           </div>
+          {/* text-caption: 12px design token — replaces bare text-xs for timestamps. */}
           <time
             dateTime={event.timestamp.toISOString()}
-            className="text-xs text-muted-foreground/70 whitespace-nowrap flex-shrink-0"
+            className="text-caption text-muted-foreground/70 whitespace-nowrap flex-shrink-0"
             title={formatMarketTime(event.timestamp)}
           >
             {formatMarketTimestamp(event.timestamp)}
@@ -203,15 +210,30 @@ function MarketTimelineItem({ event }: { event: MarketEvent }) {
 
         {event.amount && event.currency && (
           <div className="mt-1.5">
+            {/*
+             * Amount badge: uses design tokens for all state variants.
+             * - payouts_distributed: bg-outcome-yes/10 text-outcome-yes — uses the
+             *   semantic outcome-yes token instead of bare green-* classes, ensuring
+             *   dark-mode consistency via CSS variable.
+             * - liquidity_added: bg-chart-2/10 text-chart-2 — chart-2 is the repo's
+             *   designated blue token (teal-ish in dark mode), avoids bare blue-*.
+             * - default: bg-muted text-muted-foreground — fully tokenised.
+             *
+             * text-caption font-medium: replaces bare text-xs font-medium.
+             *
+             * Note: className is constructed as a template literal (not via cn/twMerge)
+             * so that tailwind-merge does not accidentally strip text-caption when it
+             * encounters a later text-* color token from the same group.
+             */}
             <span
-              className={cn(
-                "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+              className={[
+                "inline-flex items-center px-2 py-0.5 rounded text-caption font-medium",
                 event.eventType === "payouts_distributed"
-                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  ? "bg-outcome-yes/10 text-outcome-yes"
                   : event.eventType === "liquidity_added"
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                  : "bg-muted text-muted-foreground"
-              )}
+                  ? "bg-chart-2/10 text-chart-2"
+                  : "bg-muted text-muted-foreground",
+              ].join(" ")}
             >
               {event.amount.toLocaleString()} {event.currency}
             </span>
@@ -219,7 +241,8 @@ function MarketTimelineItem({ event }: { event: MarketEvent }) {
         )}
 
         {event.user && (
-          <p className="text-xs text-muted-foreground/50 mt-1 font-mono">
+          // text-caption: replaces bare text-xs for the user attribution line.
+          <p className="text-caption text-muted-foreground/50 mt-1 font-mono">
             by {event.user}
           </p>
         )}
@@ -248,10 +271,13 @@ function MarketTimelineEmpty({ className }: { className?: string }) {
           <polyline points="12 6 12 12 16 14" />
         </svg>
       </div>
-      <h3 className="text-lg font-semibold text-foreground mb-1">
+      {/* text-h3: 24px heading token — replaces bare text-lg font-semibold for
+          the empty-state title. Provides consistent heading hierarchy. */}
+      <h3 className="text-h3 text-foreground mb-1">
         No timeline events yet
       </h3>
-      <p className="text-sm text-muted-foreground max-w-sm">
+      {/* text-body-sm: 14px body token — replaces bare text-sm. */}
+      <p className="text-body-sm text-muted-foreground max-w-sm">
         Market events will appear here as the market progresses through its
         lifecycle.
       </p>
@@ -276,10 +302,12 @@ function MarketTimelineError({
       <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
         <AlertCircle className="w-8 h-8 text-destructive" />
       </div>
-      <h3 className="text-lg font-semibold text-foreground mb-1">
+      {/* text-h3: 24px heading token — replaces bare text-lg font-semibold. */}
+      <h3 className="text-h3 text-foreground mb-1">
         Failed to load timeline
       </h3>
-      <p className="text-sm text-muted-foreground max-w-sm mb-4">{error}</p>
+      {/* text-body-sm: 14px body token — replaces bare text-sm. */}
+      <p className="text-body-sm text-muted-foreground max-w-sm mb-4">{error}</p>
     </div>
   );
 }

@@ -34,6 +34,6 @@ describe("a11y manifest", () => {
     }
 
     expect(doc).toContain("API changes: None");
-    expect(doc).toContain("Visible product changes: None in this update");
+    expect(doc).toContain("Visible product changes: Added a dedicated internal accessibility board at `app/a11y-audit/page.tsx`, added SkipToContent link, and added MobileBottomTabs badge");
   });
 });

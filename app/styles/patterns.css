@@ -79,3 +79,14 @@
     rgba(255, 255, 255, 0.14) 5px
   );
 }
+
+/* 6 – Primary pattern – used for primary actions to ensure color-blind safety */
+.pattern-primary {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    rgba(255, 255, 255, 0.2) 4px,
+    rgba(255, 255, 255, 0.2) 6px
+  );
+}

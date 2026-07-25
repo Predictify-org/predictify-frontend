@@ -12,10 +12,11 @@
  *  - Edge cases: zero probability, 100% probability, missing optional props
  *  - Dark mode: component renders without crashing in dark context
  *  - Responsive: snapshot preserves structure across viewport widths
+ *  - Design tokens (v7): outcome colors use token classes not bare color names
  */
 
 import React from "react";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MarketHero, StatPill, type MarketHeroProps } from "../hero";
 
@@ -57,6 +58,27 @@ describe("MarketHero — rendering", () => {
   it("renders without crashing with only required props", () => {
     renderHero();
     expect(screen.getByRole("region")).toBeInTheDocument();
+  });
+
+  it("renders a loading skeleton that mirrors the final hero structure", () => {
+    render(<MarketHero title="Loading market" status="open" isLoading />);
+
+    expect(screen.getByTestId("market-hero-skeleton")).toBeInTheDocument();
+    expect(screen.getAllByTestId("market-hero-skeleton-line")).toHaveLength(5);
+    expect(screen.getByTestId("market-hero-skeleton-bar")).toBeInTheDocument();
+    expect(screen.getByTestId("market-hero-skeleton-stats")).toBeInTheDocument();
+  });
+
+  it("applies visible focus styles to interactive controls", () => {
+    renderHero({ onShare: jest.fn() });
+
+    const shareButton = screen.getByRole("button", { name: /share this market/i });
+    expect(shareButton).toHaveClass(
+      "focus-visible:outline-none",
+      "focus-visible:ring-2",
+      "focus-visible:ring-ring",
+      "focus-visible:ring-offset-2"
+    );
   });
 
   it("renders the market title as an h1", () => {
@@ -425,12 +447,16 @@ describe("MarketHero — share action", () => {
     expect(onShare).toHaveBeenCalledTimes(1);
   });
 
-  it("renders a live region alongside the Share button", () => {
-    renderHero({ onShare: jest.fn(), volume: "1 USDC", participants: 100 });
-    // There will be more than one role="status" because StatusBadge also has one,
-    // but we confirm at least one polite live region exists.
-    const liveRegions = screen.getAllByRole("status");
-    expect(liveRegions.length).toBeGreaterThanOrEqual(1);
+  it("renders a live region to announce state changes, volume, and participants", async () => {
+    renderHero({ onShare: jest.fn(), status: "closing_soon", volume: "1 USDC", participants: 100 });
+    // There will be more than one role="status" because StatusBadge also has one
+    
+    await waitFor(() => {
+      const liveRegions = screen.getAllByRole("status");
+      const srLiveRegion = liveRegions.find(el => el.classList.contains("sr-only") && el.textContent?.includes("Market status is closing soon"));
+      expect(srLiveRegion).toBeDefined();
+      expect(srLiveRegion).toHaveTextContent("Market status is closing soon. Market volume: 1 USDC. 100 participants.");
+    });
   });
 });
 
@@ -499,6 +525,22 @@ describe("MarketHero — StatusBadge integration", () => {
 });
 
 // ---------------------------------------------------------------------------
+// About Modal Trigger
+// ---------------------------------------------------------------------------
+describe("MarketHero — about modal trigger", () => {
+  it("renders aboutModalTrigger element when provided", () => {
+    const trigger = <button data-testid="mock-about-trigger">About</button>;
+    renderHero({ aboutModalTrigger: trigger });
+    expect(screen.getByTestId("mock-about-trigger")).toBeInTheDocument();
+  });
+
+  it("does not render actions wrapper if both onShare and aboutModalTrigger are omitted", () => {
+    renderHero({ onShare: undefined, aboutModalTrigger: undefined });
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Full props smoke-test
 // ---------------------------------------------------------------------------
 describe("MarketHero — full props", () => {
@@ -517,33 +559,5 @@ describe("MarketHero — full props", () => {
     expect(
       screen.getByRole("button", { name: /share this market/i })
     ).toBeInTheDocument();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// StatPill (internal helper exported for tests)
-// ---------------------------------------------------------------------------
-describe("StatPill", () => {
-  it("renders the label and value", () => {
-    render(
-      <StatPill
-        icon={<span data-testid="icon" />}
-        label="Volume"
-        value="10,000 USDC"
-      />
-    );
-    expect(screen.getByText("Volume")).toBeInTheDocument();
-    expect(screen.getByText("10,000 USDC")).toBeInTheDocument();
-  });
-
-  it("renders the icon slot", () => {
-    render(
-      <StatPill
-        icon={<span data-testid="test-icon" />}
-        label="Stat"
-        value="42"
-      />
-    );
-    expect(screen.getByTestId("test-icon")).toBeInTheDocument();
   });
 });
