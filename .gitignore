@@ -45,3 +45,4 @@ Cargo.lock
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.aider*

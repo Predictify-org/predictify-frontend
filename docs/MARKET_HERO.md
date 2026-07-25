@@ -113,10 +113,29 @@ All text uses the repo's Tailwind design-token scale:
 |---------|-------|-------|
 | Title | `text-h1-responsive` | Scales from `text-2xl` (mobile) to `text-h1` (desktop) — upgraded from `text-h2-responsive` in v7 |
 | Description | `text-body-md` | 16px default body, muted colour |
-| Outcome labels | `text-body-sm font-medium` | 14px, coloured by outcome tokens |
-| Stat value | `text-stat-sm font-bold` | 18px tabular numerals |
+| Outcome labels | `text-body-sm font-medium` | 14px, coloured by outcome |
+| Stat value | `text-stat-sm font-bold` | 18px tabular numerals (see § Tabular numerals) |
 | Stat label | `text-caption text-muted-foreground` | 12px muted |
 | Badge text | `text-caption` | 12px via Badge component |
+
+### Tabular numerals (Issue #556)
+
+Every visible numeric display on MarketDetail uses **tabular numerals**
+(`font-variant-numeric: tabular-nums`) so currency amounts, participant
+counts, countdown strings, and outcome percentages stay perfectly column-
+aligned across viewports and dynamic updates.  This is enforced by two
+complementary layers:
+
+1. **Design-token binding** — `styles/globals.css` defines a CSS rule that
+   applies `font-variant-numeric: tabular-nums` to every element rendered
+   with the `text-stat-lg`, `text-stat-md`, or `text-stat-sm` typography
+   tokens.  The binding is automatic and cannot be silently forgotten.
+2. **Explicit class on non-stat tokens** — the outcome probability spans
+   live under `text-body-sm` (not a stat token) and therefore wear an
+   explicit `tabular-nums` class so they are also column-aligned.
+
+Tests in `__tests__/hero.test.tsx` (the `MarketHero — tabular-nums
+contract` describe block) lock both layers in place.
 
 ### Colour palette
 
@@ -151,6 +170,7 @@ The hero is single-column at all breakpoints. Responsive behaviour is handled vi
 | Share button | `aria-label="Share this market"` for unambiguous announcement |
 | StatusBadge | Delegates to the repo's `StatusBadge` which has `role="status"` and `aria-describedby` wired to an `sr-only` description |
 | Live region | A `role="status" aria-live="polite"` element announces volume and participant counts to assistive technology when they change |
+| Tabular numerals | All visible figures (volume, participants, countdown, outcome %) use `font-variant-numeric: tabular-nums` so they stay column-aligned with each other and across re-renders (Issue #556) |
 | Icons | All Lucide icons carry `aria-hidden="true"` |
 
 ---
@@ -207,6 +227,7 @@ Covered cases:
 - Accessibility: `region` landmark, `aria-labelledby`, `aria-label` on button
 - StatusBadge integration: all five status values
 - `StatPill` helper: label and value render; icon slot rendered
+- **Tabular-nums contract (Issue #556):** every visible numeric display — volume, participants, timeLeft, leading outcome %, trailing outcome %, edge cases (0 %, 100 %, single outcome), and a sweep across every figure in the full props fixture — is asserted to carry either an explicit `tabular-nums` class or a stat-token class bound to tabular numerals by `styles/globals.css`.  Progress-bar ARIA values stay in sync with the visible numerals.
 - Full props smoke-test
 - **Design token compliance (v7)**: title uses `text-h1-responsive`; outcome labels use `text-outcome-yes` / `text-outcome-no`; bar fill uses `bg-outcome-yes`; stat labels use `text-caption`; stat values use `text-stat-sm`
 
@@ -218,3 +239,4 @@ Covered cases:
 |------|--------|
 | 2026-07-25 | v7 design token polish (issue #549): title upgraded to `text-h1-responsive`; outcome colours migrated to `text-outcome-yes` / `text-outcome-no` / `bg-outcome-yes` semantic tokens; all token compliance tests added |
 | 2026-07-24 | Initial implementation — rebalanced hero layout for GrantFox FWC26 campaign |
+| 2026-07-24 | **Issue #556 (v7) — same-day polish** — bound `text-stat-*` typography tokens to `font-variant-numeric: tabular-nums` in `styles/globals.css`; redundantly applied explicit `tabular-nums` on StatPill value and outcome probability spans; locked the contract with a new `MarketHero — tabular-nums contract (issue #556)` test block. |

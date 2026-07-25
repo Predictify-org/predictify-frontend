@@ -1,4 +1,4 @@
-export type ShortcutKey = 'search' | 'confirmBet';
+export type ShortcutKey = 'search' | 'confirmBet' | 'newEvent' | 'goToAnalytics';
 
 export interface ShortcutDefinition {
   key: string;
@@ -19,6 +19,18 @@ export const SHORTCUTS: Record<ShortcutKey, ShortcutDefinition> = {
     mac: ['enter'],
     win: ['enter'],
     label: 'Confirm',
+  },
+  newEvent: {
+    key: 'newEvent',
+    mac: ['meta', 'shift', 'n'],
+    win: ['ctrl', 'shift', 'n'],
+    label: 'New Event',
+  },
+  goToAnalytics: {
+    key: 'goToAnalytics',
+    mac: ['meta', 'shift', 'a'],
+    win: ['ctrl', 'shift', 'a'],
+    label: 'Analytics',
   },
 };
 

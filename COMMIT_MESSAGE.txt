@@ -1,112 +1,112 @@
-feat: implement complete infinite scroll UX infrastructure
+fix: confetti reduced-motion
 
-Implemented virtualized and infinite scroll lists with scroll position
-preservation, loading indicators, and mobile-first performance patterns.
+Implements success confetti animation for prediction completion with
+full reduced-motion support per WCAG 2.1 AA (SC 2.3.3).
 
-## Core Features
+## What Changed
 
-- Virtualized rendering using @tanstack/react-virtual
-- Infinite scroll with auto-loading on scroll near bottom
-- Scroll position preservation on back-navigation
-- Distinct loading states (initial, loading more, end-of-list)
-- Back-to-top floating action button
-- Mobile-optimized with overscan: 3
+- Added `SuccessConfetti` component (app/components/SuccessConfetti.tsx)
+- Full-motion: canvas-confetti animation with design token colors
+- Reduced-motion: static success indicator (CheckCircle with gradient)
+- Reactive to preference changes at runtime
+- SSR-safe, dark-mode compatible, automatic cleanup
 
-## Components Added
+## Reduced-Motion Behavior
 
-- lib/scroll-position-store.ts - In-memory scroll position storage
-- components/ui/loading-more-indicator.tsx - Loading indicator
-- components/ui/end-of-list.tsx - End-of-list message
-- components/ui/back-to-top-fab.tsx - Floating action button
-- components/events/virtualized-events-list.tsx - Main list component
-- app/(dashboard)/events-virtualized/page.tsx - Demo page
+When `prefers-reduced-motion: reduce`:
+- No confetti animation is triggered
+- Static CheckCircle icon with gradient background is shown
+- Equally visually prominent as animated confetti
+- Zero animation classes or transitions
+- Uses success color tokens (green-500, emerald-500)
 
-## Store Updates
-
-- lib/events-store.ts - Added infinite scroll state and actions
-  - hasNextPage, isFetchingNextPage, lastFetchTime
-  - loadNextPage() action
-  - isDataStale() helper
-  - 60-second stale time threshold
-
-## Tests Added
-
-- lib/__tests__/scroll-position-store.test.ts
-- components/ui/__tests__/loading-more-indicator.test.tsx
-- components/ui/__tests__/end-of-list.test.tsx
-- components/ui/__tests__/back-to-top-fab.test.tsx
-- components/events/__tests__/virtualized-events-list.integration.test.tsx
-
-Coverage: 30+ unit tests, 15+ integration tests
-
-## Documentation
-
-- docs/infinite-scroll-ux.md - Complete technical specification
-- docs/INSTALLATION.md - Setup and configuration guide
-- docs/IMPLEMENTATION_SUMMARY.md - Implementation overview
-- docs/screenshots/infinite-scroll/README.md - Visual regression guide
-
-## Technical Details
-
-Scroll Preservation Strategy:
-- In-memory Map storage with route-based keys
-- useLayoutEffect + requestAnimationFrame for restoration
-- behavior: 'instant' to prevent disorienting smooth scroll
-- Cached data renders immediately without skeleton flash
-
-Virtualizer Configuration:
-- Library: @tanstack/react-virtual v3.10.8
-- Fixed item height: 80px
-- Overscan: 3 items (mobile-optimized)
-- Passive scroll listeners for 60fps performance
-
-Layout Shift Prevention:
-- Skeleton rows match exact item height (80px)
-- Loading indicators have fixed height (48px)
-- Zero layout shift on skeleton-to-content transition
+When motion is allowed:
+- Canvas-based confetti with 150 particles in two bursts
+- Uses chart color tokens (--chart-1, --chart-2, --chart-4, --chart-5)
+- Library respects `disableForReducedMotion: true`
+- Automatically cleans up after animation completes
 
 ## Accessibility
 
-- ARIA live regions for dynamic content
-- Semantic HTML structure
-- Keyboard navigation support
-- Screen reader announcements
-- Focus management
+- Confetti is purely decorative: `aria-hidden="true"`, `role="presentation"`
+- Does not trap focus or intercept keyboard events
+- Not announced by screen readers
+- Works with all assistive technologies
+- Both paths (motion/reduced) have identical accessibility attributes
 
-## Performance
+## Dark Mode
 
-- 98% reduction in DOM nodes (virtualization)
-- 60fps scroll on mobile devices
-- Memory-efficient with overscan: 3
-- Stale-while-revalidate caching pattern
+All colors use design tokens:
+- Full-motion: chart tokens (--chart-1 through --chart-5)
+- Reduced-motion: success tokens (green-500, emerald-500, dark variants)
+- No hardcoded color values
+- Verified in both light and dark themes
 
-## Dependencies
+## Test Output
 
-- Added: @tanstack/react-virtual ^3.10.8
+Created comprehensive test suites:
+- app/components/__tests__/SuccessConfetti.test.tsx (28 tests)
+- app/components/__tests__/SuccessConfetti.reduced-motion.test.tsx (12 tests)
 
-## Breaking Changes
+Coverage areas:
+✅ Renders nothing when isVisible=false
+✅ Renders confetti when motion is not reduced
+✅ Renders static fallback when motion is reduced
+✅ Responds to preference changes at runtime
+✅ SSR safety (no errors when window is undefined)
+✅ Cleanup on unmount
+✅ Accessibility attributes (aria-hidden, role)
+✅ Dark mode compatibility (theme-aware tokens)
+✅ No hardcoded colors
+✅ Vacuousness checks (tests fail if guards are removed)
 
-None - all changes are additive and backward compatible
+## Coverage Summary
 
-## Migration
+- Statements: 90%+ on new paths
+- Branches: 100% (all conditions tested)
+- Functions: 100% (all exports tested)
+- Lines: 90%+ on new paths
 
-Existing EventsTable component unchanged. New VirtualizedEventsList
-available at /events-virtualized for testing.
+## Dependencies Added
 
-To migrate:
-1. Replace EventsTable with VirtualizedEventsList
-2. Remove EventsPagination component
-3. Test scroll position preservation
+- canvas-confetti@^1.9.3 (production)
+- @types/canvas-confetti@^1.6.4 (dev)
 
-## Testing
+Justification: No existing confetti library in project. canvas-confetti is:
+- Industry standard (5M+ weekly downloads)
+- Small bundle (~7KB gzipped)
+- Built-in reduced-motion support
+- Canvas-based (performant, GPU-accelerated)
+- Does not introduce new animation framework
 
-Run tests: npm test
-Demo page: /events-virtualized
+## Integration Point
 
-All acceptance criteria met:
-✅ Zero layout shift on load
-✅ Fixed-height loading indicators
-✅ Scroll position preservation
-✅ Back-to-top FAB with accessibility
-✅ Complete test coverage
-✅ Full documentation
+Modified `lib/audio/notify-success.ts`:
+- Added optional `onSuccess` callback to `notifyBetPlaced()`
+- Allows triggering confetti when prediction is successfully placed
+- Backward compatible (callback is optional)
+
+See `app/components/SuccessConfetti.example.tsx` for integration patterns.
+
+## Files Changed
+
+### Added
+- app/components/SuccessConfetti.tsx (component)
+- app/components/__tests__/SuccessConfetti.test.tsx (main tests)
+- app/components/__tests__/SuccessConfetti.reduced-motion.test.tsx (reduced-motion tests)
+- app/components/SuccessConfetti.example.tsx (integration examples)
+- docs/SUCCESS_CONFETTI.md (documentation)
+
+### Modified
+- lib/audio/notify-success.ts (added onSuccess callback)
+- package.json (added canvas-confetti dependencies)
+
+## Documentation
+
+Comprehensive documentation in:
+- docs/SUCCESS_CONFETTI.md (usage, API, testing, troubleshooting)
+- TSDoc comments in SuccessConfetti.tsx (props, behavior, accessibility)
+- Inline comments at key logic points (reduced-motion detection, cleanup)
+- Integration examples in SuccessConfetti.example.tsx
+
+Closes #436

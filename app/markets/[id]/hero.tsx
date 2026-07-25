@@ -32,7 +32,9 @@ import { Clock, Users, DollarSign, TrendingUp, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge, type MarketStatus } from "@/components/market/StatusBadge";
+import { LiveRegion } from "@/components/ui/live-region";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,6 +82,8 @@ export interface MarketHeroProps {
   onShare?: () => void;
   /** Additional CSS classes applied to the root element. */
   className?: string;
+  /** Renders a loading placeholder that mirrors the final hero layout. */
+  isLoading?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +94,13 @@ export interface MarketHeroProps {
  * Stat pill — a small labelled figure used in the stat strip.
  * Kept internal to this file; exported only for testing via a named export
  * lower in this module.
+ *
+ * Tabular-nums contract (issue #556): the value span wears `text-stat-sm`,
+ * which is bound to `font-variant-numeric: tabular-nums` in
+ * `styles/globals.css`.  An explicit `tabular-nums` is also applied here
+ * for redundancy and so the DOM-level contract is straightforward to
+ * assert in tests — both layers resolve to the same CSS property and
+ * there is no visual conflict.
  */
 interface StatPillProps {
   icon: React.ReactNode;
@@ -158,6 +169,7 @@ export function MarketHero({
   isGrantFoxCampaign = false,
   onShare,
   className,
+  isLoading = false,
 }: MarketHeroProps) {
   const heroId = useId();
   const descId = `${heroId}-desc`;
@@ -165,6 +177,58 @@ export function MarketHero({
   // Determine the leading outcome probability for the aria label on the bar.
   const leadOutcome = outcomes?.[0];
   const trailOutcome = outcomes?.[1];
+
+  if (isLoading) {
+    return (
+      <section
+        aria-labelledby={`${heroId}-title`}
+        data-testid="market-hero-skeleton"
+        className={cn(
+          "w-full rounded-2xl border border-border bg-card px-5 py-6 sm:px-8 sm:py-8",
+          "bg-gradient-to-br from-card to-muted/30 dark:from-card dark:to-muted/10",
+          className
+        )}
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-2" data-testid="market-hero-skeleton-lines">
+          <Skeleton className="h-6 w-24 rounded-full" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+
+        <div className="mb-5 space-y-2" data-testid="market-hero-skeleton-text">
+          <Skeleton className="h-8 w-3/4 rounded-md" data-testid="market-hero-skeleton-line" />
+          <Skeleton className="h-4 w-full rounded-md" data-testid="market-hero-skeleton-line" />
+          <Skeleton className="h-4 w-5/6 rounded-md" data-testid="market-hero-skeleton-line" />
+        </div>
+
+        <div className="mb-5 space-y-2" data-testid="market-hero-skeleton-bar">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-20 rounded-md" data-testid="market-hero-skeleton-line" />
+            <Skeleton className="h-4 w-20 rounded-md" data-testid="market-hero-skeleton-line" />
+          </div>
+          <Skeleton className="h-3 w-full rounded-full" />
+        </div>
+
+        <div
+          className="mb-5 flex flex-wrap gap-x-6 gap-y-3 border-t border-border pt-4"
+          data-testid="market-hero-skeleton-stats"
+        >
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-4 w-16 rounded-md" />
+            <Skeleton className="h-6 w-24 rounded-md" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-4 w-20 rounded-md" />
+            <Skeleton className="h-6 w-24 rounded-md" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-4 w-16 rounded-md" />
+            <Skeleton className="h-6 w-20 rounded-md" />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -174,6 +238,9 @@ export function MarketHero({
         "w-full rounded-2xl border border-border bg-card px-5 py-6 sm:px-8 sm:py-8",
         // Subtle gradient tint that respects dark mode via Tailwind's `dark:` prefix
         "bg-gradient-to-br from-card to-muted/30 dark:from-card dark:to-muted/10",
+        // Ensure keyboard users can see a clear focus outline when the hero
+        // itself receives focus, such as when used in a composite surface.
+        "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
         className
       )}
     >
@@ -225,13 +292,20 @@ export function MarketHero({
       </div>
 
       {/* ── Row 3 · Probability bar ──────────────────────────────── */}
-      {outcomes && outcomes.length > 0 && (
+      {leadOutcome && (
         <div className="mb-5" data-testid="probability-section">
           {/* Outcome labels */}
           <div className="mb-1.5 flex justify-between text-body-sm font-medium">
-            {/* text-outcome-yes: semantic design token for "Yes" outcomes — resolves to
-                the --outcome-yes CSS variable defined in globals.css and is theme-aware. */}
-            <span className="text-outcome-yes">
+            {/*
+             * Tabular-nums contract (issue #556): the parent `<span>` uses
+             * `text-body-sm`, which is NOT one of the stat tokens bound to
+             * `font-variant-numeric: tabular-nums` by `styles/globals.css`,
+             * so the property is absent in the cascade for this subtree.
+             * An explicit `tabular-nums` on the inner span is therefore
+             * required, and it keeps the digits column-aligned regardless
+             * of the leading label or trailing "%" spacing.
+             */}
+            <span className="text-emerald-600 dark:text-emerald-400">
               {leadOutcome.label}{" "}
               <span className="tabular-nums">{leadOutcome.probability}%</span>
             </span>
@@ -310,20 +384,23 @@ export function MarketHero({
             variant="outline"
             size="sm"
             onClick={onShare}
-            className="gap-2"
+            className="gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label="Share this market"
           >
             <Share2 className="h-4 w-4" aria-hidden="true" />
             Share
           </Button>
-
-          {/* Live region announces when volume/participants change dynamically */}
-          <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-            {volume && `Market volume: ${volume}.`}
-            {participants != null && ` ${participants.toLocaleString()} participants.`}
-          </div>
         </div>
       )}
+
+      {/* Live region announces state changes, volume, and participants */}
+      <LiveRegion
+        message={[
+          `Market status is ${status.replace('_', ' ')}.`,
+          volume && `Market volume: ${volume}.`,
+          participants != null && `${participants.toLocaleString()} participants.`
+        ].filter(Boolean).join(" ")}
+      />
     </section>
   );
 }

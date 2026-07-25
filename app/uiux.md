@@ -1,8 +1,16 @@
 # Dashboard section figma
 
+## Market detail status accessibility
+
+Market detail lifecycle badges now combine status color with subtle texture patterns so the state remains distinguishable for color-blind users without losing the existing visual language in light or dark mode.
+
 ## GrantFox login polish
 
 The login experience now surfaces inline validation for empty or malformed fields, highlights the relevant input with accessible error states, and uses a clearer alert banner for failed sign-in attempts. This improves campaign feedback without changing the underlying auth flow.
+
+## GrantFox FWC26 market cards
+
+Market cards now include a compact 24-hour activity heat strip so users can scan recent engagement at a glance. The strip is labelled, keyboard/screen-reader accessible, and uses a consistent dark-mode palette aligned with the campaign visual system.
 
 this is the UI/UX design for the application
 

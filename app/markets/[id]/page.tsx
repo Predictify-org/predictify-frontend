@@ -39,7 +39,10 @@ interface MarketData {
   isGrantFoxCampaign: boolean;
 }
 
-function getMockMarket(id: string): MarketData {
+function getMockMarket(id: string): MarketData | null {
+  if (id === "not-found" || id === "404" || id === "empty" || id === "invalid") {
+    return null;
+  }
   return {
     id,
     title: "Will Argentina win the 2026 FIFA World Cup?",
@@ -64,6 +67,14 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const market = getMockMarket(id);
+  
+  if (!market) {
+    return {
+      title: "Market Not Found | Predictify",
+      description: "The requested prediction market could not be found.",
+    };
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://predictify.app";
 
   // Construct dynamic OG image URL
@@ -105,9 +116,25 @@ export async function generateMetadata({
 // Page component
 // ---------------------------------------------------------------------------
 
+import { EmptyState } from "@/components/EmptyState";
+
 export default async function MarketDetailPage({ params }: PageProps) {
   const { id } = await params;
   const market = getMockMarket(id);
+
+  if (!market) {
+    return (
+      <main className="container mx-auto max-w-3xl px-4 py-8">
+        <div id="main-content" tabIndex={-1} className="outline-none" />
+        <EmptyState
+          title="Market Not Found"
+          description="We couldn't find the prediction market you're looking for. It may have been resolved, cancelled, or never existed."
+          ctaText="Back to Markets"
+          ctaHref="/events"
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="container mx-auto max-w-3xl px-4 py-8">

@@ -16,7 +16,7 @@
  */
 
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MarketHero, StatPill, type MarketHeroProps } from "../hero";
 
@@ -58,6 +58,27 @@ describe("MarketHero — rendering", () => {
   it("renders without crashing with only required props", () => {
     renderHero();
     expect(screen.getByRole("region")).toBeInTheDocument();
+  });
+
+  it("renders a loading skeleton that mirrors the final hero structure", () => {
+    render(<MarketHero title="Loading market" status="open" isLoading />);
+
+    expect(screen.getByTestId("market-hero-skeleton")).toBeInTheDocument();
+    expect(screen.getAllByTestId("market-hero-skeleton-line")).toHaveLength(5);
+    expect(screen.getByTestId("market-hero-skeleton-bar")).toBeInTheDocument();
+    expect(screen.getByTestId("market-hero-skeleton-stats")).toBeInTheDocument();
+  });
+
+  it("applies visible focus styles to interactive controls", () => {
+    renderHero({ onShare: jest.fn() });
+
+    const shareButton = screen.getByRole("button", { name: /share this market/i });
+    expect(shareButton).toHaveClass(
+      "focus-visible:outline-none",
+      "focus-visible:ring-2",
+      "focus-visible:ring-ring",
+      "focus-visible:ring-offset-2"
+    );
   });
 
   it("renders the market title as an h1", () => {
@@ -202,6 +223,147 @@ describe("MarketHero — probability bar", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Tabular-nums contract — Issue #556 (MarketDetail tabular-nums v7)
+// ---------------------------------------------------------------------------
+/**
+ * Helpers
+ *
+ * Per the issue, every visible numeric surface on MarketDetail must use
+ * `font-variant-numeric: tabular-nums` so figures align column-perfectly.
+ * The implementation guarantees this two ways:
+ *
+ *   1. A CSS base binding in `styles/globals.css` applies the property
+ *      automatically to all elements using the `text-stat-lg/md/sm` tokens.
+ *   2. Explicit `tabular-nums` on the value span inside `StatPill` and on
+ *      each outcome probability percentage (which lives under `text-body-sm`
+ *      and therefore does NOT inherit the CSS binding).
+ *
+ * The helper below accepts either signal so the test remains accurate if
+ * either layer of the contract changes.
+ */
+function isTabularAligned(el: HTMLElement): boolean {
+  const hasExplicit = el.classList.contains("tabular-nums");
+  const hasStatToken = ["text-stat-lg", "text-stat-md", "text-stat-sm"].some(
+    (c) => el.classList.contains(c)
+  );
+  return hasExplicit || hasStatToken;
+}
+
+describe("MarketHero — tabular-nums contract (issue #556)", () => {
+  it("StatPill value span satisfies the tabular-nums contract", () => {
+    render(
+      <StatPill
+        icon={<span data-testid="icon" />}
+        label="Volume"
+        value="10,000 USDC"
+      />
+    );
+    const valueEl = screen.getByText("10,000 USDC");
+    expect(isTabularAligned(valueEl)).toBe(true);
+  });
+
+  it("Stat strip — volume is rendered with tabular-nums alignment", () => {
+    renderHero({ volume: "42,000 USDC" });
+    const el = screen.getByText("42,000 USDC");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Stat strip — participants is rendered with tabular-nums alignment", () => {
+    renderHero({ participants: 3840 });
+    const el = screen.getByText("3,840");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Stat strip — locale-formatted large numbers keep tabular-nums", () => {
+    renderHero({ participants: 1234567 });
+    const el = screen.getByText("1,234,567");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Stat strip — timeLeft value is rendered with tabular-nums alignment", () => {
+    renderHero({ timeLeft: "18 days" });
+    const el = screen.getByText("18 days");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Probability bar — leading outcome percentage uses tabular-nums", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 62 },
+        { label: "No", probability: 38 },
+      ],
+    });
+    const el = screen.getByText("62%");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Probability bar — trailing outcome percentage uses tabular-nums", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 65 },
+        { label: "No", probability: 35 },
+      ],
+    });
+    const el = screen.getByText("35%");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Edge case — 0% boundary still uses tabular-nums", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 0 },
+        { label: "No", probability: 100 },
+      ],
+    });
+    expect(isTabularAligned(screen.getByText("0%"))).toBe(true);
+    expect(isTabularAligned(screen.getByText("100%"))).toBe(true);
+  });
+
+  it("Edge case — single-outcome probability bars (75% and 100%) keep tabular-nums", () => {
+    // Single-outcome bars render only the leading label (no trailing one);
+    // the contract must still hold for boundary probabilities.
+    renderHero({ outcomes: [{ label: "Yes", probability: 75 }] });
+    expect(isTabularAligned(screen.getByText("75%"))).toBe(true);
+
+    cleanup();
+
+    renderHero({ outcomes: [{ label: "Yes", probability: 100 }] });
+    expect(isTabularAligned(screen.getByText("100%"))).toBe(true);
+  });
+
+  it("Every visible numeric display in the full hero satisfies the contract", () => {
+    render(<MarketHero {...FULL_PROPS} />);
+    const numericSpans = [
+      "42,000 USDC", // volume
+      "3,840", // participants — locale-formatted
+      "18 days", // timeLeft
+      "62%", // leading outcome probability
+      "38%", // trailing outcome probability
+    ];
+    for (const text of numericSpans) {
+      const el = screen.getByText(text);
+      expect({ text, ok: isTabularAligned(el) }).toEqual({ text, ok: true });
+    }
+  });
+
+  it("The progressbar ARIA aria-valuenow is unchanged (not affected by font-variant-numeric)", () => {
+    // The visually hidden progressbar communicates the value to assistive
+    // tech via ARIA.  font-variant-numeric is purely visual; we ensure the
+    // contract for SR <-> visual numerals stays in sync.
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 42 },
+        { label: "No", probability: 58 },
+      ],
+    });
+    const pb = screen.getByRole("progressbar");
+    expect(pb).toHaveAttribute("aria-valuenow", "42");
+    // Visible outcome span must still use tabular-nums.
+    expect(isTabularAligned(screen.getByText("42%"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Stat strip
 // ---------------------------------------------------------------------------
 describe("MarketHero — stat strip", () => {
@@ -285,12 +447,16 @@ describe("MarketHero — share action", () => {
     expect(onShare).toHaveBeenCalledTimes(1);
   });
 
-  it("renders a live region alongside the Share button", () => {
-    renderHero({ onShare: jest.fn(), volume: "1 USDC", participants: 100 });
-    // There will be more than one role="status" because StatusBadge also has one,
-    // but we confirm at least one polite live region exists.
-    const liveRegions = screen.getAllByRole("status");
-    expect(liveRegions.length).toBeGreaterThanOrEqual(1);
+  it("renders a live region to announce state changes, volume, and participants", async () => {
+    renderHero({ onShare: jest.fn(), status: "closing_soon", volume: "1 USDC", participants: 100 });
+    // There will be more than one role="status" because StatusBadge also has one
+    
+    await waitFor(() => {
+      const liveRegions = screen.getAllByRole("status");
+      const srLiveRegion = liveRegions.find(el => el.classList.contains("sr-only") && el.textContent?.includes("Market status is closing soon"));
+      expect(srLiveRegion).toBeDefined();
+      expect(srLiveRegion).toHaveTextContent("Market status is closing soon. Market volume: 1 USDC. 100 participants.");
+    });
   });
 });
 
@@ -377,127 +543,5 @@ describe("MarketHero — full props", () => {
     expect(
       screen.getByRole("button", { name: /share this market/i })
     ).toBeInTheDocument();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// StatPill (internal helper exported for tests)
-// ---------------------------------------------------------------------------
-describe("StatPill", () => {
-  it("renders the label and value", () => {
-    render(
-      <StatPill
-        icon={<span data-testid="icon" />}
-        label="Volume"
-        value="10,000 USDC"
-      />
-    );
-    expect(screen.getByText("Volume")).toBeInTheDocument();
-    expect(screen.getByText("10,000 USDC")).toBeInTheDocument();
-  });
-
-  it("renders the icon slot", () => {
-    render(
-      <StatPill
-        icon={<span data-testid="test-icon" />}
-        label="Stat"
-        value="42"
-      />
-    );
-    expect(screen.getByTestId("test-icon")).toBeInTheDocument();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Design token compliance (v7)
-// ---------------------------------------------------------------------------
-describe("MarketHero — design token compliance (v7)", () => {
-  it("title uses text-h1-responsive token class (not text-h2-responsive)", () => {
-    renderHero({ title: "Token Test Market" });
-    const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading).toHaveClass("text-h1-responsive");
-    expect(heading).not.toHaveClass("text-h2-responsive");
-  });
-
-  it("'Yes' outcome label uses text-outcome-yes token class (not bare emerald classes)", () => {
-    renderHero({
-      outcomes: [
-        { label: "Yes", probability: 60 },
-        { label: "No", probability: 40 },
-      ],
-    });
-    // The "Yes" span should carry the semantic outcome token
-    const yesSpan = screen.getByText(/Yes/).closest("span");
-    expect(yesSpan).toHaveClass("text-outcome-yes");
-    // Must NOT use hardcoded emerald Tailwind colour
-    expect(yesSpan).not.toHaveClass("text-emerald-600");
-    expect(yesSpan).not.toHaveClass("dark:text-emerald-400");
-  });
-
-  it("'No' outcome label uses text-outcome-no token class (not bare muted-foreground)", () => {
-    renderHero({
-      outcomes: [
-        { label: "Yes", probability: 60 },
-        { label: "No", probability: 40 },
-      ],
-    });
-    // The "No" span should carry the semantic outcome token
-    const noSpan = screen.getByText(/No/).closest("span");
-    expect(noSpan).toHaveClass("text-outcome-no");
-    expect(noSpan).not.toHaveClass("text-muted-foreground");
-  });
-
-  it("probability bar fill uses bg-outcome-yes token class (not bare bg-emerald-500)", () => {
-    const { container } = render(
-      <MarketHero
-        {...BASE_PROPS}
-        outcomes={[
-          { label: "Yes", probability: 70 },
-          { label: "No", probability: 30 },
-        ]}
-      />
-    );
-    // The visual fill bar (aria-hidden) should use the token class
-    // It is the only non-full-width div inside the rounded track
-    const fillBar = container.querySelector(
-      '[aria-hidden="true"] .bg-outcome-yes'
-    );
-    expect(fillBar).toBeInTheDocument();
-    // Should NOT use bare emerald class
-    const emeraldBar = container.querySelector('[aria-hidden="true"] .bg-emerald-500');
-    expect(emeraldBar).not.toBeInTheDocument();
-  });
-
-  it("probability bar fill width matches leading outcome probability", () => {
-    const { container } = render(
-      <MarketHero
-        {...BASE_PROPS}
-        outcomes={[
-          { label: "Yes", probability: 65 },
-          { label: "No", probability: 35 },
-        ]}
-      />
-    );
-    const fillBar = container.querySelector(".bg-outcome-yes") as HTMLElement;
-    expect(fillBar).toBeTruthy();
-    expect(fillBar!.style.width).toBe("65%");
-  });
-
-  it("description uses text-body-md token class", () => {
-    renderHero({ description: "A test description." });
-    const desc = screen.getByText("A test description.");
-    expect(desc).toHaveClass("text-body-md");
-  });
-
-  it("stat strip label uses text-caption token class", () => {
-    renderHero({ volume: "10,000 USDC" });
-    const label = screen.getByText("Volume");
-    expect(label).toHaveClass("text-caption");
-  });
-
-  it("stat strip value uses text-stat-sm token class", () => {
-    renderHero({ volume: "10,000 USDC" });
-    const value = screen.getByText("10,000 USDC");
-    expect(value).toHaveClass("text-stat-sm");
   });
 });

@@ -95,4 +95,23 @@ describe("MarketsWidget – following indicator", () => {
     const indicators = screen.getAllByTestId("following-indicator");
     expect(indicators).toHaveLength(1);
   });
+
+  it("renders the responsive layout classes for the market card content", () => {
+    const { container } = render(<MarketsWidget />);
+    const markup = container.innerHTML;
+
+    expect(markup).toContain("p-3 sm:p-4");
+    expect(markup).toContain(
+      "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
+    );
+    expect(markup).toContain("flex min-w-0 items-start gap-3");
+    expect(markup).toContain("min-w-0 flex-1");
+    expect(markup).toContain("break-words font-semibold text-white");
+    expect(markup).toContain(
+      "flex shrink-0 gap-4 text-left sm:block sm:text-right",
+    );
+    expect(markup).toContain(
+      "flex flex-col gap-1 text-xs text-white/60 sm:flex-row sm:justify-between",
+    );
+  });
 });

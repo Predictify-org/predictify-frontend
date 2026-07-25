@@ -16,6 +16,29 @@ body {
 /* ===== TYPOGRAPHY Utilities ===== */
 
 @layer utilities {
+  /*
+   * Issue #556 — MarketDetail tabular-nums (v7)
+   *
+   * Bind `font-variant-numeric: tabular-nums` to all numeric typography
+   * tokens (`text-stat-lg`, `text-stat-md`, `text-stat-sm`) so that any
+   * amount, percentage, or address displayed with a stat token is rendered
+   * using tabular numerals by default.  This guarantees that figures align
+   * column-perfectly across the MarketDetail page (volume · participants ·
+   * countdown), the leaderboard, the finances table, and any future
+   * numeric surface that adopts the stat typography scale.
+   *
+   * Explicit per-element `tabular-nums` is still respected and remains the
+   * preferred signal when a numeric span uses a *non*-stat token (e.g.
+   * probability percentages under `text-body-sm`).  This base binding
+   * covers the common case so contributors don't need to remember to add
+   * the class manually on every stat token.
+   */
+  .text-stat-lg,
+  .text-stat-md,
+  .text-stat-sm {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Text Wrapping & Truncation */
   .text-balance {
     text-wrap: balance;
