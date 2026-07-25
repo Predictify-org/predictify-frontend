@@ -208,6 +208,23 @@ describe('StatusBadge', () => {
   });
 
   describe('Styling and Customization', () => {
+    it('applies a distinct pattern class for each status to supplement color', () => {
+      const patternByStatus = {
+        open: 'pattern-diagonal',
+        closing_soon: 'pattern-dots',
+        closed: 'pattern-crosshatch',
+        resolved: 'pattern-horizontal',
+        cancelled: 'pattern-vertical',
+      } as const;
+
+      Object.entries(patternByStatus).forEach(([status, patternClass]) => {
+        const { unmount } = render(<StatusBadge status={status as MarketStatus} />);
+        const badge = screen.getByRole('status');
+        expect(badge).toHaveClass(patternClass);
+        unmount();
+      });
+    });
+
     it('applies custom className', () => {
       const { container } = render(<StatusBadge status="open" className="custom-class" />);
       const badge = screen.getByRole('status');

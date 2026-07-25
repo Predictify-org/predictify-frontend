@@ -12,6 +12,9 @@ import {
 } from "@/content/markets.sample";
 import { useState, useEffect } from "react";
 import { MarketCard } from "@/app/components/MarketCard";
+import { useFollowsStore } from "@/app/state/follows";
+import { useUserLimitsStore } from "@/app/state/userLimits";
+import Sparkline from "@/app/components/Sparkline";
 
 interface MarketsWidgetProps {
   className?: string;
@@ -90,3 +93,116 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
 }
 
 
+interface MarketCardProps {
+  market: Market;
+  IconComponent: any;
+  colors: { bg: string; icon: string };
+  index: number;
+  reducedMotion: boolean;
+}
+
+/**
+ * MarketCard
+ *
+ * Renders a single prediction-market card.
+ *
+ * When the authenticated user follows this market, a subtle "You're following
+ * this" badge is displayed beneath the title.  The badge is:
+ *   - Visually distinct (Bell icon + tinted pill) so it doesn't rely on colour
+ *     alone (WCAG 2.1 AA 1.4.1).
+ *   - Accompanied by a visually-hidden <span> read by screen-readers
+ *     (WCAG 2.1 AA 1.3.1 / 4.1.2).
+ *   - Animated only when the user has not opted into prefers-reduced-motion.
+ */
+function MarketCard({
+  market,
+  IconComponent,
+  colors,
+  index,
+  reducedMotion,
+}: MarketCardProps) {
+  const isFollowing = useFollowsStore((s) => s.isFollowing(market.id));
+  const remainingAllowance = useUserLimitsStore((s) =>
+    s.getRemainingDailyAllowance(market.id),
+  );
+
+  return (
+    <Card
+      className={`border-white/10 bg-[#201F3780] p-3 sm:p-4 backdrop-blur-sm transition-all duration-300 hover:bg-[#201F3780]/80 ${
+        reducedMotion ? "" : "animate-slide-up"
+      }`}
+      style={{
+        animationDelay: reducedMotion ? "0ms" : `${index * 150}ms`,
+        animationFillMode: "both",
+      }}
+    >
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className={`rounded-lg p-2 ${colors.bg}`}>
+            <IconComponent className={`h-5 w-5 ${colors.icon}`} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="break-words font-semibold text-white">{market.title}</h3>
+            <p className="text-sm text-white/70">{market.description}</p>
+            {/* Sparkline preview */}
+            <Tooltip content="Price trend over the last 24 hours showing Yes outcome probability changes">
+              <div className="inline-block">
+                <Sparkline
+                  data={market.sparklineData}
+                  className="mt-2 text-white/60"
+                  data-testid={`sparkline-${market.id}`}
+                />
+              </div>
+            </Tooltip>
+
+            <div className="mt-2 space-y-2">
+              {/* Following indicator — visible only for followed markets */}
+              {isFollowing && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-400/30"
+                  data-testid="following-indicator"
+                >
+                  <Tooltip content="You will receive notifications when this market has significant updates or is about to close">
+                    <Bell className="h-3 w-3" aria-hidden="true" />
+                  </Tooltip>
+                  You&apos;re following this
+                  <span className="sr-only">
+                    {" "}
+                    — you are following this market
+                  </span>
+                </span>
+              )}
+
+              <Tooltip content="Your remaining daily betting limit for this market to encourage responsible prediction market participation">
+                <p
+                  className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs leading-5 text-white/85 cursor-help"
+                  data-testid="betting-limit-nudge"
+                >
+                  Daily betting allowance remaining:{" "}
+                  <strong>{remainingAllowance} USDC</strong>
+                </p>
+              </Tooltip>
+            </div>
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-4 text-left sm:block sm:text-right">
+          <div className="text-sm font-medium text-green-400 tabular-nums">Yes: {market.yesOdds}%</div>
+          <div className="text-sm text-red-400 tabular-nums">No: {market.noOdds}%</div>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-500"
+          style={{ width: `${market.yesOdds}%` }}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1 text-xs text-white/60 sm:flex-row sm:justify-between">
+        <span className="tabular-nums">Pool: {market.poolAmount.toLocaleString()} USDC</span>
+        <span>Ends in {market.endsIn}</span>
+      </div>
+    </Card>
+  );
+}

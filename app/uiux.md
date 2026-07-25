@@ -1,5 +1,9 @@
 # Dashboard section figma
 
+## Market detail status accessibility
+
+Market detail lifecycle badges now combine status color with subtle texture patterns so the state remains distinguishable for color-blind users without losing the existing visual language in light or dark mode.
+
 ## GrantFox login polish
 
 The login experience now surfaces inline validation for empty or malformed fields, highlights the relevant input with accessible error states, and uses a clearer alert banner for failed sign-in attempts. This improves campaign feedback without changing the underlying auth flow.
