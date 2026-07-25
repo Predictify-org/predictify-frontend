@@ -15,7 +15,7 @@
  */
 
 import React from "react";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MarketHero, StatPill, type MarketHeroProps } from "../hero";
 
@@ -425,12 +425,16 @@ describe("MarketHero — share action", () => {
     expect(onShare).toHaveBeenCalledTimes(1);
   });
 
-  it("renders a live region alongside the Share button", () => {
-    renderHero({ onShare: jest.fn(), volume: "1 USDC", participants: 100 });
-    // There will be more than one role="status" because StatusBadge also has one,
-    // but we confirm at least one polite live region exists.
-    const liveRegions = screen.getAllByRole("status");
-    expect(liveRegions.length).toBeGreaterThanOrEqual(1);
+  it("renders a live region to announce state changes, volume, and participants", async () => {
+    renderHero({ onShare: jest.fn(), status: "closing_soon", volume: "1 USDC", participants: 100 });
+    // There will be more than one role="status" because StatusBadge also has one
+    
+    await waitFor(() => {
+      const liveRegions = screen.getAllByRole("status");
+      const srLiveRegion = liveRegions.find(el => el.classList.contains("sr-only") && el.textContent?.includes("Market status is closing soon"));
+      expect(srLiveRegion).toBeDefined();
+      expect(srLiveRegion).toHaveTextContent("Market status is closing soon. Market volume: 1 USDC. 100 participants.");
+    });
   });
 });
 
