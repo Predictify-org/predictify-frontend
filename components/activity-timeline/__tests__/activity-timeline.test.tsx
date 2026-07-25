@@ -218,6 +218,19 @@ describe("ActivityTimeline Component", () => {
         // Component should respond to click
         expect(firstButton).toBeInTheDocument();
       });
+    })
+
+    it("applies focus-visible ring styles to group header buttons for keyboard navigation", () => {
+      const activities = generateMockActivities(10);
+      render(<ActivityTimeline activities={activities} />);
+
+      const groupButtons = screen.getAllByRole("button");
+      groupButtons.forEach((button) => {
+        expect(button).toHaveClass("focus-visible:ring-2")
+        expect(button).toHaveClass("focus-visible:ring-ring")
+        expect(button).toHaveClass("focus-visible:ring-offset-2")
+        expect(button).toHaveClass("focus-visible:outline-none")
+      });
     });
 
     it("should show collapsed summary when expanded is false", () => {

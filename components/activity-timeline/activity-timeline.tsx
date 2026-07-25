@@ -205,7 +205,8 @@ function ActivityTimelineGroup({
         className={cn(
           "w-full px-4 py-3 md:px-6 md:py-4 flex items-center justify-between gap-3",
           "bg-gradient-to-r hover:opacity-90 transition-opacity",
-          "border-b border-gray-100"
+          "border-b border-gray-100",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         )}
         style={{
           backgroundColor: config.bgColor,

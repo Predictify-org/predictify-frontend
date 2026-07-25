@@ -27,7 +27,7 @@ function RecentlyViewedCard({
           "block rounded-xl border border-border/30 bg-card/20 p-4",
           "w-[calc(100vw-3rem)] max-w-[260px] sm:w-[260px]",
           "hover:bg-card/40 hover:border-border/50",
-          "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary/50",
           "transition-all duration-200"
         )}
       >
