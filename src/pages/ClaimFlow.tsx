@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -86,44 +86,6 @@ const MOCK_HISTORY: ClaimHistoryItem[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Plain-language announcements (WCAG 2.1 SC 4.1.3 – Status Messages)
-// ---------------------------------------------------------------------------
-
-/** Concise, action-oriented messages for screen-reader live region. */
-function buildAnnouncement(opts: {
-  status: PageStatus;
-  count: number;
-  claimingTitle?: string;
-  claimingAmount?: string;
-  claimingToken?: string;
-}): string {
-  const { status, count, claimingTitle, claimingAmount, claimingToken } = opts;
-
-  if (claimingTitle) {
-    return `Claiming ${claimingAmount ?? ""} ${claimingToken ?? ""} from "${claimingTitle}". Please wait while the transaction processes.`;
-  }
-
-  if (status === "claimed") {
-    return "Claim successful. Your winnings have been transferred to your wallet.";
-  }
-
-  switch (status) {
-    case "loading":
-      return "Loading claimable rewards. Please wait.";
-    case "success":
-      return count === 0
-        ? "You have no claimable rewards at this time."
-        : `${count} reward${count !== 1 ? "s" : ""} available to claim. Select a reward and press Claim to receive your winnings.`;
-    case "empty":
-      return "No claimable rewards. Check back after your predictions are resolved.";
-    case "error":
-      return "Failed to load claimable rewards. Check your connection and press Retry.";
-    default:
-      return "";
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -133,27 +95,16 @@ type PageStatus = "loading" | "success" | "empty" | "error";
  * ClaimFlow
  *
  * Page where users can claim winnings from resolved prediction markets.
- * Screen-reader announcements are delivered via a single polite live region
- * (`role="status" aria-live="polite"`) at the top of the page.
  *
- * Aria-live implementation (#580):
- *   - A single `<LiveRegion>` renders at the page root. The `message` prop
- *     changes trigger SR announcements on every status transition, claim
- *     action start, and claim completion.
- *   - Announcement text is plain-language and actionable (e.g. "{N} rewards
- *     available to claim. Select a reward and press Claim…").
- *   - Identical messages re-announce correctly: the LiveRegion clears its
- *     content before re-setting it via a 50ms timeout so screen-readers
- *     treat the message as new.
- *   - The claiming ID is set BEFORE the async claim call so the SR hears the
- *     "Claiming…" message immediately.
- *   - After a successful claim, a dedicated "claimed" status triggers a
- *     confirmation message before transitioning to the normal success state.
- *
- * WCAG 2.1 AA:
- *   - SC 4.1.3: Status Messages — all state changes are announced.
- *   - SC 1.3.1: Info and Relationships — headings form a logical outline.
- *   - SC 2.3.3: Animation from Interactions — reduced-motion respected.
+ * Features:
+ *  - Loading skeleton (themed, shape-parity with content)
+ *  - Claimable rewards list with per-item claim + share actions
+ *  - Claim history table
+ *  - Empty / error states
+ *  - Reduced-motion: skips skeleton delay when prefers-reduced-motion is set
+ *  - Responsive layout across breakpoints
+ *  - WCAG 2.1 AA: all interactive elements are labelled, headings form a
+ *    logical outline, colour is never the sole differentiator.
  */
 export default function ClaimFlow() {
   const [status, setStatus] = useState<PageStatus>("loading");
@@ -164,7 +115,7 @@ export default function ClaimFlow() {
   const reducedMotion = useReducedMotion();
   const { openShareSheet } = useClaimShare();
 
-  // Simulate async data fetch
+  // Simulate async data fetch with reduced-motion awareness
   useEffect(() => {
     if (reducedMotion) {
       setClaimable(MOCK_CLAIMABLE);
@@ -184,52 +135,27 @@ export default function ClaimFlow() {
     return () => clearTimeout(timer);
   }, [reducedMotion]);
 
-  // Update aria-live announcement on every status or data change.
-  // Claim-in-progress announcements are handled inline in handleClaim
-  // so the SR hears them immediately, before the async delay.
+  // Announce status changes via LiveRegion
   useEffect(() => {
-    if (claimingId !== null) return; // Don't override claim-in-progress message
-    setAnnouncement(
-      buildAnnouncement({
-        status,
-        count: claimable.length,
-      })
-    );
-  }, [status, claimable.length, claimingId]);
+    const messages: Record<PageStatus, string> = {
+      loading: "Loading claimable rewards.",
+      success: `Claimable rewards loaded. ${claimable.length} reward${claimable.length !== 1 ? "s" : ""} available.`,
+      empty: "No claimable rewards at this time.",
+      error: "Failed to load claimable rewards. Please try again.",
+    };
+    setAnnouncement(messages[status]);
+  }, [status, claimable.length]);
 
   const handleClaim = useCallback(
     async (reward: ClaimableReward) => {
-      // Announce immediately so SR hears "Claiming…" before the simulated
-      // network delay begins.
       setClaimingId(reward.id);
-      setAnnouncement(
-        buildAnnouncement({
-          status: "loading",
-          count: claimable.length,
-          claimingTitle: reward.marketTitle,
-          claimingAmount: reward.amount,
-          claimingToken: reward.tokenSymbol,
-        })
-      );
+      setAnnouncement(`Claiming ${reward.amount} ${reward.tokenSymbol} from "${reward.marketTitle}".`);
 
+      // Simulate blockchain tx delay
       await new Promise((r) => setTimeout(r, reducedMotion ? 0 : 800));
 
-      // Remove the claimed item and determine the next status in one
-      // pass via the functional updater — no stale-closure issues.
-      let nextStatus: PageStatus = "success";
-      setClaimable((prev) => {
-        const remaining = prev.filter((r) => r.id !== reward.id);
-        nextStatus = remaining.length > 0 ? "success" : "empty";
-        return remaining;
-      });
-
-      // Transition directly to the final status — no intermediate
-      // "claimed" state that could flash an empty list.
+      setClaimable((prev) => prev.filter((r) => r.id !== reward.id));
       setClaimingId(null);
-      setStatus(nextStatus);
-      setAnnouncement(
-        buildAnnouncement({ status: "claimed", count: 0 })
-      );
 
       customToast.success("Winnings Claimed Successfully!", {
         description: `You've successfully claimed ${reward.amount} ${reward.tokenSymbol} for your prediction on "${reward.marketTitle}".`,
@@ -242,16 +168,18 @@ export default function ClaimFlow() {
           });
         },
       });
+
+      setAnnouncement(
+        `Successfully claimed ${reward.amount} ${reward.tokenSymbol}.`
+      );
     },
-    [reducedMotion, openShareSheet, claimable]
+    [reducedMotion, openShareSheet]
   );
 
   const handleRetry = useCallback(() => {
     setStatus("loading");
     setClaimable([]);
-    setAnnouncement(
-      buildAnnouncement({ status: "loading", count: 0 })
-    );
+    setAnnouncement("Retrying. Loading claimable rewards.");
     setTimeout(() => {
       setClaimable(MOCK_CLAIMABLE);
       setStatus("success");
@@ -262,6 +190,7 @@ export default function ClaimFlow() {
   // Render helpers
   // ------------------------------------------------------------------
 
+  /** Themed skeleton that mirrors the shape of each reward card. */
   const renderSkeletons = () => (
     <div className="space-y-4" data-testid="claimflow-skeletons">
       {[...Array(3)].map((_, i) => (
@@ -379,7 +308,6 @@ export default function ClaimFlow() {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-      {/* Single polite live region — all state changes announced here */}
       <LiveRegion message={announcement} data-testid="claimflow-live-region" />
 
       {/* Page header */}
