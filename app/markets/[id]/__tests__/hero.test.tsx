@@ -12,6 +12,7 @@
  *  - Edge cases: zero probability, 100% probability, missing optional props
  *  - Dark mode: component renders without crashing in dark context
  *  - Responsive: snapshot preserves structure across viewport widths
+ *  - Design tokens (v7): outcome colors use token classes not bare color names
  */
 
 import React from "react";
