@@ -5,6 +5,8 @@ import * as React from "react"
 interface LiveRegionProps {
   /** The message to announce. Changing this value triggers a new announcement. */
   message: string
+  /** Optional test hook for focused a11y assertions. */
+  "data-testid"?: string
 }
 
 /**
@@ -13,7 +15,7 @@ interface LiveRegionProps {
  * Deduplication: clears then re-sets the message in a short timeout so the
  * same string re-announces on repeated events without accumulating DOM nodes.
  */
-export function LiveRegion({ message }: LiveRegionProps) {
+export function LiveRegion({ message, "data-testid": dataTestId }: LiveRegionProps) {
   const [announced, setAnnounced] = React.useState("")
 
   React.useEffect(() => {
@@ -29,6 +31,7 @@ export function LiveRegion({ message }: LiveRegionProps) {
       role="status"
       aria-live="polite"
       aria-atomic="true"
+      data-testid={dataTestId}
       className="sr-only"
     >
       {announced}

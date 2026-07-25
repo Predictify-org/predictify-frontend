@@ -88,14 +88,18 @@ export function DisputeActionPattern() {
         </div>
         
         <DrawerFooter className="pt-4 border-t border-[#40485d]/50 bg-[#060e20] flex-col gap-3">
-          <Button className="bg-red-500 text-white flex-1 hover:bg-red-600 w-full" onClick={() => setOpen(false)}>
-            Submit Evidence
-          </Button>
+          {/* Cancel is rendered BEFORE the destructive primary action so
+              DOM, visual, and Tab order match (WCAG 2.4.3). The destructive
+              `Submit Evidence` button keeps its red variant for visual
+              distinction. */}
           <DrawerClose asChild>
             <Button variant="outline" className="text-[#a3aac4] border-[#40485d] hover:bg-[#192540] w-full">
               Cancel Dispute
             </Button>
           </DrawerClose>
+          <Button className="bg-red-500 text-white flex-1 hover:bg-red-600 w-full" onClick={() => setOpen(false)}>
+            Submit Evidence
+          </Button>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

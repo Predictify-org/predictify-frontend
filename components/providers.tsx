@@ -8,7 +8,9 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { ReactNode } from "react";
 import { useHideBalancesShortcut } from "@/hooks/useHideBalancesShortcut";
 import { ClaimShareProvider } from "@/context/ClaimShareContext";
+import { GlobalLiveRegion } from "@/app/components/GlobalLiveRegion";
 import { RouteDocumentTitle } from "@/app/hooks/useDocumentTitle";
+import { LangAttribute } from "@/app/i18n/LangAttribute";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -24,11 +26,14 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <ErrorBoundary>
       <RouteDocumentTitle />
+      {/* Keeps <html lang> in sync with the user's language preference. */}
+      <LangAttribute />
       <ThemeProvider
         attribute="class"
         defaultTheme="dark"
         enableSystem
         disableTransitionOnChange
+        themes={["light", "dark", "high-contrast"]}
       >
         <PrivacyProvider>
           <WalletProvider>
@@ -37,6 +42,7 @@ export function Providers({ children }: ProvidersProps) {
             </ClaimShareProvider>
           </WalletProvider>
         </PrivacyProvider>
+        <GlobalLiveRegion />
         <Toaster />
       </ThemeProvider>
     </ErrorBoundary>

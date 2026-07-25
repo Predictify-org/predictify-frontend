@@ -1,58 +1,47 @@
 "use client";
 
-import { ArrowRight, TrendingUp, Globe, BarChart3, CheckCircle2, Coins, Bell } from "lucide-react";
-import LanguageBadge from "@/components/LanguageBadge";
+import {
+  CheckCircle2,
+  Coins,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { sampleMarkets, winNotifications, type Market } from "@/content/markets.sample";
+import {
+  sampleMarkets,
+  winNotifications,
+} from "@/content/markets.sample";
 import { useState, useEffect } from "react";
+import { MarketCard } from "@/app/components/MarketCard";
 import { useFollowsStore } from "@/app/state/follows";
+import { useUserLimitsStore } from "@/app/state/userLimits";
+import Sparkline from "@/app/components/Sparkline";
 
 interface MarketsWidgetProps {
   className?: string;
 }
 
-const iconMap = {
-  TrendingUp,
-  Globe,
-  BarChart3,
-};
-
-const colorMap = {
-  blue: {
-    bg: "bg-blue-500/20",
-    icon: "text-blue-400",
-  },
-  purple: {
-    bg: "bg-purple-500/20",
-    icon: "text-purple-400",
-  },
-  emerald: {
-    bg: "bg-emerald-500/20",
-    icon: "text-emerald-400",
-  },
-};
-
 export function MarketsWidget({ className }: MarketsWidgetProps) {
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
-    setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    setReducedMotion(
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    );
   }, []);
 
   return (
     <div className={`relative flex items-center justify-center ${className}`}>
       {/* Win Notification Badge */}
-      <div 
+      <div
         className={`absolute right-0 -top-4 z-20 rounded-2xl bg-gradient-to-r from-[#4F46E533] to-[#9333EA] p-4 shadow-2xl ${
-          reducedMotion ? '' : 'animate-fade-in'
+          reducedMotion ? "" : "animate-fade-in"
         }`}
       >
         <div className="flex items-center gap-3">
           <div className="rounded-full bg-white/20 p-2">
             <Coins className="h-5 w-5 text-white" />
           </div>
-          <span className="text-lg font-semibold text-white">
+          <span className="text-lg font-semibold text-white tabular-nums">
             +{winNotifications[0].amount} {winNotifications[0].currency} Won!
           </span>
         </div>
@@ -61,28 +50,23 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
       {/* Markets Card */}
       <Card className="w-full max-w-md border-white/10 bg-gradient-to-b from-[#48097B] to-[#111827] p-6 backdrop-blur-xl">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">Popular Prediction Markets</h2>
+          <h2 className="text-xl font-semibold text-white">
+            Popular Prediction Markets
+          </h2>
           <button className="text-sm text-purple-300 hover:text-purple-200 transition-colors">
             View All
           </button>
         </div>
 
         <div className="space-y-4">
-          {sampleMarkets.map((market, index) => {
-            const IconComponent = iconMap[market.icon as keyof typeof iconMap];
-            const colors = colorMap[market.iconColor as keyof typeof colorMap];
-            
-            return (
-              <MarketCard 
-                key={market.id} 
-                market={market} 
-                IconComponent={IconComponent}
-                colors={colors}
-                index={index}
-                reducedMotion={reducedMotion}
-              />
-            );
-          })}
+          {sampleMarkets.map((market, index) => (
+            <MarketCard
+              key={market.id}
+              market={market}
+              index={index}
+              reducedMotion={reducedMotion}
+            />
+          ))}
 
           {/* Place Prediction Button */}
           <Button className="w-full bg-[#4F46E5] py-6 text-white hover:bg-[#4F46E5]/90 transition-colors">
@@ -92,19 +76,22 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
       </Card>
 
       {/* Success Notification Badge */}
-      <div 
+      <div
         className={`absolute bottom-4 left-0 z-20 rounded-2xl bg-green-500 p-4 shadow-2xl ${
-          reducedMotion ? '' : 'animate-fade-in'
+          reducedMotion ? "" : "animate-fade-in"
         }`}
       >
         <div className="flex items-center gap-3">
           <CheckCircle2 className="h-5 w-5 text-white" />
-          <span className="font-semibold text-white">{winNotifications[1].message}</span>
+          <span className="font-semibold text-white">
+            {winNotifications[1].message}
+          </span>
         </div>
       </div>
     </div>
   );
 }
+
 
 interface MarketCardProps {
   market: Market;
@@ -127,47 +114,80 @@ interface MarketCardProps {
  *     (WCAG 2.1 AA 1.3.1 / 4.1.2).
  *   - Animated only when the user has not opted into prefers-reduced-motion.
  */
-function MarketCard({ market, IconComponent, colors, index, reducedMotion }: MarketCardProps) {
+function MarketCard({
+  market,
+  IconComponent,
+  colors,
+  index,
+  reducedMotion,
+}: MarketCardProps) {
   const isFollowing = useFollowsStore((s) => s.isFollowing(market.id));
+  const remainingAllowance = useUserLimitsStore((s) =>
+    s.getRemainingDailyAllowance(market.id),
+  );
 
   return (
     <Card
-      className={`border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm transition-all duration-300 hover:bg-[#201F3780]/80 ${
-        reducedMotion ? '' : 'animate-slide-up'
+      className={`border-white/10 bg-[#201F3780] p-3 sm:p-4 backdrop-blur-sm transition-all duration-300 hover:bg-[#201F3780]/80 ${
+        reducedMotion ? "" : "animate-slide-up"
       }`}
       style={{
-        animationDelay: reducedMotion ? '0ms' : `${index * 150}ms`,
-        animationFillMode: 'both'
+        animationDelay: reducedMotion ? "0ms" : `${index * 150}ms`,
+        animationFillMode: "both",
       }}
     >
-      <div className="mb-3 flex items-start justify-between">
-        <div className="flex items-start gap-3">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
           <div className={`rounded-lg p-2 ${colors.bg}`}>
             <IconComponent className={`h-5 w-5 ${colors.icon}`} />
           </div>
-          <div>
-            <h3 className="font-semibold text-white">{market.title}</h3>
+          <div className="min-w-0 flex-1">
+            <h3 className="break-words font-semibold text-white">{market.title}</h3>
             <p className="text-sm text-white/70">{market.description}</p>
+            {/* Sparkline preview */}
+            <Tooltip content="Price trend over the last 24 hours showing Yes outcome probability changes">
+              <div className="inline-block">
+                <Sparkline
+                  data={market.sparklineData}
+                  className="mt-2 text-white/60"
+                  data-testid={`sparkline-${market.id}`}
+                />
+              </div>
+            </Tooltip>
 
-            {/* Following indicator — visible only for followed markets */}
-            {isFollowing && (
-              <span
-                className="mt-1 inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-400/30"
-                data-testid="following-indicator"
-              >
-                {/* Bell icon: shape-based cue (colour-blind safe) */}
-                <Bell className="h-3 w-3" aria-hidden="true" />
-                {/* Visible text */}
-                You&apos;re following this
-                {/* SR-only reinforcement so the badge meaning is unambiguous */}
-                <span className="sr-only"> — you are following this market</span>
-              </span>
-            )}
+            <div className="mt-2 space-y-2">
+              {/* Following indicator — visible only for followed markets */}
+              {isFollowing && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-400/30"
+                  data-testid="following-indicator"
+                >
+                  <Tooltip content="You will receive notifications when this market has significant updates or is about to close">
+                    <Bell className="h-3 w-3" aria-hidden="true" />
+                  </Tooltip>
+                  You&apos;re following this
+                  <span className="sr-only">
+                    {" "}
+                    — you are following this market
+                  </span>
+                </span>
+              )}
+
+              <Tooltip content="Your remaining daily betting limit for this market to encourage responsible prediction market participation">
+                <p
+                  className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs leading-5 text-white/85 cursor-help"
+                  data-testid="betting-limit-nudge"
+                >
+                  Daily betting allowance remaining:{" "}
+                  <strong>{remainingAllowance} USDC</strong>
+                </p>
+              </Tooltip>
+            </div>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-sm font-medium text-green-400">Yes: {market.yesOdds}%</div>
-          <div className="text-sm text-red-400">No: {market.noOdds}%</div>
+        <div className="flex shrink-0 gap-4 text-left sm:block sm:text-right">
+          <div className="text-sm font-medium text-green-400 tabular-nums">Yes: {market.yesOdds}%</div>
+          <div className="text-sm text-red-400 tabular-nums">No: {market.noOdds}%</div>
         </div>
       </div>
 
@@ -179,8 +199,8 @@ function MarketCard({ market, IconComponent, colors, index, reducedMotion }: Mar
         />
       </div>
 
-      <div className="flex justify-between text-xs text-white/60">
-        <span>Pool: {market.poolAmount.toLocaleString()} USDC</span>
+      <div className="flex flex-col gap-1 text-xs text-white/60 sm:flex-row sm:justify-between">
+        <span className="tabular-nums">Pool: {market.poolAmount.toLocaleString()} USDC</span>
         <span>Ends in {market.endsIn}</span>
       </div>
     </Card>

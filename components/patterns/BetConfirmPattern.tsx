@@ -189,14 +189,17 @@ export function BetConfirmPattern() {
               <BetForm />
             </div>
             <DrawerFooter className="pt-4 flex flex-col gap-2">
-              <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc] w-full" onClick={handleConfirm}>
-                Confirm Prediction
-              </Button>
+              {/* Cancel is rendered BEFORE the primary action so DOM,
+                  visual, and Tab order match (WCAG 2.4.3). On mobile the
+                  primary action sits at the bottom for thumb reach. */}
               <DrawerClose asChild>
                 <Button variant="outline" className="text-[#a3aac4] border-[#40485d] hover:bg-[#192540] w-full">
                   Cancel
                 </Button>
               </DrawerClose>
+              <Button className="bg-[#69daff] text-[#004a5d] hover:bg-[#00cffc] w-full" onClick={handleConfirm}>
+                Confirm Prediction
+              </Button>
             </DrawerFooter>
           </>
         ) : (
@@ -246,7 +249,7 @@ function BetForm({ className }: React.ComponentProps<"form">) {
       <div className="bg-[#192540]/50 rounded-xl p-4 space-y-2 border border-[#40485d]/30">
          <div className="flex justify-between items-center text-sm">
             <span className="text-[#a3aac4]">Potential Payout</span>
-            <span className="font-headline font-bold text-[#29fcf3]">$136.50</span>
+            <span className="font-headline font-bold text-[#29fcf3] tabular-nums">$136.50</span>
          </div>
          <div className="flex justify-between items-center text-xs">
             <span className="text-[#a3aac4]">Est. Slippage</span>

@@ -57,8 +57,8 @@ function RecommendationCard({ market }: { market: RecommendedMarket }) {
       <p className="mb-3 text-xs text-muted-foreground">{market.categoryLabel}</p>
 
       <div className="flex items-center justify-between text-xs">
-        <span className="text-muted-foreground">{market.participants.toLocaleString()} participants</span>
-        <span className="font-mono font-medium text-foreground">{market.odds.toFixed(1)}x</span>
+        <span className="text-muted-foreground tabular-nums">{market.participants.toLocaleString()} participants</span>
+        <span className="font-mono font-medium text-foreground tabular-nums">{market.odds.toFixed(1)}x</span>
       </div>
     </Link>
   )

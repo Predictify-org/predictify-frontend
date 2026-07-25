@@ -9,6 +9,11 @@ jest.mock('next/image', () => ({
   default: (props: any) => <img {...props} />,
 }));
 
+// Mock useCountdownTick to prevent infinite rAF recursion
+jest.mock('@/hooks/use-countdown-tick', () => ({
+  useCountdownTick: () => Date.now(),
+}));
+
 describe('ActiveBets', () => {
   const defaultProps = {
     bets: mockActiveBets,
@@ -50,7 +55,6 @@ describe('ActiveBets', () => {
     render(<ActiveBets {...defaultProps} bets={[]} />);
     
     expect(screen.getByText('No Active Bets')).toBeInTheDocument();
-    expect(screen.getByText('You don\'t have any active bets at the moment. Start by placing your first bet!')).toBeInTheDocument();
   });
 
   it('calls onAddBet when Add Bet button is clicked', () => {

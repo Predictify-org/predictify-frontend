@@ -1,50 +1,8 @@
 import React from 'react';
-import { render } from '@testing-library/react';
-import PredictionCard from '../PredictionCard';
-import { Prediction } from '../../types/predictions';
-
-const createMockPrediction = (category?: string, outcome?: 'Yes' | 'No'): Prediction => ({
-  id: 'test-1',
-  title: 'Test Prediction',
-  description: 'Test Description',
-  category,
-  outcome,
-  stakeAmount: 10,
-  stakeToken: 'USDC',
-  odds: 1.5,
-  potentialWinnings: 15,
-  winningsToken: 'USDC',
-  eventDate: '01/01/2024',
-  status: 'active',
-});
-
-describe('PredictionCard Snapshots', () => {
-  const categories = ['sports', 'crypto', 'politics', 'weather', 'esports', 'unknown-category'];
-
-  categories.forEach((category) => {
-    it(`should match snapshot for category: ${category} with 'Yes' outcome`, () => {
-      const { container } = render(
-        <PredictionCard prediction={createMockPrediction(category, 'Yes')} />
-      );
-      expect(container.firstChild).toMatchSnapshot();
-    });
-
-    it(`should match snapshot for category: ${category} with 'No' outcome`, () => {
-      const { container } = render(
-        <PredictionCard prediction={createMockPrediction(category, 'No')} />
-      );
-      expect(container.firstChild).toMatchSnapshot();
-    });
-  });
-
-  it('should match snapshot without outcome', () => {
-    const { container } = render(
-      <PredictionCard prediction={createMockPrediction()} />
-    );
-    expect(container.firstChild).toMatchSnapshot();
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PredictionCard, { PredictionCardSkeleton } from '../PredictionCard';
+import PredictionsList from '../PredictionsList';
 import { Prediction } from '../../types/predictions';
 
 // --- Test Data ---
@@ -167,8 +125,6 @@ describe('PredictionCard', () => {
 
 // --- PredictionsList Loading Tests ---
 
-import PredictionsList from '../PredictionsList';
-
 describe('PredictionsList loading state', () => {
   it('renders skeleton cards when isLoading is true', () => {
     render(<PredictionsList isLoading={true} />);
@@ -208,19 +164,21 @@ describe('PredictionsList loading state', () => {
 // --- Touch Target Tests (WCAG 2.5.5 / Apple HIG ≥44px) ---
 
 describe('PredictionCard touch targets', () => {
-  it('outer card button has touch-target class', () => {
+  it('outer card button has touch-target and touch-ripple classes', () => {
     render(<PredictionCard prediction={mockPrediction} />);
     // The root interactive element must carry the touch-target utility class
     // which enforces min-height: 44px and min-width: 44px.
     const card = screen.getByRole('button', { name: /NBA Finals/i });
     expect(card).toHaveClass('touch-target');
+    expect(card).toHaveClass('touch-ripple');
   });
 
-  it('odds collapsible trigger has touch-target class', () => {
+  it('odds collapsible trigger has touch-target and touch-ripple classes', () => {
     render(<PredictionCard prediction={mockPrediction} />);
     // Query specifically by aria-controls to distinguish from the outer card button.
     const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
     expect(oddsTrigger).toHaveClass('touch-target');
+    expect(oddsTrigger).toHaveClass('touch-ripple');
   });
 
   it('odds trigger uses aria-expanded to reflect collapsed state', () => {

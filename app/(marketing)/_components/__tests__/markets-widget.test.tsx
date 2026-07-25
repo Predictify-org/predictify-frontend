@@ -9,11 +9,20 @@
 import React from "react";
 import { render, screen, act } from "@testing-library/react";
 import { useFollowsStore } from "@/app/state/follows";
-
+import { useUserLimitsStore } from "@/app/state/userLimits";
 // ── minimal stub for the Card component ─────────────────────────────────────
 jest.mock("@/components/ui/card", () => ({
-  Card: ({ children, className, style }: React.PropsWithChildren<{ className?: string; style?: React.CSSProperties }>) => (
-    <div className={className} style={style}>{children}</div>
+  Card: ({
+    children,
+    className,
+    style,
+  }: React.PropsWithChildren<{
+    className?: string;
+    style?: React.CSSProperties;
+  }>) => (
+    <div className={className} style={style}>
+      {children}
+    </div>
   ),
 }));
 
@@ -21,6 +30,13 @@ jest.mock("@/components/ui/card", () => ({
 function resetFollows() {
   act(() => {
     useFollowsStore.setState({ followedIds: new Set() });
+    useUserLimitsStore.setState({
+      remainingDailyAllowance: {
+        "btc-price": 120,
+        "us-election": 240,
+        "tesla-earnings": 90,
+      },
+    });
   });
 }
 
@@ -37,7 +53,6 @@ describe("MarketsWidget – following indicator", () => {
   });
 
   it("shows the indicator for a followed market", () => {
-    // Follow the first sample market id
     act(() => {
       useFollowsStore.getState().follow("btc-price");
     });
@@ -46,22 +61,57 @@ describe("MarketsWidget – following indicator", () => {
 
     const indicators = screen.getAllByTestId("following-indicator");
     expect(indicators.length).toBeGreaterThanOrEqual(1);
-    // Visible label
     expect(indicators[0]).toHaveTextContent("You're following this");
-    // SR-only reinforcement text
     expect(indicators[0]).toHaveTextContent("you are following this market");
   });
 
+  it("shows the daily allowance nudge for each market card", () => {
+    render(<MarketsWidget />);
+
+    const nudges = screen.getAllByTestId("betting-limit-nudge");
+    expect(nudges).toHaveLength(3);
+    expect(nudges[0]).toHaveTextContent("Daily betting allowance remaining:");
+    expect(nudges[0]).toHaveTextContent("120 USDC");
+  });
+
+  it("updates the nudge when the allowance is changed in store", () => {
+    act(() => {
+      useUserLimitsStore.getState().setRemainingDailyAllowance("btc-price", 45);
+    });
+
+    render(<MarketsWidget />);
+
+    const firstNudge = screen.getAllByTestId("betting-limit-nudge")[0];
+    expect(firstNudge).toHaveTextContent("45 USDC");
+  });
+
   it("does not show the indicator on a market the user does not follow", () => {
-    // Only follow one market
     act(() => {
       useFollowsStore.getState().follow("btc-price");
     });
 
     render(<MarketsWidget />);
 
-    // There should be exactly one indicator (not one per card)
     const indicators = screen.getAllByTestId("following-indicator");
     expect(indicators).toHaveLength(1);
+  });
+
+  it("renders the responsive layout classes for the market card content", () => {
+    const { container } = render(<MarketsWidget />);
+    const markup = container.innerHTML;
+
+    expect(markup).toContain("p-3 sm:p-4");
+    expect(markup).toContain(
+      "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
+    );
+    expect(markup).toContain("flex min-w-0 items-start gap-3");
+    expect(markup).toContain("min-w-0 flex-1");
+    expect(markup).toContain("break-words font-semibold text-white");
+    expect(markup).toContain(
+      "flex shrink-0 gap-4 text-left sm:block sm:text-right",
+    );
+    expect(markup).toContain(
+      "flex flex-col gap-1 text-xs text-white/60 sm:flex-row sm:justify-between",
+    );
   });
 });

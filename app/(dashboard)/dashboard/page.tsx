@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { AlertCircle, CheckCircle, HelpCircle, TrendingUp } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { AlertCircle, CheckCircle, HelpCircle, PauseCircle, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -13,7 +14,16 @@ import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStri
 import { ActiveBets } from "@/components/active-bets/ActiveBets"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator"
-import { useEffect, useState } from "react"
+import { NotifDigest } from "@/app/dashboard/NotifDigest"
+import { useNotificationsStore } from "@/app/state/notifications"
+import { NotificationItem } from "@/types/notifications"
+import { Kbd } from "@/components/ui/kbd"
+import { useEffect, useMemo, useCallback, useState } from "react"
+import { useReducedMotion } from "@/hooks/useReducedMotion"
+
+// TODO: replace with the authenticated user's id once auth context exposes it.
+const CURRENT_USER_ID = "current-user"
+import { RecentlyViewedRail } from "@/app/components/RecentlyViewedRail"
 
 interface Stat {
   label: string
@@ -29,6 +39,13 @@ interface RecommendedMarket {
   volume: string
 }
 
+const DEMO_STATS: Stat[] = [
+  { label: "Volume", value: "$4,325.49" },
+  { label: "Predictions", value: "24" },
+  { label: "Win rate", value: "12,543" },
+  { label: "Leaderboard", value: "573" },
+]
+
 const recommendedMarkets: RecommendedMarket[] = [
   {
     id: "ai-policy-2026",
@@ -41,8 +58,8 @@ const recommendedMarkets: RecommendedMarket[] = [
   {
     id: "eth-weekly-close",
     title: "Will ETH close above $4,000 this week?",
-    category: "Crypto",
     href: "/events",
+    category: "Crypto",
     signalKey: "similar_markets",
     volume: "$42.1k volume",
   },
@@ -56,47 +73,135 @@ const recommendedMarkets: RecommendedMarket[] = [
   },
 ]
 
+/**
+ * DashboardPage
+ *
+ * Primary user dashboard. Shows KPI stat cards, recommendations, the active
+ * bets rail, the activity timeline and unread notifications. Three tabs are
+ * available: Overview (default), Analytics, and Reports.
+ *
+ * Reduced-motion fallback (#547):
+ *   When the user has `prefers-reduced-motion: reduce` enabled, the page
+ *   skips its simulated 1500ms loading delay and renders the populated view
+ *   immediately so motion-sensitive users see the dashboard without any
+ *   delayed transition between skeleton and content. An accessible status
+ *   banner (role="status" + aria-live="polite") is exposed at the top of the
+ *   page to make the static state discoverable.
+ *
+ *   Sub-components already neutralise any residual animations under the
+ *   same preference — see `app/globals.css` (`@media (prefers-reduced-motion:
+ *   reduce)` and the `html.motion-reduced` override) plus the per-component
+ *   `useReducedMotion` checks in ActiveBetCard, OnboardingTour, etc.
+ *
+ * WCAG 2.1 AA:
+ *   - The reduced-motion banner has role="status" + aria-live="polite" so
+ *     screen-readers announce it without interrupting other output
+ *     (SC 4.1.3 – Status Messages).
+ *   - Heading hierarchy uses a single `<h1>` and `<h2>`/`<h3>` for sections
+ *     so the document outline is linear (SC 1.3.1).
+ *   - All interactive controls reach a minimum 3:1 contrast in dark mode
+ *     thanks to the design tokens in `tailwind.config.ts`.
+ */
 export default function DashboardPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
+  const [statusAnnouncement, setStatusAnnouncement] = useState("")
   const [stats, setStats] = useState<Stat[] | null>(null)
   const [hiddenRecommendations, setHiddenRecommendations] = useState<string[]>([])
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null)
+  const [liveMessage, setLiveMessage] = useState("")
+  const { notifications, markAsRead: handleMarkAsRead, markAllAsRead: handleMarkAllAsRead } = useNotificationsStore()
+  const reducedMotion = useReducedMotion()
 
-  // Simulate async fetch
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState("overview")
+
   useEffect(() => {
+    const nextMessage =
+      status === "loading"
+        ? "Loading dashboard data."
+        : status === "success"
+          ? "Dashboard data loaded."
+          : status === "empty"
+            ? "Dashboard has no data to show."
+            : "Dashboard data failed to load."
+
+    // Keep the announcement deterministic for assistive tech by clearing the
+    // prior message first and then re-inserting the next status update.
+    setStatusAnnouncement("")
+    const timer = window.setTimeout(() => setStatusAnnouncement(nextMessage), 50)
+    return () => window.clearTimeout(timer)
+  }, [status])
+
+  const userNotifications = useMemo(
+    () => notifications.filter((item) => item.userId === CURRENT_USER_ID),
+    [notifications]
+  )
+
+  const handleKeyboardShortcut = useCallback((e: KeyboardEvent) => {
+    const isMac = navigator.userAgent.toLowerCase().includes("mac")
+    const meta = isMac ? e.metaKey : e.ctrlKey
+
+    if (meta && e.shiftKey && e.key.toLowerCase() === "n") {
+      e.preventDefault()
+      router.push("/events/new")
+    }
+
+    if (meta && e.shiftKey && e.key.toLowerCase() === "a") {
+      e.preventDefault()
+      setActiveTab("analytics")
+    }
+  }, [router])
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyboardShortcut)
+    return () => window.removeEventListener("keydown", handleKeyboardShortcut)
+  }, [handleKeyboardShortcut])
+
+  /**
+   * Simulate async fetch.
+   *
+   * When the user has prefers-reduced-motion enabled we skip the artificial
+   * 1500ms loading delay and present data immediately so screen-reader,
+   * low-vision, and motion-sensitive users do not experience a delayed
+   * transition between skeleton and content (WCAG 2.1 SC 2.2.1 / 2.3.3).
+   */
+  useEffect(() => {
+    if (reducedMotion) {
+      setStats(DEMO_STATS)
+      setStatus('success')
+      setLastRefreshedAt(new Date())
+      return
+    }
     const timer = setTimeout(() => {
-      // For demo purposes, set success with static data
-      const fetched = [
-        { label: "Active Events", value: "24" },
-        { label: "Total Predictions", value: "12,543" },
-        { label: "Platform Fees", value: "$4,325.49" },
-        { label: "Active Users", value: "573" },
-      ]
-      if (fetched.length === 0) {
+      if (DEMO_STATS.length === 0) {
         setStatus('empty')
       } else {
-        setStats(fetched)
+        setStats(DEMO_STATS)
         setStatus('success')
         setLastRefreshedAt(new Date())
       }
     }, 1500)
     return () => clearTimeout(timer)
-  }, [])
+  }, [reducedMotion])
 
   const retry = () => {
+    setLiveMessage("Refreshing dashboard")
+    // Honor the static fallback under reduced-motion preferences: skip
+    // the 1500ms loading transition and present data immediately. This
+    // keeps the manual retry path consistent with the initial load.
+    if (reducedMotion) {
+      setStats(DEMO_STATS)
+      setStatus('success')
+      setLastRefreshedAt(new Date())
+      return
+    }
     setStatus('loading')
     setStats(null)
     // Re‑trigger the effect by resetting the timer
     // (In a real app, you would refetch the data here)
     setTimeout(() => {
       // Simulate success after retry
-      const fetched = [
-        { label: "Active Events", value: "24" },
-        { label: "Total Predictions", value: "12,543" },
-        { label: "Platform Fees", value: "$4,325.49" },
-        { label: "Active Users", value: "573" },
-      ]
-      setStats(fetched)
+      setStats(DEMO_STATS)
       setStatus('success')
       setLastRefreshedAt(new Date())
     }, 1500)
@@ -284,6 +389,23 @@ export default function DashboardPage() {
     }
   }
 
+  useEffect(() => {
+    switch (status) {
+      case 'loading':
+        setLiveMessage('Loading dashboard')
+        break
+      case 'success':
+        setLiveMessage(`Dashboard loaded. Showing ${stats?.length ?? 0} key metrics in ${activeTab}.`)
+        break
+      case 'empty':
+        setLiveMessage(`Dashboard is empty in ${activeTab}.`)
+        break
+      case 'error':
+        setLiveMessage(`Dashboard failed to load in ${activeTab}.`)
+        break
+    }
+  }, [activeTab, stats?.length, status])
+
   const renderReportsPanel = () => {
     switch (status) {
       case 'loading':
@@ -346,26 +468,76 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label="Dashboard status"
+        data-testid="dashboard-status-live-region"
+        className="sr-only"
+      >
+        {statusAnnouncement}
+      </div>
+
+      {reducedMotion && (
+        // Accessible inline notice: role="status" + aria-live="polite" means
+        // screen-readers announce the static mode without interrupting other
+        // output (WCAG 2.1 AA SC 4.1.3 – Status Messages).
+        // text-amber-900 / dark:text-amber-100 maintains a ≥4.5:1 contrast on
+        // the tinted amber background; the icon + label together convey
+        // meaning without relying on colour alone (SC 1.4.1).
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Reduced motion enabled"
+          data-testid="dashboard-reduced-motion-banner"
+          className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100"
+        >
+          <PauseCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            <strong className="font-semibold">Reduced motion mode:</strong>{" "}
+            animations are disabled because your device prefers reduced
+            motion. The dashboard is rendered as a static view to avoid
+            transitions or motion effects.
+          </span>
+        </div>
+      )}
+
+      <div
+        data-testid="dashboard-header"
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      >
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <div className="flex items-center gap-2">
+        <div
+          data-testid="dashboard-header-actions"
+          className="flex flex-wrap items-center justify-end gap-2"
+        >
+          <NotifDigest
+            notifications={userNotifications}
+            onMarkAsRead={handleMarkAsRead}
+            onMarkAllAsRead={handleMarkAllAsRead}
+          />
           <RefreshIndicator lastRefreshedAt={lastRefreshedAt} onRefresh={retry} />
-          <Button asChild>
-            <Link href="/events/new">Create New Event</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild>
+              <Link href="/events/new">Create New Event</Link>
+            </Button>
+            <Kbd shortcut="newEvent" className="hidden sm:inline-flex" />
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           {renderCards()}
-          <ActiveBets 
-            bets={status === 'empty' ? [] : []} 
+          <RecentlyViewedRail />
+          <ActiveBets
+            bets={status === 'empty' ? [] : []}
             isLoading={status === 'loading'}
             onAddBet={() => console.log('Add bet')}
           />
@@ -389,7 +561,7 @@ export default function DashboardPage() {
                 <CardDescription>Your latest actions on Predictify</CardDescription>
               </CardHeader>
               <CardContent>
-                <ActivityTimeline 
+                <ActivityTimeline
                   activities={status === 'empty' ? [] : []}
                   isLoading={status === 'loading'}
                 />
@@ -407,4 +579,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
