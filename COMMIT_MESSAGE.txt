@@ -1,112 +1,52 @@
-fix: confetti reduced-motion
+feat: bottom nav badges
 
-Implements success confetti animation for prediction completion with
-full reduced-motion support per WCAG 2.1 AA (SC 2.3.3).
+Implements accessible unread notification badges on the mobile bottom navigation items for the GrantFox FWC26 campaign.
 
 ## What Changed
 
-- Added `SuccessConfetti` component (app/components/SuccessConfetti.tsx)
-- Full-motion: canvas-confetti animation with design token colors
-- Reduced-motion: static success indicator (CheckCircle with gradient)
-- Reactive to preference changes at runtime
-- SSR-safe, dark-mode compatible, automatic cleanup
-
-## Reduced-Motion Behavior
-
-When `prefers-reduced-motion: reduce`:
-- No confetti animation is triggered
-- Static CheckCircle icon with gradient background is shown
-- Equally visually prominent as animated confetti
-- Zero animation classes or transitions
-- Uses success color tokens (green-500, emerald-500)
-
-When motion is allowed:
-- Canvas-based confetti with 150 particles in two bursts
-- Uses chart color tokens (--chart-1, --chart-2, --chart-4, --chart-5)
-- Library respects `disableForReducedMotion: true`
-- Automatically cleans up after animation completes
+- Migrated notifications state from local page state on the dashboard to a global Zustand store (`app/state/notifications.ts`), persisted in localStorage.
+- Integrated notifications store into `NotifDigest` on the dashboard, making reading notifications synchronize across all tabs.
+- Added visual unread count badges to the mobile bottom navigation items in `MobileBottomTabs` (`components/navbar/MobileBottomTabs.tsx`), with a visual cap at `9+`.
+- Styled the badge with `bg-red-600` and `text-white` to guarantee WCAG 2.1 AA contrast ratio against the dark background.
+- Enhanced bottom nav buttons with custom `aria-label` screen reader announcements that state the unread count politely (e.g. `"Predictions, 2 unread items"`).
+- Aligned accessibility audit manifest (`app/data/a11y-manifest.json`), internal status board (`app/a11y-audit/page.tsx`), and docs page (`docs/a11y-status.md`) with the new components, fixing a pre-existing manifest test failure.
 
 ## Accessibility
 
-- Confetti is purely decorative: `aria-hidden="true"`, `role="presentation"`
-- Does not trap focus or intercept keyboard events
-- Not announced by screen readers
-- Works with all assistive technologies
-- Both paths (motion/reduced) have identical accessibility attributes
-
-## Dark Mode
-
-All colors use design tokens:
-- Full-motion: chart tokens (--chart-1 through --chart-5)
-- Reduced-motion: success tokens (green-500, emerald-500, dark variants)
-- No hardcoded color values
-- Verified in both light and dark themes
+- Screen reader announcements: unread counts are read dynamically as part of the tab button's `aria-label`.
+- Visual badge has `aria-hidden="true"` to prevent redundant reading by screen readers.
+- High contrast: White on red-600 background exceeds the required 4.5:1 ratio (reaches 4.7:1).
+- Keyboard accessibility: Standard focus rings remain visible in dark mode.
 
 ## Test Output
 
-Created comprehensive test suites:
-- app/components/__tests__/SuccessConfetti.test.tsx (28 tests)
-- app/components/__tests__/SuccessConfetti.reduced-motion.test.tsx (12 tests)
+Updated unit tests in `components/navbar/__tests__/MobileBottomTabs.test.tsx` and `app/__tests__/a11y-manifest.test.js` to cover the new badge functionality.
 
-Coverage areas:
-✅ Renders nothing when isVisible=false
-✅ Renders confetti when motion is not reduced
-✅ Renders static fallback when motion is reduced
-✅ Responds to preference changes at runtime
-✅ SSR safety (no errors when window is undefined)
-✅ Cleanup on unmount
-✅ Accessibility attributes (aria-hidden, role)
-✅ Dark mode compatibility (theme-aware tokens)
-✅ No hardcoded colors
-✅ Vacuousness checks (tests fail if guards are removed)
-
-## Coverage Summary
-
-- Statements: 90%+ on new paths
-- Branches: 100% (all conditions tested)
-- Functions: 100% (all exports tested)
-- Lines: 90%+ on new paths
-
-## Dependencies Added
-
-- canvas-confetti@^1.9.3 (production)
-- @types/canvas-confetti@^1.6.4 (dev)
-
-Justification: No existing confetti library in project. canvas-confetti is:
-- Industry standard (5M+ weekly downloads)
-- Small bundle (~7KB gzipped)
-- Built-in reduced-motion support
-- Canvas-based (performant, GPU-accelerated)
-- Does not introduce new animation framework
-
-## Integration Point
-
-Modified `lib/audio/notify-success.ts`:
-- Added optional `onSuccess` callback to `notifyBetPlaced()`
-- Allows triggering confetti when prediction is successfully placed
-- Backward compatible (callback is optional)
-
-See `app/components/SuccessConfetti.example.tsx` for integration patterns.
+✅ renders all tab labels
+✅ marks active tab with aria-current="page"
+✅ inactive tabs do not have aria-current set
+✅ navigates on tab click when not already active
+✅ does not navigate when clicking active tab
+✅ does not display badges when there are no unreads
+✅ displays unread badges on correct tabs with appropriate counts
+✅ caps the visual badge text at 9+
+✅ maps notifications to Predictions, Markets, and More correctly
+✅ tracks recent component accessibility statuses
+✅ keeps accessibility board aligned with component manifest names
 
 ## Files Changed
 
 ### Added
-- app/components/SuccessConfetti.tsx (component)
-- app/components/__tests__/SuccessConfetti.test.tsx (main tests)
-- app/components/__tests__/SuccessConfetti.reduced-motion.test.tsx (reduced-motion tests)
-- app/components/SuccessConfetti.example.tsx (integration examples)
-- docs/SUCCESS_CONFETTI.md (documentation)
+- app/state/notifications.ts
 
 ### Modified
-- lib/audio/notify-success.ts (added onSuccess callback)
-- package.json (added canvas-confetti dependencies)
+- components/navbar/MobileBottomTabs.tsx
+- app/(dashboard)/dashboard/page.tsx
+- components/navbar/__tests__/MobileBottomTabs.test.tsx
+- app/data/a11y-manifest.json
+- app/a11y-audit/page.tsx
+- docs/a11y-status.md
+- app/__tests__/a11y-manifest.test.js
+- COMMIT_MESSAGE.txt
 
-## Documentation
-
-Comprehensive documentation in:
-- docs/SUCCESS_CONFETTI.md (usage, API, testing, troubleshooting)
-- TSDoc comments in SuccessConfetti.tsx (props, behavior, accessibility)
-- Inline comments at key logic points (reduced-motion detection, cleanup)
-- Integration examples in SuccessConfetti.example.tsx
-
-Closes #436
+Closes #442

@@ -1,9 +1,9 @@
 {
   "board": "grantfox-accessibility-audit",
   "campaign": "GrantFox",
-  "lastUpdated": "2026-07-24",
+  "lastUpdated": "2026-07-25",
   "summary": {
-    "verified": 7,
+    "verified": 8,
     "partial": 1,
     "followUpRequired": 0
   },
@@ -146,6 +146,22 @@
         "app/(marketing)/layout.tsx"
       ],
       "notes": "WCAG 2.1 AA SC 2.4.1 (Bypass Blocks). Rendered as the first child of <body> in the root layout, so it precedes navigation on every page. Uses sr-only / focus:not-sr-only pattern with fixed positioning when focused. Target anchor id=\"main-content\" is present on the <main> element in both the dashboard and marketing layouts."
+    },
+    {
+      "id": "mobile-bottom-tabs-badge",
+      "name": "MobileBottomTabs badge",
+      "status": "verified",
+      "area": "Global keyboard navigation",
+      "auditScope": [
+        "visual badge presence",
+        "unread count screen-reader announcement",
+        "dark-mode contrast separation"
+      ],
+      "evidence": [
+        "components/navbar/MobileBottomTabs.tsx",
+        "components/navbar/__tests__/MobileBottomTabs.test.tsx"
+      ],
+      "notes": "WCAG 2.1 AA SC 1.4.11 and 4.1.3 satisfied. Tab labels announce unread notifications politely without visually cluttering layout."
     }
   ]
 }

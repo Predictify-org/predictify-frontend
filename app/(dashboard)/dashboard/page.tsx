@@ -15,7 +15,7 @@ import { ActiveBets } from "@/components/active-bets/ActiveBets"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator"
 import { NotifDigest } from "@/app/dashboard/NotifDigest"
-import { generateMockNotifications } from "@/lib/notifications"
+import { useNotificationsStore } from "@/app/state/notifications"
 import { NotificationItem } from "@/types/notifications"
 import { Kbd } from "@/components/ui/kbd"
 import { useEffect, useMemo, useCallback, useState } from "react"
@@ -109,9 +109,7 @@ export default function DashboardPage() {
   const [hiddenRecommendations, setHiddenRecommendations] = useState<string[]>([])
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null)
   const [liveMessage, setLiveMessage] = useState("")
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
-    generateMockNotifications(CURRENT_USER_ID)
-  )
+  const { notifications, markAsRead: handleMarkAsRead, markAllAsRead: handleMarkAllAsRead } = useNotificationsStore()
   const reducedMotion = useReducedMotion()
 
   const router = useRouter()
@@ -158,20 +156,6 @@ export default function DashboardPage() {
     window.addEventListener("keydown", handleKeyboardShortcut)
     return () => window.removeEventListener("keydown", handleKeyboardShortcut)
   }, [handleKeyboardShortcut])
-
-  const handleMarkAsRead = (id: string) => {
-    setNotifications((current) =>
-      current.map((item) => (item.id === id ? { ...item, read: true } : item))
-    )
-  }
-
-  const handleMarkAllAsRead = () => {
-    setNotifications((current) =>
-      current.map((item) =>
-        item.userId === CURRENT_USER_ID ? { ...item, read: true } : item
-      )
-    )
-  }
 
   /**
    * Simulate async fetch.
