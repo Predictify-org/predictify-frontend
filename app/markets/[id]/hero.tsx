@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, type MarketStatus } from "@/components/market/StatusBadge";
+import { LiveRegion } from "@/components/ui/live-region";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -216,7 +217,7 @@ export function MarketHero({
       </div>
 
       {/* ── Row 3 · Probability bar ──────────────────────────────── */}
-      {outcomes && outcomes.length > 0 && (
+      {leadOutcome && (
         <div className="mb-5" data-testid="probability-section">
           {/* Outcome labels */}
           <div className="mb-1.5 flex justify-between text-body-sm font-medium">
@@ -302,14 +303,17 @@ export function MarketHero({
             <Share2 className="h-4 w-4" aria-hidden="true" />
             Share
           </Button>
-
-          {/* Live region announces when volume/participants change dynamically */}
-          <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-            {volume && `Market volume: ${volume}.`}
-            {participants != null && ` ${participants.toLocaleString()} participants.`}
-          </div>
         </div>
       )}
+
+      {/* Live region announces state changes, volume, and participants */}
+      <LiveRegion
+        message={[
+          `Market status is ${status.replace('_', ' ')}.`,
+          volume && `Market volume: ${volume}.`,
+          participants != null && `${participants.toLocaleString()} participants.`
+        ].filter(Boolean).join(" ")}
+      />
     </section>
   );
 }
