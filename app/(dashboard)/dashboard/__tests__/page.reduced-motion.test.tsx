@@ -13,8 +13,16 @@ import DashboardPage from "../page"
 // ---------------------------------------------------------------------------
 
 const mockUseReducedMotion = jest.fn(() => false)
+const mockPush = jest.fn()
+
 jest.mock("@/hooks/useReducedMotion", () => ({
   useReducedMotion: () => mockUseReducedMotion(),
+}))
+
+jest.mock("next/navigation", () => ({
+  useRouter() {
+    return { push: mockPush, replace: jest.fn(), prefetch: jest.fn() }
+  },
 }))
 
 jest.mock("@/app/dashboard/NotifDigest", () => ({
@@ -35,8 +43,20 @@ jest.mock("@/components/activity-timeline", () => ({
 jest.mock("@/app/components/RecentlyViewedRail", () => ({
   RecentlyViewedRail: () => <div data-testid="recently-viewed-rail" />,
 }))
+
+jest.mock("lucide-react", () => ({
+  AlertCircle: () => <svg data-testid="alert-circle" />,
+  CheckCircle: () => <svg data-testid="check-circle" />,
+  HelpCircle: () => <svg data-testid="help-circle" />,
+  TrendingUp: () => <svg data-testid="trending-up" />,
+  PauseCircle: () => <svg data-testid="pause-circle" />,
+}))
 jest.mock("@/components/cards/recommendation-provenance", () => ({
   RecommendationProvenance: () => <div data-testid="recommendation-provenance" />,
+}))
+
+jest.mock("@/lib/notifications", () => ({
+  generateMockNotifications: () => [],
 }))
 
 // next/link from next/navigation is a client component; mock to avoid
@@ -66,6 +86,30 @@ function resetMotionMock(value: boolean) {
 // ---------------------------------------------------------------------------
 
 describe("DashboardPage — reduced-motion fallback (#547)", () => {
+  it("adds a polite live region that announces dashboard status changes", () => {
+    resetMotionMock(false)
+    render(<DashboardPage />)
+
+    const liveRegion = screen.getByTestId("dashboard-status-live-region")
+    expect(liveRegion).toHaveAttribute("role", "status")
+    expect(liveRegion).toHaveAttribute("aria-live", "polite")
+    expect(liveRegion).toHaveAttribute("aria-atomic", "true")
+
+    act(() => {
+      jest.advanceTimersByTime(50)
+    })
+    expect(liveRegion).toHaveTextContent(/loading dashboard data/i)
+
+    act(() => {
+      jest.advanceTimersByTime(1450)
+    })
+    act(() => {
+      jest.advanceTimersByTime(50)
+    })
+    const latestAnnouncement = liveRegion.textContent?.toLowerCase() ?? ""
+    expect(latestAnnouncement).toContain("dashboard data loaded")
+  })
+
   // Real timers so we can assert the 1500ms simulated delay is in effect
   // when motion is allowed. The reduced-motion case must NOT trigger the
   // simulated delay (data renders synchronously).
@@ -155,9 +199,10 @@ describe("DashboardPage — reduced-motion fallback (#547)", () => {
     resetMotionMock(true)
     render(<DashboardPage />)
 
-    // Confirm that NO pending timers remain after the initial render — the
-    // reduced-motion branch should be fully synchronous.
-    expect(jest.getTimerCount()).toBe(0)
+    // The reduced-motion branch updates data synchronously, but the
+    // live-region effect still schedules a short timeout to announce the
+    // status change. We only assert that the data appears immediately.
+    expect(jest.getTimerCount()).toBeGreaterThan(0)
 
     // And the populated state must already be in the DOM.
     expect(screen.getByText("24")).toBeInTheDocument()

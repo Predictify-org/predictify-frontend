@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { AlertCircle, CheckCircle, HelpCircle, TrendingUp } from "lucide-react"
+import { AlertCircle, CheckCircle, HelpCircle, PauseCircle, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -19,6 +19,7 @@ import { generateMockNotifications } from "@/lib/notifications"
 import { NotificationItem } from "@/types/notifications"
 import { Kbd } from "@/components/ui/kbd"
 import { useEffect, useMemo, useCallback, useState } from "react"
+import { useReducedMotion } from "@/hooks/useReducedMotion"
 
 // TODO: replace with the authenticated user's id once auth context exposes it.
 const CURRENT_USER_ID = "current-user"
@@ -37,6 +38,13 @@ interface RecommendedMarket {
   signalKey: RecommendationSignalKey
   volume: string
 }
+
+const DEMO_STATS: Stat[] = [
+  { label: "Volume", value: "$4,325.49" },
+  { label: "Predictions", value: "24" },
+  { label: "Win rate", value: "12,543" },
+  { label: "Leaderboard", value: "573" },
+]
 
 const recommendedMarkets: RecommendedMarket[] = [
   {
@@ -96,6 +104,7 @@ const recommendedMarkets: RecommendedMarket[] = [
  */
 export default function DashboardPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
+  const [statusAnnouncement, setStatusAnnouncement] = useState("")
   const [stats, setStats] = useState<Stat[] | null>(null)
   const [hiddenRecommendations, setHiddenRecommendations] = useState<string[]>([])
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null)
@@ -106,6 +115,23 @@ export default function DashboardPage() {
 
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("overview")
+
+  useEffect(() => {
+    const nextMessage =
+      status === "loading"
+        ? "Loading dashboard data."
+        : status === "success"
+          ? "Dashboard data loaded."
+          : status === "empty"
+            ? "Dashboard has no data to show."
+            : "Dashboard data failed to load."
+
+    // Keep the announcement deterministic for assistive tech by clearing the
+    // prior message first and then re-inserting the next status update.
+    setStatusAnnouncement("")
+    const timer = window.setTimeout(() => setStatusAnnouncement(nextMessage), 50)
+    return () => window.clearTimeout(timer)
+  }, [status])
 
   const userNotifications = useMemo(
     () => notifications.filter((item) => item.userId === CURRENT_USER_ID),
@@ -439,6 +465,17 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label="Dashboard status"
+        data-testid="dashboard-status-live-region"
+        className="sr-only"
+      >
+        {statusAnnouncement}
+      </div>
+
       {reducedMotion && (
         // Accessible inline notice: role="status" + aria-live="polite" means
         // screen-readers announce the static mode without interrupting other
