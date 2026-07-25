@@ -9,7 +9,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,6 +46,10 @@ export interface Claim {
  *   claimed   → pattern-crosshatch (neutral / already processed)
  *   pending   → pattern-horizontal (waiting / in progress)
  *   disputed  → pattern-vertical (alert / needs attention)
+ *
+ * Each status also includes an explicit text colour to maintain
+ * sufficient contrast (≥4.5:1) against its background in both
+ * light and dark mode.
  */
 const STATUS_CONFIG: Record<
   ClaimStatus,
@@ -54,6 +58,7 @@ const STATUS_CONFIG: Record<
     variant: "default" | "secondary" | "outline" | "destructive";
     Icon: React.FC<{ className?: string; size?: number; "aria-hidden"?: boolean }>;
     bgClass: string;
+    textClass: string;
     patternClass: string;
   }
 > = {
@@ -62,6 +67,7 @@ const STATUS_CONFIG: Record<
     variant: "default",
     Icon: Gift,
     bgClass: "bg-chart-2",
+    textClass: "text-white",
     patternClass: "pattern-diagonal",
   },
   claimed: {
@@ -69,6 +75,7 @@ const STATUS_CONFIG: Record<
     variant: "secondary",
     Icon: CheckCircle,
     bgClass: "bg-muted",
+    textClass: "text-muted-foreground",
     patternClass: "pattern-crosshatch",
   },
   pending: {
@@ -76,6 +83,7 @@ const STATUS_CONFIG: Record<
     variant: "outline",
     Icon: Clock,
     bgClass: "bg-chart-3",
+    textClass: "text-white",
     patternClass: "pattern-horizontal",
   },
   disputed: {
@@ -83,6 +91,7 @@ const STATUS_CONFIG: Record<
     variant: "destructive",
     Icon: AlertCircle,
     bgClass: "bg-destructive/20",
+    textClass: "text-destructive",
     patternClass: "pattern-vertical",
   },
 };
@@ -170,11 +179,12 @@ const StatusBadge: React.FC<{ status: ClaimStatus }> = ({ status }) => {
       className={cn(
         "relative inline-flex items-center gap-1.5 overflow-hidden rounded-full px-3 py-1 text-xs font-medium",
         config.bgClass,
+        config.textClass,
         // Color-blind safe pattern overlay
         config.patternClass
       )}
       role="status"
-      aria-label={`Claim status: ${config.label}. Pattern: ${status} indicator.`}
+      aria-label={`Claim status: ${config.label}`}
     >
       <Icon className="relative z-10 h-3.5 w-3.5" aria-hidden="true" />
       <span className="relative z-10">{config.label}</span>
