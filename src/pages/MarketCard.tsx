@@ -1,4 +1,5 @@
 import React from "react";
+import { LiveRegion } from "../components/LiveRegion";
 import "../styles/patterns.css";
 
 export type MarketStatus = "active" | "closed" | "pending" | "resolved";
@@ -28,6 +29,9 @@ const getStatusPatternClass = (status: MarketStatus): string => {
   }
 };
 
+const formatStatusLabel = (status: MarketStatus): string =>
+  status.charAt(0).toUpperCase() + status.slice(1);
+
 export const MarketCard: React.FC<MarketCardProps> = ({
   title,
   status,
@@ -37,6 +41,15 @@ export const MarketCard: React.FC<MarketCardProps> = ({
   onClick,
 }) => {
   const patternClass = getStatusPatternClass(status);
+  const previousStatusRef = React.useRef<MarketStatus | null>(null);
+  const [announcement, setAnnouncement] = React.useState("");
+
+  React.useEffect(() => {
+    if (previousStatusRef.current && previousStatusRef.current !== status) {
+      setAnnouncement(`Market status changed to ${formatStatusLabel(status)}`);
+    }
+    previousStatusRef.current = status;
+  }, [status]);
 
   return (
     <article
@@ -54,7 +67,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           aria-label={`Market status: ${status}`}
           role="status"
         >
-          {status.charAt(0).toUpperCase() + status.slice(1)}
+          {formatStatusLabel(status)}
         </span>
       </div>
 
@@ -66,6 +79,8 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         {volume && <span>Volume: {volume}</span>}
         {endDate && <span>Ends: {endDate}</span>}
       </div>
+
+      <LiveRegion message={announcement} data-testid="marketcard-status-live-region" />
     </article>
   );
 };
