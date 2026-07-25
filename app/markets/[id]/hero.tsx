@@ -80,6 +80,8 @@ export interface MarketHeroProps {
    * If omitted the Share button is not rendered.
    */
   onShare?: () => void;
+  /** Optional trigger element for the "About this market" modal. */
+  aboutModalTrigger?: React.ReactNode;
   /** Additional CSS classes applied to the root element. */
   className?: string;
   /** Renders a loading placeholder that mirrors the final hero layout. */
@@ -168,6 +170,7 @@ export function MarketHero({
   outcomes,
   isGrantFoxCampaign = false,
   onShare,
+  aboutModalTrigger,
   className,
   isLoading = false,
 }: MarketHeroProps) {
@@ -379,18 +382,21 @@ export function MarketHero({
       )}
 
       {/* ── Row 5 · Actions ─────────────────────────────────────── */}
-      {onShare && (
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onShare}
-            className="gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-label="Share this market"
-          >
-            <Share2 className="h-4 w-4" aria-hidden="true" />
-            Share
-          </Button>
+      {(onShare || aboutModalTrigger) && (
+        <div className="flex flex-wrap items-center gap-3">
+          {aboutModalTrigger}
+          {onShare && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onShare}
+              className="gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              aria-label="Share this market"
+            >
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              Share
+            </Button>
+          )}
         </div>
       )}
 
