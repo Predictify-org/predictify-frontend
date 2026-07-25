@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import MarketCard from "../MarketCard";
 
@@ -46,5 +46,17 @@ describe("MarketCard Color-Blind Accessibility", () => {
     expect(screen.getByTestId("empty-state")).toBeInTheDocument();
     expect(screen.getByText("No Data")).toBeInTheDocument();
     expect(screen.getByText("Nothing to see here")).toBeInTheDocument();
+  });
+
+  it("handles keyboard navigation (Enter and Space)", () => {
+    const onClickMock = jest.fn();
+    render(<MarketCard id="5" title="Keyboard Test" onClick={onClickMock} />);
+    const article = screen.getByRole("button");
+    
+    fireEvent.keyDown(article, { key: "Enter", code: "Enter", charCode: 13 });
+    expect(onClickMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(article, { key: " ", code: "Space", charCode: 32 });
+    expect(onClickMock).toHaveBeenCalledTimes(2);
   });
 });
