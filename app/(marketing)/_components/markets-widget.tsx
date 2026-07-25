@@ -1,23 +1,17 @@
 "use client";
 
 import {
-  ArrowRight,
-  TrendingUp,
-  Globe,
-  BarChart3,
   CheckCircle2,
   Coins,
-  Bell,
 } from "lucide-react";
-import LanguageBadge from "@/components/LanguageBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   sampleMarkets,
   winNotifications,
-  type Market,
 } from "@/content/markets.sample";
 import { useState, useEffect } from "react";
+import { MarketCard } from "@/app/components/MarketCard";
 import { useFollowsStore } from "@/app/state/follows";
 import { useUserLimitsStore } from "@/app/state/userLimits";
 import Sparkline from "@/app/components/Sparkline";
@@ -25,27 +19,6 @@ import Sparkline from "@/app/components/Sparkline";
 interface MarketsWidgetProps {
   className?: string;
 }
-
-const iconMap = {
-  TrendingUp,
-  Globe,
-  BarChart3,
-};
-
-const colorMap = {
-  blue: {
-    bg: "bg-blue-500/20",
-    icon: "text-blue-400",
-  },
-  purple: {
-    bg: "bg-purple-500/20",
-    icon: "text-purple-400",
-  },
-  emerald: {
-    bg: "bg-emerald-500/20",
-    icon: "text-emerald-400",
-  },
-};
 
 export function MarketsWidget({ className }: MarketsWidgetProps) {
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -86,21 +59,14 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
         </div>
 
         <div className="space-y-4">
-          {sampleMarkets.map((market, index) => {
-            const IconComponent = iconMap[market.icon as keyof typeof iconMap];
-            const colors = colorMap[market.iconColor as keyof typeof colorMap];
-
-            return (
-              <MarketCard
-                key={market.id}
-                market={market}
-                IconComponent={IconComponent}
-                colors={colors}
-                index={index}
-                reducedMotion={reducedMotion}
-              />
-            );
-          })}
+          {sampleMarkets.map((market, index) => (
+            <MarketCard
+              key={market.id}
+              market={market}
+              index={index}
+              reducedMotion={reducedMotion}
+            />
+          ))}
 
           {/* Place Prediction Button */}
           <Button className="w-full bg-[#4F46E5] py-6 text-white hover:bg-[#4F46E5]/90 transition-colors">
@@ -125,6 +91,7 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
     </div>
   );
 }
+
 
 interface MarketCardProps {
   market: Market;
