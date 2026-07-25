@@ -65,4 +65,20 @@ describe("BetForm", () => {
       )
     );
   });
+
+  it("submits the form when Cmd+Enter or Ctrl+Enter is pressed", async () => {
+    const onSubmit = jest.fn();
+    render(<BetForm onSubmit={onSubmit} />);
+
+    // Select the 10 XLM preset
+    await userEvent.click(
+      screen.getByRole("button", { name: "Set bet amount to 10 XLM" })
+    );
+
+    // Press Ctrl+Enter
+    fireEvent.keyDown(document, { key: "Enter", ctrlKey: true });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(10);
+  });
 });

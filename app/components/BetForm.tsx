@@ -12,8 +12,9 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import QuickBetPresets from "@/components/QuickBetPresets";
+import KbdHint from "@/src/components/KbdHint";
 
 export interface BetFormProps {
   /** Called with the chosen amount (in XLM) when the form is submitted. */
@@ -41,9 +42,7 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
     setError(null);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
+  const attemptSubmit = () => {
     if (numericAmount === null || numericAmount <= 0) {
       setError("Please enter a valid bet amount greater than 0 XLM.");
       return;
@@ -51,6 +50,26 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
 
     onSubmit?.(numericAmount);
   };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    attemptSubmit();
+  };
+
+  // Keyboard shortcut listener for Cmd+Enter / Ctrl+Enter
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        attemptSubmit();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [numericAmount, onSubmit]);
 
   return (
     <form onSubmit={handleSubmit} noValidate aria-label="Place a bet">
@@ -62,30 +81,32 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
         />
 
         {/* Free-text amount input */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 relative">
           <label
             htmlFor="bet-amount"
             className="text-sm font-medium text-foreground"
           >
             Amount (XLM)
           </label>
-          <input
-            id="bet-amount"
-            type="number"
-            min="0.0000001"
-            step="any"
-            value={amount}
-            onChange={handleAmountChange}
-            placeholder="Enter amount"
-            aria-describedby={error ? "bet-amount-error" : undefined}
-            aria-invalid={error ? true : undefined}
-            className={[
-              "w-full rounded-md border px-3 py-2 text-sm",
-              "bg-background text-foreground placeholder:text-muted-foreground",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              error ? "border-destructive" : "border-border",
-            ].join(" ")}
-          />
+          <div className="relative">
+            <input
+              id="bet-amount"
+              type="number"
+              min="0.0000001"
+              step="any"
+              value={amount}
+              onChange={handleAmountChange}
+              placeholder="Enter amount"
+              aria-describedby={error ? "bet-amount-error" : undefined}
+              aria-invalid={error ? true : undefined}
+              className={[
+                "w-full rounded-md border px-3 py-2 text-sm",
+                "bg-background text-foreground placeholder:text-muted-foreground",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                error ? "border-destructive" : "border-border",
+              ].join(" ")}
+            />
+          </div>
           {error && (
             <p
               id="bet-amount-error"
@@ -101,13 +122,17 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
         <button
           type="submit"
           className={[
-            "w-full rounded-md px-4 py-2 text-sm font-semibold",
+            "w-full rounded-md px-4 py-2 text-sm font-semibold flex items-center justify-center gap-2",
             "bg-primary text-primary-foreground",
             "hover:bg-primary/90 transition-colors duration-150",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           ].join(" ")}
         >
-          Place Bet
+          <span>Place Bet</span>
+          <div className="flex items-center gap-1 opacity-80">
+            <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">⌘</KbdHint>
+            <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">↵</KbdHint>
+          </div>
         </button>
       </div>
     </form>
