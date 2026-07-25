@@ -164,4 +164,23 @@ describe("DashboardPage keyboard shortcuts", () => {
       configurable: true,
     })
   })
+
+  it("uses a stacked mobile header layout for the title and actions", () => {
+    render(<DashboardPage />)
+
+    const header = screen.getByTestId("dashboard-header")
+    const actions = screen.getByTestId("dashboard-header-actions")
+
+    expect(header).toHaveClass("flex-col", "gap-3", "sm:flex-row", "sm:items-center", "sm:justify-between")
+    expect(actions).toHaveClass("flex-wrap", "items-center", "justify-end", "gap-2")
+  })
+
+  it("lets the tab list wrap on narrow viewports", () => {
+    render(<DashboardPage />)
+
+    const tabsList = screen.getByRole("tablist")
+
+    expect(tabsList).toHaveClass("flex-wrap")
+    expect(tabsList).toHaveClass("justify-start")
+  })
 })
