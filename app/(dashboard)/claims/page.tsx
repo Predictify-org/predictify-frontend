@@ -9,7 +9,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -110,9 +110,9 @@ const StatusBadge: React.FC<{ status: ClaimStatus }> = ({ status }) => {
   const Icon = config.Icon;
 
   const statusClasses: Record<ClaimStatus, string> = {
-    available: "bg-chart-2 text-chart-2-foreground",
+    available: "bg-chart-2 text-white",
     claimed: "bg-muted text-muted-foreground",
-    pending: "bg-chart-3 text-chart-3-foreground",
+    pending: "bg-chart-3 text-white",
     disputed: "bg-destructive/20 text-destructive",
   };
 
