@@ -15,14 +15,21 @@ import { cn } from "@/lib/utils"
  * Pass the appropriate className to match the real element's border-radius
  * and dimensions so the loading state preserves layout shape parity.
  */
+interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** Whether to show the pulse animation (default: true). Set false for reduced-motion users. */
+  animate?: boolean
+}
+
 function Skeleton({
   className,
+  animate = true,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: SkeletonProps) {
   return (
     <div
       className={cn(
-        "animate-pulse rounded-md bg-white/10",
+        "rounded-md bg-white/10",
+        animate && "animate-pulse",
         className,
       )}
       {...props}

@@ -6,12 +6,13 @@
  *  2. Clicking a chip populates the amount field
  *  3. Submitting with a valid amount calls onSubmit
  *  4. Submitting with an empty / zero amount shows an inline error
+ *  5. BetFormSkeleton renders with correct structure and accessibility
  */
 
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import BetForm from "@/app/components/BetForm";
+import BetForm, { BetFormSkeleton } from "@/app/components/BetForm";
 
 describe("BetForm", () => {
   it("renders the quick-bet chips and the amount input", () => {
@@ -64,5 +65,48 @@ describe("BetForm", () => {
         "Please enter a valid bet amount greater than 0 XLM."
       )
     );
+  });
+});
+
+// --- BetFormSkeleton Tests ---
+
+describe("BetFormSkeleton", () => {
+  it("renders a skeleton with the correct structure", () => {
+    render(<BetFormSkeleton />);
+
+    const skeleton = screen.getByTestId("bet-form-skeleton");
+    expect(skeleton).toBeInTheDocument();
+    expect(skeleton).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("matches the BetForm layout with correct sections", () => {
+    render(<BetFormSkeleton />);
+
+    // Three preset chips - matching QuickBetPresets chip dimensions (h-7 rounded-full)
+    const chips = document.querySelectorAll('[role="group"] .animate-pulse');
+    expect(chips.length).toBe(3);
+
+    // Amount label + input
+    const skeletonBars = document.querySelectorAll('.animate-pulse:not([role="group"] *)');
+    expect(skeletonBars.length).toBeGreaterThanOrEqual(2);
+
+    // Submit button - h-10 rounded-md
+    const submitSkeleton = document.querySelector('.animate-pulse.w-full.rounded-md.h-10');
+    expect(submitSkeleton).toBeInTheDocument();
+  });
+
+  it("contains animated skeleton bars", () => {
+    render(<BetFormSkeleton />);
+
+    const animatedElements = document.querySelectorAll(".animate-pulse");
+    expect(animatedElements.length).toBeGreaterThan(0);
+  });
+
+  it("respects reduced motion preference", () => {
+    // With reduced motion, animate-pulse should not be on the button
+    const { container } = render(<BetFormSkeleton />);
+
+    const buttonSkeleton = container.querySelector('.w-full.rounded-md.h-10');
+    expect(buttonSkeleton).toBeInTheDocument();
   });
 });

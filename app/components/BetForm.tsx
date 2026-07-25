@@ -15,6 +15,7 @@
 
 import React, { useState } from "react";
 import QuickBetPresets from "@/components/QuickBetPresets";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 export interface BetFormProps {
@@ -123,3 +124,62 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
 };
 
 export default BetForm;
+
+/**
+ * BetFormSkeleton
+ *
+ * Skeleton placeholder that mirrors the exact layout/shape of BetForm
+ * so the loading state preserves layout parity (no layout shift).
+ *
+ * Structure mirrors BetForm:
+ *   1. Three preset chips (1 / 5 / 10 XLM) - matching QuickBetPresets dimensions
+ *   2. Amount label + input
+ *   3. Submit button
+ */
+export const BetFormSkeleton: React.FC = () => {
+  const reducedMotion = useReducedMotion();
+
+  return (
+    <div className="flex flex-col gap-3" aria-busy="true" data-testid="bet-form-skeleton">
+      {/* Preset chips - 3 chips matching QuickBetPresets exactly */}
+      <div role="group" aria-label="Quick bet amounts" className="flex gap-2 flex-wrap">
+        <Skeleton
+          className="h-7 w-18 rounded-full shrink-0"
+          aria-hidden="true"
+          animate={!reducedMotion}
+        />
+        <Skeleton
+          className="h-7 w-18 rounded-full shrink-0"
+          aria-hidden="true"
+          animate={!reducedMotion}
+        />
+        <Skeleton
+          className="h-7 w-20 rounded-full shrink-0"
+          aria-hidden="true"
+          animate={!reducedMotion}
+        />
+      </div>
+
+      {/* Amount label + input */}
+      <div className="flex flex-col gap-1">
+        <Skeleton
+          className="h-5 w-22 rounded-md"
+          aria-hidden="true"
+          animate={!reducedMotion}
+        />
+        <Skeleton
+          className="h-10 w-full rounded-md border"
+          aria-hidden="true"
+          animate={!reducedMotion}
+        />
+      </div>
+
+      {/* Submit button */}
+      <Skeleton
+        className="w-full rounded-md h-10"
+        aria-hidden="true"
+        animate={!reducedMotion}
+      />
+    </div>
+  );
+};
