@@ -1,5 +1,5 @@
 import React from "react"
-import { render, screen, act } from "@testing-library/react"
+import { render, screen, act, fireEvent } from "@testing-library/react"
 import DashboardPage from "../page"
 
 const mockPush = jest.fn()
@@ -131,6 +131,29 @@ describe("DashboardPage keyboard shortcuts", () => {
     })
 
     expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it("announces dashboard load status through the live region", () => {
+    render(<DashboardPage />)
+
+    act(() => { jest.advanceTimersByTime(1600) })
+    act(() => { jest.advanceTimersByTime(60) })
+
+    expect(screen.getByTestId("dashboard-live-region")).toHaveTextContent(
+      "Dashboard loaded. Showing 4 key metrics in overview."
+    )
+  })
+
+  it("announces tab changes through the live region", () => {
+    render(<DashboardPage />)
+
+    act(() => { jest.advanceTimersByTime(1600) })
+    fireEvent.click(screen.getByRole("tab", { name: "Analytics" }))
+    act(() => { jest.advanceTimersByTime(60) })
+
+    expect(screen.getByTestId("dashboard-live-region")).toHaveTextContent(
+      "Dashboard loaded. Showing 4 key metrics in analytics."
+    )
   })
 
   it("switches to analytics tab on Cmd+Shift+A (Mac)", () => {

@@ -39,6 +39,9 @@ page degrades to a fully static view whenever motion is reduced.
 - A dedicated inline status banner is rendered above the page heading so
   the static mode is visible to sighted users and announced to screen
   reader users.
+- A dedicated polite live region now announces dashboard state changes
+  (loading, loaded, empty, error, refresh, and tab-context changes)
+  without moving focus.
 
 ### 2. StartedChecklist component — `app/dashboard/StartedChecklist.tsx`
 
@@ -62,6 +65,9 @@ page degrades to a fully static view whenever motion is reduced.
   - Status banner is rendered with `role="status"` + `aria-live="polite"`
     only under reduced motion.
   - Layout order (banner precedes the H1).
+- **`app/(dashboard)/dashboard/__tests__/page.test.tsx`** —
+  focused tests covering polite live-region announcements for dashboard
+  load completion and tab changes.
 - **`app/dashboard/StartedChecklist.reduced-motion.test.tsx`** —
   focused tests covering the new `reducedMotion` prop and the system
   preference integration on the checklist component.
@@ -104,6 +110,14 @@ Rendered conditionally above the page `<h1>`:
 `DashboardPage`. No new props. Reduced-motion behaviour is driven solely
 by the system preference.
 
+### Live region component
+
+`app/components/LiveRegion.tsx` re-exports the shared
+`components/ui/live-region.tsx` helper so dashboard surfaces can import a
+single app-level live-region entrypoint. The shared helper also accepts
+an optional `data-testid` for focused tests; this is a test-only API and
+has no visible runtime impact.
+
 ### StartedChecklist
 
 ```ts
@@ -131,7 +145,8 @@ the page state to drive the banner and the timer-skip path.
 - WCAG 2.1 SC 2.3.3 (Animation from Interactions) — animations are
   bypassed when the preference is set.
 - WCAG 2.1 SC 4.1.3 (Status Messages) — banner uses `role="status"` and
-  `aria-live="polite"`.
+  `aria-live="polite"`, and the dashboard's hidden live region announces
+  state changes without interrupting the current task.
 - Heading hierarchy is preserved (`h1` for the page title, `h2`/`h3`
   inside sections).
 
