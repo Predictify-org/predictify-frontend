@@ -29,4 +29,9 @@ describe("MarketCard Color-Blind Accessibility", () => {
     const badge = screen.getByRole("status");
     expect(badge).toHaveClass("status-pattern-resolved");
   });
+
+  it("renders skeleton when isLoading is true", () => {
+    render(<MarketCard isLoading />);
+    expect(screen.getByTestId("market-card-skeleton")).toBeInTheDocument();
+  });
 });
