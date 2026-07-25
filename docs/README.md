@@ -21,6 +21,14 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Verified vs. partial follow-up status
   - Evidence paths for recent component work
 
+### Components
+
+- **[MARKET_CARD_MOBILE_LAYOUT.md](./MARKET_CARD_MOBILE_LAYOUT.md)** - MarketCard mobile-breakpoint layout
+  - Responsive layout changes for narrow viewports (< 640 px)
+  - Tailwind classes reference for the stacked/side-by-side breakpoint behaviour
+  - Accessibility considerations (aria-label, truncation, dark mode)
+  - Test strategy and how to run focused tests
+
 ### Core Features
 - **[WALLET.md](./WALLET.md)** - Wallet Integration Guide
   - Supported wallets (Freighter, LOBSTR, XBull, Albedo, Rabet)

@@ -28,6 +28,26 @@ const getStatusPatternClass = (status: MarketStatus): string => {
   }
 };
 
+/**
+ * MarketCard (src/pages)
+ *
+ * A lightweight market summary card showing category, status badge,
+ * title, volume, and end date.
+ *
+ * ## Responsive layout
+ * - **≥ sm (640 px):** category and status badge sit side-by-side
+ *   (`flex-row justify-between`). Volume and end-date also side-by-side.
+ * - **< sm (mobile):** the header row switches to `flex-col` so the badge
+ *   never overflows when a long category label is present. `flex-wrap` on
+ *   the meta row lets pool and date stack when the card is narrow.
+ *   `min-w-0` + `truncate` on the category prevent text overflow.
+ *
+ * ## Accessibility
+ * - The status badge keeps its `role="status"` and `aria-label` on all
+ *   breakpoints for screen-reader compatibility.
+ * - WCAG 2.1 AA contrast is preserved; dark-mode pattern fills are defined
+ *   in `patterns.css`.
+ */
 export const MarketCard: React.FC<MarketCardProps> = ({
   title,
   status,
@@ -43,14 +63,28 @@ export const MarketCard: React.FC<MarketCardProps> = ({
       className="market-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-white dark:bg-gray-800"
       onClick={onClick}
     >
-      <div className="flex justify-between items-center mb-2">
+      {/*
+       * Header row: category label + status badge
+       * ------------------------------------------
+       * Mobile  (<sm): flex-col so a long category label and the badge never
+       *   fight for horizontal space; the badge aligns to the start.
+       * Desktop (≥sm): flex-row justify-between — the original side-by-side
+       *   layout is restored.
+       *
+       * `min-w-0` + `truncate` on the category keep overflow tidy when the
+       * card width is very narrow.
+       */}
+      <div className="flex flex-col gap-1 mb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
         {category && (
-          <span className="text-xs uppercase font-semibold text-gray-500 dark:text-gray-400">
+          <span
+            className="min-w-0 truncate text-xs uppercase font-semibold text-gray-500 dark:text-gray-400"
+            title={category}
+          >
             {category}
           </span>
         )}
         <span
-          className={`status-badge text-xs font-medium px-2.5 py-1 rounded-full border ${patternClass} status-${status}`}
+          className={`self-start status-badge text-xs font-medium px-2.5 py-1 rounded-full border ${patternClass} status-${status}`}
           aria-label={`Market status: ${status}`}
           role="status"
         >
@@ -62,7 +96,14 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         {title}
       </h3>
 
-      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-300">
+      {/*
+       * Meta row: volume + end date
+       * ----------------------------
+       * `flex-wrap` lets the two items wrap to a second line on very narrow
+       * viewports instead of overflowing. `gap-x-4 gap-y-1` maintains
+       * comfortable spacing in both orientations.
+       */}
+      <div className="flex flex-wrap justify-between items-center gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-300">
         {volume && <span>Volume: {volume}</span>}
         {endDate && <span>Ends: {endDate}</span>}
       </div>

@@ -40,6 +40,25 @@ interface MarketCardProps {
 // Component
 // ---------------------------------------------------------------------------
 
+/**
+ * MarketCard
+ *
+ * Displays a prediction market summary card with odds, sparkline,
+ * 24h activity heat strip, follow indicator, and daily betting nudge.
+ *
+ * ## Responsive layout
+ * - **≥ sm (640 px):** icon + content on the left; odds block on the right
+ *   (side-by-side, `flex-row`).
+ * - **< sm (mobile):** stacked vertically (`flex-col`). The odds block is
+ *   moved below the content and rendered in a horizontal row instead of a
+ *   right-aligned column so that both values have room to breathe on narrow
+ *   screens. The bottom meta row (pool + ends-in) wraps naturally via
+ *   `flex-wrap`.
+ *
+ * ## Accessibility
+ * - WCAG 2.1 AA: all interactive elements have accessible labels.
+ * - `aria-label` on the odds region announces both values to screen readers.
+ */
 export function MarketCard({
   market,
   index = 0,
@@ -64,14 +83,22 @@ export function MarketCard({
         animationFillMode: "both",
       }}
     >
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <div className={`rounded-lg p-2 ${colors?.bg}`}>
+      {/*
+       * Top section
+       * -----------
+       * Mobile  (<sm): flex-col — icon+content stacked above the odds block.
+       * Desktop (≥sm): flex-row — icon+content on the left, odds on the right.
+       */}
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        {/* Left: icon + textual content */}
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <div className={`shrink-0 rounded-lg p-2 ${colors?.bg}`}>
             {IconComponent && (
               <IconComponent className={`h-5 w-5 ${colors?.icon}`} />
             )}
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
+            {/* Title row with SaveForLater button — wraps naturally */}
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <h3 className="font-semibold text-white">{market.title}</h3>
               <SaveForLater marketId={market.id} marketTitle={market.title} />
@@ -118,7 +145,22 @@ export function MarketCard({
             </div>
           </div>
         </div>
-        <div className="text-right">
+
+        {/*
+         * Odds block
+         * ----------
+         * Mobile  (<sm): full-width horizontal row — yes and no values sit
+         *   side-by-side, each labelled, so neither is squeezed.
+         * Desktop (≥sm): right-aligned column (text-right), shrink-0 so it
+         *   never collapses narrower than its content.
+         *
+         * `aria-label` provides a single accessible description for the pair.
+         */}
+        <div
+          className="flex shrink-0 flex-row gap-4 sm:flex-col sm:gap-0 sm:text-right"
+          aria-label={`Odds: Yes ${market.yesOdds}%, No ${market.noOdds}%`}
+          data-testid="odds-block"
+        >
           <div className="text-sm font-medium text-green-400 tabular-nums">
             Yes: {market.yesOdds}%
           </div>
@@ -136,7 +178,13 @@ export function MarketCard({
         />
       </div>
 
-      <div className="flex justify-between text-xs text-white/60">
+      {/*
+       * Bottom meta row
+       * ---------------
+       * `flex-wrap` ensures pool amount and end-date stack on very narrow
+       * viewports rather than overflowing or clipping.
+       */}
+      <div className="flex flex-wrap justify-between gap-x-2 gap-y-1 text-xs text-white/60">
         <span className="tabular-nums">
           Pool: {market.poolAmount.toLocaleString()} USDC
         </span>
