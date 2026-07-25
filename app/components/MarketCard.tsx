@@ -1,17 +1,13 @@
-"use client"
+"use client";
 
-import {
-  TrendingUp,
-  Globe,
-  BarChart3,
-  Bell,
-} from "lucide-react"
-import { Card } from "@/components/ui/card"
-import type { Market } from "@/content/markets.sample"
-import { useFollowsStore } from "@/app/state/follows"
-import { useUserLimitsStore } from "@/app/state/userLimits"
-import Sparkline from "@/components/Sparkline"
-import { HeatStrip } from "@/app/components/HeatStrip"
+import { TrendingUp, Globe, BarChart3, Bell } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import type { Market } from "@/content/markets.sample";
+import { useFollowsStore } from "@/app/state/follows";
+import { useUserLimitsStore } from "@/app/state/userLimits";
+import Sparkline from "@/components/Sparkline";
+import { HeatStrip } from "@/app/components/HeatStrip";
+import { SaveForLater } from "@/app/components/SaveForLater";
 
 // ---------------------------------------------------------------------------
 // Icon / colour mapping (internal – consumers need only pass a Market)
@@ -21,23 +17,23 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   TrendingUp,
   Globe,
   BarChart3,
-}
+};
 
 const colorMap: Record<string, { bg: string; icon: string }> = {
   blue: { bg: "bg-blue-500/20", icon: "text-blue-400" },
   purple: { bg: "bg-purple-500/20", icon: "text-purple-400" },
   emerald: { bg: "bg-emerald-500/20", icon: "text-emerald-400" },
-}
+};
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 interface MarketCardProps {
-  market: Market
-  index?: number
-  reducedMotion?: boolean
-  className?: string
+  market: Market;
+  index?: number;
+  reducedMotion?: boolean;
+  className?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,13 +46,13 @@ export function MarketCard({
   reducedMotion = false,
   className,
 }: MarketCardProps) {
-  const isFollowing = useFollowsStore((s) => s.isFollowing(market.id))
+  const isFollowing = useFollowsStore((s) => s.isFollowing(market.id));
   const remainingAllowance = useUserLimitsStore((s) =>
     s.getRemainingDailyAllowance(market.id),
-  )
+  );
 
-  const IconComponent = iconMap[market.icon as keyof typeof iconMap]
-  const colors = colorMap[market.iconColor as keyof typeof colorMap]
+  const IconComponent = iconMap[market.icon as keyof typeof iconMap];
+  const colors = colorMap[market.iconColor as keyof typeof colorMap];
 
   return (
     <Card
@@ -68,7 +64,7 @@ export function MarketCard({
         animationFillMode: "both",
       }}
     >
-      <div className="mb-3 flex items-start justify-between">
+      <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className={`rounded-lg p-2 ${colors?.bg}`}>
             {IconComponent && (
@@ -76,7 +72,10 @@ export function MarketCard({
             )}
           </div>
           <div>
-            <h3 className="font-semibold text-white">{market.title}</h3>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <h3 className="font-semibold text-white">{market.title}</h3>
+              <SaveForLater marketId={market.id} marketTitle={market.title} />
+            </div>
             <p className="text-sm text-white/70">{market.description}</p>
 
             {/* Sparkline trend preview */}
@@ -144,5 +143,5 @@ export function MarketCard({
         <span>Ends in {market.endsIn}</span>
       </div>
     </Card>
-  )
+  );
 }
