@@ -1,50 +1,21 @@
 "use client";
 
 import {
-  ArrowRight,
-  TrendingUp,
-  Globe,
-  BarChart3,
   CheckCircle2,
   Coins,
-  Bell,
 } from "lucide-react";
-import LanguageBadge from "@/components/LanguageBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   sampleMarkets,
   winNotifications,
-  type Market,
 } from "@/content/markets.sample";
 import { useState, useEffect } from "react";
-import { useFollowsStore } from "@/app/state/follows";
-import Sparkline from "@/components/Sparkline";
+import { MarketCard } from "@/app/components/MarketCard";
 
 interface MarketsWidgetProps {
   className?: string;
 }
-
-const iconMap = {
-  TrendingUp,
-  Globe,
-  BarChart3,
-};
-
-const colorMap = {
-  blue: {
-    bg: "bg-blue-500/20",
-    icon: "text-blue-400",
-  },
-  purple: {
-    bg: "bg-purple-500/20",
-    icon: "text-purple-400",
-  },
-  emerald: {
-    bg: "bg-emerald-500/20",
-    icon: "text-emerald-400",
-  },
-};
 
 export function MarketsWidget({ className }: MarketsWidgetProps) {
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -85,21 +56,14 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
         </div>
 
         <div className="space-y-4">
-          {sampleMarkets.map((market, index) => {
-            const IconComponent = iconMap[market.icon as keyof typeof iconMap];
-            const colors = colorMap[market.iconColor as keyof typeof colorMap];
-
-            return (
-              <MarketCard
-                key={market.id}
-                market={market}
-                IconComponent={IconComponent}
-                colors={colors}
-                index={index}
-                reducedMotion={reducedMotion}
-              />
-            );
-          })}
+          {sampleMarkets.map((market, index) => (
+            <MarketCard
+              key={market.id}
+              market={market}
+              index={index}
+              reducedMotion={reducedMotion}
+            />
+          ))}
 
           {/* Place Prediction Button */}
           <Button className="w-full bg-[#4F46E5] py-6 text-white hover:bg-[#4F46E5]/90 transition-colors">
@@ -125,108 +89,4 @@ export function MarketsWidget({ className }: MarketsWidgetProps) {
   );
 }
 
-interface MarketCardProps {
-  market: Market;
-  IconComponent: any;
-  colors: { bg: string; icon: string };
-  index: number;
-  reducedMotion: boolean;
-}
 
-/**
- * MarketCard
- *
- * Renders a single prediction-market card.
- *
- * When the authenticated user follows this market, a subtle "You're following
- * this" badge is displayed beneath the title.  The badge is:
- *   - Visually distinct (Bell icon + tinted pill) so it doesn't rely on colour
- *     alone (WCAG 2.1 AA 1.4.1).
- *   - Accompanied by a visually-hidden <span> read by screen-readers
- *     (WCAG 2.1 AA 1.3.1 / 4.1.2).
- *   - Animated only when the user has not opted into prefers-reduced-motion.
- */
-function MarketCard({
-  market,
-  IconComponent,
-  colors,
-  index,
-  reducedMotion,
-}: MarketCardProps) {
-  const isFollowing = useFollowsStore((s) => s.isFollowing(market.id));
-  const remainingAllowance = useUserLimitsStore((s) =>
-    s.getRemainingDailyAllowance(market.id),
-  );
-
-  return (
-    <Card
-      className={`border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm transition-all duration-300 hover:bg-[#201F3780]/80 ${
-        reducedMotion ? "" : "animate-slide-up"
-      }`}
-      style={{
-        animationDelay: reducedMotion ? "0ms" : `${index * 150}ms`,
-        animationFillMode: "both",
-      }}
-    >
-      <div className="mb-3 flex items-start justify-between">
-        <div className="flex items-start gap-3">
-          <div className={`rounded-lg p-2 ${colors.bg}`}>
-            <IconComponent className={`h-5 w-5 ${colors.icon}`} />
-          </div>
-          <div>
-            <h3 className="font-semibold text-white">{market.title}</h3>
-            <p className="text-sm text-white/70">{market.description}</p>
-            {/* Sparkline preview */}
-            <Sparkline
-              data={market.sparklineData}
-              className="mt-2 text-white/60"
-              data-testid={`sparkline-${market.id}`}
-            />
-
-            <div className="mt-2 space-y-2">
-              {/* Following indicator — visible only for followed markets */}
-              {isFollowing && (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-400/30"
-                  data-testid="following-indicator"
-                >
-                  <Bell className="h-3 w-3" aria-hidden="true" />
-                  You&apos;re following this
-                  <span className="sr-only">
-                    {" "}
-                    — you are following this market
-                  </span>
-                </span>
-              )}
-
-              <p
-                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs leading-5 text-white/85"
-                data-testid="betting-limit-nudge"
-              >
-                Daily betting allowance remaining:{" "}
-                <strong>{remainingAllowance} USDC</strong>
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-sm font-medium text-green-400 tabular-nums">Yes: {market.yesOdds}%</div>
-          <div className="text-sm text-red-400 tabular-nums">No: {market.noOdds}%</div>
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-500"
-          style={{ width: `${market.yesOdds}%` }}
-        />
-      </div>
-
-      <div className="flex justify-between text-xs text-white/60">
-        <span className="tabular-nums">Pool: {market.poolAmount.toLocaleString()} USDC</span>
-        <span>Ends in {market.endsIn}</span>
-      </div>
-    </Card>
-  );
-}
