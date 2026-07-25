@@ -8,6 +8,7 @@
  *  - All interactive elements have associated labels (WCAG 2.1 SC 1.3.1).
  *  - Error messages are linked via aria-describedby (WCAG 2.1 SC 3.3.1).
  *  - Focus management follows logical DOM order.
+ *  - Visible :focus-visible outlines on all interactive controls (WCAG 2.1 SC 2.4.7).
  */
 
 "use client";
@@ -83,7 +84,10 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
               "w-full rounded-md border px-3 py-2 text-sm",
               "bg-background text-foreground placeholder:text-muted-foreground",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              error ? "border-destructive" : "border-border",
+              "focus-visible:ring-offset-background",
+              error
+                ? "border-destructive focus-visible:ring-destructive"
+                : "border-border",
             ].join(" ")}
           />
           {error && (
@@ -105,6 +109,7 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
             "bg-primary text-primary-foreground",
             "hover:bg-primary/90 transition-colors duration-150",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "focus-visible:ring-offset-background",
           ].join(" ")}
         >
           Place Bet
