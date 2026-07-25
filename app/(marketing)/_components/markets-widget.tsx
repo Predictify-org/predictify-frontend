@@ -19,7 +19,8 @@ import {
 } from "@/content/markets.sample";
 import { useState, useEffect } from "react";
 import { useFollowsStore } from "@/app/state/follows";
-import Sparkline from "@/components/Sparkline";
+import { useUserLimitsStore } from "@/app/state/userLimits";
+import Sparkline from "@/app/components/Sparkline";
 
 interface MarketsWidgetProps {
   className?: string;
@@ -160,7 +161,7 @@ function MarketCard({
 
   return (
     <Card
-      className={`border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm transition-all duration-300 hover:bg-[#201F3780]/80 ${
+      className={`border-white/10 bg-[#201F3780] p-3 sm:p-4 backdrop-blur-sm transition-all duration-300 hover:bg-[#201F3780]/80 ${
         reducedMotion ? "" : "animate-slide-up"
       }`}
       style={{
@@ -168,13 +169,13 @@ function MarketCard({
         animationFillMode: "both",
       }}
     >
-      <div className="mb-3 flex items-start justify-between">
-        <div className="flex items-start gap-3">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
           <div className={`rounded-lg p-2 ${colors.bg}`}>
             <IconComponent className={`h-5 w-5 ${colors.icon}`} />
           </div>
-          <div>
-            <h3 className="font-semibold text-white">{market.title}</h3>
+          <div className="min-w-0 flex-1">
+            <h3 className="break-words font-semibold text-white">{market.title}</h3>
             <p className="text-sm text-white/70">{market.description}</p>
             {/* Sparkline preview */}
             <Sparkline
@@ -209,7 +210,7 @@ function MarketCard({
             </div>
           </div>
         </div>
-        <div className="text-right">
+        <div className="flex shrink-0 gap-4 text-left sm:block sm:text-right">
           <div className="text-sm font-medium text-green-400 tabular-nums">Yes: {market.yesOdds}%</div>
           <div className="text-sm text-red-400 tabular-nums">No: {market.noOdds}%</div>
         </div>
@@ -223,7 +224,7 @@ function MarketCard({
         />
       </div>
 
-      <div className="flex justify-between text-xs text-white/60">
+      <div className="flex flex-col gap-1 text-xs text-white/60 sm:flex-row sm:justify-between">
         <span className="tabular-nums">Pool: {market.poolAmount.toLocaleString()} USDC</span>
         <span>Ends in {market.endsIn}</span>
       </div>
