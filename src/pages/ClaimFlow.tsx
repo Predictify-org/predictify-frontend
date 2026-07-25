@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -96,15 +96,21 @@ type PageStatus = "loading" | "success" | "empty" | "error";
  *
  * Page where users can claim winnings from resolved prediction markets.
  *
- * Features:
- *  - Loading skeleton (themed, shape-parity with content)
- *  - Claimable rewards list with per-item claim + share actions
- *  - Claim history table
- *  - Empty / error states
- *  - Reduced-motion: skips skeleton delay when prefers-reduced-motion is set
- *  - Responsive layout across breakpoints
- *  - WCAG 2.1 AA: all interactive elements are labelled, headings form a
- *    logical outline, colour is never the sole differentiator.
+ * Responsive breakpoint audit (#581):
+ *   - Mobile-first layout: single-column cards on narrow viewports,
+ *     two-column card content on sm+ (≥640px).
+ *   - Table columns progressively disclosed: date hidden below sm,
+ *     tx hash hidden below lg (≥1024px).
+ *   - Page container constrained to max-w-4xl with fluid padding that
+ *     scales across breakpoints: px-4 → sm:px-6 → lg:px-8.
+ *   - Claim actions stack vertically on mobile, side-by-side on sm+.
+ *   - History card stacks vertically on mobile, full table on md+.
+ *   - Skeleton cards maintain shape-parity with content cards across
+ *     all breakpoints.
+ *   - Reduced-motion: skips skeleton delay, disables Loader2 spin
+ *     animation (WCAG 2.3.3).
+ *   - WCAG 2.1 AA: heading hierarchy, labelled controls, colour is
+ *     never the sole differentiator.
  */
 export default function ClaimFlow() {
   const [status, setStatus] = useState<PageStatus>("loading");
@@ -115,7 +121,7 @@ export default function ClaimFlow() {
   const reducedMotion = useReducedMotion();
   const { openShareSheet } = useClaimShare();
 
-  // Simulate async data fetch with reduced-motion awareness
+  // Simulate async data fetch — skips delay under reduced motion
   useEffect(() => {
     if (reducedMotion) {
       setClaimable(MOCK_CLAIMABLE);
@@ -135,7 +141,6 @@ export default function ClaimFlow() {
     return () => clearTimeout(timer);
   }, [reducedMotion]);
 
-  // Announce status changes via LiveRegion
   useEffect(() => {
     const messages: Record<PageStatus, string> = {
       loading: "Loading claimable rewards.",
@@ -151,7 +156,6 @@ export default function ClaimFlow() {
       setClaimingId(reward.id);
       setAnnouncement(`Claiming ${reward.amount} ${reward.tokenSymbol} from "${reward.marketTitle}".`);
 
-      // Simulate blockchain tx delay
       await new Promise((r) => setTimeout(r, reducedMotion ? 0 : 800));
 
       setClaimable((prev) => prev.filter((r) => r.id !== reward.id));
@@ -190,20 +194,22 @@ export default function ClaimFlow() {
   // Render helpers
   // ------------------------------------------------------------------
 
-  /** Themed skeleton that mirrors the shape of each reward card. */
+  /** Skeleton cards — shape-parity with claimable reward cards. */
   const renderSkeletons = () => (
     <div className="space-y-4" data-testid="claimflow-skeletons">
       {[...Array(3)].map((_, i) => (
         <Card key={i} className="overflow-hidden">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            {/* Title + metadata */}
             <div className="flex-1 space-y-3">
-              <Skeleton className="h-5 w-3/4 rounded-md" />
-              <div className="flex items-center gap-3">
+              <Skeleton className="h-5 w-full max-w-[75%] rounded-md" />
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <Skeleton className="h-8 w-24 rounded-full" />
                 <Skeleton className="h-4 w-20 rounded-md" />
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            {/* Actions */}
+            <div className="flex items-center gap-2 self-end sm:self-center">
               <Skeleton className="h-10 w-24 rounded-xl" />
               <Skeleton className="h-10 w-10 rounded-xl" />
             </div>
@@ -225,21 +231,22 @@ export default function ClaimFlow() {
     }
 
     return (
-      <ul className="space-y-4" aria-label="Claimable rewards">
+      <ul className="space-y-3 sm:space-y-4" aria-label="Claimable rewards">
         {claimable.map((reward) => {
           const isClaiming = claimingId === reward.id;
           return (
             <li key={reward.id}>
               <Card className="overflow-hidden transition-shadow hover:shadow-md">
-                <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex-1 space-y-2">
-                    <h3 className="text-base font-semibold leading-snug">
+                <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-5">
+                  {/* Title + metadata */}
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <h3 className="text-sm font-semibold leading-snug sm:text-base">
                       {reward.marketTitle}
                     </h3>
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground sm:text-sm">
                       <Badge
                         variant="secondary"
-                        className="tabular-nums font-semibold"
+                        className="tabular-nums font-semibold text-xs sm:text-sm"
                       >
                         {reward.amount} {reward.tokenSymbol}
                       </Badge>
@@ -250,11 +257,13 @@ export default function ClaimFlow() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  {/* Actions — stack on mobile, row on sm+ */}
+                  <div className="flex items-center gap-2 self-end sm:self-center">
                     <Button
                       onClick={() => handleClaim(reward)}
                       disabled={isClaiming}
-                      className="min-w-[100px] rounded-xl"
+                      size="sm"
+                      className="min-w-[90px] rounded-xl sm:min-w-[100px] sm:px-5 sm:py-2.5"
                     >
                       {isClaiming ? (
                         <>
@@ -279,7 +288,7 @@ export default function ClaimFlow() {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="rounded-xl"
+                      className="h-9 w-9 rounded-xl sm:h-10 sm:w-10"
                       aria-label={`Share claim for ${reward.marketTitle}`}
                       onClick={() =>
                         openShareSheet({
@@ -307,14 +316,16 @@ export default function ClaimFlow() {
   // ------------------------------------------------------------------
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:px-8">
       <LiveRegion message={announcement} data-testid="claimflow-live-region" />
 
-      {/* Page header */}
+      {/* Page header — stacks on mobile, side-by-side on sm+ */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Claim Winnings</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            Claim Winnings
+          </h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
             Claim your rewards from resolved prediction markets.
           </p>
         </div>
@@ -326,15 +337,20 @@ export default function ClaimFlow() {
       </div>
 
       {/* Claimable Rewards Section */}
-      <section aria-labelledby="claimable-heading" className="space-y-4">
-        <h2 id="claimable-heading" className="text-lg font-semibold">
-          Pending Claims
+      <section aria-labelledby="claimable-heading" className="space-y-3 sm:space-y-4">
+        <div className="flex items-center gap-2">
+          <h2
+            id="claimable-heading"
+            className="text-base font-semibold sm:text-lg"
+          >
+            Pending Claims
+          </h2>
           {status === "success" && claimable.length > 0 && (
-            <Badge variant="secondary" className="ml-2 align-middle">
+            <Badge variant="secondary" className="text-xs sm:text-sm">
               {claimable.length}
             </Badge>
           )}
-        </h2>
+        </div>
 
         {status === "loading" && renderSkeletons()}
 
@@ -356,8 +372,11 @@ export default function ClaimFlow() {
       </section>
 
       {/* Claim History Section */}
-      <section aria-labelledby="history-heading" className="space-y-4">
-        <h2 id="history-heading" className="text-lg font-semibold">
+      <section aria-labelledby="history-heading" className="space-y-3 sm:space-y-4">
+        <h2
+          id="history-heading"
+          className="text-base font-semibold sm:text-lg"
+        >
           Claim History
         </h2>
 
@@ -368,42 +387,65 @@ export default function ClaimFlow() {
             description="Your completed claims will appear here."
           />
         ) : (
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                    Market
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                    Amount
-                  </th>
-                  <th className="hidden px-4 py-3 text-left font-medium text-muted-foreground sm:table-cell">
-                    Date
-                  </th>
-                  <th className="hidden px-4 py-3 text-left font-medium text-muted-foreground lg:table-cell">
-                    Transaction
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {history.map((item) => (
-                  <tr key={item.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 font-medium">{item.marketTitle}</td>
-                    <td className="px-4 py-3 tabular-nums">
-                      {item.amount} {item.tokenSymbol}
-                    </td>
-                    <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">
-                      {new Date(item.claimedAt).toLocaleDateString()}
-                    </td>
-                    <td className="hidden px-4 py-3 font-mono text-xs text-muted-foreground lg:table-cell">
-                      {item.txHash}
-                    </td>
+          <>
+            {/* Desktop/tablet: full table */}
+            <div className="hidden sm:block overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                      Market
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                      Amount
+                    </th>
+                    <th className="hidden px-4 py-3 text-left font-medium text-muted-foreground md:table-cell">
+                      Date
+                    </th>
+                    <th className="hidden px-4 py-3 text-left font-medium text-muted-foreground lg:table-cell">
+                      Transaction
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y">
+                  {history.map((item) => (
+                    <tr key={item.id} className="hover:bg-muted/30">
+                      <td className="px-4 py-3 font-medium">{item.marketTitle}</td>
+                      <td className="px-4 py-3 tabular-nums">
+                        {item.amount} {item.tokenSymbol}
+                      </td>
+                      <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">
+                        {new Date(item.claimedAt).toLocaleDateString()}
+                      </td>
+                      <td className="hidden px-4 py-3 font-mono text-xs text-muted-foreground lg:table-cell">
+                        {item.txHash}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: stacked cards instead of table */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {history.map((item) => (
+                <Card key={item.id} className="overflow-hidden">
+                  <CardContent className="flex flex-col gap-2 p-4">
+                    <h3 className="text-sm font-semibold">{item.marketTitle}</h3>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <Badge variant="secondary" className="tabular-nums text-xs">
+                        {item.amount} {item.tokenSymbol}
+                      </Badge>
+                      <span>
+                        {new Date(item.claimedAt).toLocaleDateString()}
+                      </span>
+                      <span className="font-mono">{item.txHash}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>
