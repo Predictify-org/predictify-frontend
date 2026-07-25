@@ -12,6 +12,7 @@
  *  - Edge cases: zero probability, 100% probability, missing optional props
  *  - Dark mode: component renders without crashing in dark context
  *  - Responsive: snapshot preserves structure across viewport widths
+ *  - Design tokens (v7): outcome colors use token classes not bare color names
  */
 
 import React from "react";
@@ -404,5 +405,99 @@ describe("StatPill", () => {
       />
     );
     expect(screen.getByTestId("test-icon")).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Design token compliance (v7)
+// ---------------------------------------------------------------------------
+describe("MarketHero — design token compliance (v7)", () => {
+  it("title uses text-h1-responsive token class (not text-h2-responsive)", () => {
+    renderHero({ title: "Token Test Market" });
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).toHaveClass("text-h1-responsive");
+    expect(heading).not.toHaveClass("text-h2-responsive");
+  });
+
+  it("'Yes' outcome label uses text-outcome-yes token class (not bare emerald classes)", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 60 },
+        { label: "No", probability: 40 },
+      ],
+    });
+    // The "Yes" span should carry the semantic outcome token
+    const yesSpan = screen.getByText(/Yes/).closest("span");
+    expect(yesSpan).toHaveClass("text-outcome-yes");
+    // Must NOT use hardcoded emerald Tailwind colour
+    expect(yesSpan).not.toHaveClass("text-emerald-600");
+    expect(yesSpan).not.toHaveClass("dark:text-emerald-400");
+  });
+
+  it("'No' outcome label uses text-outcome-no token class (not bare muted-foreground)", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 60 },
+        { label: "No", probability: 40 },
+      ],
+    });
+    // The "No" span should carry the semantic outcome token
+    const noSpan = screen.getByText(/No/).closest("span");
+    expect(noSpan).toHaveClass("text-outcome-no");
+    expect(noSpan).not.toHaveClass("text-muted-foreground");
+  });
+
+  it("probability bar fill uses bg-outcome-yes token class (not bare bg-emerald-500)", () => {
+    const { container } = render(
+      <MarketHero
+        {...BASE_PROPS}
+        outcomes={[
+          { label: "Yes", probability: 70 },
+          { label: "No", probability: 30 },
+        ]}
+      />
+    );
+    // The visual fill bar (aria-hidden) should use the token class
+    // It is the only non-full-width div inside the rounded track
+    const fillBar = container.querySelector(
+      '[aria-hidden="true"] .bg-outcome-yes'
+    );
+    expect(fillBar).toBeInTheDocument();
+    // Should NOT use bare emerald class
+    const emeraldBar = container.querySelector('[aria-hidden="true"] .bg-emerald-500');
+    expect(emeraldBar).not.toBeInTheDocument();
+  });
+
+  it("probability bar fill width matches leading outcome probability", () => {
+    const { container } = render(
+      <MarketHero
+        {...BASE_PROPS}
+        outcomes={[
+          { label: "Yes", probability: 65 },
+          { label: "No", probability: 35 },
+        ]}
+      />
+    );
+    const fillBar = container.querySelector(".bg-outcome-yes") as HTMLElement;
+    expect(fillBar).toBeTruthy();
+    expect(fillBar!.style.width).toBe("65%");
+  });
+
+  it("description uses text-body-md token class", () => {
+    renderHero({ description: "A test description." });
+    const desc = screen.getByText("A test description.");
+    expect(desc).toHaveClass("text-body-md");
+  });
+
+  it("stat strip label uses text-caption token class", () => {
+    renderHero({ volume: "10,000 USDC" });
+    const label = screen.getByText("Volume");
+    expect(label).toHaveClass("text-caption");
+  });
+
+  it("stat strip value uses text-stat-sm token class", () => {
+    renderHero({ volume: "10,000 USDC" });
+    const value = screen.getByText("10,000 USDC");
+    expect(value).toHaveClass("text-stat-sm");
   });
 });

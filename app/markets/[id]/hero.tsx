@@ -3,7 +3,7 @@
 /**
  * MarketHero — market detail hero for the GrantFox FWC26 campaign.
  *
- * Design goals (per issue):
+ * Design goals (per issue #549 — v7 design token polish):
  *  - Rebalanced hero elements: title, status, and stats share visual weight
  *    without one section dominating the others.
  *  - Tight typography hierarchy using the repo's design-token scale
@@ -12,11 +12,17 @@
  *    stat strip rather than buried in a full card layout.
  *  - GrantFox FWC26 campaign badge surfaces prominently but unobtrusively.
  *  - Dark-mode consistent: all colours are CSS-variable tokens or
- *    Tailwind semantic classes (no hardcoded hex).
+ *    Tailwind semantic classes (no hardcoded hex, no bare colour names).
  *  - WCAG 2.1 AA: every interactive element is keyboard-reachable and
  *    labelled; status changes use role="status"; progress bars use
  *    role="progressbar" with aria-valuenow/min/max.
  *  - Responsive: single-column on mobile (< sm), two-column on ≥ md.
+ *
+ * Token changes (v7):
+ *  - Title: text-h2-responsive → text-h1-responsive (it is the page <h1>)
+ *  - "Yes" probability text: text-emerald-600 dark:text-emerald-400 → text-outcome-yes
+ *  - "No" probability text: text-muted-foreground → text-outcome-no
+ *  - Progress bar fill: bg-emerald-500 → bg-outcome-yes
  *
  * @see docs/MARKET_HERO.md
  */
@@ -200,7 +206,10 @@ export function MarketHero({
       <div className="mb-5">
         <h1
           id={`${heroId}-title`}
-          className="text-h2-responsive font-bold tracking-tight text-foreground text-balance"
+          // text-h1-responsive: this is the page's primary <h1> heading; it
+          // should carry the full h1 weight (scales xl→2xl→3xl→h1 across
+          // breakpoints) rather than the lighter h2 scale.
+          className="text-h1-responsive font-bold tracking-tight text-foreground text-balance"
         >
           {title}
         </h1>
@@ -220,12 +229,16 @@ export function MarketHero({
         <div className="mb-5" data-testid="probability-section">
           {/* Outcome labels */}
           <div className="mb-1.5 flex justify-between text-body-sm font-medium">
-            <span className="text-emerald-600 dark:text-emerald-400">
+            {/* text-outcome-yes: semantic design token for "Yes" outcomes — resolves to
+                the --outcome-yes CSS variable defined in globals.css and is theme-aware. */}
+            <span className="text-outcome-yes">
               {leadOutcome.label}{" "}
               <span className="tabular-nums">{leadOutcome.probability}%</span>
             </span>
             {trailOutcome && (
-              <span className="text-muted-foreground">
+              // text-outcome-no: semantic design token for "No" outcomes — resolves to
+              // the --outcome-no CSS variable, dark-mode consistent.
+              <span className="text-outcome-no">
                 {trailOutcome.label}{" "}
                 <span className="tabular-nums">{trailOutcome.probability}%</span>
               </span>
@@ -237,9 +250,10 @@ export function MarketHero({
             className="h-3 w-full overflow-hidden rounded-full bg-muted"
             aria-hidden="true"
           >
-            {/* Leading outcome fill */}
+            {/* bg-outcome-yes: semantic fill token — replaces bare bg-emerald-500.
+                Automatically adapts between light/dark via the CSS variable. */}
             <div
-              className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
+              className="h-full rounded-full bg-outcome-yes transition-[width] duration-500 ease-out"
               style={{ width: `${leadOutcome.probability}%` }}
             />
           </div>

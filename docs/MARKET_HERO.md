@@ -100,7 +100,7 @@ Imported from `@/components/market/StatusBadge`.
 Previous market detail pages placed title and bet-form in a two-column layout that buried key stats. `MarketHero` uses a single semantic column with clear row-by-row priority:
 
 1. **Labels first** (status, category) — 14px badges act as metadata, not headings.
-2. **Title dominant** — `text-h2-responsive` gives the question proportional weight at every breakpoint.
+2. **Title dominant** — `text-h1-responsive` gives the question full h1 weight at every breakpoint (upgraded from `text-h2-responsive` in v7).
 3. **Probability bar immediate** — The most important data point (current odds) follows the title without a card wrapper.
 4. **Stat strip compact** — Volume, participants, and time-left are surfaced as a tight horizontal strip using the `StatPill` helper rather than stacked full-width cards.
 5. **Actions last** — Share is a secondary affordance and sits at the bottom.
@@ -111,22 +111,23 @@ All text uses the repo's Tailwind design-token scale:
 
 | Element | Token | Notes |
 |---------|-------|-------|
-| Title | `text-h2-responsive` | Scales from `text-xl` (mobile) to `text-h2` (desktop) |
+| Title | `text-h1-responsive` | Scales from `text-2xl` (mobile) to `text-h1` (desktop) — upgraded from `text-h2-responsive` in v7 |
 | Description | `text-body-md` | 16px default body, muted colour |
-| Outcome labels | `text-body-sm font-medium` | 14px, coloured by outcome |
+| Outcome labels | `text-body-sm font-medium` | 14px, coloured by outcome tokens |
 | Stat value | `text-stat-sm font-bold` | 18px tabular numerals |
 | Stat label | `text-caption text-muted-foreground` | 12px muted |
 | Badge text | `text-caption` | 12px via Badge component |
 
 ### Colour palette
 
-No hardcoded hex values. All colours are Tailwind semantic tokens or CSS variables:
+No hardcoded hex values or bare colour names. All colours are Tailwind semantic tokens or CSS variables:
 
-- `text-foreground` / `text-muted-foreground` for text
+- `text-foreground` / `text-muted-foreground` for neutral text
 - `bg-card` / `bg-muted` for surfaces
 - `border-border` for borders
-- `text-emerald-600 dark:text-emerald-400` for "Yes" probability (context-safe)
-- `bg-amber-500/15 text-amber-600 dark:text-amber-400` for the GrantFox badge
+- `text-outcome-yes` / `bg-outcome-yes` for "Yes" probability (semantic token, resolves via `--outcome-yes` CSS variable — upgraded from `text-emerald-600 / bg-emerald-500` in v7)
+- `text-outcome-no` for "No" probability (semantic token, resolves via `--outcome-no` CSS variable — upgraded from `text-muted-foreground` in v7)
+- `bg-amber-500/15 text-amber-600 dark:text-amber-400` for the GrantFox badge (brand colour — kept intentionally)
 
 ### Dark mode
 
@@ -136,7 +137,7 @@ Enabled via Tailwind's `class`-based dark mode strategy (configured in `tailwind
 
 The hero is single-column at all breakpoints. Responsive behaviour is handled via:
 
-- `text-h2-responsive` — fluid heading size via `sm:` / `md:` / `lg:` prefixes (defined in `app/globals.css`).
+- `text-h1-responsive` — fluid heading size via `sm:` / `md:` / `lg:` prefixes (defined in `app/globals.css`). Scales: `text-2xl` → `sm:text-3xl` → `md:text-4xl` → `lg:text-h1`.
 - `flex-wrap gap-x-6 gap-y-3` on the stat strip — pills wrap naturally on narrow screens.
 - `line-clamp-3` on the description — prevents the hero from becoming too tall on small screens.
 
@@ -207,6 +208,7 @@ Covered cases:
 - StatusBadge integration: all five status values
 - `StatPill` helper: label and value render; icon slot rendered
 - Full props smoke-test
+- **Design token compliance (v7)**: title uses `text-h1-responsive`; outcome labels use `text-outcome-yes` / `text-outcome-no`; bar fill uses `bg-outcome-yes`; stat labels use `text-caption`; stat values use `text-stat-sm`
 
 ---
 
@@ -214,4 +216,5 @@ Covered cases:
 
 | Date | Change |
 |------|--------|
+| 2026-07-25 | v7 design token polish (issue #549): title upgraded to `text-h1-responsive`; outcome colours migrated to `text-outcome-yes` / `text-outcome-no` / `bg-outcome-yes` semantic tokens; all token compliance tests added |
 | 2026-07-24 | Initial implementation — rebalanced hero layout for GrantFox FWC26 campaign |

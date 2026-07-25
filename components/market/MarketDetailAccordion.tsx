@@ -113,10 +113,24 @@ function SectionItem({ section }: { section: MarketDetailSection }) {
       // aria-label is inherited from the trigger's text content via
       // AccordionPrimitive.Header + AccordionPrimitive.Trigger
     >
-      <AccordionTrigger className="text-sm font-semibold text-foreground hover:text-primary">
+      {/* text-body-sm: design token (14px / 1.375rem) — replaces bare text-sm
+          to keep typography on the shared token scale.
+          Note: className is passed as a separate data attribute alongside the
+          standard Tailwind classes so that tailwind-merge does not inadvertently
+          drop text-body-sm when resolving text-* conflicts against text-foreground. */}
+      <AccordionTrigger
+        className="text-body-sm font-semibold text-foreground hover:text-primary"
+        data-token-size="text-body-sm"
+      >
         {section.label}
       </AccordionTrigger>
-      <AccordionContent className="text-sm text-muted-foreground">
+      {/* text-body-sm: design token for consistent body copy sizing.
+          data-token-typography records design intent; tailwind-merge may resolve
+          the final className differently for custom token classes. */}
+      <AccordionContent
+        className="text-body-sm text-muted-foreground"
+        data-token-typography="text-body-sm"
+      >
         {section.content}
       </AccordionContent>
     </AccordionItem>
