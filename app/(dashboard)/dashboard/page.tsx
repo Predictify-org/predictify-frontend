@@ -519,9 +519,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div
+        data-testid="dashboard-header"
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      >
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <div className="flex items-center gap-2">
+        <div
+          data-testid="dashboard-header-actions"
+          className="flex flex-wrap items-center justify-end gap-2"
+        >
           <NotifDigest
             notifications={userNotifications}
             onMarkAsRead={handleMarkAsRead}
@@ -538,7 +544,7 @@ export default function DashboardPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
