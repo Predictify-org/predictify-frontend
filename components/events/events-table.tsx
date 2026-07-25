@@ -119,7 +119,7 @@ function TimeRemainingProgress({ event }: { event: Event }) {
 
   return (
     <div className="space-y-2 min-w-[120px]">
-      <div className={cn("text-sm font-medium", textColorClass)}>
+      <div className={cn("text-body-sm font-medium", textColorClass)}>
         {timeString}
         <span className="sr-only"> — {urgencyLabel}</span>
       </div>
@@ -211,25 +211,25 @@ function EventRow({
           }
         >
           <div className="space-y-1 cursor-help">
-            <div className="font-medium text-sm leading-tight text-White">{event.title}</div>
-            <div className="text-xs text-muted-foreground">#{event.txHash}</div>
+            <div className="text-label leading-tight text-white">{event.title}</div>
+            <div className="text-caption text-muted-foreground">#{event.txHash}</div>
           </div>
         </HoverTooltip>
       </TableCell>
 
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[100px] sm:min-w-0">
-        <Badge className={cn(getCategoryBadgeVariant(event.category), "inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1")}>
+        <Badge className={cn(getCategoryBadgeVariant(event.category), "inline-flex items-center gap-1 text-caption sm:text-body-sm px-2 py-1")}>
           {getCategoryIcon(event.category)}
           {event.category}
         </Badge>
       </TableCell>
 
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0">
-        <div className="font-medium text-sm text-white">{event.odds}</div>
+        <div className="text-label text-white">{event.odds}</div>
       </TableCell>
 
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[180px] sm:min-w-0 text-white">
-        <div className="text-xs sm:text-sm leading-tight">
+        <div className="text-caption sm:text-body-sm leading-tight">
           <div className="sm:hidden">
             <div>{formatDate(new Date(event.startDate))}</div>
             <div>{formatDate(new Date(event.endDate))}</div>
@@ -246,9 +246,9 @@ function EventRow({
 
       {/* Participants */}
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[120px] sm:min-w-0">
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
           <Users className="h-4 w-4" />
-          <span className="font-medium text-foreground">{event.participants.toLocaleString()}</span>
+          <span className="text-label text-foreground">{event.participants.toLocaleString()}</span>
         </div>
       </TableCell>
 
@@ -318,8 +318,8 @@ export function EventsTable({ className }: EventsTableProps) {
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-black text-white mb-4">
           <Calendar className="h-8 w-8 text-[#540D8D]" />
         </div>
-        <h3 className="text-lg font-semibold text-foreground mb-1">No events found</h3>
-        <p className="text-sm text-muted-foreground text-center max-w-sm">
+        <h3 className="text-h4 text-foreground mb-1">No events found</h3>
+        <p className="text-body-sm text-muted-foreground text-center max-w-sm">
           {"There are no prediction events matching your current filters. Try adjusting your search or filter criteria."}
         </p>
       </div>
@@ -363,30 +363,30 @@ export function EventsTable({ className }: EventsTableProps) {
             <TableHeader>
               <TableRow className="hover:bg-[#540D8D] text-white border-b border-[#540D8D]/50 bg-black">
                 {/* Compare select column */}
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 w-10">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 w-10">
                   <span className="sr-only">Compare</span>
                 </TableHead>
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[200px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[200px] sm:min-w-0">
                   Event Title
                 </TableHead>
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[100px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[100px] sm:min-w-0">
                   Category
                 </TableHead>
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[80px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[80px] sm:min-w-0">
                   Odds
                 </TableHead>
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[180px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[180px] sm:min-w-0">
                   End Date
                 </TableHead>
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[160px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[160px] sm:min-w-0">
                   Time Remaining
                 </TableHead>
                 {/* NEW: Participants column header */}
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[120px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[120px] sm:min-w-0">
                   Participants
                 </TableHead>
                 {/* NEW: Actions column header */}
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-right min-w-[80px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-right min-w-[80px] sm:min-w-0">
                   Actions
                 </TableHead>
               </TableRow>

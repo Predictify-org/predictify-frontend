@@ -9,7 +9,7 @@ export function EventsTableSkeleton() {
           <div className="min-w-[800px] sm:min-w-full">
             {/* Table Header */}
             {/* MODIFIED: Updated grid to 7 columns to match new Participants & Actions columns */}
-            <div className="bg-black px-4 md:px-6 py-3 md:py-4 border-b border-gray-200">
+            <div className="bg-black px-4 md:px-6 py-3 md:py-4 border-b border-[#540D8D]/50">
               <div className="grid grid-cols-7 gap-4 items-center">
                 <div className="min-w-[200px] sm:min-w-0">
                   <Skeleton className="h-4 w-20" />
@@ -42,7 +42,7 @@ export function EventsTableSkeleton() {
             {Array.from({ length: 5 }).map((_, i) => (
               <div 
                 key={i} 
-                className="px-4 md:px-6 py-3 md:py-4 bg-black border-b border-gray-100 last:border-b-0"
+                className="px-4 md:px-6 py-3 md:py-4 bg-black border-b border-[#540D8D] last:border-b-0"
               >
                 <div className="grid grid-cols-7 gap-4 bg-black items-center">
                   {/* Event Title */}

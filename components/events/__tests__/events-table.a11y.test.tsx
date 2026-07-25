@@ -213,6 +213,61 @@ describe("EventsTable — accessibility", () => {
       render(<EventsTable />)
       expect(screen.getByText(/no events found/i)).toBeInTheDocument()
     })
+
+    it("empty state heading uses design-token typography class", () => {
+      const { useEventsStore } = require("@/lib/events-store")
+      const emptyState = { ...mockStoreState(), filteredEvents: [] }
+      useEventsStore.mockImplementation(
+        (selector?: (s: typeof emptyState) => unknown) =>
+          selector ? selector(emptyState) : emptyState
+      )
+      render(<EventsTable />)
+      const heading = screen.getByText(/no events found/i)
+      expect(heading).toHaveClass("text-h4")
+    })
+  })
+
+  describe("Typography design-token consistency", () => {
+    beforeEach(() => {
+      const { useEventsStore } = require("@/lib/events-store")
+      useEventsStore.mockImplementation((selector?: (s: ReturnType<typeof mockStoreState>) => unknown) =>
+        selector ? selector(mockStoreState()) : mockStoreState()
+      )
+    })
+
+    it("column headers use text-label design token", () => {
+      render(<EventsTable />)
+      const headers = screen.getAllByRole("columnheader")
+      const visibleHeaders = headers.filter(h => h.textContent?.trim() !== "")
+      visibleHeaders.forEach(header => {
+        expect(header).toHaveClass("text-label")
+      })
+    })
+
+    it("event title cells use text-label design token", () => {
+      render(<EventsTable />)
+      const titleCell = screen.getByText("Will Team A win the championship?")
+      expect(titleCell).toHaveClass("text-label")
+    })
+
+    it("txHash cells use text-caption design token", () => {
+      render(<EventsTable />)
+      const hashCell = screen.getByText("#TX001")
+      expect(hashCell).toHaveClass("text-caption")
+    })
+
+    it("category badges use text-caption design token for mobile", () => {
+      render(<EventsTable />)
+      const badge = screen.getByText("Football")
+      expect(badge.closest('[class*="text-caption"]')).toBeTruthy()
+    })
+
+    it("odds cells use text-label design token", () => {
+      render(<EventsTable />)
+      // Find the odds value for the first event
+      const oddsCell = screen.getByText("65")
+      expect(oddsCell).toHaveClass("text-label")
+    })
   })
 })
 
