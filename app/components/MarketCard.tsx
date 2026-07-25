@@ -114,16 +114,16 @@ export function MarketCard({
                 data-testid="betting-limit-nudge"
               >
                 Daily betting allowance remaining:{" "}
-                <strong>{remainingAllowance} USDC</strong>
+                <strong className="text-stat-sm">{remainingAllowance} USDC</strong>
               </p>
             </div>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-sm font-medium text-green-400 tabular-nums">
+          <div className="text-stat-sm font-medium text-green-400">
             Yes: {market.yesOdds}%
           </div>
-          <div className="text-sm text-red-400 tabular-nums">
+          <div className="text-stat-sm text-red-400">
             No: {market.noOdds}%
           </div>
         </div>
@@ -138,10 +138,10 @@ export function MarketCard({
       </div>
 
       <div className="flex justify-between text-xs text-white/60">
-        <span className="tabular-nums">
+        <span className="text-stat-sm">
           Pool: {market.poolAmount.toLocaleString()} USDC
         </span>
-        <span>Ends in {market.endsIn}</span>
+        <span className="text-stat-sm">Ends in {market.endsIn}</span>
       </div>
     </Card>
   )

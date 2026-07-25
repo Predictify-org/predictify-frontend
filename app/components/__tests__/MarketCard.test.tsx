@@ -91,6 +91,14 @@ describe("MarketCard", () => {
     expect(screen.getByText(/Ends in/)).toHaveTextContent("5 days")
   })
 
+  it("applies tabular-nums classes (text-stat-sm) to numeric values", () => {
+    render(<MarketCard market={SAMPLE_MARKET} />)
+    expect(screen.getByText("Yes: 65%")).toHaveClass("text-stat-sm")
+    expect(screen.getByText("No: 35%")).toHaveClass("text-stat-sm")
+    expect(screen.getByText(/Pool:/)).toHaveClass("text-stat-sm")
+    expect(screen.getByText(/Ends in/)).toHaveClass("text-stat-sm")
+  })
+
   // ---- Following indicator --------------------------------------------------
 
   it("does not show following indicator by default", () => {
