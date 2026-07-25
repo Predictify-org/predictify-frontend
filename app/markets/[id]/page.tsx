@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import MarketHero from "./hero";
+import { Tabs } from "@/app/components/Tabs";
 
 /**
  * Market Detail Page — Server Component
@@ -157,9 +158,71 @@ export default async function MarketDetailPage({ params }: PageProps) {
       />
 
       {/*
-       * Additional page content (bet form, tabs, timeline, etc.)
-       * would follow here — outside the scope of this hero component.
+       * Market detail tabs — roving-tabindex primitive (GrantFox FWC26).
+       *
+       * Uses app/components/Tabs rather than the Radix-backed shadcn tabs so
+       * that keyboard focus management is fully explicit and auditable.
+       *
+       * Tab panel content is intentionally left as descriptive placeholders
+       * here; real panels (BetForm, ActivityTimeline, etc.) are wired in
+       * follow-up tasks once the primitive is approved.
        */}
+      <section aria-label="Market detail sections" className="mt-8">
+        <Tabs
+          aria-label="Market detail sections"
+          defaultValue="overview"
+          tabs={[
+            {
+              value: "overview",
+              label: "Overview",
+              content: (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Market overview, probability breakdown, and resolution
+                    criteria will be displayed here.
+                  </p>
+                </div>
+              ),
+            },
+            {
+              value: "activity",
+              label: "Activity",
+              content: (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Recent bets and participant activity for this market will
+                    appear here.
+                  </p>
+                </div>
+              ),
+            },
+            {
+              value: "resolution",
+              label: "Resolution",
+              content: (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Resolution criteria, oracle sources, and outcome verification
+                    details will be displayed here.
+                  </p>
+                </div>
+              ),
+            },
+            {
+              value: "timeline",
+              label: "Timeline",
+              content: (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    The full market lifecycle timeline — from creation through
+                    resolution — will be shown here.
+                  </p>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </section>
     </main>
   );
 }
