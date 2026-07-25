@@ -117,6 +117,7 @@ export async function generateMetadata({
 // ---------------------------------------------------------------------------
 
 import { EmptyState } from "@/components/EmptyState";
+import { AboutMarketModal } from "@/app/components/AboutMarketModal";
 
 export default async function MarketDetailPage({ params }: PageProps) {
   const { id } = await params;
@@ -154,6 +155,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
           { label: "No", probability: 100 - market.probability },
         ]}
         isGrantFoxCampaign={market.isGrantFoxCampaign}
+        aboutModalTrigger={<AboutMarketModal market={market} />}
       />
 
       {/*

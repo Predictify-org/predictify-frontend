@@ -524,6 +524,22 @@ describe("MarketHero — StatusBadge integration", () => {
 });
 
 // ---------------------------------------------------------------------------
+// About Modal Trigger
+// ---------------------------------------------------------------------------
+describe("MarketHero — about modal trigger", () => {
+  it("renders aboutModalTrigger element when provided", () => {
+    const trigger = <button data-testid="mock-about-trigger">About</button>;
+    renderHero({ aboutModalTrigger: trigger });
+    expect(screen.getByTestId("mock-about-trigger")).toBeInTheDocument();
+  });
+
+  it("does not render actions wrapper if both onShare and aboutModalTrigger are omitted", () => {
+    renderHero({ onShare: undefined, aboutModalTrigger: undefined });
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Full props smoke-test
 // ---------------------------------------------------------------------------
 describe("MarketHero — full props", () => {
