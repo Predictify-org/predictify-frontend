@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 // ── Type Definitions ────────────────────────────────────────────────────────
 
@@ -33,14 +34,66 @@ export interface Claim {
 
 // ── Status Configuration ────────────────────────────────────────────────────
 
+/**
+ * Status config with color-blind safe pattern mapping.
+ *
+ * Each status is assigned a distinct CSS pattern class from patterns.css
+ * so that status can be distinguished by texture as well as colour.
+ * This meets WCAG 2.1 AA SC 1.4.1 (Use of Color).
+ *
+ * Pattern mapping:
+ *   available → pattern-diagonal (positive / winnings ready)
+ *   claimed   → pattern-crosshatch (neutral / already processed)
+ *   pending   → pattern-horizontal (waiting / in progress)
+ *   disputed  → pattern-vertical (alert / needs attention)
+ *
+ * Each status also includes an explicit text colour to maintain
+ * sufficient contrast (≥4.5:1) against its background in both
+ * light and dark mode.
+ */
 const STATUS_CONFIG: Record<
   ClaimStatus,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive"; Icon: React.FC<{ className?: string; size?: number; "aria-hidden"?: boolean }> }
+  {
+    label: string;
+    variant: "default" | "secondary" | "outline" | "destructive";
+    Icon: React.FC<{ className?: string; size?: number; "aria-hidden"?: boolean }>;
+    bgClass: string;
+    textClass: string;
+    patternClass: string;
+  }
 > = {
-  available: { label: "Available", variant: "default", Icon: Gift },
-  claimed: { label: "Claimed", variant: "secondary", Icon: CheckCircle },
-  pending: { label: "Pending", variant: "outline", Icon: Clock },
-  disputed: { label: "Disputed", variant: "destructive", Icon: AlertCircle },
+  available: {
+    label: "Available",
+    variant: "default",
+    Icon: Gift,
+    bgClass: "bg-chart-2",
+    textClass: "text-white",
+    patternClass: "pattern-diagonal",
+  },
+  claimed: {
+    label: "Claimed",
+    variant: "secondary",
+    Icon: CheckCircle,
+    bgClass: "bg-muted",
+    textClass: "text-muted-foreground",
+    patternClass: "pattern-crosshatch",
+  },
+  pending: {
+    label: "Pending",
+    variant: "outline",
+    Icon: Clock,
+    bgClass: "bg-chart-3",
+    textClass: "text-white",
+    patternClass: "pattern-horizontal",
+  },
+  disputed: {
+    label: "Disputed",
+    variant: "destructive",
+    Icon: AlertCircle,
+    bgClass: "bg-destructive/20",
+    textClass: "text-destructive",
+    patternClass: "pattern-vertical",
+  },
 };
 
 // ── Mock Data ────────────────────────────────────────────────────────────────
@@ -103,27 +156,38 @@ const MOCK_CLAIMS: Claim[] = [
   },
 ];
 
-// ── Status Badge (color-blind safe) ─────────────────────────────────────────
+// ── Color-Blind Safe Status Badge ───────────────────────────────────────────
 
+/**
+ * StatusBadge — renders the claim status with both colour AND texture (pattern).
+ *
+ * The badge overlays a repeating CSS pattern (diagonal lines, dots,
+ * crosshatch, horizontal/vertical stripes) on top of its background
+ * colour so that users with colour-vision deficiencies can tell statuses
+ * apart without relying on hue alone (WCAG 2.1 AA SC 1.4.1).
+ *
+ * The pattern classes are defined in app/styles/patterns.css and are
+ * designed to remain visible in both light and dark mode using
+ * rgba(255,255,255,…) overlays.
+ */
 const StatusBadge: React.FC<{ status: ClaimStatus }> = ({ status }) => {
   const config = STATUS_CONFIG[status];
   const Icon = config.Icon;
 
-  const statusClasses: Record<ClaimStatus, string> = {
-    available: "bg-chart-2 text-white",
-    claimed: "bg-muted text-muted-foreground",
-    pending: "bg-chart-3 text-white",
-    disputed: "bg-destructive/20 text-destructive",
-  };
-
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${statusClasses[status]}`}
+      className={cn(
+        "relative inline-flex items-center gap-1.5 overflow-hidden rounded-full px-3 py-1 text-xs font-medium",
+        config.bgClass,
+        config.textClass,
+        // Color-blind safe pattern overlay
+        config.patternClass
+      )}
       role="status"
       aria-label={`Claim status: ${config.label}`}
     >
-      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-      <span>{config.label}</span>
+      <Icon className="relative z-10 h-3.5 w-3.5" aria-hidden="true" />
+      <span className="relative z-10">{config.label}</span>
     </span>
   );
 };
@@ -275,17 +339,22 @@ const ClaimFlowError: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
  * ClaimFlow — View and manage claimable winnings from resolved predictions.
  *
  * Features:
- *  - Themed empty state with clear CTA when no claims exist (#584)
- *  - Filterable tabs by claim status
- *  - Loading skeleton for first paint
- *  - Error state with retry
- *  - Accessible status badges with live regions
+ *  - Color-blind safe status badges using CSS patterns (diagonal, dots,
+ *    crosshatch, horizontal/vertical stripes) overlaying chart colours
+ *    so status is conveyed by texture AND colour (WCAG 2.1 AA SC 1.4.1).
+ *  - Patterns are defined in app/styles/patterns.css and imported globally
+ *    via app/layout.tsx.
+ *  - Themed empty state with clear CTA when no claims exist.
+ *  - Filterable tabs by claim status.
+ *  - Loading skeleton for first paint.
+ *  - Error state with retry.
  *
  * WCAG 2.1 AA:
  *  - Proper heading hierarchy (h1 → h2 → h3)
  *  - role="status" + aria-live="polite" for dynamic content
+ *  - Pattern overlay provides information beyond colour (SC 1.4.1)
  *  - Keyboard-focusable interactive elements
- *  - Sufficient color contrast via design tokens
+ *  - Sufficient colour contrast via design tokens
  */
 const ClaimFlowPage: React.FC = () => {
   const TABS = ["All", "Available", "Pending", "Claimed", "Disputed"] as const;
