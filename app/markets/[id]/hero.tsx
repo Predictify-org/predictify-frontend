@@ -26,6 +26,7 @@ import { Clock, Users, DollarSign, TrendingUp, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge, type MarketStatus } from "@/components/market/StatusBadge";
 import { LiveRegion } from "@/components/ui/live-region";
 
@@ -75,6 +76,8 @@ export interface MarketHeroProps {
   onShare?: () => void;
   /** Additional CSS classes applied to the root element. */
   className?: string;
+  /** Renders a loading placeholder that mirrors the final hero layout. */
+  isLoading?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +163,7 @@ export function MarketHero({
   isGrantFoxCampaign = false,
   onShare,
   className,
+  isLoading = false,
 }: MarketHeroProps) {
   const heroId = useId();
   const descId = `${heroId}-desc`;
@@ -167,6 +171,58 @@ export function MarketHero({
   // Determine the leading outcome probability for the aria label on the bar.
   const leadOutcome = outcomes?.[0];
   const trailOutcome = outcomes?.[1];
+
+  if (isLoading) {
+    return (
+      <section
+        aria-labelledby={`${heroId}-title`}
+        data-testid="market-hero-skeleton"
+        className={cn(
+          "w-full rounded-2xl border border-border bg-card px-5 py-6 sm:px-8 sm:py-8",
+          "bg-gradient-to-br from-card to-muted/30 dark:from-card dark:to-muted/10",
+          className
+        )}
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-2" data-testid="market-hero-skeleton-lines">
+          <Skeleton className="h-6 w-24 rounded-full" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+
+        <div className="mb-5 space-y-2" data-testid="market-hero-skeleton-text">
+          <Skeleton className="h-8 w-3/4 rounded-md" data-testid="market-hero-skeleton-line" />
+          <Skeleton className="h-4 w-full rounded-md" data-testid="market-hero-skeleton-line" />
+          <Skeleton className="h-4 w-5/6 rounded-md" data-testid="market-hero-skeleton-line" />
+        </div>
+
+        <div className="mb-5 space-y-2" data-testid="market-hero-skeleton-bar">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-20 rounded-md" data-testid="market-hero-skeleton-line" />
+            <Skeleton className="h-4 w-20 rounded-md" data-testid="market-hero-skeleton-line" />
+          </div>
+          <Skeleton className="h-3 w-full rounded-full" />
+        </div>
+
+        <div
+          className="mb-5 flex flex-wrap gap-x-6 gap-y-3 border-t border-border pt-4"
+          data-testid="market-hero-skeleton-stats"
+        >
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-4 w-16 rounded-md" />
+            <Skeleton className="h-6 w-24 rounded-md" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-4 w-20 rounded-md" />
+            <Skeleton className="h-6 w-24 rounded-md" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-4 w-16 rounded-md" />
+            <Skeleton className="h-6 w-20 rounded-md" />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section

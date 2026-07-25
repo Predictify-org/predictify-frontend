@@ -59,6 +59,15 @@ describe("MarketHero — rendering", () => {
     expect(screen.getByRole("region")).toBeInTheDocument();
   });
 
+  it("renders a loading skeleton that mirrors the final hero structure", () => {
+    render(<MarketHero title="Loading market" status="open" isLoading />);
+
+    expect(screen.getByTestId("market-hero-skeleton")).toBeInTheDocument();
+    expect(screen.getAllByTestId("market-hero-skeleton-line")).toHaveLength(5);
+    expect(screen.getByTestId("market-hero-skeleton-bar")).toBeInTheDocument();
+    expect(screen.getByTestId("market-hero-skeleton-stats")).toBeInTheDocument();
+  });
+
   it("renders the market title as an h1", () => {
     renderHero({ title: "Test Market Title" });
     const heading = screen.getByRole("heading", { level: 1 });
