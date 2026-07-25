@@ -171,6 +171,7 @@ The hero is single-column at all breakpoints. Responsive behaviour is handled vi
 | StatusBadge | Delegates to the repo's `StatusBadge` which has `role="status"` and `aria-describedby` wired to an `sr-only` description |
 | Live region | A `role="status" aria-live="polite"` element announces volume and participant counts to assistive technology when they change |
 | Tabular numerals | All visible figures (volume, participants, countdown, outcome %) use `font-variant-numeric: tabular-nums` so they stay column-aligned with each other and across re-renders (Issue #556) |
+| Reduced motion | The `transition-[width]` animation on the probability bar is disabled via `motion-reduce:transition-none` when `prefers-reduced-motion: reduce` is active |
 | Icons | All Lucide icons carry `aria-hidden="true"` |
 
 ---
