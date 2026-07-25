@@ -8,13 +8,14 @@
  *  - All interactive elements have associated labels (WCAG 2.1 SC 1.3.1).
  *  - Error messages are linked via aria-describedby (WCAG 2.1 SC 3.3.1).
  *  - Focus management follows logical DOM order.
+ *  - Visible :focus-visible outlines on all interactive controls (WCAG 2.1 SC 2.4.7).
  */
 
 "use client";
 
 import React, { useState, useEffect } from "react";
 import QuickBetPresets from "@/components/QuickBetPresets";
-import KbdHint from "@/src/components/KbdHint";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 export interface BetFormProps {
   /** Called with the chosen amount (in XLM) when the form is submitted. */
@@ -27,6 +28,7 @@ export interface BetFormProps {
 const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
   const [amount, setAmount] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const reducedMotion = useReducedMotion();
 
   /** The numeric value of the current input, or null when empty / invalid. */
   const numericAmount = amount !== "" && !isNaN(Number(amount)) ? Number(amount) : null;
@@ -88,25 +90,26 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
           >
             Amount (XLM)
           </label>
-          <div className="relative">
-            <input
-              id="bet-amount"
-              type="number"
-              min="0.0000001"
-              step="any"
-              value={amount}
-              onChange={handleAmountChange}
-              placeholder="Enter amount"
-              aria-describedby={error ? "bet-amount-error" : undefined}
-              aria-invalid={error ? true : undefined}
-              className={[
-                "w-full rounded-md border px-3 py-2 text-sm",
-                "bg-background text-foreground placeholder:text-muted-foreground",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                error ? "border-destructive" : "border-border",
-              ].join(" ")}
-            />
-          </div>
+          <input
+            id="bet-amount"
+            type="number"
+            min="0.0000001"
+            step="any"
+            value={amount}
+            onChange={handleAmountChange}
+            placeholder="Enter amount"
+            aria-describedby={error ? "bet-amount-error" : undefined}
+            aria-invalid={error ? true : undefined}
+            className={[
+              "w-full rounded-md border px-3 py-2 text-sm tabular-nums",
+              "bg-background text-foreground placeholder:text-muted-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              "focus-visible:ring-offset-background",
+              error
+                ? "border-destructive focus-visible:ring-destructive"
+                : "border-border",
+            ].join(" ")}
+          />
           {error && (
             <p
               id="bet-amount-error"
@@ -124,8 +127,10 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
           className={[
             "w-full rounded-md px-4 py-2 text-sm font-semibold flex items-center justify-center gap-2",
             "bg-primary text-primary-foreground",
-            "hover:bg-primary/90 transition-colors duration-150",
+            "hover:bg-primary/90",
+            !reducedMotion && "transition-colors duration-150",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "focus-visible:ring-offset-background",
           ].join(" ")}
         >
           <span>Place Bet</span>
