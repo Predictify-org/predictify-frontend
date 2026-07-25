@@ -24,6 +24,7 @@ components and interaction flows.
 | `Confirm/Cancel button order (#474)` | Verified | DOM order matches Tab order (`flex-col`, no `flex-col-reverse`) across `Dialog`, `AlertDialog`, and mobile `Drawer`. Visual ↔ keyboard consistency. Rule documented in `docs/BUTTON_ORDER.md`. | `components/ui/alert-dialog.tsx`, `components/ui/dialog.tsx`, `components/patterns/BetConfirmPattern.tsx`, `components/patterns/DisputeActionPattern.tsx`, `components/ui/__tests__/dialog-footer.test.tsx`, `docs/BUTTON_ORDER.md` |
 | `SkipToContent` | Verified | First focusable link on pages, bypasses standard headers to main content | `app/components/SkipToContent.tsx`, `app/components/__tests__/SkipToContent.test.tsx`, `app/layout.tsx`, `app/(dashboard)/layout.tsx`, `app/(marketing)/layout.tsx` |
 | `MobileBottomTabs badge` | Verified | Custom red badge shows unread counts visually while aria-labels announce unread status | `components/navbar/MobileBottomTabs.tsx`, `components/navbar/__tests__/MobileBottomTabs.test.tsx` |
+| `AboutMarketModal` | Verified | Focus restoration via DialogContentWithFocusReturn, screen-reader text, and Tailwind color-contrast consistency | `app/components/AboutMarketModal.tsx`, `app/components/__tests__/AboutMarketModal.test.tsx` |
 
 ## Notes
 

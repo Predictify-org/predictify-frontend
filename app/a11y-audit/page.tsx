@@ -94,6 +94,16 @@ const auditItems: AuditItem[] = [
       'components/navbar/__tests__/MobileBottomTabs.test.tsx',
     ],
   },
+  {
+    component: 'AboutMarketModal',
+    status: 'Verified',
+    summary:
+      'Modal uses DialogContentWithFocusReturn to restore focus on close, provides full keyboard support, and uses custom sr-only descriptions for screen readers.',
+    evidence: [
+      'app/components/AboutMarketModal.tsx',
+      'app/components/__tests__/AboutMarketModal.test.tsx',
+    ],
+  },
 ]
 
 const statusStyles: Record<AuditItem['status'], string> = {
