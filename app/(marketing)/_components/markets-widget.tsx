@@ -19,7 +19,9 @@ import {
 } from "@/content/markets.sample";
 import { useState, useEffect } from "react";
 import { useFollowsStore } from "@/app/state/follows";
+import { useUserLimitsStore } from "@/app/state/userLimits";
 import Sparkline from "@/components/Sparkline";
+import { Tooltip } from "@/app/components/Tooltip";
 
 interface MarketsWidgetProps {
   className?: string;
@@ -177,11 +179,15 @@ function MarketCard({
             <h3 className="font-semibold text-white">{market.title}</h3>
             <p className="text-sm text-white/70">{market.description}</p>
             {/* Sparkline preview */}
-            <Sparkline
-              data={market.sparklineData}
-              className="mt-2 text-white/60"
-              data-testid={`sparkline-${market.id}`}
-            />
+            <Tooltip content="Price trend over the last 24 hours showing Yes outcome probability changes">
+              <div className="inline-block">
+                <Sparkline
+                  data={market.sparklineData}
+                  className="mt-2 text-white/60"
+                  data-testid={`sparkline-${market.id}`}
+                />
+              </div>
+            </Tooltip>
 
             <div className="mt-2 space-y-2">
               {/* Following indicator — visible only for followed markets */}
@@ -190,7 +196,9 @@ function MarketCard({
                   className="inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-400/30"
                   data-testid="following-indicator"
                 >
-                  <Bell className="h-3 w-3" aria-hidden="true" />
+                  <Tooltip content="You will receive notifications when this market has significant updates or is about to close">
+                    <Bell className="h-3 w-3" aria-hidden="true" />
+                  </Tooltip>
                   You&apos;re following this
                   <span className="sr-only">
                     {" "}
@@ -199,19 +207,25 @@ function MarketCard({
                 </span>
               )}
 
-              <p
-                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs leading-5 text-white/85"
-                data-testid="betting-limit-nudge"
-              >
-                Daily betting allowance remaining:{" "}
-                <strong>{remainingAllowance} USDC</strong>
-              </p>
+              <Tooltip content="Your remaining daily betting limit for this market to encourage responsible prediction market participation">
+                <p
+                  className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs leading-5 text-white/85 cursor-help"
+                  data-testid="betting-limit-nudge"
+                >
+                  Daily betting allowance remaining:{" "}
+                  <strong>{remainingAllowance} USDC</strong>
+                </p>
+              </Tooltip>
             </div>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-sm font-medium text-green-400 tabular-nums">Yes: {market.yesOdds}%</div>
-          <div className="text-sm text-red-400 tabular-nums">No: {market.noOdds}%</div>
+          <Tooltip content="Current probability that this outcome will occur, based on market trading activity">
+            <div className="text-sm font-medium text-green-400 tabular-nums cursor-help">Yes: {market.yesOdds}%</div>
+          </Tooltip>
+          <Tooltip content="Current probability that this outcome will not occur, based on market trading activity">
+            <div className="text-sm text-red-400 tabular-nums cursor-help">No: {market.noOdds}%</div>
+          </Tooltip>
         </div>
       </div>
 
@@ -224,8 +238,12 @@ function MarketCard({
       </div>
 
       <div className="flex justify-between text-xs text-white/60">
-        <span className="tabular-nums">Pool: {market.poolAmount.toLocaleString()} USDC</span>
-        <span>Ends in {market.endsIn}</span>
+        <Tooltip content="Total liquidity in this market from all participants. Higher pools typically mean more accurate odds.">
+          <span className="tabular-nums cursor-help">Pool: {market.poolAmount.toLocaleString()} USDC</span>
+        </Tooltip>
+        <Tooltip content="Time remaining until this market closes and no new predictions can be placed">
+          <span className="cursor-help">Ends in {market.endsIn}</span>
+        </Tooltip>
       </div>
     </Card>
   );
