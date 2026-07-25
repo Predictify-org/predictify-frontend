@@ -13,7 +13,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import QuickBetPresets from "@/components/QuickBetPresets";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 
@@ -44,9 +44,7 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
     setError(null);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
+  const attemptSubmit = () => {
     if (numericAmount === null || numericAmount <= 0) {
       setError("Please enter a valid bet amount greater than 0 XLM.");
       return;
@@ -54,6 +52,26 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
 
     onSubmit?.(numericAmount);
   };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    attemptSubmit();
+  };
+
+  // Keyboard shortcut listener for Cmd+Enter / Ctrl+Enter
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        attemptSubmit();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [numericAmount, onSubmit]);
 
   return (
     <form onSubmit={handleSubmit} noValidate aria-label="Place a bet">
@@ -65,7 +83,7 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
         />
 
         {/* Free-text amount input */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 relative">
           <label
             htmlFor="bet-amount"
             className="text-sm font-medium text-foreground"
@@ -107,7 +125,7 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
         <button
           type="submit"
           className={[
-            "w-full rounded-md px-4 py-2 text-sm font-semibold",
+            "w-full rounded-md px-4 py-2 text-sm font-semibold flex items-center justify-center gap-2",
             "bg-primary text-primary-foreground",
             "hover:bg-primary/90",
             !reducedMotion && "transition-colors duration-150",
@@ -115,7 +133,11 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
             "focus-visible:ring-offset-background",
           ].join(" ")}
         >
-          Place Bet
+          <span>Place Bet</span>
+          <div className="flex items-center gap-1 opacity-80">
+            <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">⌘</KbdHint>
+            <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">↵</KbdHint>
+          </div>
         </button>
       </div>
     </form>
