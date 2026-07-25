@@ -21,6 +21,14 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Verified vs. partial follow-up status
   - Evidence paths for recent component work
 
+### UI Components
+- **[COPY_ADDRESS.md](./COPY_ADDRESS.md)** - `CopyAddress` universal copy-to-clipboard button
+  - API reference (props, defaults, types)
+  - Accessibility details (aria-label, aria-pressed, live region)
+  - Usage examples (default, labelled, icon-only, custom delay)
+  - Test coverage overview
+  - Relation to `CopyableText` and other share components
+
 ### Core Features
 - **[WALLET.md](./WALLET.md)** - Wallet Integration Guide
   - Supported wallets (Freighter, LOBSTR, XBull, Albedo, Rabet)
