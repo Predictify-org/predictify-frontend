@@ -8,6 +8,10 @@ Market detail lifecycle badges now combine status color with subtle texture patt
 
 The login experience now surfaces inline validation for empty or malformed fields, highlights the relevant input with accessible error states, and uses a clearer alert banner for failed sign-in attempts. This improves campaign feedback without changing the underlying auth flow.
 
+## Market card keyboard hints
+
+Marketing market cards now include a subtle keyboard shortcut hint so keyboard users can discover the quick action affordance without losing context, while remaining consistent with the broader GrantFox accessibility treatment.
+
 this is the UI/UX design for the application
 
 ## Route transition feedback

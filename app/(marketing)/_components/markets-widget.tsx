@@ -20,6 +20,7 @@ import {
 import { useState, useEffect } from "react";
 import { useFollowsStore } from "@/app/state/follows";
 import Sparkline from "@/components/Sparkline";
+import { KbdHint } from "@/components/KbdHint";
 
 interface MarketsWidgetProps {
   className?: string;
@@ -206,6 +207,16 @@ function MarketCard({
                 Daily betting allowance remaining:{" "}
                 <strong>{remainingAllowance} USDC</strong>
               </p>
+
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/75">
+                <span>Quick access</span>
+                <KbdHint
+                  label="Press"
+                  shortcut="confirmBet"
+                  className="text-[11px]"
+                  data-testid="market-card-kbd-hint"
+                />
+              </div>
             </div>
           </div>
         </div>
