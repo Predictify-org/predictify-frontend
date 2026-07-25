@@ -15,6 +15,7 @@
 
 import React, { useState, useEffect } from "react";
 import QuickBetPresets from "@/components/QuickBetPresets";
+import KbdHint from "../../src/components/KbdHint";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 export interface BetFormProps {
@@ -86,7 +87,7 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
         <div className="flex flex-col gap-1 relative">
           <label
             htmlFor="bet-amount"
-            className="text-sm font-medium text-foreground"
+            className="text-label text-foreground"
           >
             Amount (XLM)
           </label>
@@ -101,7 +102,7 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
             aria-describedby={error ? "bet-amount-error" : undefined}
             aria-invalid={error ? true : undefined}
             className={[
-              "w-full rounded-md border px-3 py-2 text-sm tabular-nums",
+              "w-full rounded-md border px-3 py-2 text-body-sm tabular-nums",
               "bg-background text-foreground placeholder:text-muted-foreground",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               "focus-visible:ring-offset-background",
@@ -114,7 +115,7 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
             <p
               id="bet-amount-error"
               role="alert"
-              className="text-sm text-destructive"
+              className="text-body-sm text-destructive"
             >
               {error}
             </p>
@@ -125,7 +126,7 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
         <button
           type="submit"
           className={[
-            "w-full rounded-md px-4 py-2 text-sm font-semibold flex items-center justify-center gap-2",
+            "w-full rounded-md px-4 py-2 text-body-sm font-semibold flex items-center justify-center gap-2",
             "bg-primary text-primary-foreground",
             "hover:bg-primary/90",
             !reducedMotion && "transition-colors duration-150",
