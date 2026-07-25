@@ -19,6 +19,7 @@ import { generateMockNotifications } from "@/lib/notifications"
 import { NotificationItem } from "@/types/notifications"
 import { Kbd } from "@/components/ui/kbd"
 import { useEffect, useMemo, useCallback, useState } from "react"
+import { LiveRegion } from "@/app/components/LiveRegion"
 
 // TODO: replace with the authenticated user's id once auth context exposes it.
 const CURRENT_USER_ID = "current-user"
@@ -99,6 +100,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stat[] | null>(null)
   const [hiddenRecommendations, setHiddenRecommendations] = useState<string[]>([])
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null)
+  const [liveMessage, setLiveMessage] = useState("")
   const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
     generateMockNotifications(CURRENT_USER_ID)
   )
@@ -174,6 +176,7 @@ export default function DashboardPage() {
   }, [reducedMotion])
 
   const retry = () => {
+    setLiveMessage("Refreshing dashboard")
     // Honor the static fallback under reduced-motion preferences: skip
     // the 1500ms loading transition and present data immediately. This
     // keeps the manual retry path consistent with the initial load.
@@ -377,6 +380,23 @@ export default function DashboardPage() {
     }
   }
 
+  useEffect(() => {
+    switch (status) {
+      case 'loading':
+        setLiveMessage('Loading dashboard')
+        break
+      case 'success':
+        setLiveMessage(`Dashboard loaded. Showing ${stats?.length ?? 0} key metrics in ${activeTab}.`)
+        break
+      case 'empty':
+        setLiveMessage(`Dashboard is empty in ${activeTab}.`)
+        break
+      case 'error':
+        setLiveMessage(`Dashboard failed to load in ${activeTab}.`)
+        break
+    }
+  }, [activeTab, stats?.length, status])
+
   const renderReportsPanel = () => {
     switch (status) {
       case 'loading':
@@ -439,6 +459,10 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <LiveRegion
+        message={liveMessage}
+        data-testid="dashboard-live-region"
+      />
       {reducedMotion && (
         // Accessible inline notice: role="status" + aria-live="polite" means
         // screen-readers announce the static mode without interrupting other
