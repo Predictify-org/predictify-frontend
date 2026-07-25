@@ -15,7 +15,7 @@
  */
 
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MarketHero, StatPill, type MarketHeroProps } from "../hero";
 
@@ -197,6 +197,147 @@ describe("MarketHero — probability bar", () => {
     });
     const pb = screen.getByRole("progressbar");
     expect(pb).toHaveClass("sr-only");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tabular-nums contract — Issue #556 (MarketDetail tabular-nums v7)
+// ---------------------------------------------------------------------------
+/**
+ * Helpers
+ *
+ * Per the issue, every visible numeric surface on MarketDetail must use
+ * `font-variant-numeric: tabular-nums` so figures align column-perfectly.
+ * The implementation guarantees this two ways:
+ *
+ *   1. A CSS base binding in `styles/globals.css` applies the property
+ *      automatically to all elements using the `text-stat-lg/md/sm` tokens.
+ *   2. Explicit `tabular-nums` on the value span inside `StatPill` and on
+ *      each outcome probability percentage (which lives under `text-body-sm`
+ *      and therefore does NOT inherit the CSS binding).
+ *
+ * The helper below accepts either signal so the test remains accurate if
+ * either layer of the contract changes.
+ */
+function isTabularAligned(el: HTMLElement): boolean {
+  const hasExplicit = el.classList.contains("tabular-nums");
+  const hasStatToken = ["text-stat-lg", "text-stat-md", "text-stat-sm"].some(
+    (c) => el.classList.contains(c)
+  );
+  return hasExplicit || hasStatToken;
+}
+
+describe("MarketHero — tabular-nums contract (issue #556)", () => {
+  it("StatPill value span satisfies the tabular-nums contract", () => {
+    render(
+      <StatPill
+        icon={<span data-testid="icon" />}
+        label="Volume"
+        value="10,000 USDC"
+      />
+    );
+    const valueEl = screen.getByText("10,000 USDC");
+    expect(isTabularAligned(valueEl)).toBe(true);
+  });
+
+  it("Stat strip — volume is rendered with tabular-nums alignment", () => {
+    renderHero({ volume: "42,000 USDC" });
+    const el = screen.getByText("42,000 USDC");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Stat strip — participants is rendered with tabular-nums alignment", () => {
+    renderHero({ participants: 3840 });
+    const el = screen.getByText("3,840");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Stat strip — locale-formatted large numbers keep tabular-nums", () => {
+    renderHero({ participants: 1234567 });
+    const el = screen.getByText("1,234,567");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Stat strip — timeLeft value is rendered with tabular-nums alignment", () => {
+    renderHero({ timeLeft: "18 days" });
+    const el = screen.getByText("18 days");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Probability bar — leading outcome percentage uses tabular-nums", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 62 },
+        { label: "No", probability: 38 },
+      ],
+    });
+    const el = screen.getByText("62%");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Probability bar — trailing outcome percentage uses tabular-nums", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 65 },
+        { label: "No", probability: 35 },
+      ],
+    });
+    const el = screen.getByText("35%");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Edge case — 0% boundary still uses tabular-nums", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 0 },
+        { label: "No", probability: 100 },
+      ],
+    });
+    expect(isTabularAligned(screen.getByText("0%"))).toBe(true);
+    expect(isTabularAligned(screen.getByText("100%"))).toBe(true);
+  });
+
+  it("Edge case — single-outcome probability bars (75% and 100%) keep tabular-nums", () => {
+    // Single-outcome bars render only the leading label (no trailing one);
+    // the contract must still hold for boundary probabilities.
+    renderHero({ outcomes: [{ label: "Yes", probability: 75 }] });
+    expect(isTabularAligned(screen.getByText("75%"))).toBe(true);
+
+    cleanup();
+
+    renderHero({ outcomes: [{ label: "Yes", probability: 100 }] });
+    expect(isTabularAligned(screen.getByText("100%"))).toBe(true);
+  });
+
+  it("Every visible numeric display in the full hero satisfies the contract", () => {
+    render(<MarketHero {...FULL_PROPS} />);
+    const numericSpans = [
+      "42,000 USDC", // volume
+      "3,840", // participants — locale-formatted
+      "18 days", // timeLeft
+      "62%", // leading outcome probability
+      "38%", // trailing outcome probability
+    ];
+    for (const text of numericSpans) {
+      const el = screen.getByText(text);
+      expect({ text, ok: isTabularAligned(el) }).toEqual({ text, ok: true });
+    }
+  });
+
+  it("The progressbar ARIA aria-valuenow is unchanged (not affected by font-variant-numeric)", () => {
+    // The visually hidden progressbar communicates the value to assistive
+    // tech via ARIA.  font-variant-numeric is purely visual; we ensure the
+    // contract for SR <-> visual numerals stays in sync.
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 42 },
+        { label: "No", probability: 58 },
+      ],
+    });
+    const pb = screen.getByRole("progressbar");
+    expect(pb).toHaveAttribute("aria-valuenow", "42");
+    // Visible outcome span must still use tabular-nums.
+    expect(isTabularAligned(screen.getByText("42%"))).toBe(true);
   });
 });
 
