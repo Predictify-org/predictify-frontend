@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, RefreshCw, X } from 'lucide-react';
+import { format } from 'date-fns';
 import { TransactionFilters } from '@/lib/types';
 import { allTransactions } from '@/lib/mock-data';
 import { Timestamp } from '@/components/ui/Timestamp';
 import { CopyableText } from '@/components/ui/CopyableText';
+import { DatePicker } from '@/app/components/DatePicker';
+
+/** yyyy-MM-dd, matching the format previously produced by <input type="date">. */
+const FILTER_DATE_FORMAT = 'yyyy-MM-dd';
 
 
 export default function TransactionHistory() {
@@ -24,6 +29,14 @@ export default function TransactionHistory() {
     const parseDate = (dateStr: string): Date => {
         const [day, month, year] = dateStr.split('/');
         return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    };
+
+    /** Converts a 'yyyy-MM-dd' filter string (or '') into a Date | null for the DatePicker. */
+    const filterStringToDate = (value: string): Date | null => {
+        if (!value) return null;
+        const [year, month, day] = value.split('-').map(Number);
+        const parsed = new Date(year, (month ?? 1) - 1, day ?? 1);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
     };
 
     const filteredTransactions = allTransactions.filter(transaction => {
@@ -217,23 +230,24 @@ export default function TransactionHistory() {
 
                             {/* Date Range Filter */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-                                <div className="space-y-2">
-                                    <input
-                                        type="date"
-                                        value={filters.dateFrom}
-                                        onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                        placeholder="From"
-                                    />
-                                    <input
-                                        type="date"
-                                        value={filters.dateTo}
-                                        onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                        placeholder="To"
-                                    />
-                                </div>
+                                <DatePicker
+                                    mode="range"
+                                    label="Date range"
+                                    fromLabel="From"
+                                    toLabel="To"
+                                    dateFormat={FILTER_DATE_FORMAT}
+                                    value={{
+                                        from: filterStringToDate(filters.dateFrom) ?? undefined,
+                                        to: filterStringToDate(filters.dateTo) ?? undefined,
+                                    }}
+                                    onChange={(range) => {
+                                        setFilters((prev) => ({
+                                            ...prev,
+                                            dateFrom: range?.from ? format(range.from, FILTER_DATE_FORMAT) : '',
+                                            dateTo: range?.to ? format(range.to, FILTER_DATE_FORMAT) : '',
+                                        }));
+                                    }}
+                                />
                             </div>
                         </div>
 
