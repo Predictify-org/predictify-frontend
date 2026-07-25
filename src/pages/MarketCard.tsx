@@ -1,6 +1,7 @@
 import React from "react";
 import "../styles/patterns.css";
 import { Skeleton } from "../components/Skeleton";
+import { EmptyState } from "../components/EmptyState";
 
 export type MarketStatus = "active" | "closed" | "pending" | "resolved";
 
@@ -12,6 +13,10 @@ export interface MarketCardProps {
   endDate?: string;
   volume?: string;
   isLoading?: boolean;
+  isEmpty?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  onEmptyAction?: () => void;
   onClick?: () => void;
 }
 
@@ -37,6 +42,10 @@ export const MarketCard: React.FC<MarketCardProps> = ({
   endDate,
   volume,
   isLoading = false,
+  isEmpty = false,
+  emptyTitle,
+  emptyDescription,
+  onEmptyAction,
   onClick,
 }) => {
   if (isLoading) {
@@ -54,6 +63,18 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-24" />
         </div>
+      </article>
+    );
+  }
+
+  if (isEmpty) {
+    return (
+      <article className="market-card h-full h-min-[200px]">
+        <EmptyState
+          title={emptyTitle}
+          description={emptyDescription}
+          onAction={onEmptyAction}
+        />
       </article>
     );
   }
