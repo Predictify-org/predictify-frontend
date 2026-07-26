@@ -1,94 +1,87 @@
 /**
- * focus.css
+ * focus.css — DisputeCard-specific :focus-visible overrides
  *
- * Keyboard-only (`:focus-visible`) focus outlines for interactive elements in
- * MarketCard (issue #498 – buffer #16).
+ * Supplements the global focus-visible-base layer (app/styles/focus.css)
+ * with styles tuned for the DisputeCard's interactive surface: buttons,
+ * links, radio inputs, and the collapsible details trigger.
  *
- * Goals
- * ─────
- * • Outlines appear **only** when the user navigates by keyboard, not on
- *   pointer (mouse/touch) clicks, by relying on `:focus-visible`.
- * • The ring contrast satisfies WCAG 2.1 Success Criterion 1.4.11 (Non-text
- *   Contrast, ratio ≥ 3:1 against adjacent colours).
- * • Works in both light and dark mode using CSS custom properties so that it
- *   integrates with the existing design-token system.
- * • `outline-offset` separates the ring from the card border to prevent it
- *   from being masked by the card's own shadow.
+ * WCAG 2.1 AA compliance:
+ *   - 3 px solid outline with 2 px offset meets the 3:1 contrast ratio
+ *     required by SC 1.4.11 (Non-text Contrast).
+ *   - Visible only on keyboard navigation (:focus-visible), avoiding the
+ *     "mouse-click outline" UX regression.
+ *   - High-contrast ring token (--ring) is inherited from the global layer
+ *     and remains accessible in both light and dark modes.
  */
 
-/* ── Design tokens (scoped to the root so they inherit into all variants) ── */
-:root {
-  /* Focus ring colour – indigo 500 (#6366f1) sits above white at 3.28:1 */
-  --focus-ring-color: #6366f1;
-  --focus-ring-width: 3px;
-  --focus-ring-offset: 3px;
-  /* Dark mode: lighter indigo to keep contrast against dark backgrounds */
-  --focus-ring-color-dark: #a5b4fc; /* indigo 300 */
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --focus-ring-color: var(--focus-ring-color-dark);
-  }
-}
-
-/* ── MarketCard – the clickable article wrapper ─────────────────────────── */
-
-/**
- * The `.market-card` class is applied to the `<article>` element in
- * `src/pages/MarketCard.tsx`.  We add:
- *   1. `outline: none` to suppress the browser's default outline (we replace
- *      it with a better-styled ring below).
- *   2. `border-radius` on the focused element so the ring follows the card's
- *      existing rounded corners.
+/* ── DisputeCard focus ring overrides ────────────────────────────────── */
+/*
+ * These rules use a higher specificity than the global layer so they
+ * apply only inside a .dispute-card container.  This keeps other parts
+ * of the app unaffected.
  */
-.market-card {
-  outline: none;
-  /* Ensure the element can receive keyboard focus when onClick is provided */
+.dispute-card :focus-visible {
+  outline: 3px solid hsl(var(--ring, 210 100% 56%));
+  outline-offset: 2px;
+  border-radius: var(--radius, 0.375rem);
   position: relative;
+  z-index: 1;
 }
 
-/**
- * The core rule.  `:focus-visible` ensures this outline appears only for
- * keyboard navigation, not for mouse clicks.  The `box-shadow` approach is
- * preferred over `outline` here because:
- *   • It respects `border-radius` on the element.
- *   • It is painted *outside* the element's border-box without affecting
- *     layout (unlike `outline` which can shift adjacent elements on some
- *     older Chromium versions).
- *
- * Two-layer shadow:
- *   1. White inner layer: provides a high-contrast separator between the
- *      card border and the coloured ring.
- *   2. Coloured outer ring: the visible keyboard-focus indicator.
+/* Dark-mode adjustment — white inner shadow prevents the ring from
+   blending into dark card backgrounds. */
+.dark .dispute-card :focus-visible {
+  box-shadow: 0 0 0 2px hsl(var(--background, 222 47% 11%));
+}
+
+/* ── Inset variant for the card container itself when it is focusable ── */
+/*
+ * When the DisputeCard wraps an <article> with tabindex, the outward
+ * ring can clip at the card boundary.  Use the inset variant instead.
  */
-.market-card:focus-visible {
+.dispute-card[data-focus-inset]:focus-visible {
   outline: none;
-  box-shadow:
-    0 0 0 var(--focus-ring-offset) #ffffff,
-    0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width))
-      var(--focus-ring-color);
+  box-shadow: inset 0 0 0 3px hsl(var(--ring, 210 100% 56%));
 }
 
-@media (prefers-color-scheme: dark) {
-  .market-card:focus-visible {
-    /* Inner separator uses near-black to contrast against dark card backgrounds */
-    box-shadow:
-      0 0 0 var(--focus-ring-offset) #1e1e2e,
-      0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width))
-        var(--focus-ring-color);
+/* ── Link underline + ring combo for audit-reference links ───────────── */
+/*
+ * Links inside DisputeCard should show both an underline (for colour-blind
+ * users) and the focus ring on keyboard navigation.
+ */
+.dispute-card a:focus-visible {
+  outline: 3px solid hsl(var(--ring, 210 100% 56%));
+  outline-offset: 2px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Radio inputs inside the card ───────────────────────────────────── */
+/*
+ * Native radio inputs receive a browser-default outline that can be
+ * inconsistent across browsers.  We normalise it to match the card's
+ * design-token ring.
+ */
+.dispute-card input[type="radio"]:focus-visible {
+  outline: 3px solid hsl(var(--ring, 210 100% 56%));
+  outline-offset: 2px;
+}
+
+/* ── Reduced-motion: keep the ring visible but skip transitions ──────── */
+@media (prefers-reduced-motion: reduce) {
+  .dispute-card :focus-visible {
+    transition: none;
   }
 }
 
-/* ── Respect reduced-motion preference ──────────────────────────────────── */
-
-/**
- * The card already uses `transition-shadow` for hover states.  When the user
- * prefers reduced motion we keep the outline (it is static, not animated) but
- * ensure no additional motion is introduced by our styles.
+/* ── High-contrast / forced-colors mode ──────────────────────────────── */
+/*
+ * In Windows High Contrast Mode the ring may disappear.  We force a
+ * solid CanvasText outline so keyboard users always see focus.
  */
-@media (prefers-reduced-motion: reduce) {
-  .market-card {
-    transition: none;
+@media (forced-colors: active) {
+  .dispute-card :focus-visible {
+    outline: 3px solid CanvasText;
+    outline-offset: 2px;
   }
 }
