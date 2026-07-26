@@ -11,6 +11,7 @@ import { RecommendationProvenance, type RecommendationSignalKey } from "@/compon
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStrip"
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import { ActiveBets } from "@/components/active-bets/ActiveBets"
 import { ActivityTimeline } from "@/components/activity-timeline"
 import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator"
@@ -217,13 +218,7 @@ export default function DashboardPage() {
   const renderCards = () => {
     switch (status) {
       case 'loading':
-        return (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-32 w-full rounded-xl" />
-            ))}
-          </div>
-        )
+        return <DashboardSkeleton data-testid="dashboard-skeleton-cards" />
       case 'empty':
         return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -340,7 +335,7 @@ export default function DashboardPage() {
   const renderAnalyticsPanel = () => {
     switch (status) {
       case 'loading':
-        return <Skeleton className="h-64 w-full rounded-xl" />
+        return <DashboardSkeleton data-testid="dashboard-skeleton-analytics" />
       case 'empty':
         return (
           <EmptyState
@@ -410,7 +405,7 @@ export default function DashboardPage() {
   const renderReportsPanel = () => {
     switch (status) {
       case 'loading':
-        return <Skeleton className="h-64 w-full rounded-xl" />
+        return <DashboardSkeleton data-testid="dashboard-skeleton-reports" />
       case 'empty':
         return (
           <EmptyState
