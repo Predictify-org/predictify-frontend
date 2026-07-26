@@ -29,4 +29,13 @@ describe("MarketCard Color-Blind Accessibility", () => {
     const badge = screen.getByRole("status");
     expect(badge).toHaveClass("status-pattern-resolved");
   });
+
+  it("includes reduced-motion fallback classes", () => {
+    render(<MarketCard id="5" title="Test Market" status="active" />);
+    const article = screen.getByRole("article", { hidden: true });
+    // Assuming the article element has an implicit role of article, but standard elements might need to be selected differently if role="article" is not set by default or not queryable.
+    // However, <article> has role="article" in HTML5
+    expect(article).toHaveClass("motion-reduce:transition-none");
+    expect(article).toHaveClass("motion-reduce:transform-none");
+  });
 });

@@ -40,7 +40,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
   return (
     <article
-      className="market-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-white dark:bg-gray-800"
+      className="market-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow motion-reduce:transition-none motion-reduce:transform-none cursor-pointer bg-white dark:bg-gray-800"
       onClick={onClick}
     >
       <div className="flex justify-between items-center mb-2">
