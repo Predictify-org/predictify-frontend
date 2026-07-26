@@ -38,6 +38,35 @@
   );
 }
 
+/* AmountInput Status Patterns */
+.status-pattern-error {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(220, 38, 38, 0.15),
+    rgba(220, 38, 38, 0.15) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.status-pattern-warning {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(217, 119, 6, 0.15),
+    rgba(217, 119, 6, 0.15) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.status-pattern-success {
+  background-image: radial-gradient(
+    rgba(22, 163, 74, 0.2) 2px,
+    transparent 2px
+  );
+  background-size: 8px 8px;
+}
+
 /* Dark mode adjustments for WCAG 2.1 AA contrast compliance */
 @media (prefers-color-scheme: dark) {
   .status-pattern-active {
@@ -58,5 +87,34 @@
       transparent 4px,
       transparent 8px
     );
+  }
+
+  /* AmountInput dark mode */
+  .status-pattern-error {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(248, 113, 113, 0.2),
+      rgba(248, 113, 113, 0.2) 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  }
+
+  .status-pattern-warning {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgba(251, 191, 36, 0.2),
+      rgba(251, 191, 36, 0.2) 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  }
+
+  .status-pattern-success {
+    background-image: radial-gradient(
+      rgba(74, 222, 128, 0.25) 2px,
+      transparent 2px
+    );
+    background-size: 8px 8px;
   }
 }
