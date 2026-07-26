@@ -1,203 +1,170 @@
 "use client";
 
-import React, { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDownUp, ArrowUp, ArrowDown } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
-import { LeaderboardUser } from "@/lib/leaderboard-data";
+import type { LeaderboardUser } from "@/lib/leaderboard-data";
 
-type SortKey = "rank" | "profit" | "winRate" | "predictions";
-type SortDirection = "asc" | "desc";
+type SortKey = "rank" | "name" | "profit" | "winRate" | "predictions";
 
-interface LeaderboardTableProps {
-  users: LeaderboardUser[];
-  onUserVisibilityChange?: (isVisible: boolean) => void;
-}
-
-const sortLabels: Record<SortKey, string> = {
-  rank: "Rank",
-  profit: "Profit (XLM)",
-  winRate: "Win Rate",
-  predictions: "Predictions",
+type LeaderboardTableUser = LeaderboardUser & {
+  /** Optional source image used for the user's leaderboard avatar. */
+  avatar?: string;
+  avatarUrl?: string;
+  image?: string;
+  imageUrl?: string;
 };
 
-export function LeaderboardTable({ users, onUserVisibilityChange }: LeaderboardTableProps) {
-  const parentRef = useRef<HTMLDivElement>(null);
-  const [sortKey, setSortKey] = React.useState<SortKey>("profit");
-  const [sortDirection, setSortDirection] = React.useState<SortDirection>("desc");
+interface LeaderboardTableProps {
+  users: LeaderboardTableUser[];
+}
+
+const AVATAR_WIDTHS = [48, 96, 192] as const;
+
+function getAvatarSource(user: LeaderboardTableUser): string | undefined {
+  return user.avatarUrl ?? user.avatar ?? user.imageUrl ?? user.image;
+}
+
+function getResponsiveImageSource(source: string, width: number): string {
+  const hashIndex = source.indexOf("#");
+  const sourceWithoutHash = hashIndex === -1 ? source : source.slice(0, hashIndex);
+  const hash = hashIndex === -1 ? "" : source.slice(hashIndex);
+  const separator = sourceWithoutHash.includes("?") ? "&" : "?";
+
+  return `${sourceWithoutHash}${separator}w=${width}${hash}`;
+}
+
+function formatProfit(profit: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(profit);
+}
+
+export function LeaderboardTable({ users }: LeaderboardTableProps) {
+  const [sortKey, setSortKey] = useState<SortKey>("profit");
+  const [sortDescending, setSortDescending] = useState(true);
+  const scrollParentRef = useRef<HTMLDivElement>(null);
 
   const sortedUsers = useMemo(() => {
-    const sorted = [...users].sort((a, b) => {
-      const directionMultiplier = sortDirection === "desc" ? -1 : 1;
+    return [...users].sort((left, right) => {
+      const leftValue = left[sortKey];
+      const rightValue = right[sortKey];
+      const comparison =
+        typeof leftValue === "string" && typeof rightValue === "string"
+          ? leftValue.localeCompare(rightValue)
+          : Number(leftValue) - Number(rightValue);
 
-      switch (sortKey) {
-        case "profit":
-          return (a.profit - b.profit) * directionMultiplier;
-        case "winRate":
-          return (a.winRate - b.winRate) * directionMultiplier;
-        case "predictions":
-          return (a.predictions - b.predictions) * directionMultiplier;
-        case "rank":
-        default:
-          return (a.rank - b.rank) * directionMultiplier;
-      }
+      return sortDescending ? -comparison : comparison;
     });
-
-    return sorted;
-  }, [sortDirection, sortKey, users]);
+  }, [sortKey, sortDescending, users]);
 
   const rowVirtualizer = useVirtualizer({
     count: sortedUsers.length,
-    getScrollElement: () => parentRef.current,
+    getScrollElement: () => scrollParentRef.current,
     estimateSize: () => 64,
-    overscan: 10,
+    overscan: 5,
   });
 
-  const currentUserIndex = sortedUsers.findIndex((user) => user.isCurrentUser);
-  const virtualItems = rowVirtualizer.getVirtualItems();
-
-  React.useEffect(() => {
-    if (onUserVisibilityChange) {
-      const isVisible = virtualItems.some((vi: { index: number }) => vi.index === currentUserIndex);
-      onUserVisibilityChange(isVisible);
-    }
-  }, [currentUserIndex, onUserVisibilityChange, virtualItems]);
-
-  const handleSort = (nextKey: SortKey) => {
-    if (sortKey === nextKey) {
-      setSortDirection((currentDirection) => (currentDirection === "desc" ? "asc" : "desc"));
+  const handleSort = (nextSortKey: SortKey) => {
+    if (nextSortKey === sortKey) {
+      setSortDescending((descending) => !descending);
       return;
     }
 
-    setSortKey(nextKey);
-    setSortDirection("desc");
+    setSortKey(nextSortKey);
+    setSortDescending(true);
   };
 
-  const renderSortIcon = (columnKey: SortKey) => {
-    if (sortKey !== columnKey) {
-      return <ArrowDownUp className="h-3.5 w-3.5" aria-hidden="true" />;
-    }
-
-    if (sortDirection === "desc") {
-      return <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />;
-    }
-
-    return <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />;
-  };
+  const sortButton = (key: SortKey, label: string) => (
+    <button
+      type="button"
+      className="font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      aria-label={`Sort by ${label}`}
+      aria-pressed={sortKey === key}
+      onClick={() => handleSort(key)}
+    >
+      {label}
+      {sortKey === key && (
+        <span aria-hidden="true" className="ml-1">
+          {sortDescending ? "↓" : "↑"}
+        </span>
+      )}
+    </button>
+  );
 
   return (
-    <div className="w-full bg-slate-950/50 rounded-2xl border border-slate-800 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead className="sticky top-0 z-10 bg-slate-900/95 shadow-sm backdrop-blur">
-            <tr className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-              <th scope="col" className="px-6 py-4 whitespace-nowrap">
-                <button
-                  type="button"
-                  onClick={() => handleSort("rank")}
-                  className="flex items-center gap-2 rounded-md px-1 py-0.5 text-left transition hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                  aria-label={`Sort by ${sortLabels.rank.toLowerCase()}`}
-                  aria-pressed={sortKey === "rank"}
-                >
-                  <span>{sortLabels.rank}</span>
-                  {renderSortIcon("rank")}
-                </button>
-              </th>
-              <th scope="col" className="px-6 py-4">User</th>
-              <th scope="col" className="px-6 py-4 whitespace-nowrap">
-                <button
-                  type="button"
-                  onClick={() => handleSort("profit")}
-                  className="flex items-center gap-2 rounded-md px-1 py-0.5 text-left transition hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                  aria-label={`Sort by ${sortLabels.profit.toLowerCase()}`}
-                  aria-pressed={sortKey === "profit"}
-                >
-                  <span>{sortLabels.profit}</span>
-                  {renderSortIcon("profit")}
-                </button>
-              </th>
-              <th scope="col" className="px-6 py-4 whitespace-nowrap">
-                <button
-                  type="button"
-                  onClick={() => handleSort("winRate")}
-                  className="flex items-center gap-2 rounded-md px-1 py-0.5 text-left transition hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                  aria-label={`Sort by ${sortLabels.winRate.toLowerCase()}`}
-                  aria-pressed={sortKey === "winRate"}
-                >
-                  <span>{sortLabels.winRate}</span>
-                  {renderSortIcon("winRate")}
-                </button>
-              </th>
-              <th scope="col" className="px-6 py-4 whitespace-nowrap">
-                <button
-                  type="button"
-                  onClick={() => handleSort("predictions")}
-                  className="flex items-center gap-2 rounded-md px-1 py-0.5 text-left transition hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                  aria-label={`Sort by ${sortLabels.predictions.toLowerCase()}`}
-                  aria-pressed={sortKey === "predictions"}
-                >
-                  <span>{sortLabels.predictions}</span>
-                  {renderSortIcon("predictions")}
-                </button>
-              </th>
-            </tr>
-          </thead>
-        </table>
-      </div>
-
-      <div
-        ref={parentRef}
-        className="h-[600px] overflow-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent"
-      >
-        <div
-          style={{
-            height: `${rowVirtualizer.getTotalSize()}px`,
-            width: "100%",
-            position: "relative",
-          }}
+    <div
+      ref={scrollParentRef}
+      className="max-h-[32rem] overflow-auto rounded-lg border border-border"
+    >
+      <table className="w-full min-w-[36rem] border-collapse text-left">
+        <caption className="sr-only">Leaderboard rankings</caption>
+        <thead className="sticky top-0 z-10 bg-background">
+          <tr className="border-b border-border text-sm text-muted-foreground">
+            <th scope="col" className="px-4 py-3">
+              {sortButton("rank", "rank")}
+            </th>
+            <th scope="col" className="px-4 py-3">
+              {sortButton("name", "name")}
+            </th>
+            <th scope="col" className="px-4 py-3">
+              {sortButton("profit", "profit")}
+            </th>
+            <th scope="col" className="px-4 py-3">
+              {sortButton("winRate", "win rate")}
+            </th>
+            <th scope="col" className="px-4 py-3">
+              {sortButton("predictions", "predictions")}
+            </th>
+          </tr>
+        </thead>
+        <tbody
+          className="relative block"
+          style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
         >
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const user = sortedUsers[virtualRow.index];
+            const avatarSource = getAvatarSource(user);
+            const avatarSrcSet = avatarSource
+              ? AVATAR_WIDTHS.map(
+                  (width) => `${getResponsiveImageSource(avatarSource, width)} ${width}w`,
+                ).join(", ")
+              : undefined;
+
             return (
-              <div
-                key={virtualRow.index}
-                role="row"
-                className={cn(
-                  "absolute top-0 left-0 w-full flex items-center border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors",
-                  user.isCurrentUser && "bg-cyan-500/5 border-cyan-500/20"
-                )}
-                style={{
-                  height: `${virtualRow.size}px`,
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
+              <tr
+                key={`${user.rank}-${user.name}`}
+                className="absolute left-0 grid w-full grid-cols-[4rem_minmax(10rem,1fr)_minmax(7rem,1fr)_minmax(7rem,1fr)_minmax(7rem,1fr)] items-center border-b border-border last:border-b-0"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
-                <div role="cell" className="px-6 w-20 text-slate-400 font-mono text-sm">
-                  #{virtualRow.index + 1}
-                </div>
-                <div role="cell" className="px-6 flex-1 flex items-center gap-3">
-                  <Avatar className="h-8 w-8 border border-slate-700">
-                    <AvatarImage src={user.avatarUrl} alt={user.name} />
-                    <AvatarFallback>{user.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <span className={cn("text-sm font-medium", user.isCurrentUser ? "text-cyan-400" : "text-white")}>
-                    {user.name}
-                  </span>
-                </div>
-                <div className="px-6 w-36 text-sm font-semibold text-emerald-400 tabular-nums">
-                  +{user.profit.toLocaleString()}
-                </div>
-                <div className="px-6 w-32 text-sm text-slate-300 tabular-nums">
-                  {user.winRate}%
-                </div>
-                <div className="px-6 w-32 text-sm text-slate-400 tabular-nums">
-                  {user.predictions}
-                </div>
-              </div>
+                <td className="px-4 py-3">{user.rank}</td>
+                <td className="flex items-center gap-3 px-4 py-3 font-medium">
+                  {avatarSource && avatarSrcSet ? (
+                    // A native image is used so this explicit srcSet is passed through unchanged.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={avatarSource}
+                      srcSet={avatarSrcSet}
+                      sizes="(max-width: 640px) 40px, 48px"
+                      width={48}
+                      height={48}
+                      loading="lazy"
+                      alt=""
+                      aria-hidden="true"
+                      className="h-10 w-10 rounded-full object-cover sm:h-12 sm:w-12"
+                    />
+                  ) : null}
+                  <span>{user.name}</span>
+                </td>
+                <td className="px-4 py-3">{formatProfit(user.profit)}</td>
+                <td className="px-4 py-3">{user.winRate}%</td>
+                <td className="px-4 py-3">{user.predictions}</td>
+              </tr>
             );
           })}
-        </div>
-      </div>
+        </tbody>
+      </table>
     </div>
   );
 }
