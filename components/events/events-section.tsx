@@ -48,7 +48,7 @@ export function EventsSection({ className }: EventsSectionProps) {
       {/* MODIFIED: Added Create Event button alongside the title */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-[#540D8D]">Events</h1>
+          <h1 className="text-h1-responsive text-[#540D8D]">Events</h1>
           {/* NEW: Primary "Create Event" button linking to the new event form */}
           <Button asChild className="bg-[#540D8D] hover:bg-[#6B1DAB] text-white w-full sm:w-auto">
             <Link href="/events/new">

@@ -99,18 +99,18 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
               aria-label={showSearchInput ? "Hide search" : "Show search"}
               aria-expanded={showSearchInput}
             >
-              <Search className="h-4 w-4 text-gray-500" />
-              <span className="text-gray-500">Search</span>
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Search</span>
             </Button>
 
             {/* Filter Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex-1 gap-2 bg-transparent border-0 rounded-none border-r border-gray-200 h-10">
-                  <svg className="h-4 w-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                   </svg>
-                  <span className="text-gray-500">Filter</span>
+                  <span className="text-muted-foreground">Filter</span>
                   {activeFilterCount > 0 && (
                     <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
                       {activeFilterCount}
@@ -142,8 +142,8 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex-1 gap-2 bg-transparent border-0 rounded-none h-10">
-                  <ArrowUpDown className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-500">Sort</span>
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Sort</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -193,18 +193,18 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
             className="gap-2 bg-transparent border-gray-200 px-4 py-2"
             onClick={() => setShowSearchInput(!showSearchInput)}
           >
-            <Search className="h-4 w-4 text-gray-500" />
-            <span className="text-gray-500">Search</span>
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Search</span>
           </Button>
 
           {/* Filter Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2 bg-transparent border-gray-200 px-4 py-2">
-                <svg className="h-4 w-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                 </svg>
-                <span className="text-gray-500">Filter</span>
+                <span className="text-muted-foreground">Filter</span>
                 {activeFilterCount > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
                     {activeFilterCount}
@@ -231,8 +231,8 @@ export function EventsToolbar({ className }: EventsToolbarProps) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2 bg-transparent border-gray-200 px-4 py-2">
-                <ArrowUpDown className="h-4 w-4 text-gray-500" />
-                <span className="text-gray-500">Sort</span>
+                <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Sort</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
