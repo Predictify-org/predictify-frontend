@@ -1,27 +1,42 @@
-import React from "react";
+import { Kbd } from "@/components/ui/kbd";
+import { cn } from "@/lib/utils";
+import type { ShortcutKey } from "@/lib/shortcuts";
+import type { HTMLAttributes } from "react";
 
-export interface KbdHintProps extends React.HTMLAttributes<HTMLElement> {
-  children: React.ReactNode;
+export interface KbdHintProps extends HTMLAttributes<HTMLSpanElement> {
+  shortcut?: ShortcutKey;
+  keys?: string[];
+  actionLabel?: string;
+  label?: string;
+  srLabel?: string;
 }
 
-/**
- * Visual keyboard shortcut hint. Hidden from the accessibility tree so
- * interactive controls keep a clean accessible name (WCAG 2.1 SC 4.1.2).
- */
-const KbdHint: React.FC<KbdHintProps> = ({
-  children,
-  className = "",
+export function KbdHint({
+  shortcut = "confirmBet",
+  keys,
+  actionLabel,
+  label = "Press",
+  srLabel,
+  className,
   ...props
-}) => {
+}: KbdHintProps) {
+  const screenReaderLabel = srLabel ?? `Keyboard shortcut${shortcut ? `: ${shortcut}` : ""}`;
+
   return (
-    <kbd
-      aria-hidden="true"
-      className={`inline-flex items-center justify-center rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm ${className}`}
+    <span
+      className={cn("inline-flex items-center gap-1.5 text-[11px] text-white/70", className)}
       {...props}
     >
-      {children}
-    </kbd>
+      <span className="sr-only">{screenReaderLabel}</span>
+      <span aria-hidden="true" className="font-medium text-white/70">
+        {label}
+      </span>
+      <Kbd
+        shortcut={shortcut}
+        keys={keys}
+        actionLabel={actionLabel}
+        className="inline-flex"
+      />
+    </span>
   );
-};
-
-export default KbdHint;
+}

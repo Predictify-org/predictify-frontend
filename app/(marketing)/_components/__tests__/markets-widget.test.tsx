@@ -10,6 +10,23 @@ import React from "react";
 import { render, screen, act } from "@testing-library/react";
 import { useFollowsStore } from "@/app/state/follows";
 import { useUserLimitsStore } from "@/app/state/userLimits";
+
+beforeEach(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+});
+
 // ── minimal stub for the Card component ─────────────────────────────────────
 jest.mock("@/components/ui/card", () => ({
   Card: ({
