@@ -82,6 +82,26 @@ describe("BetForm", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit).toHaveBeenCalledWith(10);
   });
+
+  describe("Design token compliance (v7)", () => {
+    it("uses v7 typography tokens", async () => {
+      render(<BetForm />);
+      
+      const label = screen.getByText("Amount (XLM)");
+      expect(label).toHaveClass("text-label");
+      
+      const input = screen.getByLabelText("Amount (XLM)");
+      expect(input).toHaveClass("text-body-sm");
+      
+      const button = screen.getByRole("button", { name: "Place Bet" });
+      expect(button).toHaveClass("text-body-sm");
+      
+      // Trigger error state to check error token
+      await userEvent.click(button);
+      const errorMsg = await screen.findByRole("alert");
+      expect(errorMsg).toHaveClass("text-body-sm", "text-destructive");
+    });
+  });
 });
 
 // --- BetFormSkeleton Tests ---
