@@ -1,15 +1,17 @@
 import React from "react";
 import "../styles/patterns.css";
+import { Skeleton } from "../components/Skeleton";
 
 export type MarketStatus = "active" | "closed" | "pending" | "resolved";
 
 export interface MarketCardProps {
-  id: string;
-  title: string;
-  status: MarketStatus;
+  id?: string;
+  title?: string;
+  status?: MarketStatus;
   category?: string;
   endDate?: string;
   volume?: string;
+  isLoading?: boolean;
   onClick?: () => void;
 }
 
@@ -49,13 +51,33 @@ const getStatusPatternClass = (status: MarketStatus): string => {
  *   in `patterns.css`.
  */
 export const MarketCard: React.FC<MarketCardProps> = ({
-  title,
-  status,
+  title = "",
+  status = "pending",
   category,
   endDate,
   volume,
+  isLoading = false,
   onClick,
 }) => {
+  if (isLoading) {
+    return (
+      <article
+        data-testid="market-card-skeleton"
+        className="market-card border rounded-lg p-4 shadow-sm bg-white dark:bg-gray-800"
+      >
+        <div className="flex justify-between items-center mb-2">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+        </div>
+        <Skeleton className="h-6 w-3/4 mb-3" />
+        <div className="flex justify-between items-center text-sm">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+      </article>
+    );
+  }
+
   const patternClass = getStatusPatternClass(status);
 
   return (
