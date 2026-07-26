@@ -14,7 +14,7 @@ components and interaction flows.
 
 | Component | Status | What was verified | Evidence |
 | --- | --- | --- | --- |
-| `ConnectWalletModal` | Verified | Provider labels, last-used badge announcement, error messaging | `components/connect-wallet-modal.tsx`, `components/__tests__/connect-wallet-modal.test.tsx` |
+| `ConnectWalletModal` | Verified | Provider labels, last-used badge announcement, error messaging, reduced-motion animation fallback | `components/connect-wallet-modal.tsx`, `src/pages/WalletModal.tsx`, `src/pages/__tests__/WalletModal.test.tsx` |
 | Outcome icons and dispute voting states | Verified | Non-color outcome affordances, decorative icon handling, three-way outcome support | `components/icons/OutcomeIcons.tsx`, `components/icons/__tests__/OutcomeIcons.test.tsx`, `components/disputes/shared/TallyBar.tsx`, `app/design-system/tokens.md` |
 | `DisputeOutcomeExplainer` | Verified | Dialog trigger flow, readable math steps, formatted tally values | `components/disputes/DisputeOutcomeExplainer.tsx`, `components/disputes/__tests__/DisputeOutcomeExplainer.test.tsx` |
 | `ErrorRecoveryScreen` | Verified | Recovery CTAs, incident copy affordance, route escape hatches | `components/error/ErrorRecoveryScreen.tsx`, `components/error/ErrorRecoveryScreen.test.tsx`, `components/error-boundary.tsx` |
