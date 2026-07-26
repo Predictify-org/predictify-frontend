@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDownUp, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowDownUp, ArrowUp, ArrowDown, ArrowUpCircle, Share2, Trophy } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LeaderboardUser } from "@/lib/leaderboard-data";
 
@@ -13,6 +15,7 @@ type SortDirection = "asc" | "desc";
 interface LeaderboardTableProps {
   users: LeaderboardUser[];
   onUserVisibilityChange?: (isVisible: boolean) => void;
+  onShare?: () => void;
 }
 
 const sortLabels: Record<SortKey, string> = {
@@ -22,10 +25,12 @@ const sortLabels: Record<SortKey, string> = {
   predictions: "Predictions",
 };
 
-export function LeaderboardTable({ users, onUserVisibilityChange }: LeaderboardTableProps) {
+export function LeaderboardTable({ users, onUserVisibilityChange, onShare }: LeaderboardTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [sortKey, setSortKey] = React.useState<SortKey>("profit");
   const [sortDirection, setSortDirection] = React.useState<SortDirection>("desc");
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(false);
 
   const sortedUsers = useMemo(() => {
     const sorted = [...users].sort((a, b) => {
@@ -64,6 +69,33 @@ export function LeaderboardTable({ users, onUserVisibilityChange }: LeaderboardT
     }
   }, [currentUserIndex, onUserVisibilityChange, virtualItems]);
 
+  const handleScroll = useCallback(() => {
+    const container = parentRef.current;
+    if (!container) return;
+
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+    const scrollPercentage = scrollTop / (scrollHeight - clientHeight);
+
+    setIsScrolled(scrollTop > 50);
+    setIsNearBottom(scrollPercentage > 0.85);
+  }, []);
+
+  useEffect(() => {
+    const container = parentRef.current;
+    if (!container) return;
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
+
+  const scrollToTop = useCallback(() => {
+    parentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   const handleSort = (nextKey: SortKey) => {
     if (sortKey === nextKey) {
       setSortDirection((currentDirection) => (currentDirection === "desc" ? "asc" : "desc"));
@@ -87,7 +119,7 @@ export function LeaderboardTable({ users, onUserVisibilityChange }: LeaderboardT
   };
 
   return (
-    <div className="w-full bg-slate-950/50 rounded-2xl border border-slate-800 overflow-hidden">
+    <div className="w-full bg-slate-950/50 rounded-2xl border border-slate-800 overflow-hidden relative">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead className="sticky top-0 z-10 bg-slate-900/95 shadow-sm backdrop-blur">
@@ -198,6 +230,62 @@ export function LeaderboardTable({ users, onUserVisibilityChange }: LeaderboardT
           })}
         </div>
       </div>
+
+      {/* Sticky Action Bar */}
+      <AnimatePresence>
+        {isScrolled && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="sticky bottom-0 z-20 bg-gradient-to-t from-slate-900 via-slate-900/98 to-transparent pointer-events-none"
+          >
+            <div className="bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-4 py-3 pointer-events-auto">
+              <div className="flex items-center justify-between max-w-full">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Trophy className="h-4 w-4 text-cyan-400 shrink-0" aria-hidden="true" />
+                  <span className="text-xs font-medium text-slate-400 truncate hidden sm:inline">
+                    {sortedUsers.length} Predictors
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={scrollToTop}
+                    disabled={isNearBottom}
+                    className={cn(
+                      "gap-1.5 text-xs font-medium transition-colors",
+                      isNearBottom
+                        ? "text-slate-600 cursor-not-allowed"
+                        : "text-slate-400 hover:text-cyan-400 hover:bg-cyan-400/10"
+                    )}
+                    aria-label="Scroll to top of leaderboard"
+                  >
+                    <ArrowUpCircle className="h-4 w-4" aria-hidden="true" />
+                    <span className="hidden sm:inline">Back to top</span>
+                  </Button>
+
+                  {onShare && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onShare}
+                      className="gap-1.5 text-xs font-medium text-slate-400 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"
+                      aria-label="Share leaderboard rankings"
+                    >
+                      <Share2 className="h-4 w-4" aria-hidden="true" />
+                      <span className="hidden sm:inline">Share</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
