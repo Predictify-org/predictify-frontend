@@ -1,6 +1,6 @@
 import React from "react";
 import "../styles/patterns.css";
-import "../styles/focus.css";
+import "../styles/typography.css";
 
 export type MarketStatus = "active" | "closed" | "pending" | "resolved";
 
@@ -81,7 +81,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
       </h3>
 
       <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-300">
-        {volume && <span>Volume: {volume}</span>}
+        {volume && <span className="tabular-nums">Volume: {volume}</span>}
         {endDate && <span>Ends: {endDate}</span>}
       </div>
     </article>

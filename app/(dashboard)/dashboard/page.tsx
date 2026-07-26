@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { AlertCircle, CheckCircle, HelpCircle, PauseCircle, TrendingUp } from "lucide-react"
+import { CheckCircle, HelpCircle, PauseCircle, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -20,6 +20,8 @@ import { NotificationItem } from "@/types/notifications"
 import { Kbd } from "@/components/ui/kbd"
 import { useEffect, useMemo, useCallback, useState } from "react"
 import { useReducedMotion } from "@/hooks/useReducedMotion"
+import { EmptyState } from "@/components/EmptyState"
+import { BarChart3 } from "lucide-react"
 
 // TODO: replace with the authenticated user's id once auth context exposes it.
 const CURRENT_USER_ID = "current-user"
@@ -341,14 +343,13 @@ export default function DashboardPage() {
         return <Skeleton className="h-64 w-full rounded-xl" />
       case 'empty':
         return (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium mb-2">No analytics data.</p>
-            <p className="text-sm text-muted-foreground mb-4">Add events to view analytics.</p>
-            <Button asChild>
-              <Link href="/events/new">Create New Event</Link>
-            </Button>
-          </div>
+          <EmptyState
+            title="No activity yet"
+            description="Your dashboard is empty because you haven't created or joined any prediction markets. Start by creating your first event or exploring active markets."
+            ctaText="Create Your First Event"
+            ctaHref="/events/new"
+            icon={BarChart3}
+          />
         )
       case 'error':
         return (
@@ -412,14 +413,13 @@ export default function DashboardPage() {
         return <Skeleton className="h-64 w-full rounded-xl" />
       case 'empty':
         return (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium mb-2">No reports available.</p>
-            <p className="text-sm text-muted-foreground mb-4">Generate reports from events.</p>
-            <Button asChild>
-              <Link href="/events/new">Create New Event</Link>
-            </Button>
-          </div>
+          <EmptyState
+            title="No reports available"
+            description="Generate reports by participating in or creating prediction markets. Once you have activity, your reports will appear here."
+            ctaText="Explore Markets"
+            ctaHref="/events"
+            icon={BarChart3}
+          />
         )
       case 'error':
         return (

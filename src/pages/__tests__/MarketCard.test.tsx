@@ -168,3 +168,16 @@ describe("MarketCard focus-visible and keyboard accessibility", () => {
     expect(screen.getByText("Ends: 2025-12-31")).toBeInTheDocument();
   });
 });
+
+describe("MarketCard Tabular Nums", () => {
+  it("applies tabular-nums to the volume display", () => {
+    render(<MarketCard id="1" title="Test Market" status="active" volume="$1,234.56" />);
+    const volumeSpan = screen.getByText("Volume: $1,234.56");
+    expect(volumeSpan).toHaveClass("tabular-nums");
+  });
+
+  it("does not render volume element when volume is not provided", () => {
+    render(<MarketCard id="1" title="Test Market" status="active" />);
+    expect(screen.queryByText(/Volume:/)).not.toBeInTheDocument();
+  });
+});

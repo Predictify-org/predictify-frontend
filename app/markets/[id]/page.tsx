@@ -119,6 +119,7 @@ export async function generateMetadata({
 
 import { EmptyState } from "@/components/EmptyState";
 import { AboutMarketModal } from "@/app/components/AboutMarketModal";
+import { SearchX } from "lucide-react";
 
 export default async function MarketDetailPage({ params }: PageProps) {
   const { id } = await params;
@@ -130,9 +131,10 @@ export default async function MarketDetailPage({ params }: PageProps) {
         <div id="main-content" tabIndex={-1} className="outline-none" />
         <EmptyState
           title="Market Not Found"
-          description="We couldn't find the prediction market you're looking for. It may have been resolved, cancelled, or never existed."
-          ctaText="Back to Markets"
+          description="We couldn't find the prediction market you're looking for. It may have been resolved, cancelled, or never existed. Try browsing our active markets or create your own."
+          ctaText="Browse Markets"
           ctaHref="/events"
+          icon={SearchX}
         />
       </main>
     );
