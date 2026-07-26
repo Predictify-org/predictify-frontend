@@ -1,8 +1,7 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LeaderboardTable } from "../LeaderboardTable";
-import { LeaderboardUser } from "@/lib/leaderboard-data";
+import type { LeaderboardUser } from "@/lib/leaderboard-data";
 
 jest.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
@@ -43,5 +42,30 @@ describe("LeaderboardTable", () => {
 
     expect(screen.getAllByRole("row")[1]).toHaveTextContent("Gamma");
     expect(winRateButton).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("provides responsive avatar sources and mobile-aware image sizes", () => {
+    render(
+      <LeaderboardTable
+        users={[
+          {
+            ...createUsers()[0],
+            avatarUrl: "https://cdn.example.test/alpha.webp",
+          },
+        ]}
+      />,
+    );
+
+    const avatar = screen.getByRole("img");
+    expect(avatar).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("https://cdn.example.test/alpha.webp?w=48 48w"),
+    );
+    expect(avatar).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("https://cdn.example.test/alpha.webp?w=192 192w"),
+    );
+    expect(avatar).toHaveAttribute("sizes", "(max-width: 640px) 40px, 48px");
+    expect(avatar).toHaveAttribute("alt", "");
   });
 });
