@@ -1,27 +1,9 @@
 import React from "react";
-import { act, render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import MarketCard from "../MarketCard";
 
-// ---------------------------------------------------------------------------
-// Helper
-// ---------------------------------------------------------------------------
-
-/** Render the card and return its container element for querying. */
-function renderCard(overrides: Partial<Parameters<typeof MarketCard>[0]> = {}) {
-  return render(
-    <MarketCard
-      id="1"
-      title="Test Market"
-      status="active"
-      {...overrides}
-    />,
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Accessibility / status pattern tests (unchanged from original)
-// ---------------------------------------------------------------------------
+// ── Color-blind accessibility (pre-existing) ─────────────────────────────────
 
 describe("MarketCard Color-Blind Accessibility", () => {
   it("renders Active status with status-pattern-active class", () => {
@@ -71,5 +53,118 @@ describe("MarketCard Color-Blind Accessibility", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+// ── Focus-visible / keyboard accessibility (Issue #498) ──────────────────────
+
+describe("MarketCard focus-visible and keyboard accessibility", () => {
+  it("has tabIndex=0 so it is reachable by keyboard", () => {
+    render(<MarketCard id="5" title="Focusable Market" status="active" />);
+    const card = screen.getByRole("button");
+    expect(card).toHaveAttribute("tabindex", "0");
+  });
+
+  it("has role=button so assistive technology announces it as interactive", () => {
+    render(<MarketCard id="6" title="AT Market" status="active" />);
+    const card = screen.getByRole("button");
+    expect(card).toBeInTheDocument();
+  });
+
+  it("has an aria-label that includes the title and status", () => {
+    render(<MarketCard id="7" title="AI Governance" status="pending" />);
+    const card = screen.getByRole("button");
+    expect(card).toHaveAttribute(
+      "aria-label",
+      "AI Governance – market status: pending",
+    );
+  });
+
+  it("carries the market-card class required for :focus-visible CSS rules", () => {
+    render(<MarketCard id="8" title="CSS Market" status="active" />);
+    const card = screen.getByRole("button");
+    expect(card).toHaveClass("market-card");
+  });
+
+  it("calls onClick when Enter is pressed", () => {
+    const handleClick = jest.fn();
+    render(
+      <MarketCard
+        id="9"
+        title="Enter Market"
+        status="active"
+        onClick={handleClick}
+      />,
+    );
+    const card = screen.getByRole("button");
+    fireEvent.keyDown(card, { key: "Enter", code: "Enter" });
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls onClick when Space is pressed", () => {
+    const handleClick = jest.fn();
+    render(
+      <MarketCard
+        id="10"
+        title="Space Market"
+        status="active"
+        onClick={handleClick}
+      />,
+    );
+    const card = screen.getByRole("button");
+    fireEvent.keyDown(card, { key: " ", code: "Space" });
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call onClick when an unrelated key is pressed", () => {
+    const handleClick = jest.fn();
+    render(
+      <MarketCard
+        id="11"
+        title="Tab Market"
+        status="active"
+        onClick={handleClick}
+      />,
+    );
+    const card = screen.getByRole("button");
+    fireEvent.keyDown(card, { key: "Tab", code: "Tab" });
+    expect(handleClick).not.toHaveBeenCalled();
+  });
+
+  it("calls onClick on mouse click", () => {
+    const handleClick = jest.fn();
+    render(
+      <MarketCard
+        id="12"
+        title="Click Market"
+        status="active"
+        onClick={handleClick}
+      />,
+    );
+    const card = screen.getByRole("button");
+    fireEvent.click(card);
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders without throwing even when onClick is not provided", () => {
+    expect(() =>
+      render(<MarketCard id="13" title="No Click Market" status="resolved" />),
+    ).not.toThrow();
+  });
+
+  it("renders optional category and volume when provided", () => {
+    render(
+      <MarketCard
+        id="14"
+        title="Full Market"
+        status="active"
+        category="Crypto"
+        volume="50,000 USDC"
+        endDate="2025-12-31"
+      />,
+    );
+    expect(screen.getByText("Crypto")).toBeInTheDocument();
+    expect(screen.getByText("Volume: 50,000 USDC")).toBeInTheDocument();
+    expect(screen.getByText("Ends: 2025-12-31")).toBeInTheDocument();
   });
 });
