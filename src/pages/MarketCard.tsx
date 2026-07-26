@@ -1,4 +1,5 @@
 import React from "react";
+import { LiveRegion } from "../components/LiveRegion";
 import "../styles/patterns.css";
 import "../styles/focus.css";
 import { Skeleton } from "../components/Skeleton";
@@ -36,26 +37,9 @@ const getStatusPatternClass = (status: MarketStatus): string => {
   }
 };
 
-/**
- * MarketCard (src/pages)
- *
- * A lightweight market summary card showing category, status badge,
- * title, volume, and end date.
- *
- * ## Responsive layout
- * - **≥ sm (640 px):** category and status badge sit side-by-side
- *   (`flex-row justify-between`). Volume and end-date also side-by-side.
- * - **< sm (mobile):** the header row switches to `flex-col` so the badge
- *   never overflows when a long category label is present. `flex-wrap` on
- *   the meta row lets pool and date stack when the card is narrow.
- *   `min-w-0` + `truncate` on the category prevent text overflow.
- *
- * ## Accessibility
- * - The status badge keeps its `role="status"` and `aria-label` on all
- *   breakpoints for screen-reader compatibility.
- * - WCAG 2.1 AA contrast is preserved; dark-mode pattern fills are defined
- *   in `patterns.css`.
- */
+const formatStatusLabel = (status: MarketStatus): string =>
+  status.charAt(0).toUpperCase() + status.slice(1);
+
 export const MarketCard: React.FC<MarketCardProps> = ({
   title = "",
   status = "pending",
@@ -101,6 +85,15 @@ export const MarketCard: React.FC<MarketCardProps> = ({
   }
 
   const patternClass = getStatusPatternClass(status);
+  const previousStatusRef = React.useRef<MarketStatus | null>(null);
+  const [announcement, setAnnouncement] = React.useState("");
+
+  React.useEffect(() => {
+    if (previousStatusRef.current && previousStatusRef.current !== status) {
+      setAnnouncement(`Market status changed to ${formatStatusLabel(status)}`);
+    }
+    previousStatusRef.current = status;
+  }, [status]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -142,7 +135,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           aria-label={`Market status: ${status}`}
           role="status"
         >
-          {status.charAt(0).toUpperCase() + status.slice(1)}
+          {formatStatusLabel(status)}
         </span>
       </div>
 
@@ -161,6 +154,8 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         {volume && <span>Volume: {volume}</span>}
         {endDate && <span>Ends: {endDate}</span>}
       </div>
+
+      <LiveRegion message={announcement} data-testid="marketcard-status-live-region" />
     </article>
   );
 };
