@@ -11,7 +11,7 @@
  *   <button className="touch-target-expand relative …">×</button>
  */
 
-@layer utilities {
+@layer touch-target-utilities {
   /**
    * .touch-target
    * Enforces a minimum 44×44 px bounding box directly on the element.

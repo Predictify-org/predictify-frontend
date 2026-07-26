@@ -1,5 +1,6 @@
 import React from "react"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Breadcrumbs } from "../Breadcrumbs"
 
 function mockReducedMotion(reduced: boolean) {
@@ -89,5 +90,68 @@ describe("Breadcrumbs", () => {
   it("renders the mobile back link when backHref is provided", () => {
     render(<Breadcrumbs items={dashboardEvents} backHref="/dashboard" />)
     expect(screen.getByRole("link", { name: /back/i })).toHaveAttribute("href", "/dashboard")
+  })
+
+  describe("long-path overflow", () => {
+    const longTrail = [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Settings", href: "/settings" },
+      { label: "Account", href: "/settings/account" },
+      { label: "Verification", href: "/settings/account/verification" },
+      { label: "Documents", isCurrentPage: true },
+    ]
+
+    it("collapses the middle of a long trail into a single ellipsis affordance", () => {
+      render(<Breadcrumbs items={longTrail} />)
+
+      // Root, ellipsis trigger, and the last two crumbs (Verification, Documents) stay visible.
+      expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /show 2 hidden breadcrumb items/i })).toBeInTheDocument()
+      expect(screen.getByRole("link", { name: "Verification" })).toBeInTheDocument()
+      expect(screen.getByText("Documents")).toHaveAttribute("aria-current", "page")
+
+      // The collapsed middle crumbs (Settings, Account) aren't rendered directly on the page.
+      expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("link", { name: "Account" })).not.toBeInTheDocument()
+    })
+
+    it("reveals the hidden crumbs as links inside the ellipsis menu", async () => {
+      const user = userEvent.setup()
+      render(<Breadcrumbs items={longTrail} />)
+
+      await user.click(screen.getByRole("button", { name: /show 2 hidden breadcrumb items/i }))
+
+      const menu = await screen.findByRole("menu")
+      expect(within(menu).getByRole("menuitem", { name: "Settings" })).toHaveAttribute("href", "/settings")
+      expect(within(menu).getByRole("menuitem", { name: "Account" })).toHaveAttribute(
+        "href",
+        "/settings/account"
+      )
+    })
+
+    it("does not collapse a trail that already fits", () => {
+      render(<Breadcrumbs items={dashboardEventsNew} />)
+      expect(screen.queryByRole("button", { name: /hidden breadcrumb/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe("long-label truncation", () => {
+    const longLabelTrail = [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Settings", href: "/settings" },
+      { label: "Verification Requirements And Documents", isCurrentPage: true },
+    ]
+
+    it("middle-ellipsizes a crumb label longer than the max length while preserving the full text for assistive tech", () => {
+      render(<Breadcrumbs items={longLabelTrail} />)
+
+      const fullLabel = "Verification Requirements And Documents"
+      const current = screen.getByLabelText(fullLabel)
+
+      expect(current).toHaveAttribute("aria-current", "page")
+      expect(current.textContent).not.toBe(fullLabel)
+      expect(current.textContent).toContain("…")
+      expect(current.textContent?.length).toBeLessThan(fullLabel.length)
+    })
   })
 })
