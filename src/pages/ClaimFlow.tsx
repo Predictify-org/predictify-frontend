@@ -207,16 +207,16 @@ export default function ClaimFlow() {
           <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5 sm:p-5">
             {/* Title + metadata */}
             <div className="flex-1 space-y-3">
-              <Skeleton className="h-5 w-full max-w-[75%] rounded-md" />
+              <Skeleton className={["h-5 w-full max-w-[75%] rounded-md", reducedMotion && "animate-none"].filter(Boolean).join(" ")} />
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <Skeleton className="h-8 w-24 rounded-full" />
-                <Skeleton className="h-4 w-20 rounded-md" />
+                <Skeleton className={["h-8 w-24 rounded-full", reducedMotion && "animate-none"].filter(Boolean).join(" ")} />
+                <Skeleton className={["h-4 w-20 rounded-md", reducedMotion && "animate-none"].filter(Boolean).join(" ")} />
               </div>
             </div>
             {/* Actions */}
             <div className="flex items-center gap-2 self-end sm:self-center">
-              <Skeleton className="h-10 w-24 rounded-full" />
-              <Skeleton className="h-10 w-10 rounded-full" />
+              <Skeleton className={["h-10 w-24 rounded-full", reducedMotion && "animate-none"].filter(Boolean).join(" ")} />
+              <Skeleton className={["h-10 w-10 rounded-full", reducedMotion && "animate-none"].filter(Boolean).join(" ")} />
             </div>
           </CardContent>
         </Card>
