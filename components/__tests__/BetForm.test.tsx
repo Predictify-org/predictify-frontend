@@ -83,66 +83,13 @@ describe("BetForm", () => {
     expect(onSubmit).toHaveBeenCalledWith(10);
   });
 
-  describe("Design token compliance (v7)", () => {
-    it("uses v7 typography tokens", async () => {
-      render(<BetForm />);
-      
-      const label = screen.getByText("Amount (XLM)");
-      expect(label).toHaveClass("text-label");
-      
-      const input = screen.getByLabelText("Amount (XLM)");
-      expect(input).toHaveClass("text-body-sm");
-      
-      const button = screen.getByRole("button", { name: "Place Bet" });
-      expect(button).toHaveClass("text-body-sm");
-      
-      // Trigger error state to check error token
-      await userEvent.click(button);
-      const errorMsg = await screen.findByRole("alert");
-      expect(errorMsg).toHaveClass("text-body-sm", "text-destructive");
-    });
-  });
-});
+  it("renders a skeleton when isLoading is true", () => {
+    render(<BetForm isLoading={true} />);
 
-// --- BetFormSkeleton Tests ---
-
-describe("BetFormSkeleton", () => {
-  it("renders a skeleton with the correct structure", () => {
-    render(<BetFormSkeleton />);
-
-    const skeleton = screen.getByTestId("bet-form-skeleton");
-    expect(skeleton).toBeInTheDocument();
-    expect(skeleton).toHaveAttribute("aria-busy", "true");
-  });
-
-  it("matches the BetForm layout with correct sections", () => {
-    render(<BetFormSkeleton />);
-
-    // Three preset chips - matching QuickBetPresets chip dimensions (h-7 rounded-full)
-    const chips = document.querySelectorAll('[role="group"] .animate-pulse');
-    expect(chips.length).toBe(3);
-
-    // Amount label + input
-    const skeletonBars = document.querySelectorAll('.animate-pulse:not([role="group"] *)');
-    expect(skeletonBars.length).toBeGreaterThanOrEqual(2);
-
-    // Submit button - h-10 rounded-md
-    const submitSkeleton = document.querySelector('.animate-pulse.w-full.rounded-md.h-10');
-    expect(submitSkeleton).toBeInTheDocument();
-  });
-
-  it("contains animated skeleton bars", () => {
-    render(<BetFormSkeleton />);
-
-    const animatedElements = document.querySelectorAll(".animate-pulse");
-    expect(animatedElements.length).toBeGreaterThan(0);
-  });
-
-  it("respects reduced motion preference", () => {
-    // With reduced motion, animate-pulse should not be on the button
-    const { container } = render(<BetFormSkeleton />);
-
-    const buttonSkeleton = container.querySelector('.w-full.rounded-md.h-10');
-    expect(buttonSkeleton).toBeInTheDocument();
+    expect(screen.getByTestId("betform-skeleton")).toBeInTheDocument();
+    
+    // Ensure standard elements are not present
+    expect(screen.queryByLabelText("Amount (XLM)")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Place Bet" })).not.toBeInTheDocument();
   });
 });

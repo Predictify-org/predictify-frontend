@@ -17,16 +17,20 @@ import React, { useState, useEffect } from "react";
 import QuickBetPresets from "@/components/QuickBetPresets";
 import KbdHint from "../../src/components/KbdHint";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { Skeleton } from "@/components/ui/skeleton";
+import KbdHint from "@/src/components/KbdHint";
 
 export interface BetFormProps {
   /** Called with the chosen amount (in XLM) when the form is submitted. */
   onSubmit?: (amount: number) => void;
+  /** Whether the form is currently loading its initial data. */
+  isLoading?: boolean;
 }
 
 /**
  * Controlled bet form with quick-preset chips and a free-text amount input.
  */
-const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
+const BetForm: React.FC<BetFormProps> = ({ onSubmit, isLoading = false }) => {
   const [amount, setAmount] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const reducedMotion = useReducedMotion();
@@ -68,11 +72,30 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit }) => {
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
+    if (!isLoading) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [numericAmount, onSubmit]);
+  }, [numericAmount, onSubmit, isLoading]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-3" aria-busy="true" data-testid="betform-skeleton">
+        <div className="flex gap-2 flex-wrap">
+          <Skeleton className="h-[30px] w-[70px] rounded-full" />
+          <Skeleton className="h-[30px] w-[70px] rounded-full" />
+          <Skeleton className="h-[30px] w-[80px] rounded-full" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Skeleton className="h-5 w-24 rounded-md" />
+          <Skeleton className="h-[38px] w-full rounded-md" />
+        </div>
+        <Skeleton className="h-[36px] w-full rounded-md" />
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} noValidate aria-label="Place a bet">
