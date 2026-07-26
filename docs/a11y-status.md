@@ -25,6 +25,7 @@ components and interaction flows.
 | `SkipToContent` | Verified | First focusable link on pages, bypasses standard headers to main content | `app/components/SkipToContent.tsx`, `app/components/__tests__/SkipToContent.test.tsx`, `app/layout.tsx`, `app/(dashboard)/layout.tsx`, `app/(marketing)/layout.tsx` |
 | `MobileBottomTabs badge` | Verified | Custom red badge shows unread counts visually while aria-labels announce unread status | `components/navbar/MobileBottomTabs.tsx`, `components/navbar/__tests__/MobileBottomTabs.test.tsx` |
 | `AboutMarketModal` | Verified | Focus restoration via DialogContentWithFocusReturn, screen-reader text, and Tailwind color-contrast consistency | `app/components/AboutMarketModal.tsx`, `app/components/__tests__/AboutMarketModal.test.tsx` |
+| `RouteDocumentTitle (#457)` | Verified | Per-route document.title updates, missing route coverage (/claims, /markets, /a11y-audit, /settings/privacy), ARIA live region announcement for SR on SPA navigation | `app/hooks/useDocumentTitle.ts`, `app/hooks/__tests__/useDocumentTitle.test.tsx`, `docs/DOCUMENT_TITLES.md` |
 
 ## Notes
 
