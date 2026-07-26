@@ -328,9 +328,10 @@ export function MarketHero({
             aria-hidden="true"
           >
             {/* bg-outcome-yes: semantic fill token — replaces bare bg-emerald-500.
-                Automatically adapts between light/dark via the CSS variable. */}
+                Automatically adapts between light/dark via the CSS variable.
+                motion-reduce:transition-none disables the animation for users who prefer reduced motion. */}
             <div
-              className="h-full rounded-full bg-outcome-yes transition-[width] duration-500 ease-out"
+              className="h-full rounded-full bg-outcome-yes transition-[width] duration-500 ease-out motion-reduce:transition-none"
               style={{ width: `${leadOutcome.probability}%` }}
             />
           </div>
