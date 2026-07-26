@@ -81,4 +81,14 @@ describe("BetForm", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit).toHaveBeenCalledWith(10);
   });
+
+  it("renders a skeleton when isLoading is true", () => {
+    render(<BetForm isLoading={true} />);
+
+    expect(screen.getByTestId("betform-skeleton")).toBeInTheDocument();
+    
+    // Ensure standard elements are not present
+    expect(screen.queryByLabelText("Amount (XLM)")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Place Bet" })).not.toBeInTheDocument();
+  });
 });
