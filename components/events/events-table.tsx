@@ -175,8 +175,8 @@ function EventRow({
   return (
     <TableRow
       className={cn(
-        "hover:bg-[#540D8D] transition-colors border-0",
-        !isLast && "border-b border-[#540D8D]",
+        "relative grid grid-cols-2 gap-x-3 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm transition-colors hover:bg-muted/50 xl:table-row xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none",
+        !isLast && "xl:border-b xl:border-border",
         animationReady && !prefersReduced && !isSeen && index < 12 && "animate-in fade-in slide-in-from-bottom-2"
       )}
       style={
@@ -186,18 +186,18 @@ function EventRow({
       }
     >
       {/* Compare checkbox */}
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 w-10">
+      <TableCell className="absolute left-4 top-5 w-10 p-0 xl:static xl:table-cell xl:px-6 xl:py-4">
         <Checkbox
           checked={selectedIds.includes(event.id)}
           onCheckedChange={() => toggle(event.id)}
           disabled={!selectedIds.includes(event.id) && selectedIds.length >= MAX_COMPARE}
           aria-label={`Select ${event.title} for comparison`}
-          className="border-[#540D8D] data-[state=checked]:bg-[#540D8D] data-[state=checked]:border-[#540D8D]"
+          className="border-primary data-[state=checked]:border-primary data-[state=checked]:bg-primary"
         />
       </TableCell>
 
       {/* Event title cell with hover-delayed tooltip showing key data */}
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[200px] sm:min-w-0">
+      <TableCell className="col-span-2 block min-w-0 border-b border-border pb-3 pl-9 pr-0 pt-0 xl:table-cell xl:min-w-[200px] xl:border-0 xl:px-6 xl:py-4">
         <HoverTooltip
           content={
             <div className="space-y-1.5 p-1 text-left">
@@ -212,41 +212,46 @@ function EventRow({
           }
         >
           <div className="space-y-1 cursor-help">
-            <div className="font-medium text-sm leading-tight text-White">{event.title}</div>
+            <div className="text-sm font-medium leading-tight text-foreground">{event.title}</div>
             <div className="text-xs text-muted-foreground">#{event.txHash}</div>
           </div>
         </HoverTooltip>
       </TableCell>
 
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[100px] sm:min-w-0">
+      <TableCell className="block min-w-0 px-0 pb-0 pt-3 xl:table-cell xl:min-w-[100px] xl:px-6 xl:py-4">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground xl:hidden">Category</span>
         <Badge className={cn(getCategoryBadgeVariant(event.category), "inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1")}>
           {getCategoryIcon(event.category)}
           {event.category}
         </Badge>
       </TableCell>
 
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0">
-        <div className="font-medium text-sm text-white tabular-nums">{event.odds}</div>
+      <TableCell className="block min-w-0 px-0 pb-0 pt-3 xl:table-cell xl:min-w-[80px] xl:px-6 xl:py-4">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground xl:hidden">Odds</span>
+        <div className="text-sm font-medium text-foreground tabular-nums">{event.odds}</div>
       </TableCell>
 
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[180px] sm:min-w-0 text-white">
+      <TableCell className="col-span-2 block min-w-0 px-0 pb-0 pt-3 text-foreground xl:table-cell xl:min-w-[180px] xl:px-6 xl:py-4">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground xl:hidden">Event dates</span>
         <div className="text-xs sm:text-sm leading-tight">
-          <div className="sm:hidden">
+          <div className="xl:hidden">
             <div>{formatDate(new Date(event.startDate))}</div>
             <div>{formatDate(new Date(event.endDate))}</div>
           </div>
-          <div className="hidden sm:block">
+          <div className="hidden xl:block">
             {formatDate(new Date(event.startDate))} - {formatDate(new Date(event.endDate))}
           </div>
         </div>
       </TableCell>
 
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[160px] sm:min-w-0">
+      <TableCell className="col-span-2 block min-w-0 px-0 pb-0 pt-3 xl:table-cell xl:min-w-[160px] xl:px-6 xl:py-4">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground xl:hidden">Time remaining</span>
         <TimeRemainingProgress event={event} />
       </TableCell>
 
       {/* Participants */}
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[120px] sm:min-w-0">
+      <TableCell className="block min-w-0 px-0 pb-0 pt-3 xl:table-cell xl:min-w-[120px] xl:px-6 xl:py-4">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground xl:hidden">Participants</span>
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Users className="h-4 w-4" />
           <span className="font-medium text-foreground tabular-nums">{event.participants.toLocaleString()}</span>
@@ -254,7 +259,7 @@ function EventRow({
       </TableCell>
 
       {/* Actions */}
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0 text-right">
+      <TableCell className="block min-w-0 px-0 pb-0 pt-3 text-right xl:table-cell xl:min-w-[80px] xl:px-6 xl:py-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -363,12 +368,15 @@ export function EventsTable({ className }: EventsTableProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="rounded-lg border-b border-[#540D8D] overflow-hidden bg-black text-white">
-        {/* Responsive table container with horizontal scroll */}
-        <div className="overflow-x-auto">
-          <Table className="min-w-[800px] sm:min-w-full">
-            <TableHeader>
-              <TableRow className="hover:bg-[#540D8D] text-white border-b border-[#540D8D]/50 bg-black">
+      <div
+        className="rounded-lg bg-background text-foreground xl:overflow-hidden xl:border xl:border-border"
+        data-testid="events-responsive-layout"
+      >
+        {/* Rows become readable cards below lg without duplicating accessible content. */}
+        <div className="overflow-visible xl:overflow-x-auto">
+          <Table className="block w-full xl:table xl:min-w-[980px]">
+            <TableHeader className="sr-only xl:not-sr-only xl:table-header-group">
+              <TableRow className="border-b border-border bg-muted text-foreground hover:bg-muted">
                 {/* Compare select column */}
                 <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 w-10">
                   <span className="sr-only">Compare</span>
@@ -398,7 +406,7 @@ export function EventsTable({ className }: EventsTableProps) {
                 </TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:table-row-group">
               {paginatedEvents.map((event, index) => (
                 <EventRow
                   key={event.id}

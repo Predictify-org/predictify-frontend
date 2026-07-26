@@ -106,6 +106,54 @@ beforeEach(() => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe("EventsTable — accessibility", () => {
+  describe("responsive layout", () => {
+    it("uses one result structure with card and table breakpoints", () => {
+      render(<EventsTable />)
+
+      const layout = screen.getByTestId("events-responsive-layout")
+      const table = within(layout).getByRole("table")
+      const body = table.querySelector("tbody")
+
+      expect(table).toHaveClass("block", "xl:table", "xl:min-w-[980px]")
+      expect(body).toHaveClass("grid", "grid-cols-1", "md:grid-cols-2", "xl:table-row-group")
+      expect(within(table).getAllByRole("row")).toHaveLength(MOCK_EVENTS.length + 1)
+    })
+
+    it("keeps column context available in the narrow card presentation", () => {
+      render(<EventsTable />)
+
+      const firstEventRow = screen.getAllByRole("row")[1]
+      expect(within(firstEventRow).getByText("Category")).toBeInTheDocument()
+      expect(within(firstEventRow).getByText("Odds")).toBeInTheDocument()
+      expect(within(firstEventRow).getByText("Event dates")).toBeInTheDocument()
+      expect(within(firstEventRow).getByText("Time remaining")).toBeInTheDocument()
+      expect(within(firstEventRow).getByText("Participants")).toBeInTheDocument()
+    })
+
+    it("keeps the loading skeleton within the same responsive width contract", () => {
+      const { useEventsStore } = require("@/lib/events-store")
+      const loadingState = { ...mockStoreState(), loading: true }
+      useEventsStore.mockImplementation(
+        (selector?: (s: typeof loadingState) => unknown) =>
+          selector ? selector(loadingState) : loadingState
+      )
+
+      render(<EventsTable />)
+
+      const skeleton = screen.getByTestId("events-table-skeleton")
+      expect(skeleton).toHaveClass("bg-background", "xl:border-border")
+      expect(skeleton.querySelector(".xl\\:min-w-\\[980px\\]")).toBeInTheDocument()
+    })
+    it("uses theme tokens for the responsive result surface", () => {
+      render(<EventsTable />)
+
+      expect(screen.getByTestId("events-responsive-layout")).toHaveClass(
+        "bg-background",
+        "text-foreground",
+        "xl:border-border"
+      )
+    })
+  })
   it("renders a <table> with a caption / accessible column headers", () => {
     render(<EventsTable />)
     expect(screen.getByRole("table")).toBeInTheDocument()
