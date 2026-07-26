@@ -96,4 +96,15 @@ describe("ClaimFlow", () => {
     shareButton.focus();
     expect(shareButton).toHaveFocus();
   });
+
+  it("applies tabular-nums class to numeric displays", async () => {
+    render(<ClaimFlow />);
+    
+    // We expect both the history and pending claims to render amounts
+    const amounts = await screen.findAllByText(/(USDC|XLM)/i);
+    expect(amounts.length).toBeGreaterThan(0);
+    amounts.forEach(amount => {
+      expect(amount).toHaveClass("tabular-nums");
+    });
+  });
 });
