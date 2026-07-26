@@ -1,3 +1,21 @@
+/**
+ * StatCard Component — Issue #646: Focus Visible Accessibility
+ *
+ * All interactive elements in this component use focus-visible to show
+ * keyboard focus outlines that meet WCAG 2.1 AA (3:1 contrast ratio).
+ *
+ * Interactive elements and their focus treatment:
+ * - Empty state CTA Button: Uses Button component with full focus-visible ring
+ * - Error state Retry Button: Uses Button component with full focus-visible ring
+ * - Both buttons use Tailwind's focus-visible utilities: outline-none, ring-2, ring-offset-2
+ *
+ * Uses Tailwind's focus-visible: variant which targets :focus-visible pseudo-class
+ * — visible to keyboard users, hidden for mouse users.
+ *
+ * The component's display area (non-empty, non-error state) is not interactive
+ * and receives no focus styles.
+ */
+
 import type { Stat } from "@/types/index";
 import { AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
