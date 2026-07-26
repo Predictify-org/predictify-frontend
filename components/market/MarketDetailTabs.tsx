@@ -38,12 +38,21 @@ export function MarketDetailTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange}>
-      <TabsList className="w-full justify-start">
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="activity">Activity</TabsTrigger>
-        <TabsTrigger value="resolution">Resolution</TabsTrigger>
-        <TabsTrigger value="timeline">Timeline</TabsTrigger>
-      </TabsList>
+      {/*
+       * Mobile scroll: on narrow viewports the four tab triggers can overflow
+       * the container. `overflow-x-auto` + `scrollbar-hide` lets the strip
+       * scroll horizontally without showing an ugly scrollbar, while keeping
+       * all tabs reachable via touch/keyboard.
+       * `min-w-max` on the inner list ensures the triggers never wrap or shrink.
+       */}
+      <div className="overflow-x-auto scrollbar-hide">
+        <TabsList className="min-w-max w-full justify-start">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="resolution">Resolution</TabsTrigger>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+        </TabsList>
+      </div>
 
       <TabsContent value="overview">{overview}</TabsContent>
       <TabsContent value="activity">{activity}</TabsContent>

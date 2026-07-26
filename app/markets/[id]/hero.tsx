@@ -237,8 +237,8 @@ export function MarketHero({
     <section
       aria-labelledby={`${heroId}-title`}
       className={cn(
-        // Base layout
-        "w-full rounded-2xl border border-border bg-card px-5 py-6 sm:px-8 sm:py-8",
+        // Base layout — tighter padding on mobile (px-4 py-5), comfortable on sm+
+        "w-full rounded-2xl border border-border bg-card px-4 py-5 sm:px-8 sm:py-8",
         // Subtle gradient tint that respects dark mode via Tailwind's `dark:` prefix
         "bg-gradient-to-br from-card to-muted/30 dark:from-card dark:to-muted/10",
         // Ensure keyboard users can see a clear focus outline when the hero
@@ -354,7 +354,7 @@ export function MarketHero({
       {/* ── Row 4 · Stat strip ───────────────────────────────────── */}
       {(volume || participants != null || timeLeft) && (
         <div
-          className="mb-5 flex flex-wrap gap-x-6 gap-y-3 border-t border-border pt-4"
+          className="mb-5 grid grid-cols-3 gap-y-3 border-t border-border pt-4 sm:flex sm:flex-wrap sm:gap-x-6 sm:gap-y-3"
           data-testid="stat-strip"
         >
           {volume && (
@@ -390,7 +390,7 @@ export function MarketHero({
               variant="outline"
               size="sm"
               onClick={onShare}
-              className="gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="h-10 gap-2 px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label="Share this market"
             >
               <Share2 className="h-4 w-4" aria-hidden="true" />

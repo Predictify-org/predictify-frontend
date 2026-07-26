@@ -127,7 +127,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
 
   if (!market) {
     return (
-      <main className="container mx-auto max-w-3xl px-4 py-8">
+      <main className="container mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <div id="main-content" tabIndex={-1} className="outline-none" />
         <EmptyState
           title="Market Not Found"
@@ -141,7 +141,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
   }
 
   return (
-    <main className="container mx-auto max-w-3xl px-4 py-8">
+    <main className="container mx-auto max-w-3xl px-4 py-8 sm:px-6">
       {/* Skip-to-content target */}
       <div id="main-content" tabIndex={-1} className="outline-none" />
 
