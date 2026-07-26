@@ -21,13 +21,13 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Verified vs. partial follow-up status
   - Evidence paths for recent component work
 
-### UI Components
-- **[COPY_ADDRESS.md](./COPY_ADDRESS.md)** - `CopyAddress` universal copy-to-clipboard button
-  - API reference (props, defaults, types)
-  - Accessibility details (aria-label, aria-pressed, live region)
-  - Usage examples (default, labelled, icon-only, custom delay)
-  - Test coverage overview
-  - Relation to `CopyableText` and other share components
+### Components
+
+- **[MARKET_CARD_MOBILE_LAYOUT.md](./MARKET_CARD_MOBILE_LAYOUT.md)** - MarketCard mobile-breakpoint layout
+  - Responsive layout changes for narrow viewports (< 640 px)
+  - Tailwind classes reference for the stacked/side-by-side breakpoint behaviour
+  - Accessibility considerations (aria-label, truncation, dark mode)
+  - Test strategy and how to run focused tests
 
 ### Core Features
 - **[EVENTS_RESPONSIVE_LAYOUT.md](./EVENTS_RESPONSIVE_LAYOUT.md)** - Events results responsive-layout contract
