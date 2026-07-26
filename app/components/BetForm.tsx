@@ -16,6 +16,7 @@
 import React, { useState, useEffect } from "react";
 import QuickBetPresets from "@/components/QuickBetPresets";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import KbdHint from "../../src/components/KbdHint";
 
 export interface BetFormProps {
   /** Called with the chosen amount (in XLM) when the form is submitted. */
