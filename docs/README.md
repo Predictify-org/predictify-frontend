@@ -42,6 +42,11 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Network configuration
   - Known limitations and troubleshooting
 
+- **[MARKET_PREVIEW_CARD.md](./MARKET_PREVIEW_CARD.md)** - Market preview card component
+  - Hover & focus-triggered market details preview card
+  - Key details overview: odds, pool size, sparkline, 24h heat strip, allowance nudge, quick actions
+  - Keyboard equivalent & WCAG 2.1 AA accessibility
+
 - **[ONBOARDING_TOUR.md](./ONBOARDING_TOUR.md)** - Onboarding tour overlay
   - Controlled `OnboardingTour` API (`steps`, `open`, `onStepChange`)
   - Anchored spotlight with centered-card fallback
