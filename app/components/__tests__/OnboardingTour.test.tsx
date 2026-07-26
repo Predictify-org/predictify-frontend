@@ -435,6 +435,59 @@ describe("OnboardingTour", () => {
     })
   })
 
+  describe("step preview dots", () => {
+    it("labels each dot with its own step for assistive tech", () => {
+      renderTour()
+
+      expect(screen.getByRole("button", { name: "Preview step 1 of 3: Browse markets" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Preview step 2 of 3: Place a bet" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Preview step 3 of 3: Connect a wallet" })).toBeInTheDocument()
+    })
+
+    it("marks the current step's dot with aria-current", () => {
+      renderTour({ initialStep: 1 })
+
+      expect(screen.getByRole("button", { name: /preview step 2/i })).toHaveAttribute("aria-current", "step")
+      expect(screen.getByRole("button", { name: /preview step 1/i })).not.toHaveAttribute("aria-current")
+    })
+
+    it("shows a preview card with the step's title and description on hover", async () => {
+      const user = userEvent.setup()
+      renderTour()
+
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+
+      await user.hover(screen.getByRole("button", { name: /preview step 3/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole("tooltip")).toHaveTextContent("Connect a wallet")
+        expect(screen.getByRole("tooltip")).toHaveTextContent("Fund your account.")
+      })
+    })
+
+    it("shows the same preview card on keyboard focus, without a mouse", async () => {
+      const user = userEvent.setup()
+      renderTour()
+
+      await user.tab()
+
+      await waitFor(() => {
+        expect(screen.getByRole("tooltip")).toHaveTextContent("See every open market.")
+      })
+    })
+
+    it("jumps to the step when its dot is clicked", async () => {
+      const onStepChange = jest.fn()
+      const user = userEvent.setup()
+      renderTour({ onStepChange })
+
+      await user.click(screen.getByRole("button", { name: /preview step 3/i }))
+
+      expect(screen.getByText("Step 3 of 3")).toBeInTheDocument()
+      expect(onStepChange).toHaveBeenCalledWith(2, STEPS[2])
+    })
+  })
+
   describe("body scroll lock", () => {
     it("locks scrolling while open and restores it on close", () => {
       const { unmount } = renderTour()

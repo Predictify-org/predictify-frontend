@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { LiveRegion } from "@/components/ui/live-region"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { useReducedMotion } from "@/hooks/useReducedMotion"
 import { useFocusReturn } from "@/app/hooks/useFocusReturn"
@@ -181,6 +182,10 @@ function getTooltipPosition(
  * within the tooltip, and focus returns to the trigger on close. Step changes
  * are announced through a polite live region. Motion is dropped entirely when
  * the user prefers reduced motion.
+ *
+ * The progress dots double as jump-to-step controls: hovering or focusing one
+ * previews that step's title and description in a small card before
+ * committing to it, and clicking jumps straight there.
  *
  * @example
  * ```tsx
@@ -534,19 +539,39 @@ export function OnboardingTour({
           </p>
         </div>
 
-        {/* Position is already conveyed by the visible counter and live region. */}
-        <div aria-hidden="true" className="mt-4 flex gap-1.5">
-          {steps.map((dot, dotIndex) => (
-            <span
-              key={dot.id}
-              className={cn(
-                "h-1.5 rounded-full",
-                !reducedMotion && "transition-all duration-200",
-                dotIndex === index ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/40"
-              )}
-            />
-          ))}
-        </div>
+        {/*
+         * Each dot doubles as a jump-to-step control. Hovering (or, for
+         * keyboard/touch users who can't hover, focusing) it previews that
+         * step's title and description via Tooltip — which shows on both
+         * hover and focus out of the box, so the preview needs no separate
+         * keyboard-only affordance.
+         */}
+        <TooltipProvider delayDuration={200}>
+          <div className="mt-4 flex gap-1.5">
+            {steps.map((dot, dotIndex) => (
+              <Tooltip key={dot.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => goTo(dotIndex)}
+                    aria-label={`Preview step ${dotIndex + 1} of ${total}: ${dot.title}`}
+                    aria-current={dotIndex === index ? "step" : undefined}
+                    className={cn(
+                      "touch-target-expand relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                      "h-1.5",
+                      !reducedMotion && "transition-all duration-200",
+                      dotIndex === index ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/40"
+                    )}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-64 space-y-1">
+                  <p className="font-medium text-popover-foreground">{dot.title}</p>
+                  <p className="text-xs text-muted-foreground">{dot.description}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </TooltipProvider>
 
         <div className="mt-5 flex items-center justify-between gap-2">
           <Button
