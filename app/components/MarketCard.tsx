@@ -1,7 +1,8 @@
 "use client";
 
-import { TrendingUp, Globe, BarChart3, Bell } from "lucide-react";
+import { TrendingUp, Globe, BarChart3, Bell, MessageCircle, Settings } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Tooltip } from "@/app/components/Tooltip";
 import type { Market } from "@/content/markets.sample";
 import { useFollowsStore } from "@/app/state/follows";
 import { useUserLimitsStore } from "@/app/state/userLimits";
@@ -74,16 +75,20 @@ export function MarketCard({
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <h3 className="font-semibold text-white">{market.title}</h3>
-              <SaveForLater marketId={market.id} marketTitle={market.title} />
+              <Tooltip content="Save this market for later reference">
+                <SaveForLater marketId={market.id} marketTitle={market.title} />
+              </Tooltip>
             </div>
             <p className="text-sm text-white/70">{market.description}</p>
 
             {/* Sparkline trend preview */}
-            <Sparkline
-              data={market.sparklineData}
-              className="mt-2 text-white/60"
-              data-testid={`sparkline-${market.id}`}
-            />
+            <Tooltip content="Price trend over the last 24 hours">
+              <Sparkline
+                data={market.sparklineData}
+                className="mt-2 text-white/60"
+                data-testid={`sparkline-${market.id}`}
+              />
+            </Tooltip>
 
             {/* Heat strip – 24h activity */}
             <HeatStrip
@@ -99,7 +104,9 @@ export function MarketCard({
                   className="inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-400/30"
                   data-testid="following-indicator"
                 >
-                  <Bell className="h-3 w-3" aria-hidden="true" />
+                  <Tooltip content="Notifications enabled for this market">
+                    <Bell className="h-3 w-3" aria-hidden="true" />
+                  </Tooltip>
                   You&apos;re following this
                   <span className="sr-only">
                     {" "}
@@ -118,12 +125,32 @@ export function MarketCard({
             </div>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-sm font-medium text-green-400 tabular-nums">
-            Yes: {market.yesOdds}%
-          </div>
-          <div className="text-sm text-red-400 tabular-nums">
-            No: {market.noOdds}%
+        <div className="flex shrink-0 items-center gap-2">
+          <Tooltip content="Share this market with others">
+            <button
+              type="button"
+              aria-label={`Share ${market.title}`}
+              className="rounded-full border border-white/10 bg-white/5 p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#201F37]"
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Market settings and options">
+            <button
+              type="button"
+              aria-label={`Settings for ${market.title}`}
+              className="rounded-full border border-white/10 bg-white/5 p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#201F37]"
+            >
+              <Settings className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </Tooltip>
+          <div className="text-right">
+            <div className="text-sm font-medium text-green-400 tabular-nums">
+              Yes: {market.yesOdds}%
+            </div>
+            <div className="text-sm text-red-400 tabular-nums">
+              No: {market.noOdds}%
+            </div>
           </div>
         </div>
       </div>
