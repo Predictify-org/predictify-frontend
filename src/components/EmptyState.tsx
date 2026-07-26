@@ -1,71 +1,70 @@
-import React from "react";
-import { Telescope } from "lucide-react";
+"use client"
 
-export interface EmptyStateProps {
-  /**
-   * Title text for the empty state
-   */
-  title?: string;
-  /**
-   * Descriptive text explaining why it's empty or what to do
-   */
-  description?: string;
-  /**
-   * Text for the call-to-action button
-   */
-  actionLabel?: string;
-  /**
-   * Handler for the call-to-action button. If provided, the button will render.
-   */
-  onAction?: () => void;
-  /**
-   * Custom icon element
-   */
-  icon?: React.ReactNode;
-  /**
-   * Additional CSS classes
-   */
-  className?: string;
+import * as React from "react"
+import Link from "next/link"
+import { Sparkles } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+
+export * from "@/components/EmptyState"
+
+export interface StellarWaveEmptyStateProps {
+  title?: string
+  description?: string
+  ctaText?: string
+  ctaHref?: string
+  onCtaClick?: () => void
+  className?: string
 }
 
-/**
- * Themed EmptyState component designed for the GrantFox FWC26 campaign (Stellar Wave).
- * Displays a helpful illustration and a call-to-action.
- */
-export const EmptyState: React.FC<EmptyStateProps> = ({
-  title = "No markets found",
-  description = "There are no active markets matching your criteria. Explore other stellar opportunities.",
-  actionLabel = "Explore Markets",
-  onAction,
-  icon,
-  className = "",
-}) => {
+export function StellarWaveEmptyState({
+  title = "No Stellar Wave data yet",
+  description = "Join the GrantFox FWC26 campaign to start seeing your predictions and market data here.",
+  ctaText = "Explore Campaigns",
+  ctaHref = "/campaigns",
+  onCtaClick,
+  className,
+}: StellarWaveEmptyStateProps) {
   return (
-    <div 
-      className={`flex flex-col items-center justify-center p-8 text-center rounded-lg border-2 border-dashed border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/50 dark:bg-indigo-950/20 ${className}`}
-      data-testid="empty-state"
-    >
-      <div className="text-indigo-500 dark:text-indigo-400 mb-4 bg-indigo-100 dark:bg-indigo-900/50 p-4 rounded-full shadow-sm">
-        {icon || <Telescope className="w-10 h-10" aria-hidden="true" />}
-      </div>
-      <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-        {title}
-      </h3>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 max-w-sm">
-        {description}
-      </p>
-      {onAction && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onAction();
-          }}
-          className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900"
-          aria-label={actionLabel}
-        >
-          {actionLabel}
-        </button>
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn(
+        "flex flex-col items-center justify-center min-h-[400px] px-6 py-12 text-center",
+        "rounded-2xl border border-dashed border-[#540D8D]/50 bg-[#540D8D]/5 backdrop-blur-sm",
+        "motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-300",
+        className
       )}
+    >
+      <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[#540D8D]/10 text-[#540D8D] dark:text-purple-400">
+        <Sparkles className="h-12 w-12" aria-hidden="true" />
+      </div>
+      <div className="mx-auto max-w-md space-y-2">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+          {title}
+        </h2>
+        <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+          {description}
+        </p>
+      </div>
+      <div className="mt-8">
+        {ctaHref && !onCtaClick ? (
+          <Button asChild variant="default" size="lg" className="bg-[#540D8D] hover:bg-[#540D8D]/90 text-white shadow-sm transition-all hover:scale-[1.02]">
+            <Link href={ctaHref}>
+              {ctaText}
+            </Link>
+          </Button>
+        ) : (
+          <Button
+            onClick={onCtaClick}
+            variant="default"
+            size="lg"
+            className="bg-[#540D8D] hover:bg-[#540D8D]/90 text-white shadow-sm transition-all hover:scale-[1.02]"
+          >
+            {ctaText}
+          </Button>
+        )}
+      </div>
     </div>
-  );
-};
+  )
+}
