@@ -1,45 +1,58 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { CheckCircle, HelpCircle, PauseCircle, TrendingUp } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { StatCard } from "@/components/cards/stat-card"
-import { RecommendationProvenance, type RecommendationSignalKey } from "@/components/cards/recommendation-provenance"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
-import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStrip"
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
-import { ActiveBets } from "@/components/active-bets/ActiveBets"
-import { ActivityTimeline } from "@/components/activity-timeline"
-import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator"
-import { NotifDigest } from "@/app/dashboard/NotifDigest"
-import { useNotificationsStore } from "@/app/state/notifications"
-import { NotificationItem } from "@/types/notifications"
-import { Kbd } from "@/components/ui/kbd"
-import { useEffect, useMemo, useCallback, useState } from "react"
-import { useReducedMotion } from "@/hooks/useReducedMotion"
-import { EmptyState } from "@/components/EmptyState"
-import { BarChart3 } from "lucide-react"
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  AlertCircle,
+  CheckCircle,
+  HelpCircle,
+  PauseCircle,
+  TrendingUp,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StatCard } from "@/components/cards/stat-card";
+import {
+  RecommendationProvenance,
+  type RecommendationSignalKey,
+} from "@/components/cards/recommendation-provenance";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { RecommendationsStrip } from "@/components/dashboard/RecommendationsStrip";
+import { ActiveBets } from "@/components/active-bets/ActiveBets";
+import { ActivityTimeline } from "@/components/activity-timeline";
+import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator";
+import { NotifDigest } from "@/app/dashboard/NotifDigest";
+import { useNotificationsStore } from "@/app/state/notifications";
+import { NotificationItem } from "@/types/notifications";
+import { Kbd } from "@/components/ui/kbd";
+import { useEffect, useMemo, useCallback, useState } from "react";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+import "@/src/styles/patterns.css";
 
 // TODO: replace with the authenticated user's id once auth context exposes it.
-const CURRENT_USER_ID = "current-user"
-import { RecentlyViewedRail } from "@/app/components/RecentlyViewedRail"
+const CURRENT_USER_ID = "current-user";
+import { RecentlyViewedRail } from "@/app/components/RecentlyViewedRail";
 
 interface Stat {
-  label: string
-  value: string
+  label: string;
+  value: string;
 }
 
 interface RecommendedMarket {
-  id: string
-  title: string
-  category: string
-  href: string
-  signalKey: RecommendationSignalKey
-  volume: string
+  id: string;
+  title: string;
+  category: string;
+  href: string;
+  signalKey: RecommendationSignalKey;
+  volume: string;
 }
 
 const DEMO_STATS: Stat[] = [
@@ -47,7 +60,7 @@ const DEMO_STATS: Stat[] = [
   { label: "Predictions", value: "24" },
   { label: "Win rate", value: "12,543" },
   { label: "Leaderboard", value: "573" },
-]
+];
 
 const recommendedMarkets: RecommendedMarket[] = [
   {
@@ -74,49 +87,28 @@ const recommendedMarkets: RecommendedMarket[] = [
     signalKey: "trending",
     volume: "$27.9k volume",
   },
-]
+];
 
-/**
- * DashboardPage
- *
- * Primary user dashboard. Shows KPI stat cards, recommendations, the active
- * bets rail, the activity timeline and unread notifications. Three tabs are
- * available: Overview (default), Analytics, and Reports.
- *
- * Reduced-motion fallback (#547):
- *   When the user has `prefers-reduced-motion: reduce` enabled, the page
- *   skips its simulated 1500ms loading delay and renders the populated view
- *   immediately so motion-sensitive users see the dashboard without any
- *   delayed transition between skeleton and content. An accessible status
- *   banner (role="status" + aria-live="polite") is exposed at the top of the
- *   page to make the static state discoverable.
- *
- *   Sub-components already neutralise any residual animations under the
- *   same preference — see `app/globals.css` (`@media (prefers-reduced-motion:
- *   reduce)` and the `html.motion-reduced` override) plus the per-component
- *   `useReducedMotion` checks in ActiveBetCard, OnboardingTour, etc.
- *
- * WCAG 2.1 AA:
- *   - The reduced-motion banner has role="status" + aria-live="polite" so
- *     screen-readers announce it without interrupting other output
- *     (SC 4.1.3 – Status Messages).
- *   - Heading hierarchy uses a single `<h1>` and `<h2>`/`<h3>` for sections
- *     so the document outline is linear (SC 1.3.1).
- *   - All interactive controls reach a minimum 3:1 contrast in dark mode
- *     thanks to the design tokens in `tailwind.config.ts`.
- */
 export default function DashboardPage() {
-  const [status, setStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
-  const [statusAnnouncement, setStatusAnnouncement] = useState("")
-  const [stats, setStats] = useState<Stat[] | null>(null)
-  const [hiddenRecommendations, setHiddenRecommendations] = useState<string[]>([])
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null)
-  const [liveMessage, setLiveMessage] = useState("")
-  const { notifications, markAsRead: handleMarkAsRead, markAllAsRead: handleMarkAllAsRead } = useNotificationsStore()
-  const reducedMotion = useReducedMotion()
+  const [status, setStatus] = useState<
+    "loading" | "success" | "empty" | "error"
+  >("loading");
+  const [statusAnnouncement, setStatusAnnouncement] = useState("");
+  const [stats, setStats] = useState<Stat[] | null>(null);
+  const [hiddenRecommendations, setHiddenRecommendations] = useState<string[]>(
+    [],
+  );
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [liveMessage, setLiveMessage] = useState("");
+  const {
+    notifications,
+    markAsRead: handleMarkAsRead,
+    markAllAsRead: handleMarkAllAsRead,
+  } = useNotificationsStore();
+  const reducedMotion = useReducedMotion();
 
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState("overview")
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     const nextMessage =
@@ -126,108 +118,123 @@ export default function DashboardPage() {
           ? "Dashboard data loaded."
           : status === "empty"
             ? "Dashboard has no data to show."
-            : "Dashboard data failed to load."
+            : "Dashboard data failed to load.";
 
-    // Keep the announcement deterministic for assistive tech by clearing the
-    // prior message first and then re-inserting the next status update.
-    setStatusAnnouncement("")
-    const timer = window.setTimeout(() => setStatusAnnouncement(nextMessage), 50)
-    return () => window.clearTimeout(timer)
-  }, [status])
+    setStatusAnnouncement("");
+    const timer = window.setTimeout(
+      () => setStatusAnnouncement(nextMessage),
+      50,
+    );
+    return () => window.clearTimeout(timer);
+  }, [status]);
 
   const userNotifications = useMemo(
     () => notifications.filter((item) => item.userId === CURRENT_USER_ID),
-    [notifications]
-  )
+    [notifications],
+  );
 
-  const handleKeyboardShortcut = useCallback((e: KeyboardEvent) => {
-    const isMac = navigator.userAgent.toLowerCase().includes("mac")
-    const meta = isMac ? e.metaKey : e.ctrlKey
+  const handleKeyboardShortcut = useCallback(
+    (e: KeyboardEvent) => {
+      const isMac = navigator.userAgent.toLowerCase().includes("mac");
+      const meta = isMac ? e.metaKey : e.ctrlKey;
 
-    if (meta && e.shiftKey && e.key.toLowerCase() === "n") {
-      e.preventDefault()
-      router.push("/events/new")
-    }
+      if (meta && e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        router.push("/events/new");
+      }
 
-    if (meta && e.shiftKey && e.key.toLowerCase() === "a") {
-      e.preventDefault()
-      setActiveTab("analytics")
-    }
-  }, [router])
+      if (meta && e.shiftKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        setActiveTab("analytics");
+      }
+    },
+    [router],
+  );
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyboardShortcut)
-    return () => window.removeEventListener("keydown", handleKeyboardShortcut)
-  }, [handleKeyboardShortcut])
+    window.addEventListener("keydown", handleKeyboardShortcut);
+    return () => window.removeEventListener("keydown", handleKeyboardShortcut);
+  }, [handleKeyboardShortcut]);
 
-  /**
-   * Simulate async fetch.
-   *
-   * When the user has prefers-reduced-motion enabled we skip the artificial
-   * 1500ms loading delay and present data immediately so screen-reader,
-   * low-vision, and motion-sensitive users do not experience a delayed
-   * transition between skeleton and content (WCAG 2.1 SC 2.2.1 / 2.3.3).
-   */
   useEffect(() => {
     if (reducedMotion) {
-      setStats(DEMO_STATS)
-      setStatus('success')
-      setLastRefreshedAt(new Date())
-      return
+      setStats(DEMO_STATS);
+      setStatus("success");
+      setLastRefreshedAt(new Date());
+      return;
     }
     const timer = setTimeout(() => {
       if (DEMO_STATS.length === 0) {
-        setStatus('empty')
+        setStatus("empty");
       } else {
-        setStats(DEMO_STATS)
-        setStatus('success')
-        setLastRefreshedAt(new Date())
+        setStats(DEMO_STATS);
+        setStatus("success");
+        setLastRefreshedAt(new Date());
       }
-    }, 1500)
-    return () => clearTimeout(timer)
-  }, [reducedMotion])
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [reducedMotion]);
 
   const retry = () => {
-    setLiveMessage("Refreshing dashboard")
-    // Honor the static fallback under reduced-motion preferences: skip
-    // the 1500ms loading transition and present data immediately. This
-    // keeps the manual retry path consistent with the initial load.
+    setLiveMessage("Refreshing dashboard");
     if (reducedMotion) {
-      setStats(DEMO_STATS)
-      setStatus('success')
-      setLastRefreshedAt(new Date())
-      return
+      setStats(DEMO_STATS);
+      setStatus("success");
+      setLastRefreshedAt(new Date());
+      return;
     }
-    setStatus('loading')
-    setStats(null)
-    // Re‑trigger the effect by resetting the timer
-    // (In a real app, you would refetch the data here)
+    setStatus("loading");
+    setStats(null);
     setTimeout(() => {
-      // Simulate success after retry
-      setStats(DEMO_STATS)
-      setStatus('success')
-      setLastRefreshedAt(new Date())
-    }, 1500)
-  }
+      setStats(DEMO_STATS);
+      setStatus("success");
+      setLastRefreshedAt(new Date());
+    }, 1500);
+  };
 
   const renderStatCard = (stat: Stat, idx: number) => {
-    const variants: any[] = ['volume', 'predictions', 'win-rate', 'leaderboard'];
-    return <StatCard key={idx} stat={stat} index={idx} emptyVariant={variants[idx % 4]} />
-  }
+    const variants: any[] = [
+      "volume",
+      "predictions",
+      "win-rate",
+      "leaderboard",
+    ];
+    return (
+      <StatCard
+        key={idx}
+        stat={stat}
+        index={idx}
+        emptyVariant={variants[idx % 4]}
+      />
+    );
+  };
 
   const renderCards = () => {
     switch (status) {
-      case 'loading':
-        return <DashboardSkeleton data-testid="dashboard-skeleton-cards" />
-      case 'empty':
+      case "loading":
         return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {(['volume', 'predictions', 'win-rate', 'leaderboard'] as const).map((variant, idx) => (
-              <StatCard key={idx} index={idx} status="empty" emptyVariant={variant} />
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-xl" />
             ))}
           </div>
-        )
-      case 'error':
+        );
+      case "empty":
+        return (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {(
+              ["volume", "predictions", "win-rate", "leaderboard"] as const
+            ).map((variant, idx) => (
+              <StatCard
+                key={idx}
+                index={idx}
+                status="empty"
+                emptyVariant={variant}
+              />
+            ))}
+          </div>
+        );
+      case "error":
         return (
           <Alert variant="destructive">
             <AlertTitle>Failed to load data</AlertTitle>
@@ -238,29 +245,32 @@ export default function DashboardPage() {
               Retry
             </Button>
           </Alert>
-        )
-      case 'success':
+        );
+      case "success":
         return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {stats?.map((stat, idx) => renderStatCard(stat, idx))}
           </div>
-        )
+        );
     }
-  }
+  };
 
   const renderRecommendationStrip = () => {
     const visibleRecommendations = recommendedMarkets.filter(
-      (market) => !hiddenRecommendations.includes(market.id)
-    )
+      (market) => !hiddenRecommendations.includes(market.id),
+    );
 
     if (visibleRecommendations.length === 0) {
       return (
         <Card>
           <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold">No recommendations right now</p>
+              <p className="text-sm font-semibold">
+                No recommendations right now
+              </p>
               <p className="text-sm text-muted-foreground">
-                We will refresh this strip as new market signals become available.
+                We will refresh this strip as new market signals become
+                available.
               </p>
             </div>
             <Button
@@ -273,7 +283,7 @@ export default function DashboardPage() {
             </Button>
           </CardContent>
         </Card>
-      )
+      );
     }
 
     return (
@@ -329,39 +339,45 @@ export default function DashboardPage() {
           ))}
         </div>
       </section>
-    )
-  }
+    );
+  };
 
   const renderAnalyticsPanel = () => {
     switch (status) {
-      case 'loading':
-        return <DashboardSkeleton data-testid="dashboard-skeleton-analytics" />
-      case 'empty':
+      case "loading":
+        return <Skeleton className="h-64 w-full rounded-xl" />;
+      case "empty":
         return (
-          <EmptyState
-            title="No activity yet"
-            description="Your dashboard is empty because you haven't created or joined any prediction markets. Start by creating your first event or exploring active markets."
-            ctaText="Create Your First Event"
-            ctaHref="/events/new"
-            icon={BarChart3}
-          />
-        )
-      case 'error':
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-medium mb-2">No analytics data.</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Add events to view analytics.
+            </p>
+            <Button asChild>
+              <Link href="/events/new">Create New Event</Link>
+            </Button>
+          </div>
+        );
+      case "error":
         return (
           <Alert variant="destructive">
             <AlertTitle>Analytics load error</AlertTitle>
             <AlertDescription>Unable to fetch analytics data.</AlertDescription>
-            <Button variant="outline" onClick={retry} className="mt-2">Retry</Button>
+            <Button variant="outline" onClick={retry} className="mt-2">
+              Retry
+            </Button>
           </Alert>
-        )
-      case 'success':
+        );
+      case "success":
         return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {/* Placeholder charts remain unchanged */}
             <Card className="col-span-2">
               <CardHeader>
                 <CardTitle>User Growth</CardTitle>
-                <CardDescription>New user registrations over time</CardDescription>
+                <CardDescription>
+                  New user registrations over time
+                </CardDescription>
               </CardHeader>
               <CardContent className="pl-2">
                 <div className="h-[300px] w-full bg-muted/25 rounded-md flex items-center justify-center text-muted-foreground">
@@ -381,55 +397,66 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
-        )
+        );
     }
-  }
+  };
 
   useEffect(() => {
     switch (status) {
-      case 'loading':
-        setLiveMessage('Loading dashboard')
-        break
-      case 'success':
-        setLiveMessage(`Dashboard loaded. Showing ${stats?.length ?? 0} key metrics in ${activeTab}.`)
-        break
-      case 'empty':
-        setLiveMessage(`Dashboard is empty in ${activeTab}.`)
-        break
-      case 'error':
-        setLiveMessage(`Dashboard failed to load in ${activeTab}.`)
-        break
+      case "loading":
+        setLiveMessage("Loading dashboard");
+        break;
+      case "success":
+        setLiveMessage(
+          `Dashboard loaded. Showing ${stats?.length ?? 0} key metrics in ${activeTab}.`,
+        );
+        break;
+      case "empty":
+        setLiveMessage(`Dashboard is empty in ${activeTab}.`);
+        break;
+      case "error":
+        setLiveMessage(`Dashboard failed to load in ${activeTab}.`);
+        break;
     }
-  }, [activeTab, stats?.length, status])
+  }, [activeTab, stats?.length, status]);
 
   const renderReportsPanel = () => {
     switch (status) {
-      case 'loading':
-        return <DashboardSkeleton data-testid="dashboard-skeleton-reports" />
-      case 'empty':
+      case "loading":
+        return <Skeleton className="h-64 w-full rounded-xl" />;
+      case "empty":
         return (
-          <EmptyState
-            title="No reports available"
-            description="Generate reports by participating in or creating prediction markets. Once you have activity, your reports will appear here."
-            ctaText="Explore Markets"
-            ctaHref="/events"
-            icon={BarChart3}
-          />
-        )
-      case 'error':
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-medium mb-2">No reports available.</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Generate reports from events.
+            </p>
+            <Button asChild>
+              <Link href="/events/new">Create New Event</Link>
+            </Button>
+          </div>
+        );
+      case "error":
         return (
           <Alert variant="destructive">
             <AlertTitle>Reports load error</AlertTitle>
-            <AlertDescription>Unable to fetch report listings.</AlertDescription>
-            <Button variant="outline" onClick={retry} className="mt-2">Retry</Button>
+            <AlertDescription>
+              Unable to fetch report listings.
+            </AlertDescription>
+            <Button variant="outline" onClick={retry} className="mt-2">
+              Retry
+            </Button>
           </Alert>
-        )
-      case 'success':
+        );
+      case "success":
         return (
           <Card>
             <CardHeader>
               <CardTitle>Available Reports</CardTitle>
-              <CardDescription>Download or view generated reports</CardDescription>
+              <CardDescription>
+                Download or view generated reports
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -443,7 +470,9 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between border-b pb-4">
                   <div>
                     <h3 className="font-medium">User Activity Report</h3>
-                    <p className="text-sm text-muted-foreground">Last 30 days</p>
+                    <p className="text-sm text-muted-foreground">
+                      Last 30 days
+                    </p>
                   </div>
                   <Button variant="outline">Download</Button>
                 </div>
@@ -457,9 +486,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        )
+        );
     }
-  }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -475,12 +504,6 @@ export default function DashboardPage() {
       </div>
 
       {reducedMotion && (
-        // Accessible inline notice: role="status" + aria-live="polite" means
-        // screen-readers announce the static mode without interrupting other
-        // output (WCAG 2.1 AA SC 4.1.3 – Status Messages).
-        // text-amber-900 / dark:text-amber-100 maintains a ≥4.5:1 contrast on
-        // the tinted amber background; the icon + label together convey
-        // meaning without relying on colour alone (SC 1.4.1).
         <div
           role="status"
           aria-live="polite"
@@ -491,9 +514,9 @@ export default function DashboardPage() {
           <PauseCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
             <strong className="font-semibold">Reduced motion mode:</strong>{" "}
-            animations are disabled because your device prefers reduced
-            motion. The dashboard is rendered as a static view to avoid
-            transitions or motion effects.
+            animations are disabled because your device prefers reduced motion.
+            The dashboard is rendered as a static view to avoid transitions or
+            motion effects.
           </span>
         </div>
       )}
@@ -512,7 +535,10 @@ export default function DashboardPage() {
             onMarkAsRead={handleMarkAsRead}
             onMarkAllAsRead={handleMarkAllAsRead}
           />
-          <RefreshIndicator lastRefreshedAt={lastRefreshedAt} onRefresh={retry} />
+          <RefreshIndicator
+            lastRefreshedAt={lastRefreshedAt}
+            onRefresh={retry}
+          />
           <div className="flex items-center gap-2">
             <Button asChild>
               <Link href="/events/new">Create New Event</Link>
@@ -522,7 +548,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-4"
+      >
         <TabsList className="flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -532,9 +562,9 @@ export default function DashboardPage() {
           {renderCards()}
           <RecentlyViewedRail />
           <ActiveBets
-            bets={status === 'empty' ? [] : []}
-            isLoading={status === 'loading'}
-            onAddBet={() => console.log('Add bet')}
+            bets={status === "empty" ? [] : []}
+            isLoading={status === "loading"}
+            onAddBet={() => console.log("Add bet")}
           />
           {renderRecommendationStrip()}
           <RecommendationsStrip />
@@ -542,7 +572,9 @@ export default function DashboardPage() {
             <Card className="col-span-4">
               <CardHeader>
                 <CardTitle>Platform Activity</CardTitle>
-                <CardDescription>User activity and predictions over time</CardDescription>
+                <CardDescription>
+                  User activity and predictions over time
+                </CardDescription>
               </CardHeader>
               <CardContent className="pl-2">
                 <div className="h-[200px] w-full bg-muted/25 rounded-md flex items-center justify-center text-muted-foreground">
@@ -553,12 +585,14 @@ export default function DashboardPage() {
             <Card className="col-span-3">
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Your latest actions on Predictify</CardDescription>
+                <CardDescription>
+                  Your latest actions on Predictify
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ActivityTimeline
-                  activities={status === 'empty' ? [] : []}
-                  isLoading={status === 'loading'}
+                  activities={status === "empty" ? [] : []}
+                  isLoading={status === "loading"}
                 />
               </CardContent>
             </Card>
@@ -572,5 +606,5 @@ export default function DashboardPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

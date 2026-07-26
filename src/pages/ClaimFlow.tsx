@@ -12,7 +12,14 @@ import { LiveRegion } from "@/components/ui/live-region";
 import { useClaimShare } from "@/context/ClaimShareContext";
 import { customToast } from "@/components/ui/custom-toast";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
-import { Trophy, AlertCircle, CheckCircle, Loader2, Share2 } from "lucide-react";
+import {
+  Trophy,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  Share2,
+} from "lucide-react";
+import KbdHint from "../components/KbdHint";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,31 +99,6 @@ const MOCK_HISTORY: ClaimHistoryItem[] = [
 
 type PageStatus = "loading" | "success" | "empty" | "error";
 
-/**
- * ClaimFlow
- *
- * Page where users can claim winnings from resolved prediction markets.
- *
- * Responsive breakpoint audit (#581):
- *   - Mobile-first layout: single-column cards on narrow viewports,
- *     two-column card content on sm+ (≥640px).
- *   - Table columns progressively disclosed: date hidden below sm,
- *     tx hash hidden below lg (≥1024px).
- *   - Page container constrained to max-w-4xl with fluid padding that
- *     scales across breakpoints: px-4 → sm:px-6 → lg:px-8.
- *   - Claim actions stack vertically on mobile, side-by-side on sm+.
- *   - History card stacks vertically on mobile, full table on md+.
- *   - Skeleton cards maintain shape-parity with content cards across
- *     all breakpoints.
- *   - Reduced-motion: skips skeleton delay, disables Loader2 spin
- *     animation (WCAG 2.3.3).
- *   - WCAG 2.1 AA: heading hierarchy, labelled controls, colour is
- *     never the sole differentiator.
- *
- * Token polish (v7): section spacing and typography follow the shared
- * card, border, and surface tokens to keep the experience consistent with
- * the rest of the design system across light and dark modes.
- */
 export default function ClaimFlow() {
   const [status, setStatus] = useState<PageStatus>("loading");
   const [claimable, setClaimable] = useState<ClaimableReward[]>([]);
@@ -159,7 +141,9 @@ export default function ClaimFlow() {
   const handleClaim = useCallback(
     async (reward: ClaimableReward) => {
       setClaimingId(reward.id);
-      setAnnouncement(`Claiming ${reward.amount} ${reward.tokenSymbol} from "${reward.marketTitle}".`);
+      setAnnouncement(
+        `Claiming ${reward.amount} ${reward.tokenSymbol} from "${reward.marketTitle}".`,
+      );
 
       await new Promise((r) => setTimeout(r, reducedMotion ? 0 : 800));
 
@@ -179,33 +163,56 @@ export default function ClaimFlow() {
       });
 
       setAnnouncement(
-        `Successfully claimed ${reward.amount} ${reward.tokenSymbol}.`
+        `Successfully claimed ${reward.amount} ${reward.tokenSymbol}.`,
       );
     },
-    [reducedMotion, openShareSheet]
+    [reducedMotion, openShareSheet],
   );
+
+  // Global Keyboard Shortcut to Claim the first available reward
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key.toLowerCase() === "c" &&
+        claimable.length > 0 &&
+        !claimingId &&
+        // Ignore shortcut if user is typing in an input
+        document.activeElement?.tagName !== "INPUT" &&
+        document.activeElement?.tagName !== "TEXTAREA"
+      ) {
+        e.preventDefault();
+        handleClaim(claimable[0]);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [claimable, claimingId, handleClaim]);
 
   const handleRetry = useCallback(() => {
     setStatus("loading");
     setClaimable([]);
     setAnnouncement("Retrying. Loading claimable rewards.");
-    setTimeout(() => {
-      setClaimable(MOCK_CLAIMABLE);
-      setStatus("success");
-    }, reducedMotion ? 0 : 1200);
+    setTimeout(
+      () => {
+        setClaimable(MOCK_CLAIMABLE);
+        setStatus("success");
+      },
+      reducedMotion ? 0 : 1200,
+    );
   }, [reducedMotion]);
 
   // ------------------------------------------------------------------
   // Render helpers
   // ------------------------------------------------------------------
 
-  /** Skeleton cards — shape-parity with claimable reward cards. */
   const renderSkeletons = () => (
     <div className="space-y-3 sm:space-y-4" data-testid="claimflow-skeletons">
       {[...Array(3)].map((_, i) => (
-        <Card key={i} className="overflow-hidden border-border/60 bg-card/80 shadow-sm">
+        <Card
+          key={i}
+          className="overflow-hidden border-border/60 bg-card/80 shadow-sm"
+        >
           <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5 sm:p-5">
-            {/* Title + metadata */}
             <div className="flex-1 space-y-3">
               <Skeleton className={["h-5 w-full max-w-[75%] rounded-md", reducedMotion && "animate-none"].filter(Boolean).join(" ")} />
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -213,7 +220,6 @@ export default function ClaimFlow() {
                 <Skeleton className={["h-4 w-20 rounded-md", reducedMotion && "animate-none"].filter(Boolean).join(" ")} />
               </div>
             </div>
-            {/* Actions */}
             <div className="flex items-center gap-2 self-end sm:self-center">
               <Skeleton className={["h-10 w-24 rounded-full", reducedMotion && "animate-none"].filter(Boolean).join(" ")} />
               <Skeleton className={["h-10 w-10 rounded-full", reducedMotion && "animate-none"].filter(Boolean).join(" ")} />
@@ -237,13 +243,15 @@ export default function ClaimFlow() {
 
     return (
       <ul className="space-y-3 sm:space-y-4" aria-label="Claimable rewards">
-        {claimable.map((reward) => {
+        {claimable.map((reward, index) => {
           const isClaiming = claimingId === reward.id;
+          // Show shortcut hint only on the first claimable item
+          const isFirstItem = index === 0;
+
           return (
             <li key={reward.id}>
               <Card className="overflow-hidden border-border/60 bg-card/80 shadow-sm transition-shadow hover:shadow-md">
                 <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5 sm:p-5">
-                  {/* Title + metadata */}
                   <div className="flex-1 min-w-0 space-y-3">
                     <h3 className="text-sm font-semibold leading-6 text-foreground sm:text-base">
                       {reward.marketTitle}
@@ -262,13 +270,12 @@ export default function ClaimFlow() {
                     </div>
                   </div>
 
-                  {/* Actions — stack on mobile, row on sm+ */}
                   <div className="flex items-center gap-2 self-end sm:self-center">
                     <Button
                       onClick={() => handleClaim(reward)}
                       disabled={isClaiming}
                       size="sm"
-                      className="min-w-[92px] rounded-full sm:min-w-[104px] sm:px-5 sm:py-2.5"
+                      className="min-w-[92px] rounded-full sm:min-w-[104px] sm:px-5 sm:py-2.5 group"
                     >
                       {isClaiming ? (
                         <>
@@ -286,6 +293,11 @@ export default function ClaimFlow() {
                         <>
                           <Trophy className="mr-2 h-4 w-4" />
                           Claim
+                          {isFirstItem && (
+                            <KbdHint className="ml-2 hidden sm:inline-flex group-hover:bg-background/20 group-hover:text-foreground">
+                              C
+                            </KbdHint>
+                          )}
                         </>
                       )}
                     </Button>
@@ -324,7 +336,6 @@ export default function ClaimFlow() {
     <div className="mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:max-w-5xl lg:px-8">
       <LiveRegion message={announcement} data-testid="claimflow-live-region" />
 
-      {/* Page header — stacks on mobile, side-by-side on sm+ */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1.5">
           <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
@@ -335,14 +346,21 @@ export default function ClaimFlow() {
           </p>
         </div>
         {status === "error" && (
-          <Button variant="outline" size="sm" onClick={handleRetry} className="self-start rounded-full">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRetry}
+            className="self-start rounded-full"
+          >
             Retry
           </Button>
         )}
       </div>
 
-      {/* Claimable Rewards Section */}
-      <section aria-labelledby="claimable-heading" className="space-y-3 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:space-y-4 sm:p-5">
+      <section
+        aria-labelledby="claimable-heading"
+        className="space-y-3 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:space-y-4 sm:p-5"
+      >
         <div className="flex items-center gap-2">
           <h2
             id="claimable-heading"
@@ -351,7 +369,10 @@ export default function ClaimFlow() {
             Pending Claims
           </h2>
           {status === "success" && claimable.length > 0 && (
-            <Badge variant="secondary" className="rounded-full px-2.5 py-1 text-xs sm:text-sm">
+            <Badge
+              variant="secondary"
+              className="rounded-full px-2.5 py-1 text-xs sm:text-sm"
+            >
               {claimable.length}
             </Badge>
           )}
@@ -367,7 +388,12 @@ export default function ClaimFlow() {
               We couldn&apos;t fetch your claimable rewards. Check your
               connection and try again.
             </AlertDescription>
-            <Button variant="outline" size="sm" onClick={handleRetry} className="mt-3 rounded-full">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              className="mt-3 rounded-full"
+            >
               Retry
             </Button>
           </Alert>
@@ -376,8 +402,10 @@ export default function ClaimFlow() {
         {(status === "success" || status === "empty") && renderClaimableList()}
       </section>
 
-      {/* Claim History Section */}
-      <section aria-labelledby="history-heading" className="space-y-3 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:space-y-4 sm:p-5">
+      <section
+        aria-labelledby="history-heading"
+        className="space-y-3 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:space-y-4 sm:p-5"
+      >
         <h2
           id="history-heading"
           className="text-base font-semibold text-foreground sm:text-lg"
@@ -393,7 +421,6 @@ export default function ClaimFlow() {
           />
         ) : (
           <>
-            {/* Desktop/tablet: full table */}
             <div className="hidden sm:block overflow-x-auto rounded-xl border border-border/60 bg-background/60">
               <table className="w-full min-w-[560px] text-sm">
                 <thead className="bg-muted/50">
@@ -415,7 +442,9 @@ export default function ClaimFlow() {
                 <tbody className="divide-y">
                   {history.map((item) => (
                     <tr key={item.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium">{item.marketTitle}</td>
+                      <td className="px-4 py-3 font-medium">
+                        {item.marketTitle}
+                      </td>
                       <td className="px-4 py-3 tabular-nums">
                         {item.amount} {item.tokenSymbol}
                       </td>
@@ -431,14 +460,21 @@ export default function ClaimFlow() {
               </table>
             </div>
 
-            {/* Mobile: stacked cards instead of table */}
             <div className="flex flex-col gap-3 sm:hidden">
               {history.map((item) => (
-                <Card key={item.id} className="overflow-hidden border-border/60 bg-card/80 shadow-sm">
+                <Card
+                  key={item.id}
+                  className="overflow-hidden border-border/60 bg-card/80 shadow-sm"
+                >
                   <CardContent className="flex flex-col gap-2 p-4">
-                    <h3 className="text-sm font-semibold text-foreground">{item.marketTitle}</h3>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {item.marketTitle}
+                    </h3>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      <Badge variant="secondary" className="rounded-full px-2.5 py-1 text-xs tabular-nums">
+                      <Badge
+                        variant="secondary"
+                        className="rounded-full px-2.5 py-1 text-xs tabular-nums"
+                      >
                         {item.amount} {item.tokenSymbol}
                       </Badge>
                       <span>

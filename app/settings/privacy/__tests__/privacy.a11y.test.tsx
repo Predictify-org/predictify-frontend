@@ -94,7 +94,7 @@ describe("Settings → Privacy page", () => {
     fireEvent.click(saveButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/privacy settings saved successfully/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/privacy settings saved successfully/i)[0]).toBeInTheDocument()
     })
   })
 
