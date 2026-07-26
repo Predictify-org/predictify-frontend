@@ -28,6 +28,16 @@ describe("MarketDetailPage", () => {
     expect(screen.getByRole("status")).toBeInTheDocument()
     expect(screen.getByRole("heading", { level: 2, name: /market not found/i })).toBeInTheDocument()
     expect(screen.getByText(/We couldn't find the prediction market you're looking for/i)).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /browse markets/i })).toHaveAttribute("href", "/events")
+  })
+
+  it("renders themed SearchX icon in the EmptyState illustration", async () => {
+    const page = await MarketDetailPage({ params: Promise.resolve({ id: "not-found" }) })
+    const { container } = render(page)
+    
+    // The SearchX icon should be rendered inside the EmptyState
+    const svg = container.querySelector("svg")
+    expect(svg).toBeInTheDocument()
   })
 
   it("generates correct metadata when market is found", async () => {

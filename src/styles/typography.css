@@ -1,0 +1,9 @@
+/*
+ * Typography utilities
+ * ────────────────────
+ * Reusable font-variant helpers for numeric displays.
+ */
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
