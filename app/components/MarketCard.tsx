@@ -140,31 +140,16 @@ export function MarketCard({
                 data-testid="betting-limit-nudge"
               >
                 Daily betting allowance remaining:{" "}
-                <strong>{remainingAllowance} USDC</strong>
+                <strong className="text-stat-sm">{remainingAllowance} USDC</strong>
               </p>
             </div>
           </div>
         </div>
-
-        {/*
-         * Odds block
-         * ----------
-         * Mobile  (<sm): full-width horizontal row — yes and no values sit
-         *   side-by-side, each labelled, so neither is squeezed.
-         * Desktop (≥sm): right-aligned column (text-right), shrink-0 so it
-         *   never collapses narrower than its content.
-         *
-         * `aria-label` provides a single accessible description for the pair.
-         */}
-        <div
-          className="flex shrink-0 flex-row gap-4 sm:flex-col sm:gap-0 sm:text-right"
-          aria-label={`Odds: Yes ${market.yesOdds}%, No ${market.noOdds}%`}
-          data-testid="odds-block"
-        >
-          <div className="text-sm font-medium text-green-400 tabular-nums">
+        <div className="text-right">
+          <div className="text-stat-sm font-medium text-green-400">
             Yes: {market.yesOdds}%
           </div>
-          <div className="text-sm text-red-400 tabular-nums">
+          <div className="text-stat-sm text-red-400">
             No: {market.noOdds}%
           </div>
         </div>
@@ -178,17 +163,11 @@ export function MarketCard({
         />
       </div>
 
-      {/*
-       * Bottom meta row
-       * ---------------
-       * `flex-wrap` ensures pool amount and end-date stack on very narrow
-       * viewports rather than overflowing or clipping.
-       */}
-      <div className="flex flex-wrap justify-between gap-x-2 gap-y-1 text-xs text-white/60">
-        <span className="tabular-nums">
+      <div className="flex justify-between text-xs text-white/60">
+        <span className="text-stat-sm">
           Pool: {market.poolAmount.toLocaleString()} USDC
         </span>
-        <span>Ends in {market.endsIn}</span>
+        <span className="text-stat-sm">Ends in {market.endsIn}</span>
       </div>
     </Card>
   );
