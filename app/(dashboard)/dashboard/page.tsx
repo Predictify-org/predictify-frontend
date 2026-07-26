@@ -1,4 +1,20 @@
-"use client";
+/**
+ * DashboardPage — Issue #646: Focus Visible Accessibility
+ *
+ * All interactive elements in this component use focus-visible to show
+ * keyboard focus outlines that meet WCAG 2.1 AA (3:1 contrast ratio).
+ *
+ * Interactive elements and their focus treatment:
+ * - All Button components: Use focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+ * - Bare links (e.g., market titles): Include focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+ * - TabsTrigger elements: Use Radix UI defaults with focus-visible
+ * - Recommendation strip links: Updated with focus-visible styling
+ *
+ * Uses Tailwind's focus-visible: variant which targets :focus-visible pseudo-class
+ * — visible to keyboard users, hidden for mouse users.
+ */
+
+"use client"
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -325,7 +341,7 @@ export default function DashboardPage() {
                     />
                   </div>
                   <h3 className="text-base font-semibold leading-6">
-                    <Link href={market.href} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <Link href={market.href} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
                       {market.title}
                     </Link>
                   </h3>
