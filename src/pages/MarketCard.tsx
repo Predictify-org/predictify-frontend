@@ -1,5 +1,6 @@
 import React from "react";
 import "../styles/patterns.css";
+import "../styles/focus.css";
 import { Skeleton } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 
@@ -101,10 +102,20 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
   const patternClass = getStatusPatternClass(status);
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick?.();
+    }
+  };
+
   return (
     <article
-      className="market-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-white dark:bg-gray-800"
+      className="market-card market-card-focus border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-white dark:bg-gray-800"
       onClick={onClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
     >
       {/*
        * Header row: category label + status badge
