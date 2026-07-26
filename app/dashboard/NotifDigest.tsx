@@ -121,7 +121,7 @@ export function NotifDigest({
                     <button
                       type="button"
                       onClick={() => onMarkAsRead?.(item.id)}
-                      className="flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                       className="flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       aria-current={item.read ? undefined : "true"}
                     >
                       <div className="flex items-start justify-between gap-2">

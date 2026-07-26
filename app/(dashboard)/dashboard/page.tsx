@@ -316,7 +316,7 @@ export default function DashboardPage() {
                     />
                   </div>
                   <h3 className="text-base font-semibold leading-6">
-                    <Link href={market.href} className="hover:underline">
+                    <Link href={market.href} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                       {market.title}
                     </Link>
                   </h3>

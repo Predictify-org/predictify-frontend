@@ -61,6 +61,16 @@ describe("RecommendationsStrip", () => {
       expect(links.length).toBeGreaterThan(0)
       links.forEach((link) => expect(link).toHaveAttribute("href"))
     })
+
+    it("applies focus-visible ring styles to recommendation links for keyboard navigation", () => {
+      render(<RecommendationsStrip bets={[betIn("crypto")]} />)
+      const links = screen.getAllByRole("link")
+      links.forEach((link) => {
+        expect(link).toHaveClass("focus-visible:ring-2")
+        expect(link).toHaveClass("focus-visible:ring-primary/50")
+        expect(link).toHaveClass("focus-visible:outline-none")
+      })
+    })
   })
 
   describe("keyboard scrolling", () => {
