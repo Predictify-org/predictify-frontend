@@ -472,7 +472,7 @@ export default function EventDetailsClient() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl pb-32 md:pb-8">
+    <div className="container mx-auto px-4 py-8 max-w-4xl pb-32 md:pb-8 sm:px-6">
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
           <h1 className="text-3xl font-bold tracking-tight">
@@ -527,10 +527,10 @@ export default function EventDetailsClient() {
       </div>
 
       {!isDesktop && (
-        <div className="fixed bottom-0 inset-x-0 z-40 border-t bg-background p-4">
+        <div className="fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur-sm px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
           <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
             <DrawerTrigger asChild>
-              <Button className="w-full" disabled={isEventClosed}>
+              <Button className="w-full h-12 text-base" disabled={isEventClosed}>
                 {isEventClosed ? "Betting Closed" : "Place Bet"}
               </Button>
             </DrawerTrigger>
@@ -538,7 +538,7 @@ export default function EventDetailsClient() {
               <DrawerHeader>
                 <DrawerTitle>Place Your Prediction</DrawerTitle>
               </DrawerHeader>
-              <div className="px-4 pb-4">
+              <div className="px-4 pb-safe pb-4">
                 {betFormContent}
               </div>
             </DrawerContent>
