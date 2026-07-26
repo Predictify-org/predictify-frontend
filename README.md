@@ -14,6 +14,7 @@ Built with Next.js 15, React 19, TypeScript, and the Stellar Wallets Kit, Predic
 - **Shareable Prediction Receipts**: Completed predictions can now be shared with a polished receipt summary for campaigns such as GrantFox FWC26.
 - **Instant Payouts**: Smart contracts automatically distribute winnings immediately after event resolution. No waiting periods.
 - **Multi-Wallet Support**: Connect with your preferred Stellar wallet (Freighter, LOBSTR, XBull, Albedo, Rabet).
+- **Accessibility First**: WCAG 2.1 AA compliant with reduced-motion support, high contrast themes, and comprehensive screen reader accessibility.
 - **Real-Time Markets**: Access live prediction markets with real-time updates on odds, stakes, and participant activity.
 - **Side-by-Side Market Comparison**: Compare up to two selected prediction markets in a responsive modal with accessible keyboard and focus support.
 - **Advanced Analytics**: Track your prediction performance with detailed analytics and insights.
@@ -225,6 +226,8 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ## Documentation
 
+- **[Reduced-Motion Patterns](./docs/REDUCED_MOTION_PATTERNS.md)** - Comprehensive guide to implementing accessibility-compliant reduced-motion patterns
+- **[Reduced-Motion Quick Reference](./docs/REDUCED_MOTION_QUICK_REFERENCE.md)** - Quick reference for developers implementing reduced-motion support
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Stellar Documentation](https://developers.stellar.org/)
 - [Stellar Wallets Kit](https://github.com/creit-tech/stellar-wallets-kit)
