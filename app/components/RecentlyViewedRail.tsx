@@ -138,7 +138,7 @@ export function RecentlyViewedRail({ className }: RecentlyViewedRailProps) {
           <Button
             variant="outline"
             size="icon"
-            className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border-border/50 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-background/90 group-hover:opacity-100"
+            className="absolute left-2 top-1/2 z-10 h-10 w-10 sm:h-8 sm:w-8 -translate-y-1/2 rounded-full border-border/50 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-background/90 group-hover:opacity-100"
             onClick={() => scroll("left")}
             aria-label="Scroll left"
           >
@@ -149,7 +149,7 @@ export function RecentlyViewedRail({ className }: RecentlyViewedRailProps) {
           <Button
             variant="outline"
             size="icon"
-            className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border-border/50 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-background/90 group-hover:opacity-100"
+            className="absolute right-2 top-1/2 z-10 h-10 w-10 sm:h-8 sm:w-8 -translate-y-1/2 rounded-full border-border/50 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-background/90 group-hover:opacity-100"
             onClick={() => scroll("right")}
             aria-label="Scroll right"
           >

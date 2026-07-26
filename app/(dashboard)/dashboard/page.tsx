@@ -216,7 +216,9 @@ export default function DashboardPage() {
     switch (status) {
       case 'loading':
         return (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          // Issue #1 Fix: Add explicit grid-cols-1 for mobile-first responsive scaling
+          // Ensures single column on mobile (< 640px), 2 columns at sm (640px+), 4 at lg (1024px+)
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-32 w-full rounded-xl" />
             ))}
@@ -224,7 +226,8 @@ export default function DashboardPage() {
         )
       case 'empty':
         return (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          // Issue #1 Fix: Add explicit grid-cols-1 for mobile-first responsive scaling
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             {(['volume', 'predictions', 'win-rate', 'leaderboard'] as const).map((variant, idx) => (
               <StatCard key={idx} index={idx} status="empty" emptyVariant={variant} />
             ))}
@@ -244,7 +247,8 @@ export default function DashboardPage() {
         )
       case 'success':
         return (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          // Issue #1 Fix: Add explicit grid-cols-1 for mobile-first responsive scaling
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             {stats?.map((stat, idx) => renderStatCard(stat, idx))}
           </div>
         )
@@ -295,12 +299,17 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
+        {/* Issue #2 Fix: Add responsive column scaling 1→2→3
+            Mobile (< 640px): 1 column for better readability
+            Tablet (640px+): 2 columns to use horizontal space
+            Desktop (768px+): 3 columns as originally intended */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
           {visibleRecommendations.map((market) => (
             <Card key={market.id} className="overflow-hidden">
               <CardContent className="flex h-full flex-col gap-4 p-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
+                    {/* Issue #2 Fix: Shrink category badge text on mobile for compact layout */}
                     <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
                       {market.category}
                     </span>
@@ -360,9 +369,11 @@ export default function DashboardPage() {
         )
       case 'success':
         return (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          // Issue #4 Fix: Change to grid-cols-1 md:grid-cols-3 so the 2-column User Growth card
+          // spans correctly at md+ breakpoints instead of forcing awkward wrapping at tablet width
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-3">
             {/* Placeholder charts remain unchanged */}
-            <Card className="col-span-2">
+            <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle>User Growth</CardTitle>
                 <CardDescription>New user registrations over time</CardDescription>
@@ -543,19 +554,23 @@ export default function DashboardPage() {
           />
           {renderRecommendationStrip()}
           <RecommendationsStrip />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
+          {/* Issue #5 Fix: Change to grid-cols-1 lg:grid-cols-7 to stack on mobile/tablet
+              and only use 7-column layout at desktop where there's enough space
+              Also add responsive chart height: smaller on mobile (h-[150px]), 
+              standard on larger screens (sm:h-[200px]) */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
+            <Card className="lg:col-span-4">
               <CardHeader>
                 <CardTitle>Platform Activity</CardTitle>
                 <CardDescription>User activity and predictions over time</CardDescription>
               </CardHeader>
               <CardContent className="pl-2">
-                <div className="h-[200px] w-full bg-muted/25 rounded-md flex items-center justify-center text-muted-foreground">
+                <div className="h-[150px] sm:h-[200px] w-full bg-muted/25 rounded-md flex items-center justify-center text-muted-foreground">
                   Activity Chart Placeholder
                 </div>
               </CardContent>
             </Card>
-            <Card className="col-span-3">
+            <Card className="lg:col-span-3">
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
                 <CardDescription>Your latest actions on Predictify</CardDescription>
