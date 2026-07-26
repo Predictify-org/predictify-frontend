@@ -54,6 +54,19 @@ describe("MarketCard Color-Blind Accessibility", () => {
     render(<MarketCard isLoading />);
     expect(screen.getByTestId("market-card-skeleton")).toBeInTheDocument();
   });
+
+  it("renders empty state when isEmpty is true", () => {
+    render(
+      <MarketCard 
+        isEmpty 
+        emptyTitle="No Data" 
+        emptyDescription="Nothing to see here" 
+      />
+    );
+    expect(screen.getByTestId("empty-state")).toBeInTheDocument();
+    expect(screen.getByText("No Data")).toBeInTheDocument();
+    expect(screen.getByText("Nothing to see here")).toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------
