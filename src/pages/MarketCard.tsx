@@ -50,7 +50,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
   return (
     <article
-      className="market-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-white dark:bg-gray-800"
+      className="market-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow motion-reduce:transition-none motion-reduce:transform-none cursor-pointer bg-white dark:bg-gray-800"
       onClick={onClick}
       onKeyDown={handleKeyDown}
       // Make the article focusable via keyboard when it has an onClick handler.
