@@ -5,6 +5,9 @@
 /* ===== Focus-visible layer (WCAG 2.1 AA keyboard navigation) ===== */
 @import "./styles/focus.css";
 
+/* ===== Typographic utilities (tabular-nums, etc.) ===== */
+@import "../src/styles/typography.css";
+
 /* ===== BASE Styles ===== */
 
 html {
@@ -19,6 +22,37 @@ body {
 /* ===== TYPOGRAPHY Utilities ===== */
 
 @layer utilities {
+  /**
+   * tabular-nums — numeric display utility
+   *
+   * Applies `font-variant-numeric: tabular-nums` so that digits occupy
+   * equal horizontal space. This prevents column widths from "jumping"
+   * as values update (e.g. balance tickers, leaderboard ranks).
+   *
+   * Usage:
+   *   <span className="tabular-nums">$4,325.49</span>
+   *
+   * Or via the data attribute — any element with data-numeric="true"
+   * inherits the same treatment automatically:
+   *   <span data-numeric="true">12,543</span>
+   *
+   * Tailwind already ships a `tabular-nums` utility class; this mirrors
+   * it inside @layer utilities so it is available project-wide and can
+   * be referenced directly in plain CSS/SCSS without @apply.
+   *
+   * Dark-mode & high-contrast: font-variant-numeric is purely a glyph
+   * layout property — it has no colour implications and requires no
+   * additional overrides.
+   */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Attribute-based selector: opt-in via data-numeric="true" */
+  [data-numeric="true"] {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Text Wrapping & Truncation */
   .text-balance {
     text-wrap: balance;
