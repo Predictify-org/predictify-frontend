@@ -41,3 +41,17 @@ describe("MarketCard Color-Blind Accessibility", () => {
     expect(article).toHaveClass("motion-reduce:transform-none");
   });
 });
+
+describe("MarketCard Empty State", () => {
+  it("renders the empty state illustration when isEmpty is true", () => {
+    render(<MarketCard isEmpty />);
+    
+    // Check if the empty state text is rendered
+    expect(screen.getByText("No markets found")).toBeInTheDocument();
+    expect(screen.getByText("There are currently no markets available for this category.")).toBeInTheDocument();
+    
+    // Check for the CTA
+    const link = screen.getByRole("link", { name: "Explore All Markets" });
+    expect(link).toHaveAttribute("href", "/markets");
+  });
+});
