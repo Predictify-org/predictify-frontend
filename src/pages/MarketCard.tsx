@@ -89,3 +89,5 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 };
 
 export default MarketCard;
+
+export { MarketCardSkeleton } from "../components/Skeleton";

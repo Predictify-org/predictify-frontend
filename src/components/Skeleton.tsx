@@ -44,3 +44,30 @@ export function Skeleton({ className }: { className?: string }) {
     </div>
   )
 }
+
+export function MarketCardSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "market-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow motion-reduce:transition-none motion-reduce:transform-none cursor-pointer bg-white dark:bg-gray-800",
+        className
+      )}
+      role="status"
+      aria-live="polite"
+      aria-label="Loading Market Card"
+    >
+      <div className="flex justify-between items-center mb-2">
+        <UiSkeleton className="h-4 w-16" />
+        <UiSkeleton className="h-6 w-16 rounded-full" />
+      </div>
+
+      <UiSkeleton className="h-7 w-3/4 mb-3" />
+
+      <div className="flex justify-between items-center">
+        <UiSkeleton className="h-5 w-24" />
+        <UiSkeleton className="h-5 w-20" />
+      </div>
+      <span className="sr-only">Loading market card...</span>
+    </div>
+  )
+}
