@@ -12,6 +12,7 @@ import { useFollowsStore } from "@/app/state/follows"
 import { useUserLimitsStore } from "@/app/state/userLimits"
 import Sparkline from "@/components/Sparkline"
 import { HeatStrip } from "@/app/components/HeatStrip"
+import { BookmarkButton } from "@/app/components/BookmarkButton"
 
 // ---------------------------------------------------------------------------
 // Icon / colour mapping (internal – consumers need only pass a Market)
@@ -119,13 +120,16 @@ export function MarketCard({
             </div>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-sm font-medium text-green-400 tabular-nums">
-            Yes: {market.yesOdds}%
+        <div className="flex items-start gap-2">
+          <div className="text-right">
+            <div className="text-sm font-medium text-green-400 tabular-nums">
+              Yes: {market.yesOdds}%
+            </div>
+            <div className="text-sm text-red-400 tabular-nums">
+              No: {market.noOdds}%
+            </div>
           </div>
-          <div className="text-sm text-red-400 tabular-nums">
-            No: {market.noOdds}%
-          </div>
+          <BookmarkButton marketId={market.id} size="icon" />
         </div>
       </div>
 
