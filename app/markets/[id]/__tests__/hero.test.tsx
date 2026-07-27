@@ -458,6 +458,102 @@ describe("MarketHero — share action", () => {
       expect(srLiveRegion).toHaveTextContent("Market status is closing soon. Market volume: 1 USDC. 100 participants.");
     });
   });
+
+  // -------------------------------------------------------------------------
+  // MarketDetail status-change announcements (issue #495)
+  //
+  // The test above only covers a single static render. MarketDetail pages
+  // move through a real lifecycle (open → closing_soon → closed → resolved,
+  // or → cancelled at any point), so the live region must also re-announce
+  // whenever the `status` prop changes on an already-mounted hero — not
+  // just on first mount.
+  // -------------------------------------------------------------------------
+  function findSrLiveRegion(expectedText: string) {
+    const liveRegions = screen.getAllByRole("status");
+    return liveRegions.find(
+      (el) =>
+        el.classList.contains("sr-only") &&
+        el.textContent?.includes(expectedText)
+    );
+  }
+
+  it("announces an updated message when the market status changes from open to closing_soon", async () => {
+    const { rerender } = renderHero({ status: "open" });
+
+    await waitFor(() => {
+      expect(findSrLiveRegion("Market status is open.")).toBeDefined();
+    });
+
+    rerender(<MarketHero {...BASE_PROPS} status="closing_soon" />);
+
+    await waitFor(() => {
+      expect(
+        findSrLiveRegion("Market status is closing soon.")
+      ).toBeDefined();
+    });
+  });
+
+  it("announces each step of a full market lifecycle transition", async () => {
+    const { rerender } = renderHero({ status: "open" });
+    await waitFor(() => {
+      expect(findSrLiveRegion("Market status is open.")).toBeDefined();
+    });
+
+    rerender(<MarketHero {...BASE_PROPS} status="closed" />);
+    await waitFor(() => {
+      expect(findSrLiveRegion("Market status is closed.")).toBeDefined();
+    });
+
+    rerender(<MarketHero {...BASE_PROPS} status="resolved" />);
+    await waitFor(() => {
+      expect(findSrLiveRegion("Market status is resolved.")).toBeDefined();
+    });
+  });
+
+  it("announces cancellation even from a non-terminal status", async () => {
+    const { rerender } = renderHero({ status: "closing_soon" });
+    await waitFor(() => {
+      expect(
+        findSrLiveRegion("Market status is closing soon.")
+      ).toBeDefined();
+    });
+
+    rerender(<MarketHero {...BASE_PROPS} status="cancelled" />);
+    await waitFor(() => {
+      expect(findSrLiveRegion("Market status is cancelled.")).toBeDefined();
+    });
+  });
+
+  it("keeps volume and participant announcements in sync alongside a status change", async () => {
+    const { rerender } = renderHero({
+      status: "open",
+      volume: "10,000 USDC",
+      participants: 500,
+    });
+    await waitFor(() => {
+      expect(
+        findSrLiveRegion(
+          "Market status is open. Market volume: 10,000 USDC. 500 participants."
+        )
+      ).toBeDefined();
+    });
+
+    rerender(
+      <MarketHero
+        {...BASE_PROPS}
+        status="resolved"
+        volume="10,000 USDC"
+        participants={512}
+      />
+    );
+    await waitFor(() => {
+      expect(
+        findSrLiveRegion(
+          "Market status is resolved. Market volume: 10,000 USDC. 512 participants."
+        )
+      ).toBeDefined();
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
