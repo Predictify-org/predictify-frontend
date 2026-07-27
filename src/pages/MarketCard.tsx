@@ -67,7 +67,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
   return (
     <article
-      className="market-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow motion-reduce:transition-none motion-reduce:transform-none cursor-pointer bg-white dark:bg-gray-800"
+      className="market-card border border-border rounded-lg bg-card p-4 text-card-foreground shadow-sm transition-shadow hover:shadow-md motion-reduce:transition-none motion-reduce:transform-none cursor-pointer"
       onClick={onClick}
       onKeyDown={handleKeyDown}
       // Make the article focusable via keyboard when it has an onClick handler.
@@ -78,26 +78,29 @@ export const MarketCard: React.FC<MarketCardProps> = ({
       role="button"
       aria-label={`${title || "Market"} – market status: ${status || "unknown"}`}
     >
-      <div className="flex justify-between items-center mb-2">
+      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         {category && (
-          <span className="text-xs uppercase font-semibold text-gray-500 dark:text-gray-400">
+          <span
+            className="min-w-0 truncate text-caption font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+            title={category}
+          >
             {category}
           </span>
         )}
         <span
-          className={`status-badge text-xs font-medium px-2.5 py-1 rounded-full border ${patternClass} status-${status || "unknown"}`}
-          aria-label={`Market status: ${status || "unknown"}`}
+          className={`status-badge inline-flex items-center self-start rounded-full border px-2.5 py-1 text-caption font-medium ${patternClass} status-${status}`}
+          aria-label={`Market status: ${status}`}
           role="status"
         >
           {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown"}
         </span>
       </div>
 
-      <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-gray-100">
-        {title || "Untitled Market"}
+      <h3 className="mb-3 text-h6 font-semibold tracking-tight text-foreground">
+        {title}
       </h3>
 
-      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-300">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-body-sm text-muted-foreground">
         {volume && <span className="tabular-nums">Volume: {volume}</span>}
         {endDate && <span>Ends: {endDate}</span>}
       </div>

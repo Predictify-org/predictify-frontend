@@ -31,7 +31,10 @@ content blocks that are too wide to share a row on narrow viewports (< 640 px):
 ## Solution
 
 Both components now follow a **mobile-first stacked layout** that switches to the
-desktop side-by-side layout at the `sm` breakpoint (640 px).
+desktop side-by-side layout at the `sm` breakpoint (640 px). The lightweight
+MarketCard also uses the shared design-token typography scale (`text-caption`,
+`text-body-sm`, `text-h6`) and spacing utilities so its heading, badge, and
+metadata remain aligned with the rest of the GrantFox campaign UI.
 
 ### `app/components/MarketCard.tsx`
 
