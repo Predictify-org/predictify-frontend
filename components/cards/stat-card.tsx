@@ -117,7 +117,10 @@ export function StatCard({ stat, index, status, emptyVariant = 'volume', onRetry
   return (
     <div className="relative group">
       <div className="bg-slate-900/50 backdrop-blur-sm border border-cyan-500/20 rounded-2xl p-6 sm:p-8 shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
-        <div className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent mb-2 tabular-nums">
+        <div
+          data-numeric="true"
+          className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent mb-2 tabular-nums"
+        >
           {stat?.value}
         </div>
         <div className="text-slate-400 font-medium text-sm sm:text-base">
