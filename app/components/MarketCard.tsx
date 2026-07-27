@@ -1,14 +1,18 @@
 "use client";
 
-import { TrendingUp, Globe, BarChart3, Bell, MessageCircle, Settings } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Tooltip } from "@/app/components/Tooltip";
-import type { Market } from "@/content/markets.sample";
-import { useFollowsStore } from "@/app/state/follows";
-import { useUserLimitsStore } from "@/app/state/userLimits";
-import Sparkline from "@/components/Sparkline";
-import { HeatStrip } from "@/app/components/HeatStrip";
-import { SaveForLater } from "@/app/components/SaveForLater";
+import {
+  TrendingUp,
+  Globe,
+  BarChart3,
+  Bell,
+} from "lucide-react"
+import { Card } from "@/components/ui/card"
+import type { Market } from "@/content/markets.sample"
+import { useFollowsStore } from "@/app/state/follows"
+import { useUserLimitsStore } from "@/app/state/userLimits"
+import Sparkline from "@/components/Sparkline"
+import { HeatStrip } from "@/app/components/HeatStrip"
+import { BookmarkButton } from "@/app/components/BookmarkButton"
 
 // ---------------------------------------------------------------------------
 // Icon / colour mapping (internal – consumers need only pass a Market)
@@ -152,25 +156,7 @@ export function MarketCard({
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Tooltip content="Share this market with others">
-            <button
-              type="button"
-              aria-label={`Share ${market.title}`}
-              className="rounded-full border border-white/10 bg-white/5 p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#201F37]"
-            >
-              <MessageCircle className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </Tooltip>
-          <Tooltip content="Market settings and options">
-            <button
-              type="button"
-              aria-label={`Settings for ${market.title}`}
-              className="rounded-full border border-white/10 bg-white/5 p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#201F37]"
-            >
-              <Settings className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </Tooltip>
+        <div className="flex items-start gap-2">
           <div className="text-right">
             <div className="text-sm font-medium text-green-400 tabular-nums">
               Yes: {market.yesOdds}%
@@ -179,6 +165,7 @@ export function MarketCard({
               No: {market.noOdds}%
             </div>
           </div>
+          <BookmarkButton marketId={market.id} size="icon" />
         </div>
       </div>
 
