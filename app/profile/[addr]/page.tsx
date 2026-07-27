@@ -52,12 +52,12 @@ export default function ProfilePage() {
       <Card>
         <CardContent className="flex items-center gap-6 py-4">
           <Link href="#followers" className="flex items-center gap-1.5 text-sm hover:underline">
-            <span className="font-semibold text-foreground">128</span>
+            <span data-numeric="true" className="font-semibold text-foreground tabular-nums">128</span>
             <span className="text-muted-foreground">Followers</span>
           </Link>
           <Separator orientation="vertical" className="h-4" />
           <Link href="#following" className="flex items-center gap-1.5 text-sm hover:underline">
-            <span className="font-semibold text-foreground">64</span>
+            <span data-numeric="true" className="font-semibold text-foreground tabular-nums">64</span>
             <span className="text-muted-foreground">Following</span>
           </Link>
         </CardContent>

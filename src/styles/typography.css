@@ -16,6 +16,7 @@
  * Applied to:
  *   - StatCard value display  (components/cards/stat-card.tsx)
  *   - Finances KPI cards      (app/(dashboard)/finances/page.tsx)
+ *   - Profile header counts   (app/profile/[addr]/page.tsx)
  *   - Any element with        data-numeric="true"
  *
  * Usage:
