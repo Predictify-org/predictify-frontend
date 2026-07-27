@@ -1,20 +1,23 @@
 import React from "react";
 import "../styles/patterns.css";
 import "../styles/typography.css";
+import { StellarWaveEmptyState } from "../components/EmptyState";
 
 export type MarketStatus = "active" | "closed" | "pending" | "resolved";
 
 export interface MarketCardProps {
-  id: string;
-  title: string;
-  status: MarketStatus;
+  id?: string;
+  title?: string;
+  status?: MarketStatus;
   category?: string;
   endDate?: string;
   volume?: string;
   onClick?: () => void;
+  isEmpty?: boolean;
 }
 
-const getStatusPatternClass = (status: MarketStatus): string => {
+const getStatusPatternClass = (status?: MarketStatus): string => {
+  if (!status) return "";
   switch (status.toLowerCase()) {
     case "active":
       return "status-pattern-active";
@@ -36,7 +39,21 @@ export const MarketCard: React.FC<MarketCardProps> = ({
   endDate,
   volume,
   onClick,
+  isEmpty,
 }) => {
+  if (isEmpty) {
+    return (
+      <article className="market-card-empty w-full h-full min-h-[300px]">
+        <StellarWaveEmptyState
+          title="No markets found"
+          description="There are currently no markets available for this category."
+          ctaText="Explore All Markets"
+          ctaHref="/markets"
+        />
+      </article>
+    );
+  }
+
   const patternClass = getStatusPatternClass(status);
 
   // Keyboard handler: activate onClick on Enter / Space so the card behaves
@@ -59,7 +76,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
       // onClick still benefit from being inspectable via keyboard navigation.
       tabIndex={0}
       role="button"
-      aria-label={`${title} – market status: ${status}`}
+      aria-label={`${title || "Market"} – market status: ${status || "unknown"}`}
     >
       <div className="flex justify-between items-center mb-2">
         {category && (
@@ -68,16 +85,16 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           </span>
         )}
         <span
-          className={`status-badge text-xs font-medium px-2.5 py-1 rounded-full border ${patternClass} status-${status}`}
-          aria-label={`Market status: ${status}`}
+          className={`status-badge text-xs font-medium px-2.5 py-1 rounded-full border ${patternClass} status-${status || "unknown"}`}
+          aria-label={`Market status: ${status || "unknown"}`}
           role="status"
         >
-          {status.charAt(0).toUpperCase() + status.slice(1)}
+          {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown"}
         </span>
       </div>
 
       <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-gray-100">
-        {title}
+        {title || "Untitled Market"}
       </h3>
 
       <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-300">
