@@ -120,6 +120,7 @@ export async function generateMetadata({
 import { EmptyState } from "@/components/EmptyState";
 import { AboutMarketModal } from "@/app/components/AboutMarketModal";
 import { SearchX } from "lucide-react";
+import { MarketDetailClient } from "./MarketDetailClient";
 
 export default async function MarketDetailPage({ params }: PageProps) {
   const { id } = await params;
@@ -227,6 +228,16 @@ export default async function MarketDetailPage({ params }: PageProps) {
           ]}
         />
       </section>
+
+      {/*
+       * Keyboard shortcut hints + listeners (client component).
+       * Rendered below the tabs so it doesn't interrupt the reading flow.
+       * Hidden on touch devices and narrow viewports automatically.
+       */}
+      <MarketDetailClient
+        marketTitle={market.title}
+        marketId={market.id}
+      />
     </main>
   );
 }
