@@ -21,6 +21,20 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Verified vs. partial follow-up status
   - Evidence paths for recent component work
 
+### Accessibility & Motion
+- **[REDUCED_MOTION_PATTERNS.md](./REDUCED_MOTION_PATTERNS.md)** - Comprehensive reduced-motion implementation guide
+  - CSS media query rules and React hook integration
+  - Four implementation patterns with code examples
+  - WCAG 2.1 compliance and testing strategies
+  - Performance considerations and browser support
+- **[REDUCED_MOTION_QUICK_REFERENCE.md](./REDUCED_MOTION_QUICK_REFERENCE.md)** - Developer quick reference
+  - Common patterns and code snippets
+  - Testing checklist and debugging tips
+  - Component integration checklist
+- **[DASHBOARD_REDUCED_MOTION.md](./DASHBOARD_REDUCED_MOTION.md)** - Dashboard-specific reduced motion implementation
+- **[COUNTDOWN_REDUCED_MOTION.md](./COUNTDOWN_REDUCED_MOTION.md)** - Timer component reduced motion patterns
+- **[WALLET_REDUCED_MOTION.md](./WALLET_REDUCED_MOTION.md)** - Wallet interaction accessibility patterns
+
 ### Components
 
 - **[MARKET_CARD_MOBILE_LAYOUT.md](./MARKET_CARD_MOBILE_LAYOUT.md)** - MarketCard mobile-breakpoint layout

@@ -10,6 +10,7 @@ import { ConnectWalletModal } from "../connect-wallet-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import KpiStrip from "@/app/(marketing)/_sections/kpi-strip";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 import { useParallax } from "@/hooks/use-parallax";
 
@@ -19,6 +20,7 @@ export function Hero() {
       const [isConnected, setIsConnected] = useState(false);
       const [walletName, setWalletName] = useState<string | null>(null);
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
+    const reducedMotion = useReducedMotion();
     
     // Parallax hook for the main marketing card (depth 12px)
     const cardRef = useParallax({ depth: 12 });
@@ -110,7 +112,7 @@ export function Hero() {
         {/* Right Column - Prediction Markets Preview */}
         <div className="relative flex items-center justify-center">
           {/* Win Notification Badge */}
-          <div className="absolute right-0 -top-4 z-20 animate-fade-in rounded-xl bg-gradient-to-r from-[#4F46E533] to-[#9333EA] p-2 shadow-2xl">
+          <div className={`absolute right-0 -top-4 z-20 rounded-xl bg-gradient-to-r from-[#4F46E533] to-[#9333EA] p-2 shadow-2xl ${reducedMotion ? "" : "animate-fade-in"}`}>
             <div className="flex items-center gap-2">
               <div className="rounded-full bg-white/20 p-1.5">
                 <Coins className="h-4 w-4 text-white" />
@@ -215,7 +217,7 @@ export function Hero() {
           </div>
 
           {/* Success Notification Badge */}
-          <div className="absolute bottom-0 right-0 z-20 animate-fade-in rounded-2xl bg-green-500 p-3 shadow-2xl">
+          <div className={`absolute bottom-0 right-0 z-20 rounded-2xl bg-green-500 p-3 shadow-2xl ${reducedMotion ? "" : "animate-fade-in"}`}>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-white" />
               <span className="text-label font-semibold text-white">Prediction Correct!</span>

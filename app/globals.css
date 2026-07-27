@@ -238,6 +238,15 @@ body {
   }
 }
 
+@keyframes marquee {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
 .animate-fade-in {
   animation: fade-in 0.8s ease-out forwards;
 }
@@ -248,6 +257,10 @@ body {
 
 .animate-bounce {
   animation: bounce 2s infinite;
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
 }
 
 /* Live "resolving" status glow-pulse — see MarketStatusBadge */
@@ -268,16 +281,49 @@ body {
 
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
+  /* All custom animate- classes */
   .animate-fade-in,
   .animate-slide-up,
-  .animate-bounce {
-    animation: none;
+  .animate-bounce,
+  .animate-status-live-pulse,
+  .animate-marquee {
+    animation: none !important;
   }
 
   /* tailwindcss-animate's enter/exit utilities, used by Sheet/Dialog (e.g. WhatsNewDrawer) */
   .animate-in,
   .animate-out {
     animation: none !important;
+  }
+
+  /* Catch-all for any animate- prefixed classes */
+  [class*="animate-"] {
+    animation: none !important;
+  }
+
+  /* Also disable transform-based animations */
+  .animate-pulse,
+  .animate-spin,
+  .animate-ping {
+    animation: none !important;
+  }
+
+  /* Disable transitions and set duration to 0 */
+  .transition-all,
+  .transition-colors,
+  .transition-opacity,
+  .transition-shadow,
+  .transition-transform,
+  [class*="transition-"],
+  [class*="duration-"] {
+    transition: none !important;
+    animation-duration: 0ms !important;
+  }
+
+  /* Global override for any element with transitions */
+  * {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
   }
 }
 
