@@ -49,4 +49,11 @@ describe("BetForm", () => {
       expect(screen.getByText(/Bet placed successfully!/i)).toBeInTheDocument();
     });
   });
+
+  it("renders the empty state when campaign is not active", () => {
+    render(<BetForm campaignActive={false} />);
+    expect(screen.getByText(/No Stellar Wave data yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Place Your Bet/i })).not.toBeInTheDocument();
+  });
 });
+
