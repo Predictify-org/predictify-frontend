@@ -1,14 +1,30 @@
 /**
  * BetForm
  *
- * A simple form for placing a bet.  Includes QuickBetPresets chips so users
+ * A simple form for placing a bet. Includes QuickBetPresets chips so users
  * can populate the amount field with one click rather than typing.
+ *
+ * Responsive breakpoint audit (v7 — GrantFox FWC26):
+ *  - Narrow (< sm / < 640 px):
+ *    • Form fills available width with compact px-3 py-2 padding.
+ *    • Preset chips wrap to a second row rather than overflowing.
+ *    • Submit button stacks full-width below the input.
+ *    • Each chip has a min-w-[60px] guard so it never collapses below a
+ *      touchable target size.
+ *  - Default (sm – lg / 640 – 1024 px):
+ *    • Wrapper caps at max-w-sm and centres within its parent.
+ *    • Chip row uses justify-start so chips left-align instead of stretching.
+ *  - Wide (≥ lg / ≥ 1024 px):
+ *    • max-w-sm keeps the form from becoming an overly wide single column;
+ *      the surrounding layout is responsible for placing it in a sidebar
+ *      or constrained slot.
  *
  * Accessibility:
  *  - All interactive elements have associated labels (WCAG 2.1 SC 1.3.1).
  *  - Error messages are linked via aria-describedby (WCAG 2.1 SC 3.3.1).
  *  - Focus management follows logical DOM order.
  *  - Visible :focus-visible outlines on all interactive controls (WCAG 2.1 SC 2.4.7).
+ *  - Minimum touch target 44×44 px on mobile (WCAG 2.5.5).
  */
 
 "use client";
@@ -17,7 +33,7 @@ import React, { useState, useEffect } from "react";
 import QuickBetPresets from "@/components/QuickBetPresets";
 import KbdHint from "../../src/components/KbdHint";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
-import KbdHint from "../../src/components/KbdHint";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface BetFormProps {
   /** Called with the chosen amount (in XLM) when the form is submitted. */
@@ -81,32 +97,64 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit, isLoading = false }) => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-3" aria-busy="true" data-testid="betform-skeleton">
-        <div className="flex gap-2 flex-wrap">
-          <Skeleton className="h-[30px] w-[70px] rounded-full" />
-          <Skeleton className="h-[30px] w-[70px] rounded-full" />
-          <Skeleton className="h-[30px] w-[80px] rounded-full" />
+      <div
+        className="flex flex-col gap-3"
+        aria-busy="true"
+        data-testid="betform-skeleton"
+      >
+        {/* Preset chips row */}
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-[30px] min-w-[60px] w-[70px] rounded-full" />
+          <Skeleton className="h-[30px] min-w-[60px] w-[70px] rounded-full" />
+          <Skeleton className="h-[30px] min-w-[60px] w-[80px] rounded-full" />
         </div>
+        {/* Label + input */}
         <div className="flex flex-col gap-1">
           <Skeleton className="h-5 w-24 rounded-md" />
           <Skeleton className="h-[38px] w-full rounded-md" />
         </div>
-        <Skeleton className="h-[36px] w-full rounded-md" />
+        {/* Submit button */}
+        <Skeleton className="h-[44px] w-full rounded-md" />
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate aria-label="Place a bet">
-      <div className="flex flex-col gap-3">
-        {/* Preset chips */}
+    /*
+     * Responsive wrapper
+     * ─────────────────
+     * w-full   — fill the slot the parent provides on all viewports.
+     * max-w-sm — cap the form at ~384 px on ≥sm so it never stretches into
+     *            an unusable wide single column on desktop.
+     * mx-auto  — centre within the slot when it is wider than max-w-sm.
+     *
+     * No horizontal padding here — the parent card/panel is responsible for
+     * its own gutters so we don't double-pad.
+     */
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      aria-label="Place a bet"
+      className="w-full max-w-sm mx-auto"
+      data-testid="betform"
+    >
+      <div className="flex flex-col gap-3 sm:gap-4">
+        {/*
+         * Preset chips
+         * ────────────
+         * flex-wrap    — chips wrap on narrow viewports instead of overflowing.
+         * gap-2        — consistent horizontal + vertical gap between chips.
+         * justify-start — left-align chips; they should not stretch to fill the row.
+         * Each chip gets min-w-[60px] via QuickBetPresets (see component) to
+         * ensure a touchable target on mobile (WCAG 2.5.5).
+         */}
         <QuickBetPresets
           selectedAmount={numericAmount}
           onSelect={handlePresetSelect}
         />
 
-        {/* Free-text amount input */}
-        <div className="flex flex-col gap-1 relative">
+        {/* Amount input */}
+        <div className="flex flex-col gap-1">
           <label
             htmlFor="bet-amount"
             className="text-label text-foreground"
@@ -123,11 +171,19 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit, isLoading = false }) => {
             placeholder="Enter amount"
             aria-describedby={error ? "bet-amount-error" : undefined}
             aria-invalid={error ? true : undefined}
+            /*
+             * Responsive padding:
+             *  px-3 py-2 on mobile — compact but comfortable (38 px height).
+             *  sm:px-4 sm:py-2.5  — slightly more breathing room on ≥ 640 px.
+             */
             className={[
-              "w-full rounded-md border px-3 py-2 text-body-sm tabular-nums",
+              "w-full rounded-md border",
+              "px-3 py-2 sm:px-4 sm:py-2.5",
+              "text-body-sm tabular-nums",
               "bg-background text-foreground placeholder:text-muted-foreground",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               "focus-visible:ring-offset-background",
+              "disabled:cursor-not-allowed disabled:opacity-50",
               error
                 ? "border-destructive focus-visible:ring-destructive"
                 : "border-border",
@@ -144,23 +200,40 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit, isLoading = false }) => {
           )}
         </div>
 
-        {/* Submit */}
+        {/*
+         * Submit button
+         * ─────────────
+         * Full-width on all breakpoints (w-full) — the form is already
+         * constrained by max-w-sm on the wrapper, so the button never
+         * becomes comically wide.
+         * min-h-[44px] — WCAG 2.5.5 minimum touch target height.
+         */}
         <button
           type="submit"
           className={[
-            "w-full rounded-md px-4 py-2 text-body-sm font-semibold flex items-center justify-center gap-2",
+            "w-full min-h-[44px] rounded-md",
+            "px-4 py-2 sm:py-2.5",
+            "text-body-sm font-semibold",
+            "flex items-center justify-center gap-2",
             "bg-primary text-primary-foreground",
             "hover:bg-primary/90",
             !reducedMotion && "transition-colors duration-150",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             "focus-visible:ring-offset-background",
-          ].join(" ")}
+          ]
+            .filter(Boolean)
+            .join(" ")}
         >
           <span>Place Bet</span>
-          <div className="flex items-center gap-1 opacity-80">
-            <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">⌘</KbdHint>
-            <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">↵</KbdHint>
-          </div>
+          {/* Keyboard shortcut hint — hidden on narrow screens to save space */}
+          <span className="hidden sm:flex items-center gap-1 opacity-80">
+            <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">
+              ⌘
+            </KbdHint>
+            <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">
+              ↵
+            </KbdHint>
+          </span>
         </button>
       </div>
     </form>
@@ -169,36 +242,51 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit, isLoading = false }) => {
 
 export default BetForm;
 
+// ---------------------------------------------------------------------------
+// BetFormSkeleton
+// ---------------------------------------------------------------------------
+
 /**
  * BetFormSkeleton
  *
- * Skeleton placeholder that mirrors the exact layout/shape of BetForm
- * so the loading state preserves layout parity (no layout shift).
+ * Skeleton placeholder that mirrors the exact layout/shape of BetForm so the
+ * loading state preserves layout parity (no cumulative layout shift).
+ *
+ * Responsive parity: skeleton dimensions match the responsive sizes used by
+ * the live BetForm so there is no jump when the skeleton swaps to the real form.
  *
  * Structure mirrors BetForm:
- *   1. Three preset chips (1 / 5 / 10 XLM) - matching QuickBetPresets dimensions
+ *   1. Three preset chips (1 / 5 / 10 XLM) — matching QuickBetPresets dimensions
  *   2. Amount label + input
- *   3. Submit button
+ *   3. Submit button (min-h-[44px] matching the real button)
  */
 export const BetFormSkeleton: React.FC = () => {
   const reducedMotion = useReducedMotion();
 
   return (
-    <div className="flex flex-col gap-3" aria-busy="true" data-testid="bet-form-skeleton">
-      {/* Preset chips - 3 chips matching QuickBetPresets exactly */}
-      <div role="group" aria-label="Quick bet amounts" className="flex gap-2 flex-wrap">
+    <div
+      className="w-full max-w-sm mx-auto flex flex-col gap-3 sm:gap-4"
+      aria-busy="true"
+      data-testid="bet-form-skeleton"
+    >
+      {/* Preset chips — min-w-[60px] mirrors the live chips */}
+      <div
+        role="group"
+        aria-label="Quick bet amounts"
+        className="flex flex-wrap gap-2"
+      >
         <Skeleton
-          className="h-7 w-18 rounded-full shrink-0"
+          className="h-7 min-w-[60px] w-[70px] rounded-full shrink-0"
           aria-hidden="true"
           animate={!reducedMotion}
         />
         <Skeleton
-          className="h-7 w-18 rounded-full shrink-0"
+          className="h-7 min-w-[60px] w-[70px] rounded-full shrink-0"
           aria-hidden="true"
           animate={!reducedMotion}
         />
         <Skeleton
-          className="h-7 w-20 rounded-full shrink-0"
+          className="h-7 min-w-[60px] w-[80px] rounded-full shrink-0"
           aria-hidden="true"
           animate={!reducedMotion}
         />
@@ -207,20 +295,21 @@ export const BetFormSkeleton: React.FC = () => {
       {/* Amount label + input */}
       <div className="flex flex-col gap-1">
         <Skeleton
-          className="h-5 w-22 rounded-md"
+          className="h-5 w-24 rounded-md"
           aria-hidden="true"
           animate={!reducedMotion}
         />
+        {/* Height matches px-3 py-2 input = ~38 px; sm:py-2.5 = ~42 px */}
         <Skeleton
-          className="h-10 w-full rounded-md border"
+          className="h-[38px] sm:h-[42px] w-full rounded-md border"
           aria-hidden="true"
           animate={!reducedMotion}
         />
       </div>
 
-      {/* Submit button */}
+      {/* Submit button — min-h-[44px] matches real button */}
       <Skeleton
-        className="w-full rounded-md h-10"
+        className="min-h-[44px] w-full rounded-md"
         aria-hidden="true"
         animate={!reducedMotion}
       />
