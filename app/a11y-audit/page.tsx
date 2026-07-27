@@ -104,6 +104,23 @@ const auditItems: AuditItem[] = [
       'app/components/__tests__/AboutMarketModal.test.tsx',
     ],
   },
+  {
+    component: 'Dashboard interactive elements (#484)',
+    status: 'Verified',
+    summary:
+      'Keyboard-only focus outlines are now visible on all Dashboard interactive surfaces: notification items, activity timeline group headers, recommendation cards, recently viewed links, and inline market title links.',
+    evidence: [
+      'app/(dashboard)/dashboard/page.tsx',
+      'app/dashboard/NotifDigest.tsx',
+      'components/activity-timeline/activity-timeline.tsx',
+      'components/dashboard/RecommendationsStrip.tsx',
+      'app/components/RecentlyViewedRail.tsx',
+      'app/dashboard/NotifDigest.test.tsx',
+      'components/activity-timeline/__tests__/activity-timeline.test.tsx',
+      'components/dashboard/__tests__/RecommendationsStrip.test.tsx',
+      'app/components/__tests__/RecentlyViewedRail.test.tsx',
+    ],
+  },
 ]
 
 const statusStyles: Record<AuditItem['status'], string> = {

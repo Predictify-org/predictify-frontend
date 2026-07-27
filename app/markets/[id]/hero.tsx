@@ -17,6 +17,11 @@
  *    labelled; status changes use role="status"; progress bars use
  *    role="progressbar" with aria-valuenow/min/max.
  *  - Responsive: single-column on mobile (< sm), two-column on ≥ md.
+ *  - Reduced-motion: when the user has "prefers-reduced-motion: reduce"
+ *    set in their OS, the probability-bar width transition is replaced with
+ *    an instant static render. This is enforced both via the Tailwind
+ *    `motion-reduce:` CSS variant (covers cases where JS hasn't hydrated)
+ *    AND via the `useReducedMotion` hook (covers JS-driven dynamic updates).
  *
  * Token changes (v7):
  *  - Title: text-h2-responsive → text-h1-responsive (it is the page <h1>)
@@ -28,13 +33,14 @@
  */
 
 import React, { useId } from "react";
-import { Clock, Users, DollarSign, TrendingUp, Share2 } from "lucide-react";
+import { Clock, Users, DollarSign, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge, type MarketStatus } from "@/components/market/StatusBadge";
 import { LiveRegion } from "@/components/ui/live-region";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -177,6 +183,12 @@ export function MarketHero({
   const heroId = useId();
   const descId = `${heroId}-desc`;
 
+  // Respect the user's OS "prefers-reduced-motion" preference.
+  // When true, the probability bar renders as a plain static element —
+  // no CSS transition, no JS-driven width animation — matching the pattern
+  // used by NotificationBell, ClaimFlow, and WalletModal in this repo.
+  const reducedMotion = useReducedMotion();
+
   // Determine the leading outcome probability for the aria label on the bar.
   const leadOutcome = outcomes?.[0];
   const trailOutcome = outcomes?.[1];
@@ -237,8 +249,8 @@ export function MarketHero({
     <section
       aria-labelledby={`${heroId}-title`}
       className={cn(
-        // Base layout
-        "w-full rounded-2xl border border-border bg-card px-5 py-6 sm:px-8 sm:py-8",
+        // Base layout — tighter padding on mobile (px-4 py-5), comfortable on sm+
+        "w-full rounded-2xl border border-border bg-card px-4 py-5 sm:px-8 sm:py-8",
         // Subtle gradient tint that respects dark mode via Tailwind's `dark:` prefix
         "bg-gradient-to-br from-card to-muted/30 dark:from-card dark:to-muted/10",
         // Ensure keyboard users can see a clear focus outline when the hero
@@ -327,10 +339,28 @@ export function MarketHero({
             className="h-3 w-full overflow-hidden rounded-full bg-muted"
             aria-hidden="true"
           >
-            {/* bg-outcome-yes: semantic fill token — replaces bare bg-emerald-500.
-                Automatically adapts between light/dark via the CSS variable. */}
+            {/*
+             * Reduced-motion fallback — two layers of defence:
+             *
+             *  1. CSS `motion-reduce:transition-none` — fires before JS
+             *     hydrates, ensuring no animated flash on first paint.
+             *  2. JS `reducedMotion` flag (from useReducedMotion hook) —
+             *     removes the transition class entirely at runtime so that
+             *     any dynamic probability updates are also instant.
+             *
+             * Both resolve to `font-variant-numeric: tabular-nums`-style
+             * "no movement" and are asserted in hero.reduced-motion.test.tsx.
+             */}
             <div
-              className="h-full rounded-full bg-outcome-yes transition-[width] duration-500 ease-out"
+              data-testid={reducedMotion ? "probability-bar-static" : "probability-bar-animated"}
+              className={cn(
+                "h-full rounded-full bg-outcome-yes",
+                // Animated branch: smooth width transition for users who are
+                // fine with motion.
+                !reducedMotion && "transition-[width] duration-500 ease-out",
+                // CSS-level fallback — catches the pre-hydration window.
+                "motion-reduce:transition-none"
+              )}
               style={{ width: `${leadOutcome.probability}%` }}
             />
           </div>
@@ -353,7 +383,7 @@ export function MarketHero({
       {/* ── Row 4 · Stat strip ───────────────────────────────────── */}
       {(volume || participants != null || timeLeft) && (
         <div
-          className="mb-5 flex flex-wrap gap-x-6 gap-y-3 border-t border-border pt-4"
+          className="mb-5 grid grid-cols-3 gap-y-3 border-t border-border pt-4 sm:flex sm:flex-wrap sm:gap-x-6 sm:gap-y-3"
           data-testid="stat-strip"
         >
           {volume && (
@@ -389,7 +419,7 @@ export function MarketHero({
               variant="outline"
               size="sm"
               onClick={onShare}
-              className="gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="h-10 gap-2 px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label="Share this market"
             >
               <Share2 className="h-4 w-4" aria-hidden="true" />

@@ -14,6 +14,10 @@ Market cards now include a compact 24-hour activity heat strip so users can scan
 
 Market cards also include a quick save-for-later action that lets users bookmark any market directly from the card. The control is keyboard accessible, persists locally in the browser, and exposes clear pressed/selected states for assistive technology.
 
+## ClaimFlow claim-action polish (buffer #4)
+
+Claim Winnings cards now have a working claim action with busy/disabled feedback, polite aria-live success announcements, reduced-motion-aware card hover treatment, and a ⌘↵ / Ctrl+Enter shortcut hint on the primary button (matching BetForm). Keyboard users can claim the next available payout without leaving the keyboard.
+
 this is the UI/UX design for the application
 
 ## Route transition feedback

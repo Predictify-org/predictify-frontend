@@ -1,10 +1,17 @@
+"use client";
+
 import * as React from "react";
 
 interface LiveRegionProps {
   message: string;
+  "data-testid"?: string;
 }
 
-export function LiveRegion({ message }: LiveRegionProps) {
+/**
+ * Invisible ARIA live region for screen-reader announcements.
+ * Uses aria-live="polite" to announce updates without interrupting the user.
+ */
+export function LiveRegion({ message, "data-testid": dataTestId }: LiveRegionProps) {
   const [announced, setAnnounced] = React.useState("");
 
   React.useEffect(() => {
@@ -15,7 +22,13 @@ export function LiveRegion({ message }: LiveRegionProps) {
   }, [message]);
 
   return (
-    <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      data-testid={dataTestId}
+      className="sr-only"
+    >
       {announced}
     </div>
   );

@@ -14,7 +14,7 @@ components and interaction flows.
 
 | Component | Status | What was verified | Evidence |
 | --- | --- | --- | --- |
-| `ConnectWalletModal` | Verified | Provider labels, last-used badge announcement, error messaging | `components/connect-wallet-modal.tsx`, `components/__tests__/connect-wallet-modal.test.tsx` |
+| `ConnectWalletModal` | Verified | Provider labels, last-used badge announcement, error messaging, reduced-motion animation fallback | `components/connect-wallet-modal.tsx`, `src/pages/WalletModal.tsx`, `src/pages/__tests__/WalletModal.test.tsx` |
 | Outcome icons and dispute voting states | Verified | Non-color outcome affordances, decorative icon handling, three-way outcome support | `components/icons/OutcomeIcons.tsx`, `components/icons/__tests__/OutcomeIcons.test.tsx`, `components/disputes/shared/TallyBar.tsx`, `app/design-system/tokens.md` |
 | `DisputeOutcomeExplainer` | Verified | Dialog trigger flow, readable math steps, formatted tally values | `components/disputes/DisputeOutcomeExplainer.tsx`, `components/disputes/__tests__/DisputeOutcomeExplainer.test.tsx` |
 | `ErrorRecoveryScreen` | Verified | Recovery CTAs, incident copy affordance, route escape hatches | `components/error/ErrorRecoveryScreen.tsx`, `components/error/ErrorRecoveryScreen.test.tsx`, `components/error-boundary.tsx` |
@@ -25,6 +25,7 @@ components and interaction flows.
 | `SkipToContent` | Verified | First focusable link on pages, bypasses standard headers to main content | `app/components/SkipToContent.tsx`, `app/components/__tests__/SkipToContent.test.tsx`, `app/layout.tsx`, `app/(dashboard)/layout.tsx`, `app/(marketing)/layout.tsx` |
 | `MobileBottomTabs badge` | Verified | Custom red badge shows unread counts visually while aria-labels announce unread status | `components/navbar/MobileBottomTabs.tsx`, `components/navbar/__tests__/MobileBottomTabs.test.tsx` |
 | `AboutMarketModal` | Verified | Focus restoration via DialogContentWithFocusReturn, screen-reader text, and Tailwind color-contrast consistency | `app/components/AboutMarketModal.tsx`, `app/components/__tests__/AboutMarketModal.test.tsx` |
+| `RouteDocumentTitle (#457)` | Verified | Per-route document.title updates, missing route coverage (/claims, /markets, /a11y-audit, /settings/privacy), ARIA live region announcement for SR on SPA navigation | `app/hooks/useDocumentTitle.ts`, `app/hooks/__tests__/useDocumentTitle.test.tsx`, `docs/DOCUMENT_TITLES.md` |
 
 ## Notes
 

@@ -16,7 +16,7 @@ describe('A11y audit page', () => {
   it('shows the expected status counts', () => {
     render(<A11yAuditPage />)
 
-    expect(screen.getByText('6')).toBeInTheDocument()
+    expect(screen.getByText('9')).toBeInTheDocument()
     expect(screen.getByText('1')).toBeInTheDocument()
     expect(screen.getByText('0')).toBeInTheDocument()
   })

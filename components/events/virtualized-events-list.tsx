@@ -304,10 +304,10 @@ export function VirtualizedEventsList({
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-black text-white mb-4">
           <Calendar className="h-8 w-8 text-[#540D8D]" />
         </div>
-        <h3 className="text-lg font-semibold text-foreground mb-1">
+        <h3 className="text-h4 text-foreground mb-1">
           No events found
         </h3>
-        <p className="text-sm text-muted-foreground text-center max-w-sm">
+        <p className="text-body-sm text-muted-foreground text-center max-w-sm">
           There are no prediction events matching your current filters. Try
           adjusting your search or filter criteria.
         </p>
@@ -397,10 +397,10 @@ export function VirtualizedEventsList({
                   >
                     <div className="flex items-center gap-4">
                       <div className="min-w-[200px] space-y-1">
-                        <div className="font-medium text-sm leading-tight text-white">
+                        <div className="text-label leading-tight text-white">
                           {event.title}
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-caption text-muted-foreground">
                           #{event.txHash}
                         </div>
                       </div>
@@ -408,26 +408,26 @@ export function VirtualizedEventsList({
                       <Badge
                         className={cn(
                           getCategoryBadgeVariant(event.category),
-                          "text-xs px-2 py-1",
+                          "text-caption px-2 py-1",
                         )}
                       >
                         {event.category}
                       </Badge>
 
-                      <div className="font-medium text-sm text-white min-w-[60px] tabular-nums">
+                      <div className="text-label text-white min-w-[60px] tabular-nums">
                         {event.odds}
                       </div>
 
-                      <div className="text-xs text-white min-w-[180px]">
+                      <div className="text-caption sm:text-body-sm text-white min-w-[180px]">
                         {formatDate(new Date(event.startDate))} -{" "}
                         {formatDate(new Date(event.endDate))}
                       </div>
 
                       <TimeRemainingProgress event={event} />
 
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-[100px]">
+                      <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground min-w-[100px]">
                         <Users className="h-4 w-4" />
-                        <span className="font-medium text-foreground tabular-nums">
+                        <span className="text-label text-foreground tabular-nums">
                           {event.participants.toLocaleString()}
                         </span>
                       </div>

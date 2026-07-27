@@ -21,7 +21,32 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Verified vs. partial follow-up status
   - Evidence paths for recent component work
 
+### Accessibility & Motion
+- **[REDUCED_MOTION_PATTERNS.md](./REDUCED_MOTION_PATTERNS.md)** - Comprehensive reduced-motion implementation guide
+  - CSS media query rules and React hook integration
+  - Four implementation patterns with code examples
+  - WCAG 2.1 compliance and testing strategies
+  - Performance considerations and browser support
+- **[REDUCED_MOTION_QUICK_REFERENCE.md](./REDUCED_MOTION_QUICK_REFERENCE.md)** - Developer quick reference
+  - Common patterns and code snippets
+  - Testing checklist and debugging tips
+  - Component integration checklist
+- **[DASHBOARD_REDUCED_MOTION.md](./DASHBOARD_REDUCED_MOTION.md)** - Dashboard-specific reduced motion implementation
+- **[COUNTDOWN_REDUCED_MOTION.md](./COUNTDOWN_REDUCED_MOTION.md)** - Timer component reduced motion patterns
+- **[WALLET_REDUCED_MOTION.md](./WALLET_REDUCED_MOTION.md)** - Wallet interaction accessibility patterns
+
+### Components
+
+- **[MARKET_CARD_MOBILE_LAYOUT.md](./MARKET_CARD_MOBILE_LAYOUT.md)** - MarketCard mobile-breakpoint layout
+  - Responsive layout changes for narrow viewports (< 640 px)
+  - Tailwind classes reference for the stacked/side-by-side breakpoint behaviour
+  - Accessibility considerations (aria-label, truncation, dark mode)
+  - Test strategy and how to run focused tests
+
 ### Core Features
+- **[EVENTS_RESPONSIVE_LAYOUT.md](./EVENTS_RESPONSIVE_LAYOUT.md)** - Events results responsive-layout contract
+  - One-column narrow layout, two-column tablet layout, and desktop table
+  - Accessibility, theme-token, and manual verification notes
 - **[WALLET.md](./WALLET.md)** - Wallet Integration Guide
   - Supported wallets (Freighter, LOBSTR, XBull, Albedo, Rabet)
   - SSR-safe wallet kit initialization
@@ -30,6 +55,11 @@ Complete documentation for the virtualized and infinite scroll list implementati
   - Persistence and automatic reconnection
   - Network configuration
   - Known limitations and troubleshooting
+
+- **[MARKET_PREVIEW_CARD.md](./MARKET_PREVIEW_CARD.md)** - Market preview card component
+  - Hover & focus-triggered market details preview card
+  - Key details overview: odds, pool size, sparkline, 24h heat strip, allowance nudge, quick actions
+  - Keyboard equivalent & WCAG 2.1 AA accessibility
 
 - **[ONBOARDING_TOUR.md](./ONBOARDING_TOUR.md)** - Onboarding tour overlay
   - Controlled `OnboardingTour` API (`steps`, `open`, `onStepChange`)

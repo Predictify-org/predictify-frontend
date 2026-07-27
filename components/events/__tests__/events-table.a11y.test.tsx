@@ -106,6 +106,54 @@ beforeEach(() => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe("EventsTable — accessibility", () => {
+  describe("responsive layout", () => {
+    it("uses one result structure with card and table breakpoints", () => {
+      render(<EventsTable />)
+
+      const layout = screen.getByTestId("events-responsive-layout")
+      const table = within(layout).getByRole("table")
+      const body = table.querySelector("tbody")
+
+      expect(table).toHaveClass("block", "xl:table", "xl:min-w-[980px]")
+      expect(body).toHaveClass("grid", "grid-cols-1", "md:grid-cols-2", "xl:table-row-group")
+      expect(within(table).getAllByRole("row")).toHaveLength(MOCK_EVENTS.length + 1)
+    })
+
+    it("keeps column context available in the narrow card presentation", () => {
+      render(<EventsTable />)
+
+      const firstEventRow = screen.getAllByRole("row")[1]
+      expect(within(firstEventRow).getByText("Category")).toBeInTheDocument()
+      expect(within(firstEventRow).getByText("Odds")).toBeInTheDocument()
+      expect(within(firstEventRow).getByText("Event dates")).toBeInTheDocument()
+      expect(within(firstEventRow).getByText("Time remaining")).toBeInTheDocument()
+      expect(within(firstEventRow).getByText("Participants")).toBeInTheDocument()
+    })
+
+    it("keeps the loading skeleton within the same responsive width contract", () => {
+      const { useEventsStore } = require("@/lib/events-store")
+      const loadingState = { ...mockStoreState(), loading: true }
+      useEventsStore.mockImplementation(
+        (selector?: (s: typeof loadingState) => unknown) =>
+          selector ? selector(loadingState) : loadingState
+      )
+
+      render(<EventsTable />)
+
+      const skeleton = screen.getByTestId("events-table-skeleton")
+      expect(skeleton).toHaveClass("bg-background", "xl:border-border")
+      expect(skeleton.querySelector(".xl\\:min-w-\\[980px\\]")).toBeInTheDocument()
+    })
+    it("uses theme tokens for the responsive result surface", () => {
+      render(<EventsTable />)
+
+      expect(screen.getByTestId("events-responsive-layout")).toHaveClass(
+        "bg-background",
+        "text-foreground",
+        "xl:border-border"
+      )
+    })
+  })
   it("renders a <table> with a caption / accessible column headers", () => {
     render(<EventsTable />)
     expect(screen.getByRole("table")).toBeInTheDocument()
@@ -236,6 +284,61 @@ describe("EventsTable — accessibility", () => {
       render(<EventsTable />)
       const status = screen.getByRole("status")
       expect(status).toHaveAttribute("aria-live", "polite")
+    })
+
+    it("empty state heading uses design-token typography class", () => {
+      const { useEventsStore } = require("@/lib/events-store")
+      const emptyState = { ...mockStoreState(), filteredEvents: [] }
+      useEventsStore.mockImplementation(
+        (selector?: (s: typeof emptyState) => unknown) =>
+          selector ? selector(emptyState) : emptyState
+      )
+      render(<EventsTable />)
+      const heading = screen.getByText(/no events found/i)
+      expect(heading).toHaveClass("text-h4")
+    })
+  })
+
+  describe("Typography design-token consistency", () => {
+    beforeEach(() => {
+      const { useEventsStore } = require("@/lib/events-store")
+      useEventsStore.mockImplementation((selector?: (s: ReturnType<typeof mockStoreState>) => unknown) =>
+        selector ? selector(mockStoreState()) : mockStoreState()
+      )
+    })
+
+    it("column headers use text-label design token", () => {
+      render(<EventsTable />)
+      const headers = screen.getAllByRole("columnheader")
+      const visibleHeaders = headers.filter(h => h.textContent?.trim() !== "")
+      visibleHeaders.forEach(header => {
+        expect(header).toHaveClass("text-label")
+      })
+    })
+
+    it("event title cells use text-label design token", () => {
+      render(<EventsTable />)
+      const titleCell = screen.getByText("Will Team A win the championship?")
+      expect(titleCell).toHaveClass("text-label")
+    })
+
+    it("txHash cells use text-caption design token", () => {
+      render(<EventsTable />)
+      const hashCell = screen.getByText("#TX001")
+      expect(hashCell).toHaveClass("text-caption")
+    })
+
+    it("category badges use text-caption design token for mobile", () => {
+      render(<EventsTable />)
+      const badge = screen.getByText("Football")
+      expect(badge.closest('[class*="text-caption"]')).toBeTruthy()
+    })
+
+    it("odds cells use text-label design token", () => {
+      render(<EventsTable />)
+      // Find the odds value for the first event
+      const oddsCell = screen.getByText("65")
+      expect(oddsCell).toHaveClass("text-label")
     })
   })
 })

@@ -5,7 +5,7 @@ import "./styles/patterns.css"
 import "./styles/touch.css"
 import "./styles/themes/high-contrast.css"
 import { Providers } from "@/components/providers";
-import { SkipToContent } from "@/components/SkipToContent";
+import { SkipToContent } from "@/app/components/SkipToContent";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });

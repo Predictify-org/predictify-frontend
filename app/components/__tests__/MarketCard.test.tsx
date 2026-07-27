@@ -129,6 +129,14 @@ describe("MarketCard", () => {
     expect(window.localStorage.getItem("predictify-saved-markets")).toBe("[]");
   });
 
+  it("applies tabular-nums classes (text-stat-sm) to numeric values", () => {
+    render(<MarketCard market={SAMPLE_MARKET} />)
+    expect(screen.getByText("Yes: 65%")).toHaveClass("text-stat-sm")
+    expect(screen.getByText("No: 35%")).toHaveClass("text-stat-sm")
+    expect(screen.getByText(/Pool:/)).toHaveClass("text-stat-sm")
+    expect(screen.getByText(/Ends in/)).toHaveClass("text-stat-sm")
+  })
+
   // ---- Following indicator --------------------------------------------------
 
   it("does not show following indicator by default", () => {
@@ -173,5 +181,76 @@ describe("MarketCard", () => {
       <MarketCard market={SAMPLE_MARKET} reducedMotion={true} />,
     );
     expect(container.innerHTML).not.toContain("animate-slide-up");
+  });
+
+  // ---- Mobile layout --------------------------------------------------------
+  // These tests verify that the responsive Tailwind classes required for the
+  // mobile-first stacked layout are present on the rendered elements.  Since
+  // Jest/jsdom does not evaluate CSS breakpoints, we assert on class names
+  // directly — the classes are what drives the responsive behaviour in the
+  // browser.
+
+  describe("mobile responsive layout classes", () => {
+    it("top section has flex-col class for mobile stacking and sm:flex-row for desktop", () => {
+      const { container } = render(<MarketCard market={SAMPLE_MARKET} />);
+      // The outermost flex container inside the card wraps content + odds
+      const topSection = container.querySelector(".flex-col.sm\\:flex-row");
+      expect(topSection).toBeInTheDocument();
+    });
+
+    it("odds block has flex-row for mobile and sm:flex-col for desktop", () => {
+      render(<MarketCard market={SAMPLE_MARKET} />);
+      const oddsBlock = screen.getByTestId("odds-block");
+      expect(oddsBlock).toHaveClass("flex-row");
+      expect(oddsBlock).toHaveClass("sm:flex-col");
+    });
+
+    it("odds block has an accessible aria-label combining yes and no odds", () => {
+      render(<MarketCard market={SAMPLE_MARKET} />);
+      const oddsBlock = screen.getByTestId("odds-block");
+      expect(oddsBlock).toHaveAttribute(
+        "aria-label",
+        "Odds: Yes 65%, No 35%",
+      );
+    });
+
+    it("odds block is shrink-0 so it never collapses on desktop", () => {
+      render(<MarketCard market={SAMPLE_MARKET} />);
+      const oddsBlock = screen.getByTestId("odds-block");
+      expect(oddsBlock).toHaveClass("shrink-0");
+    });
+
+    it("content wrapper has min-w-0 to prevent overflow of long titles", () => {
+      const { container } = render(<MarketCard market={SAMPLE_MARKET} />);
+      // The inner wrapper around the textual content
+      const contentWrapper = container.querySelector(".min-w-0.flex-1");
+      expect(contentWrapper).toBeInTheDocument();
+    });
+
+    it("bottom meta row has flex-wrap to stack on very narrow viewports", () => {
+      const { container } = render(<MarketCard market={SAMPLE_MARKET} />);
+      const metaRow = container.querySelector(".flex-wrap");
+      expect(metaRow).toBeInTheDocument();
+    });
+
+    it("icon wrapper is shrink-0 so it does not compress on narrow screens", () => {
+      const { container } = render(<MarketCard market={SAMPLE_MARKET} />);
+      // Icon wrapper is a div with shrink-0 and rounded-lg
+      const iconWrapper = container.querySelector(".shrink-0.rounded-lg");
+      expect(iconWrapper).toBeInTheDocument();
+    });
+
+    it("renders odds values with tabular-nums for alignment", () => {
+      const { container } = render(<MarketCard market={SAMPLE_MARKET} />);
+      const oddsBlock = screen.getByTestId("odds-block");
+      const tabularEls = oddsBlock.querySelectorAll(".tabular-nums");
+      expect(tabularEls.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("both yes and no odds are visible on mobile (not hidden)", () => {
+      render(<MarketCard market={SAMPLE_MARKET} />);
+      expect(screen.getByText("Yes: 65%")).toBeVisible();
+      expect(screen.getByText("No: 35%")).toBeVisible();
+    });
   });
 });

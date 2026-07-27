@@ -27,7 +27,7 @@ function RecentlyViewedCard({
           "block rounded-xl border border-border/30 bg-card/20 p-4",
           "w-[calc(100vw-3rem)] max-w-[260px] sm:w-[260px]",
           "hover:bg-card/40 hover:border-border/50",
-          "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary/50",
           "transition-all duration-200"
         )}
       >
@@ -138,7 +138,7 @@ export function RecentlyViewedRail({ className }: RecentlyViewedRailProps) {
           <Button
             variant="outline"
             size="icon"
-            className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border-border/50 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-background/90 group-hover:opacity-100"
+            className="absolute left-2 top-1/2 z-10 h-10 w-10 sm:h-8 sm:w-8 -translate-y-1/2 rounded-full border-border/50 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-background/90 group-hover:opacity-100"
             onClick={() => scroll("left")}
             aria-label="Scroll left"
           >
@@ -149,7 +149,7 @@ export function RecentlyViewedRail({ className }: RecentlyViewedRailProps) {
           <Button
             variant="outline"
             size="icon"
-            className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border-border/50 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-background/90 group-hover:opacity-100"
+            className="absolute right-2 top-1/2 z-10 h-10 w-10 sm:h-8 sm:w-8 -translate-y-1/2 rounded-full border-border/50 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:bg-background/90 group-hover:opacity-100"
             onClick={() => scroll("right")}
             aria-label="Scroll right"
           >

@@ -112,4 +112,15 @@ describe("NotifDigest", () => {
     const status = screen.getByRole("status")
     expect(status).toHaveAttribute("aria-live", "polite")
   })
+
+  it("applies focus-visible ring styles to notification items for keyboard navigation", async () => {
+    const user = userEvent.setup()
+    render(<NotifDigest notifications={[makeNotification()]} />)
+
+    await user.click(screen.getByRole("button", { name: /notifications, 1 unread/i }))
+    const notificationButton = await screen.findByText("Market closing soon")
+    expect(notificationButton.closest("button")).toHaveClass("focus-visible:ring-2")
+    expect(notificationButton.closest("button")).toHaveClass("focus-visible:ring-ring")
+    expect(notificationButton.closest("button")).toHaveClass("focus-visible:ring-offset-2")
+  })
 })
