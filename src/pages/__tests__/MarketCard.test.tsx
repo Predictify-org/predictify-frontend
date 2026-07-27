@@ -13,6 +13,25 @@ describe("MarketCard Color-Blind Accessibility", () => {
     expect(badge).toHaveAttribute("aria-label", "Market status: active");
   });
 
+  it("uses typography and spacing design tokens for the card hierarchy", () => {
+    render(
+      <MarketCard
+        id="6"
+        title="GrantFox market"
+        status="active"
+        category="Stellar Wave"
+        endDate="2026-10-01"
+        volume="1.2M"
+      />,
+    );
+
+    expect(screen.getByText("Stellar Wave")).toHaveClass("text-caption");
+    expect(screen.getByRole("heading", { level: 3, name: "GrantFox market" })).toHaveClass("text-h6");
+    expect(screen.getByText("Volume: 1.2M")).toHaveClass("text-body-sm");
+    expect(screen.getByText("Ends: 2026-10-01")).toHaveClass("text-body-sm");
+    expect(screen.getByLabelText("Market status: active")).toHaveClass("text-caption");
+  });
+
   it("renders Closed status with status-pattern-closed class", () => {
     render(<MarketCard id="2" title="Test Market" status="closed" />);
     const badge = screen.getByLabelText("Market status: closed");
