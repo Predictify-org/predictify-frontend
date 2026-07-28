@@ -32,6 +32,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { EventsTableSkeleton } from "./events-table-skeleton"
 import { NoMatchEmptyState } from "./NoMatchEmptyState"
+/* NEW: GrantFox FWC26 / Stellar Wave themed empty state for the "no events at
+ * all" scenario (distinct from NoMatchEmptyState which handles active-filter
+ * zero-result cases). */
+import { EventsEmptyState } from "./EventsEmptyState"
 import { useEventsStore, formatTimeRemaining, getTimeRemainingColor } from "@/lib/events-store"
 import { useCompareStore, MAX_COMPARE } from "@/lib/compare-store"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -313,8 +317,33 @@ export function EventsTable({ className }: EventsTableProps) {
     return <EventsTableSkeleton />
   }
 
-  {/* MODIFIED: Replaced inline empty state with NoMatchEmptyState component */}
+  /*
+   * MODIFIED: Split empty-state handling into two branches:
+   *
+   * 1. "True empty" — no events exist for the current status tab and no
+   *    filters are active.  Render the GrantFox FWC26 / Stellar Wave branded
+   *    EventsEmptyState with a "Create Your First Event" CTA.
+   *
+   * 2. "Filtered empty" — the user has active search/category/date filters
+   *    that produced zero results.  Render NoMatchEmptyState (existing) so the
+   *    user knows to adjust or clear their filters.
+   *
+   * The distinction matters: in case 1 we want to drive the user toward
+   * creating content; in case 2 we want to help them find existing content.
+   */
   if (filteredEvents.length === 0) {
+    /** True when the user has at least one active filter in play */
+    const hasActiveFilters =
+      !!filters.search ||
+      filters.category.length > 0 ||
+      !!(filters.dateRange.from || filters.dateRange.to)
+
+    if (!hasActiveFilters) {
+      // No events and no filters → show the campaign-branded empty state
+      return <EventsEmptyState />
+    }
+
+    // Filters are active but matched nothing → help the user clear them
     const handleClearFilters = () => {
       setSearch("")
       setFilters({
