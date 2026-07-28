@@ -55,7 +55,12 @@ export default function ProfilePage() {
 
               <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="/placeholder.svg?height=80&width=80" alt="Avatar" />
+                  <AvatarImage
+                    src="/placeholder.svg?height=80&width=80"
+                    srcSet="/placeholder.svg?height=40&width=40 40w, /placeholder.svg?height=80&width=80 80w, /placeholder.svg?height=160&width=160 160w"
+                    sizes="80px"
+                    alt="Avatar"
+                  />
                   <AvatarFallback>AD</AvatarFallback>
                 </Avatar>
                 <div>
