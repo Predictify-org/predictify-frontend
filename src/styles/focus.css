@@ -85,3 +85,32 @@
     outline-offset: 2px;
   }
 }
+
+/* ── Dashboard container focus ────────────────────────────────────────── */
+.dashboard-container:focus-visible {
+  outline: 3px solid hsl(var(--ring, 210 100% 56%));
+  outline-offset: 2px;
+  border-radius: var(--radius, 0.375rem);
+  position: relative;
+  z-index: 1;
+}
+
+/* Dark-mode adjustment */
+.dark .dashboard-container:focus-visible {
+  box-shadow: 0 0 0 2px hsl(var(--background, 222 47% 11%));
+}
+
+/* Reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-container:focus-visible {
+    transition: none;
+  }
+}
+
+/* High-contrast / forced-colors mode */
+@media (forced-colors: active) {
+  .dashboard-container:focus-visible {
+    outline: 3px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
