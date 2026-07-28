@@ -17,6 +17,7 @@
  *   - StatCard value display  (components/cards/stat-card.tsx)
  *   - Finances KPI cards      (app/(dashboard)/finances/page.tsx)
  *   - Profile header counts   (app/profile/[addr]/page.tsx)
+ *   - Login FWC26 stats       (app/(auth)/login/page.tsx) -- GrantFox FWC26 campaign stats banner
  *   - Any element with        data-numeric="true"
  *
  * Usage:

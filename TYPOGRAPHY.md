@@ -124,6 +124,22 @@ This document outlines the standardized typography hierarchy for Predictify. All
 > tabular numerals, so columns of figures stay perfectly aligned.
 > Issue #556 locked this contract.
 
+#### Where tabular-nums is applied
+
+| Location | Element | Mechanism |
+|---|---|---|
+| `components/cards/stat-card.tsx` | `.text-3xl … tabular-nums` | class + `data-numeric="true"` |
+| `app/(dashboard)/finances/page.tsx` | KPI value `<dd>` | `data-numeric="true"` |
+| `app/profile/[addr]/page.tsx` | Header counts | `tabular-nums` class |
+| `app/(auth)/login/page.tsx` | FWC26 campaign stats banner | class + `data-numeric="true"` |
+
+> **GrantFox FWC26 (Stellar Wave)** — `app/(auth)/login/page.tsx` surfaces
+> three campaign KPIs (Participants, Prize Pool, Markets Open) above the
+> login form so prospects see platform scale at a glance. Each `<dd>` carries
+> both the `tabular-nums` Tailwind class and the `data-numeric="true"` attribute.
+> This dual approach means the rule is applied even in contexts where Tailwind's
+> JIT output is not loaded (e.g. SSR, email). See `src/styles/typography.css`.
+
 **Stat Large (32px)**
 ```tsx
 <div className="text-stat-lg font-bold">$1,234</div>
