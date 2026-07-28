@@ -3,10 +3,15 @@ import { LiveRegion } from "@/components/LiveRegion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { StellarWaveEmptyState } from "@/components/EmptyState";
 
 type FormState = "idle" | "submitting" | "success" | "error";
 
-export default function BetForm() {
+export interface BetFormProps {
+  campaignActive?: boolean;
+}
+
+export default function BetForm({ campaignActive = true }: BetFormProps = {}) {
   const [formState, setFormState] = useState<FormState>("idle");
   const [announcement, setAnnouncement] = useState("");
   const [amount, setAmount] = useState("");
@@ -33,9 +38,13 @@ export default function BetForm() {
 
   return (
     <div className="mx-auto max-w-md p-4 sm:p-6 lg:p-8">
-      <LiveRegion message={announcement} />
+      {!campaignActive ? (
+        <StellarWaveEmptyState />
+      ) : (
+        <>
+          <LiveRegion message={announcement} />
 
-      <Card className="overflow-hidden border-border/60 bg-card/80 shadow-sm">
+          <Card className="overflow-hidden border-border/60 bg-card/80 shadow-sm">
         <CardContent className="p-4 sm:p-6">
           <h2 className="mb-4 text-xl font-semibold text-foreground">Place Your Bet</h2>
           
@@ -86,6 +95,7 @@ export default function BetForm() {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }
