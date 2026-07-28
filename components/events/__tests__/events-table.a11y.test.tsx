@@ -251,21 +251,57 @@ describe("EventsTable — accessibility", () => {
   })
 
   describe("Empty state", () => {
-    it("renders the no-match empty state when filteredEvents is empty", () => {
+    /**
+     * UPDATED (issue #634): EventsTable now has two empty-state branches:
+     *
+     *  a) No active filters  → EventsEmptyState (GrantFox FWC26 / Stellar Wave)
+     *  b) Active filters     → NoMatchEmptyState ("Clear all filters")
+     *
+     * Tests that previously relied on `mockStoreState()` without a `filters`
+     * object (causing a runtime crash) have been updated to provide explicit
+     * filter state so each branch can be tested deterministically.
+     */
+
+    it("renders the no-match empty state when filteredEvents is empty with active filters", () => {
       const { useEventsStore } = require("@/lib/events-store")
-      const emptyState = { ...mockStoreState(), filteredEvents: [] }
+      const emptyState = {
+        ...mockStoreState(),
+        filteredEvents: [],
+        // Active search filter → triggers NoMatchEmptyState
+        filters: {
+          search: "nonexistent",
+          category: [],
+          oddsRange: [0, 10],
+          dateRange: { from: null, to: null },
+          status: "ongoing",
+        },
+        setFilters: jest.fn(),
+        setSearch: jest.fn(),
+      }
       useEventsStore.mockImplementation(
         (selector?: (s: typeof emptyState) => unknown) =>
           selector ? selector(emptyState) : emptyState
       )
       render(<EventsTable />)
-      // Heading rendered by NoMatchEmptyState
-      expect(screen.getByRole("heading", { name: /no matching markets/i })).toBeInTheDocument()
+      // Heading rendered by NoMatchEmptyState when a search filter is active
+      expect(screen.getByRole("heading", { name: /no markets match your search/i })).toBeInTheDocument()
     })
 
-    it("renders a 'Clear all filters' button in the empty state", () => {
+    it("renders a 'Clear all filters' button when filters are active and produce no results", () => {
       const { useEventsStore } = require("@/lib/events-store")
-      const emptyState = { ...mockStoreState(), filteredEvents: [] }
+      const emptyState = {
+        ...mockStoreState(),
+        filteredEvents: [],
+        filters: {
+          search: "nonexistent",
+          category: [],
+          oddsRange: [0, 10],
+          dateRange: { from: null, to: null },
+          status: "ongoing",
+        },
+        setFilters: jest.fn(),
+        setSearch: jest.fn(),
+      }
       useEventsStore.mockImplementation(
         (selector?: (s: typeof emptyState) => unknown) =>
           selector ? selector(emptyState) : emptyState
@@ -274,9 +310,22 @@ describe("EventsTable — accessibility", () => {
       expect(screen.getByRole("button", { name: /clear all filters/i })).toBeInTheDocument()
     })
 
-    it("renders a live status region in the empty state", () => {
+    it("renders a live status region (aria-live=polite) in any empty state", () => {
       const { useEventsStore } = require("@/lib/events-store")
-      const emptyState = { ...mockStoreState(), filteredEvents: [] }
+      // No active filters → EventsEmptyState; it also carries role=status + aria-live=polite
+      const emptyState = {
+        ...mockStoreState(),
+        filteredEvents: [],
+        filters: {
+          search: "",
+          category: [],
+          oddsRange: [0, 10],
+          dateRange: { from: null, to: null },
+          status: "ongoing",
+        },
+        setFilters: jest.fn(),
+        setSearch: jest.fn(),
+      }
       useEventsStore.mockImplementation(
         (selector?: (s: typeof emptyState) => unknown) =>
           selector ? selector(emptyState) : emptyState
@@ -286,16 +335,31 @@ describe("EventsTable — accessibility", () => {
       expect(status).toHaveAttribute("aria-live", "polite")
     })
 
-    it("empty state heading uses design-token typography class", () => {
+    it("renders the GrantFox FWC26 campaign heading when there are no events and no filters", () => {
       const { useEventsStore } = require("@/lib/events-store")
-      const emptyState = { ...mockStoreState(), filteredEvents: [] }
+      // No active filters → EventsEmptyState is displayed
+      const emptyState = {
+        ...mockStoreState(),
+        filteredEvents: [],
+        filters: {
+          search: "",
+          category: [],
+          oddsRange: [0, 10],
+          dateRange: { from: null, to: null },
+          status: "ongoing",
+        },
+        setFilters: jest.fn(),
+        setSearch: jest.fn(),
+      }
       useEventsStore.mockImplementation(
         (selector?: (s: typeof emptyState) => unknown) =>
           selector ? selector(emptyState) : emptyState
       )
       render(<EventsTable />)
-      const heading = screen.getByText(/no events found/i)
-      expect(heading).toHaveClass("text-h4")
+      // EventsEmptyState renders this heading by default
+      expect(
+        screen.getByRole("heading", { name: /no events yet/i })
+      ).toBeInTheDocument()
     })
   })
 
