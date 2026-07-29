@@ -57,3 +57,22 @@
     text-decoration: none !important;
   }
 }
+
+/* DisputeCard print presentation. Action buttons are omitted from the
+ * printed record; the audit-ref accordion is expanded via the beforeprint/
+ * afterprint handlers in DisputeCard.tsx before this rule ever needs to
+ * apply, but it also covers browsers that print without firing those events. */
+@media print {
+  .dispute-card {
+    break-inside: avoid;
+  }
+
+  .dispute-card-chrome {
+    display: none !important;
+  }
+
+  .dispute-card [data-state="closed"] {
+    display: block !important;
+    height: auto !important;
+  }
+}
