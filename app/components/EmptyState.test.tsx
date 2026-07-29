@@ -1,10 +1,11 @@
 /**
- * EmptyState.test.tsx – Unit tests for EmptyState component
+ * EmptyState.test.tsx - Unit tests for EmptyState component
  *
  * Coverage:
  *   - Renders with required props
- *   - Displays icon, title, description
+ *   - Displays icon, illustration, title, description
  *   - CTA button works and is accessible
+ *   - CTA link works
  *   - Optional props are optional
  *   - WCAG 2.1 AA compliance
  */
@@ -12,6 +13,13 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EmptyState } from './EmptyState';
+
+// Mock Next.js Link
+jest.mock('next/link', () => {
+  return ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  );
+});
 
 describe('EmptyState Component', () => {
   it('renders with title and description', () => {
@@ -37,6 +45,30 @@ describe('EmptyState Component', () => {
     expect(screen.getByText('??')).toBeInTheDocument();
   });
 
+  it('renders illustration when provided', () => {
+    render(
+      <EmptyState
+        illustration={<div data-testid="test-illustration">Illustration</div>}
+        title="Empty"
+      />
+    );
+
+    expect(screen.getByTestId('test-illustration')).toBeInTheDocument();
+  });
+
+  it('renders illustration over icon if both are provided', () => {
+    render(
+      <EmptyState
+        icon="??"
+        illustration={<div data-testid="test-illustration">Illustration</div>}
+        title="Empty"
+      />
+    );
+
+    expect(screen.getByTestId('test-illustration')).toBeInTheDocument();
+    expect(screen.queryByText('??')).not.toBeInTheDocument();
+  });
+
   it('renders CTA button when label and handler provided', () => {
     const mockHandler = jest.fn();
     render(
@@ -54,6 +86,20 @@ describe('EmptyState Component', () => {
     expect(mockHandler).toHaveBeenCalledTimes(1);
   });
 
+  it('renders CTA link when label and href provided', () => {
+    render(
+      <EmptyState
+        title="Empty"
+        ctaLabel="Go Home"
+        ctaHref="/"
+      />
+    );
+
+    const link = screen.getByRole('link', { name: /go home/i });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/');
+  });
+
   it('does not render CTA button when only label provided', () => {
     render(
       <EmptyState
@@ -63,6 +109,7 @@ describe('EmptyState Component', () => {
     );
 
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('applies custom className', () => {
