@@ -247,7 +247,7 @@ export default function DashboardPage() {
                   </h3>
                 </div>
                 <div className="mt-auto flex items-center justify-between gap-3 text-sm text-muted-foreground">
-                  <span>{market.volume}</span>
+                  <span className="tabular-nums">{market.volume}</span>
                   <Button asChild variant="ghost" size="sm" className="px-2">
                     <Link href={market.href}>Open</Link>
                   </Button>

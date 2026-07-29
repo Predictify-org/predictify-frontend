@@ -6,7 +6,9 @@ import { RefreshIndicator } from "./RefreshIndicator"
 describe("RefreshIndicator", () => {
   it("shows 'Never refreshed' when no timestamp is provided", () => {
     render(<RefreshIndicator />)
-    expect(screen.getByText("Never refreshed")).toBeInTheDocument()
+    const label = screen.getByText("Never refreshed")
+    expect(label).toBeInTheDocument()
+    expect(label).toHaveClass("tabular-nums")
   })
 
   it("shows 'Just now' for a timestamp within the last minute", () => {
@@ -18,7 +20,9 @@ describe("RefreshIndicator", () => {
   it("shows minutes-ago label for a timestamp older than 60 seconds", () => {
     const twoMinsAgo = new Date(Date.now() - 2 * 60 * 1000)
     render(<RefreshIndicator lastRefreshedAt={twoMinsAgo} />)
-    expect(screen.getByText("2 mins ago")).toBeInTheDocument()
+    const label = screen.getByText("2 mins ago")
+    expect(label).toBeInTheDocument()
+    expect(label).toHaveClass("tabular-nums")
   })
 
   it("calls onRefresh when the refresh button is clicked", async () => {

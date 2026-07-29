@@ -192,7 +192,7 @@ export function StartedChecklist({
                   <span>Get started</span>
                 )}
               </CardTitle>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground tabular-nums">
                 {allComplete
                   ? "You've completed all the onboarding steps. Happy predicting!"
                   : `${completedCount} of ${totalCount} tasks completed`}
