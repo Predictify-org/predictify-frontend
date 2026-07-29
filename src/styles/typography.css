@@ -18,6 +18,7 @@
  *   - Finances KPI cards      (app/(dashboard)/finances/page.tsx)
  *   - Profile header counts   (app/profile/[addr]/page.tsx)
  *   - Login FWC26 stats       (app/(auth)/login/page.tsx) -- GrantFox FWC26 campaign stats banner
+ *   - MarketCard volume/end-date (src/pages/MarketCard.tsx)
  *   - Any element with        data-numeric="true"
  *
  * Usage:
