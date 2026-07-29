@@ -32,6 +32,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { EventsTableSkeleton } from "./events-table-skeleton"
 import { NoMatchEmptyState } from "./NoMatchEmptyState"
+/* NEW: GrantFox FWC26 / Stellar Wave themed empty state for the "no events at
+ * all" scenario (distinct from NoMatchEmptyState which handles active-filter
+ * zero-result cases). */
+import { EventsEmptyState } from "./EventsEmptyState"
 import { useEventsStore, formatTimeRemaining, getTimeRemainingColor } from "@/lib/events-store"
 import { useCompareStore, MAX_COMPARE } from "@/lib/compare-store"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -120,7 +124,7 @@ function TimeRemainingProgress({ event }: { event: Event }) {
 
   return (
     <div className="space-y-2 min-w-[120px]">
-      <div className={cn("text-sm font-medium", textColorClass)}>
+      <div className={cn("text-body-sm font-medium", textColorClass)}>
         {timeString}
         <span className="sr-only"> — {urgencyLabel}</span>
       </div>
@@ -175,8 +179,8 @@ function EventRow({
   return (
     <TableRow
       className={cn(
-        "hover:bg-[#540D8D] transition-colors border-0",
-        !isLast && "border-b border-[#540D8D]",
+        "relative grid grid-cols-2 gap-x-3 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm transition-colors hover:bg-muted/50 xl:table-row xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none",
+        !isLast && "xl:border-b xl:border-border",
         animationReady && !prefersReduced && !isSeen && index < 12 && "animate-in fade-in slide-in-from-bottom-2"
       )}
       style={
@@ -186,18 +190,18 @@ function EventRow({
       }
     >
       {/* Compare checkbox */}
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 w-10">
+      <TableCell className="absolute left-4 top-5 w-10 p-0 xl:static xl:table-cell xl:px-6 xl:py-4">
         <Checkbox
           checked={selectedIds.includes(event.id)}
           onCheckedChange={() => toggle(event.id)}
           disabled={!selectedIds.includes(event.id) && selectedIds.length >= MAX_COMPARE}
           aria-label={`Select ${event.title} for comparison`}
-          className="border-[#540D8D] data-[state=checked]:bg-[#540D8D] data-[state=checked]:border-[#540D8D]"
+          className="border-primary data-[state=checked]:border-primary data-[state=checked]:bg-primary"
         />
       </TableCell>
 
       {/* Event title cell with hover-delayed tooltip showing key data */}
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[200px] sm:min-w-0">
+      <TableCell className="col-span-2 block min-w-0 border-b border-border pb-3 pl-9 pr-0 pt-0 xl:table-cell xl:min-w-[200px] xl:border-0 xl:px-6 xl:py-4">
         <HoverTooltip
           content={
             <div className="space-y-1.5 p-1 text-left">
@@ -212,49 +216,50 @@ function EventRow({
           }
         >
           <div className="space-y-1 cursor-help">
-            <div className="font-medium text-sm leading-tight text-White">{event.title}</div>
-            <div className="text-xs text-muted-foreground">#{event.txHash}</div>
+            <div className="text-label leading-tight text-white">{event.title}</div>
+            <div className="text-caption text-muted-foreground">#{event.txHash}</div>
           </div>
         </HoverTooltip>
       </TableCell>
 
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[100px] sm:min-w-0">
-        <Badge className={cn(getCategoryBadgeVariant(event.category), "inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1")}>
+        <Badge className={cn(getCategoryBadgeVariant(event.category), "inline-flex items-center gap-1 text-caption sm:text-body-sm px-2 py-1")}>
           {getCategoryIcon(event.category)}
           {event.category}
         </Badge>
       </TableCell>
 
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0">
-        <div className="font-medium text-sm text-white tabular-nums">{event.odds}</div>
+        <div className="text-label text-white tabular-nums">{event.odds}</div>
       </TableCell>
 
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[180px] sm:min-w-0 text-white">
-        <div className="text-xs sm:text-sm leading-tight">
+        <div className="text-caption sm:text-body-sm leading-tight">
           <div className="sm:hidden">
             <div>{formatDate(new Date(event.startDate))}</div>
             <div>{formatDate(new Date(event.endDate))}</div>
           </div>
-          <div className="hidden sm:block">
+          <div className="hidden xl:block">
             {formatDate(new Date(event.startDate))} - {formatDate(new Date(event.endDate))}
           </div>
         </div>
       </TableCell>
 
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[160px] sm:min-w-0">
+      <TableCell className="col-span-2 block min-w-0 px-0 pb-0 pt-3 xl:table-cell xl:min-w-[160px] xl:px-6 xl:py-4">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground xl:hidden">Time remaining</span>
         <TimeRemainingProgress event={event} />
       </TableCell>
 
       {/* Participants */}
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[120px] sm:min-w-0">
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
           <Users className="h-4 w-4" />
-          <span className="font-medium text-foreground tabular-nums">{event.participants.toLocaleString()}</span>
+          <span className="text-label text-foreground tabular-nums">{event.participants.toLocaleString()}</span>
         </div>
       </TableCell>
 
       {/* Actions */}
-      <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0 text-right">
+      <TableCell className="block min-w-0 px-0 pb-0 pt-3 text-right xl:table-cell xl:min-w-[80px] xl:px-6 xl:py-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -312,8 +317,33 @@ export function EventsTable({ className }: EventsTableProps) {
     return <EventsTableSkeleton />
   }
 
-  {/* MODIFIED: Replaced inline empty state with NoMatchEmptyState component */}
+  /*
+   * MODIFIED: Split empty-state handling into two branches:
+   *
+   * 1. "True empty" — no events exist for the current status tab and no
+   *    filters are active.  Render the GrantFox FWC26 / Stellar Wave branded
+   *    EventsEmptyState with a "Create Your First Event" CTA.
+   *
+   * 2. "Filtered empty" — the user has active search/category/date filters
+   *    that produced zero results.  Render NoMatchEmptyState (existing) so the
+   *    user knows to adjust or clear their filters.
+   *
+   * The distinction matters: in case 1 we want to drive the user toward
+   * creating content; in case 2 we want to help them find existing content.
+   */
   if (filteredEvents.length === 0) {
+    /** True when the user has at least one active filter in play */
+    const hasActiveFilters =
+      !!filters.search ||
+      filters.category.length > 0 ||
+      !!(filters.dateRange.from || filters.dateRange.to)
+
+    if (!hasActiveFilters) {
+      // No events and no filters → show the campaign-branded empty state
+      return <EventsEmptyState />
+    }
+
+    // Filters are active but matched nothing → help the user clear them
     const handleClearFilters = () => {
       setSearch("")
       setFilters({
@@ -363,42 +393,45 @@ export function EventsTable({ className }: EventsTableProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="rounded-lg border-b border-[#540D8D] overflow-hidden bg-black text-white">
-        {/* Responsive table container with horizontal scroll */}
-        <div className="overflow-x-auto">
-          <Table className="min-w-[800px] sm:min-w-full">
-            <TableHeader>
-              <TableRow className="hover:bg-[#540D8D] text-white border-b border-[#540D8D]/50 bg-black">
+      <div
+        className="rounded-lg bg-background text-foreground xl:overflow-hidden xl:border xl:border-border"
+        data-testid="events-responsive-layout"
+      >
+        {/* Rows become readable cards below lg without duplicating accessible content. */}
+        <div className="overflow-visible xl:overflow-x-auto">
+          <Table className="block w-full xl:table xl:min-w-[980px]">
+            <TableHeader className="sr-only xl:not-sr-only xl:table-header-group">
+              <TableRow className="border-b border-border bg-muted text-foreground hover:bg-muted">
                 {/* Compare select column */}
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 w-10">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 w-10">
                   <span className="sr-only">Compare</span>
                 </TableHead>
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[200px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[200px] sm:min-w-0">
                   Event Title
                 </TableHead>
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[100px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[100px] sm:min-w-0">
                   Category
                 </TableHead>
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[80px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[80px] sm:min-w-0">
                   Odds
                 </TableHead>
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[180px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[180px] sm:min-w-0">
                   End Date
                 </TableHead>
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[160px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[160px] sm:min-w-0">
                   Time Remaining
                 </TableHead>
                 {/* NEW: Participants column header */}
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-left min-w-[120px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[120px] sm:min-w-0">
                   Participants
                 </TableHead>
                 {/* NEW: Actions column header */}
-                <TableHead className="text-muted-foreground font-medium py-3 md:py-4 px-4 md:px-6 text-right min-w-[80px] sm:min-w-0">
+                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-right min-w-[80px] sm:min-w-0">
                   Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:table-row-group">
               {paginatedEvents.map((event, index) => (
                 <EventRow
                   key={event.id}

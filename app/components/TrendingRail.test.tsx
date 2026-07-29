@@ -1,159 +1,161 @@
-import React from "react"
-import { render, screen, fireEvent } from "@testing-library/react"
-import { TrendingRail, TRENDING_MARKETS } from "./TrendingRail"
+/**
+ * TrendingRail.test.tsx – Unit tests for TrendingRail component
+ *
+ * Coverage:
+ *   - Loading state with skeleton
+ *   - Error state with retry
+ *   - Empty state with CTA
+ *   - Renders data when available
+ *   - Responsive and accessible
+ */
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { TrendingRail } from './TrendingRail';
 
-function mockOverflow(container: HTMLElement) {
-  Object.defineProperty(container, "scrollWidth", {
-    value: 3000,
-    configurable: true,
-  })
-  Object.defineProperty(container, "clientWidth", {
-    value: 500,
-    configurable: true,
-  })
-  Object.defineProperty(container, "scrollLeft", {
-    value: 0,
-    writable: true,
-    configurable: true,
-  })
-  container.scrollTo = jest.fn(
-    ({ left }: { left: number }) => {
-      Object.defineProperty(container, "scrollLeft", {
-        value: left,
-        writable: true,
-        configurable: true,
+// Mock fetch
+global.fetch = jest.fn();
+
+describe('TrendingRail Component', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('shows loading skeleton initially', () => {
+    (global.fetch as jest.Mock).mockImplementationOnce(
+      () => new Promise(() => {}) // Never resolves
+    );
+
+    render(<TrendingRail />);
+    expect(screen.getByRole('status', { hidden: true })).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('renders empty state when no data', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    });
+
+    render(<TrendingRail />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No trending data yet')).toBeInTheDocument();
+      expect(screen.getByText(/Check back soon/)).toBeInTheDocument();
+    });
+  });
+
+  it('shows error state on fetch failure', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+    });
+
+    render(<TrendingRail />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText(/Failed to load/)).toBeInTheDocument();
+    });
+  });
+
+  it('retries fetch on error button click', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          { id: '1', title: 'Test', value: 100, change: 5, trend: 'up' },
+        ],
+      });
+
+    render(<TrendingRail />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    const retryButton = screen.getByRole('button', { name: /Try again/i });
+    fireEvent.click(retryButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Test')).toBeInTheDocument();
+    });
+  });
+
+  it('renders trending items when data available', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        { id: '1', title: 'Bitcoin', value: 45000, change: 2.5, trend: 'up' },
+        { id: '2', title: 'Ethereum', value: 2500, change: -1.2, trend: 'down' },
+      ],
+    });
+
+    render(<TrendingRail />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Bitcoin')).toBeInTheDocument();
+      expect(screen.getByText('Ethereum')).toBeInTheDocument();
+      expect(screen.getByText('45000')).toBeInTheDocument();
+      expect(screen.getByText('2500')).toBeInTheDocument();
+    });
+  });
+
+  it('refresh button in empty state refetches data', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
       })
-    },
-  ) as unknown as typeof container.scrollTo
-}
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          { id: '1', title: 'Test', value: 100, change: 5, trend: 'up' },
+        ],
+      });
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+    render(<TrendingRail />);
 
-describe("TrendingRail", () => {
-  // ---- Rendering ----------------------------------------------------------
+    await waitFor(() => {
+      expect(screen.getByText('No trending data yet')).toBeInTheDocument();
+    });
 
-  it("renders the heading", () => {
-    render(<TrendingRail />)
-    expect(
-      screen.getByRole("heading", { name: /what's happening now/i }),
-    ).toBeInTheDocument()
-  })
+    const refreshButton = screen.getByRole('button', { name: /Refresh/i });
+    fireEvent.click(refreshButton);
 
-  it("renders all default trending markets", () => {
-    render(<TrendingRail />)
-    TRENDING_MARKETS.forEach((market) => {
-      expect(screen.getByText(market.title)).toBeInTheDocument()
-    })
-  })
+    await waitFor(() => {
+      expect(screen.getByText('Test')).toBeInTheDocument();
+    });
+  });
 
-  it("renders each trending market as a link", () => {
-    render(<TrendingRail />)
-    const links = screen.getAllByRole("link")
-    expect(links.length).toBe(TRENDING_MARKETS.length)
-    links.forEach((link) => expect(link).toHaveAttribute("href"))
-  })
+  it('displays trending indicator (up/down) correctly', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        { id: '1', title: 'Up Trend', value: 100, change: 5, trend: 'up' },
+        { id: '2', title: 'Down Trend', value: 100, change: -3, trend: 'down' },
+      ],
+    });
 
-  // ---- Empty state --------------------------------------------------------
+    render(<TrendingRail />);
 
-  it("returns nothing when no markets are provided", () => {
-    const { container } = render(<TrendingRail markets={[]} />)
-    expect(container.innerHTML).toBe("")
-  })
+    await waitFor(() => {
+      expect(screen.getByText('+5.00%')).toBeInTheDocument();
+      expect(screen.getByText('-3.00%')).toBeInTheDocument();
+    });
+  });
 
-  // ---- Hot markets --------------------------------------------------------
+  it('is keyboard accessible', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    });
 
-  it("shows 'Hot' badge on markets with isHot flag", () => {
-    render(<TrendingRail />)
-    const hotBadges = screen.getAllByText("Hot")
-    const hotMarkets = TRENDING_MARKETS.filter((m) => m.isHot)
-    expect(hotBadges.length).toBe(hotMarkets.length)
-  })
+    render(<TrendingRail />);
 
-  // ---- Volume display -----------------------------------------------------
-
-  it("displays 24h volume for each market", () => {
-    render(<TrendingRail />)
-    TRENDING_MARKETS.forEach((market) => {
-      expect(screen.getByText(market.volume)).toBeInTheDocument()
-    })
-    const volLabels = screen.getAllByText("24h vol")
-    expect(volLabels.length).toBe(TRENDING_MARKETS.length)
-  })
-
-  // ---- Accessibility ------------------------------------------------------
-
-  it("has a labelled carousel region", () => {
-    render(<TrendingRail />)
-    expect(
-      screen.getByRole("region", { name: /trending markets carousel/i }),
-    ).toBeInTheDocument()
-  })
-
-  it("the carousel region is keyboard-focusable", () => {
-    render(<TrendingRail />)
-    expect(
-      screen.getByRole("region", { name: /trending markets carousel/i }),
-    ).toHaveAttribute("tabIndex", "0")
-  })
-
-  // ---- Keyboard navigation ------------------------------------------------
-
-  it("scrolls right on ArrowRight when content overflows", () => {
-    render(<TrendingRail />)
-    const region = screen.getByRole("region", {
-      name: /trending markets carousel/i,
-    })
-    mockOverflow(region)
-
-    fireEvent.scroll(region)
-    fireEvent.keyDown(region, { key: "ArrowRight" })
-    expect(region.scrollTo).toHaveBeenCalledWith(
-      expect.objectContaining({ behavior: "smooth" }),
-    )
-  })
-
-  it("scrolls left on ArrowLeft when content overflows", () => {
-    render(<TrendingRail />)
-    const region = screen.getByRole("region", {
-      name: /trending markets carousel/i,
-    })
-    mockOverflow(region)
-    // Simulate we've scrolled to the right
-    Object.defineProperty(region, "scrollLeft", {
-      value: 1000,
-      writable: true,
-      configurable: true,
-    })
-
-    fireEvent.scroll(region)
-    fireEvent.keyDown(region, { key: "ArrowLeft" })
-    expect(region.scrollTo).toHaveBeenCalledWith(
-      expect.objectContaining({ behavior: "smooth" }),
-    )
-  })
-
-  // ---- Custom markets -----------------------------------------------------
-
-  it("accepts a custom market list", () => {
-    const custom = [
-      {
-        id: "custom-1",
-        title: "Custom Market",
-        category: "Test",
-        volume: "$1k",
-        participants: 10,
-        odds: 2.0,
-        href: "/test",
-      },
-    ]
-    render(<TrendingRail markets={custom} />)
-    expect(screen.getByText("Custom Market")).toBeInTheDocument()
-    expect(screen.queryByText(TRENDING_MARKETS[0].title)).not.toBeInTheDocument()
-  })
-})
+    await waitFor(() => {
+      const refreshButton = screen.getByRole('button', { name: /Refresh/i });
+      refreshButton.focus();
+      expect(refreshButton).toHaveFocus();
+    });
+  });
+});

@@ -70,6 +70,19 @@ const STATUS_VARIANTS: Record<MarketStatus, 'info' | 'warning' | 'danger' | 'suc
 };
 
 /**
+ * Maps each market status to a color-blind-safe pattern overlay that
+ * supplements the status color so the label remains distinguishable without
+ * relying on hue alone.
+ */
+const STATUS_PATTERN_CLASSES: Record<MarketStatus, string> = {
+  open: 'pattern-diagonal',
+  closing_soon: 'pattern-dots',
+  closed: 'pattern-crosshatch',
+  resolved: 'pattern-horizontal',
+  cancelled: 'pattern-vertical',
+};
+
+/**
  * StatusBadge component for displaying market status transitions with live tooltips.
  *
  * Features:
@@ -107,6 +120,7 @@ export function StatusBadge({
   const label = STATUS_LABELS[status];
   const description = STATUS_DESCRIPTIONS[status];
   const variant = STATUS_VARIANTS[status];
+  const patternClass = STATUS_PATTERN_CLASSES[status] ?? 'pattern-diagonal';
 
   const statusId = `status-description-${status}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -116,7 +130,7 @@ export function StatusBadge({
       aria-describedby={statusId}
       variant={variant}
       size="md"
-      className={cn('gap-1.5', className)}
+      className={cn('relative gap-1.5 overflow-hidden', patternClass, className)}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       <span>{label}</span>

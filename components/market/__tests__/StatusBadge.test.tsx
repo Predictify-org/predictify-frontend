@@ -207,6 +207,68 @@ describe('StatusBadge', () => {
     });
   });
 
+  describe('Color-Blind Safe Patterns', () => {
+    it('applies a distinct pattern class for each status to supplement color', () => {
+      const patternByStatus = {
+        open: 'pattern-diagonal',
+        closing_soon: 'pattern-dots',
+        closed: 'pattern-crosshatch',
+        resolved: 'pattern-horizontal',
+        cancelled: 'pattern-vertical',
+      } as const;
+
+      Object.entries(patternByStatus).forEach(([status, patternClass]) => {
+        const { unmount } = render(<StatusBadge status={status as MarketStatus} />);
+        const badge = screen.getByRole('status');
+        expect(badge).toHaveClass(patternClass);
+        unmount();
+      });
+    });
+
+    it('applies pattern class alongside other required classes', () => {
+      const { container } = render(<StatusBadge status="open" />);
+      const badge = screen.getByRole('status');
+      
+      // Should have pattern class
+      expect(badge).toHaveClass('pattern-diagonal');
+      // Should also have overflow-hidden for pattern containment
+      expect(badge).toHaveClass('overflow-hidden');
+      // Should have relative positioning for pattern overlay
+      expect(badge).toHaveClass('relative');
+    });
+
+    it('maintains pattern class when custom className is applied', () => {
+      const { container } = render(<StatusBadge status="open" className="custom-class" />);
+      const badge = screen.getByRole('status');
+      
+      expect(badge).toHaveClass('pattern-diagonal');
+      expect(badge).toHaveClass('custom-class');
+    });
+
+    it('uses fallback pattern for unknown status', () => {
+      const { container } = render(<StatusBadge status={'unknown' as unknown as MarketStatus} />);
+      const badge = screen.getByRole('status');
+      
+      // Should fall back to pattern-diagonal as defined in StatusBadge.tsx
+      expect(badge).toHaveClass('pattern-diagonal');
+    });
+
+    it('patterns are unique per status to ensure distinguishability', () => {
+      const statuses: MarketStatus[] = ['open', 'closing_soon', 'closed', 'resolved', 'cancelled'];
+      const patternClasses = statuses.map(status => {
+        const { unmount } = render(<StatusBadge status={status} />);
+        const badge = screen.getByRole('status');
+        const patternClass = Array.from(badge.classList).find(cls => cls.startsWith('pattern-'));
+        unmount();
+        return patternClass;
+      });
+
+      // All patterns should be unique
+      const uniquePatterns = new Set(patternClasses);
+      expect(uniquePatterns.size).toBe(statuses.length);
+    });
+  });
+
   describe('Styling and Customization', () => {
     it('applies custom className', () => {
       const { container } = render(<StatusBadge status="open" className="custom-class" />);

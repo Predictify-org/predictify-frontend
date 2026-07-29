@@ -2,14 +2,17 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { announce } from "@/hooks/use-global-live-region";
 
 const APP_TITLE = "Predictify";
 const DEFAULT_TITLE = "Predictify - Prediction Platform";
 
 export const ROUTE_TITLES: Record<string, string> = {
   "/": DEFAULT_TITLE,
+  "/a11y-audit": "Accessibility Audit | Predictify",
   "/activity-timeline-demo": "Activity Timeline | Predictify",
   "/bets": "Bets | Predictify",
+  "/claims": "Claims | Predictify",
   "/dashboard": "Dashboard | Predictify",
   "/design/accessible-charts": "Accessible Charts | Predictify",
   "/design/icons": "Iconography Guidelines | Predictify",
@@ -24,12 +27,14 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/help": "Help | Predictify",
   "/leaderboard": "Leaderboard | Predictify",
   "/login": "Login | Predictify",
+  "/markets": "Markets | Predictify",
   "/moderation-demo": "Moderation Demo | Predictify",
   "/mypredictions": "My Predictions | Predictify",
   "/profile": "Profile | Predictify",
   "/settings/account": "Account Settings | Predictify",
   "/settings/language": "Language Settings | Predictify",
   "/settings/motion": "Motion Settings | Predictify",
+  "/settings/privacy": "Privacy Settings | Predictify",
   "/settings": "Settings | Predictify",
   "/verification": "Verification | Predictify",
 };
@@ -48,8 +53,13 @@ export function getDocumentTitleForPathname(pathname: string | null | undefined)
   return matchingPrefix ? ROUTE_TITLES[matchingPrefix] : APP_TITLE;
 }
 
-export function useDocumentTitle(title: string, options: { restoreOnUnmount?: boolean } = {}) {
-  const { restoreOnUnmount = true } = options;
+export interface UseDocumentTitleOptions {
+  restoreOnUnmount?: boolean;
+  announceToSR?: boolean;
+}
+
+export function useDocumentTitle(title: string, options: UseDocumentTitleOptions = {}) {
+  const { restoreOnUnmount = true, announceToSR = false } = options;
   const originalTitle = useRef<string | null>(null);
 
   useEffect(() => {
@@ -63,19 +73,23 @@ export function useDocumentTitle(title: string, options: { restoreOnUnmount?: bo
 
     document.title = title;
 
+    if (announceToSR) {
+      announce({ message: title, priority: "polite" });
+    }
+
     return () => {
       if (restoreOnUnmount && originalTitle.current !== null) {
         document.title = originalTitle.current;
       }
     };
-  }, [restoreOnUnmount, title]);
+  }, [announceToSR, restoreOnUnmount, title]);
 }
 
 export function RouteDocumentTitle() {
   const pathname = usePathname();
   const title = getDocumentTitleForPathname(pathname);
 
-  useDocumentTitle(title, { restoreOnUnmount: false });
+  useDocumentTitle(title, { restoreOnUnmount: false, announceToSR: true });
 
   return null;
 }

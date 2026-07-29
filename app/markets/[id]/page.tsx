@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import MarketHero from "./hero";
+import { Tabs } from "@/app/components/Tabs";
 
 /**
  * Market Detail Page — Server Component
@@ -39,7 +40,10 @@ interface MarketData {
   isGrantFoxCampaign: boolean;
 }
 
-function getMockMarket(id: string): MarketData {
+function getMockMarket(id: string): MarketData | null {
+  if (id === "not-found" || id === "404" || id === "empty" || id === "invalid") {
+    return null;
+  }
   return {
     id,
     title: "Will Argentina win the 2026 FIFA World Cup?",
@@ -64,6 +68,14 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const market = getMockMarket(id);
+  
+  if (!market) {
+    return {
+      title: "Market Not Found | Predictify",
+      description: "The requested prediction market could not be found.",
+    };
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://predictify.app";
 
   // Construct dynamic OG image URL
@@ -105,12 +117,32 @@ export async function generateMetadata({
 // Page component
 // ---------------------------------------------------------------------------
 
+import { EmptyState } from "@/components/EmptyState";
+import { AboutMarketModal } from "@/app/components/AboutMarketModal";
+import { SearchX } from "lucide-react";
+import { MarketDetailClient } from "./MarketDetailClient";
+
 export default async function MarketDetailPage({ params }: PageProps) {
   const { id } = await params;
   const market = getMockMarket(id);
 
+  if (!market) {
+    return (
+      <main className="container mx-auto max-w-3xl px-4 py-8 sm:px-6">
+        <div id="main-content" tabIndex={-1} className="outline-none" />
+        <EmptyState
+          title="Market Not Found"
+          description="We couldn't find the prediction market you're looking for. It may have been resolved, cancelled, or never existed. Try browsing our active markets or create your own."
+          ctaText="Browse Markets"
+          ctaHref="/events"
+          icon={SearchX}
+        />
+      </main>
+    );
+  }
+
   return (
-    <main className="container mx-auto max-w-3xl px-4 py-8">
+    <main className="container mx-auto max-w-3xl px-4 py-8 sm:px-6">
       {/* Skip-to-content target */}
       <div id="main-content" tabIndex={-1} className="outline-none" />
 
@@ -127,12 +159,85 @@ export default async function MarketDetailPage({ params }: PageProps) {
           { label: "No", probability: 100 - market.probability },
         ]}
         isGrantFoxCampaign={market.isGrantFoxCampaign}
+        aboutModalTrigger={<AboutMarketModal market={market} />}
       />
 
       {/*
-       * Additional page content (bet form, tabs, timeline, etc.)
-       * would follow here — outside the scope of this hero component.
+       * Market detail tabs — roving-tabindex primitive (GrantFox FWC26).
+       *
+       * Uses app/components/Tabs rather than the Radix-backed shadcn tabs so
+       * that keyboard focus management is fully explicit and auditable.
+       *
+       * Tab panel content is intentionally left as descriptive placeholders
+       * here; real panels (BetForm, ActivityTimeline, etc.) are wired in
+       * follow-up tasks once the primitive is approved.
        */}
+      <section aria-label="Market detail sections" className="mt-8">
+        <Tabs
+          aria-label="Market detail sections"
+          defaultValue="overview"
+          tabs={[
+            {
+              value: "overview",
+              label: "Overview",
+              content: (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Market overview, probability breakdown, and resolution
+                    criteria will be displayed here.
+                  </p>
+                </div>
+              ),
+            },
+            {
+              value: "activity",
+              label: "Activity",
+              content: (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Recent bets and participant activity for this market will
+                    appear here.
+                  </p>
+                </div>
+              ),
+            },
+            {
+              value: "resolution",
+              label: "Resolution",
+              content: (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Resolution criteria, oracle sources, and outcome verification
+                    details will be displayed here.
+                  </p>
+                </div>
+              ),
+            },
+            {
+              value: "timeline",
+              label: "Timeline",
+              content: (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    The full market lifecycle timeline — from creation through
+                    resolution — will be shown here.
+                  </p>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </section>
+
+      {/*
+       * Keyboard shortcut hints + listeners (client component).
+       * Rendered below the tabs so it doesn't interrupt the reading flow.
+       * Hidden on touch devices and narrow viewports automatically.
+       */}
+      <MarketDetailClient
+        marketTitle={market.title}
+        marketId={market.id}
+      />
     </main>
   );
 }

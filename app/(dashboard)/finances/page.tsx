@@ -130,7 +130,7 @@ export default function FinancesPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.totalFees) : financialData.totalFees.toLocaleString()}</div>
+            <div data-numeric="true" className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.totalFees) : financialData.totalFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <TrendingUp className="mr-1 h-3.5 w-3.5 text-green-500" />
               <span className="text-green-500 tabular-nums">{financialData.feeGrowth}%</span>
@@ -144,7 +144,7 @@ export default function FinancesPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.monthlyFees) : financialData.monthlyFees.toLocaleString()}</div>
+            <div data-numeric="true" className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.monthlyFees) : financialData.monthlyFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <ArrowUpRight className="mr-1 h-3.5 w-3.5 text-green-500" />
               <span>April 2023</span>
@@ -157,7 +157,7 @@ export default function FinancesPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.weeklyFees) : financialData.weeklyFees.toLocaleString()}</div>
+            <div data-numeric="true" className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.weeklyFees) : financialData.weeklyFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <ArrowDownRight className="mr-1 h-3.5 w-3.5 text-red-500" />
               <span className="text-red-500 tabular-nums">3.2%</span>
@@ -171,7 +171,7 @@ export default function FinancesPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.dailyFees) : financialData.dailyFees.toLocaleString()}</div>
+            <div data-numeric="true" className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.dailyFees) : financialData.dailyFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <TrendingUp className="mr-1 h-3.5 w-3.5 text-green-500" />
               <span className="text-green-500 tabular-nums">8.4%</span>

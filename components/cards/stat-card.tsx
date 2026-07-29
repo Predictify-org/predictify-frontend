@@ -1,3 +1,21 @@
+/**
+ * StatCard Component — Issue #646: Focus Visible Accessibility
+ *
+ * All interactive elements in this component use focus-visible to show
+ * keyboard focus outlines that meet WCAG 2.1 AA (3:1 contrast ratio).
+ *
+ * Interactive elements and their focus treatment:
+ * - Empty state CTA Button: Uses Button component with full focus-visible ring
+ * - Error state Retry Button: Uses Button component with full focus-visible ring
+ * - Both buttons use Tailwind's focus-visible utilities: outline-none, ring-2, ring-offset-2
+ *
+ * Uses Tailwind's focus-visible: variant which targets :focus-visible pseudo-class
+ * — visible to keyboard users, hidden for mouse users.
+ *
+ * The component's display area (non-empty, non-error state) is not interactive
+ * and receives no focus styles.
+ */
+
 import type { Stat } from "@/types/index";
 import { AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,7 +117,10 @@ export function StatCard({ stat, index, status, emptyVariant = 'volume', onRetry
   return (
     <div className="relative group">
       <div className="bg-slate-900/50 backdrop-blur-sm border border-cyan-500/20 rounded-2xl p-6 sm:p-8 shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
-        <div className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent mb-2 tabular-nums">
+        <div
+          data-numeric="true"
+          className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent mb-2 tabular-nums"
+        >
           {stat?.value}
         </div>
         <div className="text-slate-400 font-medium text-sm sm:text-base">

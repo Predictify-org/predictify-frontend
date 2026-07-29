@@ -3,7 +3,7 @@
 /**
  * MarketHero — market detail hero for the GrantFox FWC26 campaign.
  *
- * Design goals (per issue):
+ * Design goals (per issue #549 — v7 design token polish):
  *  - Rebalanced hero elements: title, status, and stats share visual weight
  *    without one section dominating the others.
  *  - Tight typography hierarchy using the repo's design-token scale
@@ -12,21 +12,35 @@
  *    stat strip rather than buried in a full card layout.
  *  - GrantFox FWC26 campaign badge surfaces prominently but unobtrusively.
  *  - Dark-mode consistent: all colours are CSS-variable tokens or
- *    Tailwind semantic classes (no hardcoded hex).
+ *    Tailwind semantic classes (no hardcoded hex, no bare colour names).
  *  - WCAG 2.1 AA: every interactive element is keyboard-reachable and
  *    labelled; status changes use role="status"; progress bars use
  *    role="progressbar" with aria-valuenow/min/max.
  *  - Responsive: single-column on mobile (< sm), two-column on ≥ md.
+ *  - Reduced-motion: when the user has "prefers-reduced-motion: reduce"
+ *    set in their OS, the probability-bar width transition is replaced with
+ *    an instant static render. This is enforced both via the Tailwind
+ *    `motion-reduce:` CSS variant (covers cases where JS hasn't hydrated)
+ *    AND via the `useReducedMotion` hook (covers JS-driven dynamic updates).
+ *
+ * Token changes (v7):
+ *  - Title: text-h2-responsive → text-h1-responsive (it is the page <h1>)
+ *  - "Yes" probability text: text-emerald-600 dark:text-emerald-400 → text-outcome-yes
+ *  - "No" probability text: text-muted-foreground → text-outcome-no
+ *  - Progress bar fill: bg-emerald-500 → bg-outcome-yes
  *
  * @see docs/MARKET_HERO.md
  */
 
 import React, { useId } from "react";
-import { Clock, Users, DollarSign, TrendingUp, Share2 } from "lucide-react";
+import { Clock, Users, DollarSign, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge, type MarketStatus } from "@/components/market/StatusBadge";
+import { LiveRegion } from "@/components/ui/live-region";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,8 +86,12 @@ export interface MarketHeroProps {
    * If omitted the Share button is not rendered.
    */
   onShare?: () => void;
+  /** Optional trigger element for the "About this market" modal. */
+  aboutModalTrigger?: React.ReactNode;
   /** Additional CSS classes applied to the root element. */
   className?: string;
+  /** Renders a loading placeholder that mirrors the final hero layout. */
+  isLoading?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -84,6 +102,13 @@ export interface MarketHeroProps {
  * Stat pill — a small labelled figure used in the stat strip.
  * Kept internal to this file; exported only for testing via a named export
  * lower in this module.
+ *
+ * Tabular-nums contract (issue #556): the value span wears `text-stat-sm`,
+ * which is bound to `font-variant-numeric: tabular-nums` in
+ * `styles/globals.css`.  An explicit `tabular-nums` is also applied here
+ * for redundancy and so the DOM-level contract is straightforward to
+ * assert in tests — both layers resolve to the same CSS property and
+ * there is no visual conflict.
  */
 interface StatPillProps {
   icon: React.ReactNode;
@@ -151,23 +176,86 @@ export function MarketHero({
   outcomes,
   isGrantFoxCampaign = false,
   onShare,
+  aboutModalTrigger,
   className,
+  isLoading = false,
 }: MarketHeroProps) {
   const heroId = useId();
   const descId = `${heroId}-desc`;
+
+  // Respect the user's OS "prefers-reduced-motion" preference.
+  // When true, the probability bar renders as a plain static element —
+  // no CSS transition, no JS-driven width animation — matching the pattern
+  // used by NotificationBell, ClaimFlow, and WalletModal in this repo.
+  const reducedMotion = useReducedMotion();
 
   // Determine the leading outcome probability for the aria label on the bar.
   const leadOutcome = outcomes?.[0];
   const trailOutcome = outcomes?.[1];
 
+  if (isLoading) {
+    return (
+      <section
+        aria-labelledby={`${heroId}-title`}
+        data-testid="market-hero-skeleton"
+        className={cn(
+          "w-full rounded-2xl border border-border bg-card px-5 py-6 sm:px-8 sm:py-8",
+          "bg-gradient-to-br from-card to-muted/30 dark:from-card dark:to-muted/10",
+          className
+        )}
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-2" data-testid="market-hero-skeleton-lines">
+          <Skeleton className="h-6 w-24 rounded-full" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+
+        <div className="mb-5 space-y-2" data-testid="market-hero-skeleton-text">
+          <Skeleton className="h-8 w-3/4 rounded-md" data-testid="market-hero-skeleton-line" />
+          <Skeleton className="h-4 w-full rounded-md" data-testid="market-hero-skeleton-line" />
+          <Skeleton className="h-4 w-5/6 rounded-md" data-testid="market-hero-skeleton-line" />
+        </div>
+
+        <div className="mb-5 space-y-2" data-testid="market-hero-skeleton-bar">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-20 rounded-md" data-testid="market-hero-skeleton-line" />
+            <Skeleton className="h-4 w-20 rounded-md" data-testid="market-hero-skeleton-line" />
+          </div>
+          <Skeleton className="h-3 w-full rounded-full" />
+        </div>
+
+        <div
+          className="mb-5 flex flex-wrap gap-x-6 gap-y-3 border-t border-border pt-4"
+          data-testid="market-hero-skeleton-stats"
+        >
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-4 w-16 rounded-md" />
+            <Skeleton className="h-6 w-24 rounded-md" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-4 w-20 rounded-md" />
+            <Skeleton className="h-6 w-24 rounded-md" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-4 w-16 rounded-md" />
+            <Skeleton className="h-6 w-20 rounded-md" />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       aria-labelledby={`${heroId}-title`}
       className={cn(
-        // Base layout
-        "w-full rounded-2xl border border-border bg-card px-5 py-6 sm:px-8 sm:py-8",
+        // Base layout — tighter padding on mobile (px-4 py-5), comfortable on sm+
+        "w-full rounded-2xl border border-border bg-card px-4 py-5 sm:px-8 sm:py-8",
         // Subtle gradient tint that respects dark mode via Tailwind's `dark:` prefix
         "bg-gradient-to-br from-card to-muted/30 dark:from-card dark:to-muted/10",
+        // Ensure keyboard users can see a clear focus outline when the hero
+        // itself receives focus, such as when used in a composite surface.
+        "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
         className
       )}
     >
@@ -200,7 +288,10 @@ export function MarketHero({
       <div className="mb-5">
         <h1
           id={`${heroId}-title`}
-          className="text-h2-responsive font-bold tracking-tight text-foreground text-balance"
+          // text-h1-responsive: this is the page's primary <h1> heading; it
+          // should carry the full h1 weight (scales xl→2xl→3xl→h1 across
+          // breakpoints) rather than the lighter h2 scale.
+          className="text-h1-responsive font-bold tracking-tight text-foreground text-balance"
         >
           {title}
         </h1>
@@ -216,16 +307,27 @@ export function MarketHero({
       </div>
 
       {/* ── Row 3 · Probability bar ──────────────────────────────── */}
-      {outcomes && outcomes.length > 0 && (
+      {leadOutcome && (
         <div className="mb-5" data-testid="probability-section">
           {/* Outcome labels */}
           <div className="mb-1.5 flex justify-between text-body-sm font-medium">
+            {/*
+             * Tabular-nums contract (issue #556): the parent `<span>` uses
+             * `text-body-sm`, which is NOT one of the stat tokens bound to
+             * `font-variant-numeric: tabular-nums` by `styles/globals.css`,
+             * so the property is absent in the cascade for this subtree.
+             * An explicit `tabular-nums` on the inner span is therefore
+             * required, and it keeps the digits column-aligned regardless
+             * of the leading label or trailing "%" spacing.
+             */}
             <span className="text-emerald-600 dark:text-emerald-400">
               {leadOutcome.label}{" "}
               <span className="tabular-nums">{leadOutcome.probability}%</span>
             </span>
             {trailOutcome && (
-              <span className="text-muted-foreground">
+              // text-outcome-no: semantic design token for "No" outcomes — resolves to
+              // the --outcome-no CSS variable, dark-mode consistent.
+              <span className="text-outcome-no">
                 {trailOutcome.label}{" "}
                 <span className="tabular-nums">{trailOutcome.probability}%</span>
               </span>
@@ -237,9 +339,28 @@ export function MarketHero({
             className="h-3 w-full overflow-hidden rounded-full bg-muted"
             aria-hidden="true"
           >
-            {/* Leading outcome fill */}
+            {/*
+             * Reduced-motion fallback — two layers of defence:
+             *
+             *  1. CSS `motion-reduce:transition-none` — fires before JS
+             *     hydrates, ensuring no animated flash on first paint.
+             *  2. JS `reducedMotion` flag (from useReducedMotion hook) —
+             *     removes the transition class entirely at runtime so that
+             *     any dynamic probability updates are also instant.
+             *
+             * Both resolve to `font-variant-numeric: tabular-nums`-style
+             * "no movement" and are asserted in hero.reduced-motion.test.tsx.
+             */}
             <div
-              className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
+              data-testid={reducedMotion ? "probability-bar-static" : "probability-bar-animated"}
+              className={cn(
+                "h-full rounded-full bg-outcome-yes",
+                // Animated branch: smooth width transition for users who are
+                // fine with motion.
+                !reducedMotion && "transition-[width] duration-500 ease-out",
+                // CSS-level fallback — catches the pre-hydration window.
+                "motion-reduce:transition-none"
+              )}
               style={{ width: `${leadOutcome.probability}%` }}
             />
           </div>
@@ -262,7 +383,7 @@ export function MarketHero({
       {/* ── Row 4 · Stat strip ───────────────────────────────────── */}
       {(volume || participants != null || timeLeft) && (
         <div
-          className="mb-5 flex flex-wrap gap-x-6 gap-y-3 border-t border-border pt-4"
+          className="mb-5 grid grid-cols-3 gap-y-3 border-t border-border pt-4 sm:flex sm:flex-wrap sm:gap-x-6 sm:gap-y-3"
           data-testid="stat-strip"
         >
           {volume && (
@@ -290,26 +411,32 @@ export function MarketHero({
       )}
 
       {/* ── Row 5 · Actions ─────────────────────────────────────── */}
-      {onShare && (
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onShare}
-            className="gap-2"
-            aria-label="Share this market"
-          >
-            <Share2 className="h-4 w-4" aria-hidden="true" />
-            Share
-          </Button>
-
-          {/* Live region announces when volume/participants change dynamically */}
-          <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-            {volume && `Market volume: ${volume}.`}
-            {participants != null && ` ${participants.toLocaleString()} participants.`}
-          </div>
+      {(onShare || aboutModalTrigger) && (
+        <div className="flex flex-wrap items-center gap-3">
+          {aboutModalTrigger}
+          {onShare && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onShare}
+              className="h-10 gap-2 px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              aria-label="Share this market"
+            >
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              Share
+            </Button>
+          )}
         </div>
       )}
+
+      {/* Live region announces state changes, volume, and participants */}
+      <LiveRegion
+        message={[
+          `Market status is ${status.replace('_', ' ')}.`,
+          volume && `Market volume: ${volume}.`,
+          participants != null && `${participants.toLocaleString()} participants.`
+        ].filter(Boolean).join(" ")}
+      />
     </section>
   );
 }

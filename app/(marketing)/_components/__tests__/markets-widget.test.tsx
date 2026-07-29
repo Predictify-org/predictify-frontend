@@ -10,6 +10,23 @@ import React from "react";
 import { render, screen, act } from "@testing-library/react";
 import { useFollowsStore } from "@/app/state/follows";
 import { useUserLimitsStore } from "@/app/state/userLimits";
+
+beforeEach(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+});
+
 // ── minimal stub for the Card component ─────────────────────────────────────
 jest.mock("@/components/ui/card", () => ({
   Card: ({
@@ -94,5 +111,24 @@ describe("MarketsWidget – following indicator", () => {
 
     const indicators = screen.getAllByTestId("following-indicator");
     expect(indicators).toHaveLength(1);
+  });
+
+  it("renders the responsive layout classes for the market card content", () => {
+    const { container } = render(<MarketsWidget />);
+    const markup = container.innerHTML;
+
+    expect(markup).toContain("p-3 sm:p-4");
+    expect(markup).toContain(
+      "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
+    );
+    expect(markup).toContain("flex min-w-0 items-start gap-3");
+    expect(markup).toContain("min-w-0 flex-1");
+    expect(markup).toContain("break-words font-semibold text-white");
+    expect(markup).toContain(
+      "flex shrink-0 gap-4 text-left sm:block sm:text-right",
+    );
+    expect(markup).toContain(
+      "flex flex-col gap-1 text-xs text-white/60 sm:flex-row sm:justify-between",
+    );
   });
 });

@@ -6,12 +6,13 @@
  *  2. Clicking a chip populates the amount field
  *  3. Submitting with a valid amount calls onSubmit
  *  4. Submitting with an empty / zero amount shows an inline error
+ *  5. BetFormSkeleton renders with correct structure and accessibility
  */
 
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import BetForm from "@/app/components/BetForm";
+import BetForm, { BetFormSkeleton } from "@/app/components/BetForm";
 
 describe("BetForm", () => {
   it("renders the quick-bet chips and the amount input", () => {
@@ -64,5 +65,31 @@ describe("BetForm", () => {
         "Please enter a valid bet amount greater than 0 XLM."
       )
     );
+  });
+
+  it("submits the form when Cmd+Enter or Ctrl+Enter is pressed", async () => {
+    const onSubmit = jest.fn();
+    render(<BetForm onSubmit={onSubmit} />);
+
+    // Select the 10 XLM preset
+    await userEvent.click(
+      screen.getByRole("button", { name: "Set bet amount to 10 XLM" })
+    );
+
+    // Press Ctrl+Enter
+    fireEvent.keyDown(document, { key: "Enter", ctrlKey: true });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(10);
+  });
+
+  it("renders a skeleton when isLoading is true", () => {
+    render(<BetForm isLoading={true} />);
+
+    expect(screen.getByTestId("betform-skeleton")).toBeInTheDocument();
+    
+    // Ensure standard elements are not present
+    expect(screen.queryByLabelText("Amount (XLM)")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Place Bet" })).not.toBeInTheDocument();
   });
 });

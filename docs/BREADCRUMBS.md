@@ -65,6 +65,48 @@ and remount on every navigation and there'd be nothing to morph between.
   slides" effect; `transition` pins it to the spec's 180ms,
   `cubic-bezier(0.2, 0.8, 0.2, 1)` ease-out curve.
 
+## Overflow: collapsing long trails
+
+Deep routes (or ones with several long segment names) can produce a trail
+that's too wide for the header — most visibly on Settings sub-pages once a
+route goes more than a couple of levels deep. Rather than letting the row
+wrap or clip, `collapseBreadcrumbTrail` (in
+[`lib/breadcrumbs.ts`](../lib/breadcrumbs.ts)) collapses the *middle* of a
+trail longer than `MAX_VISIBLE_CRUMBS` (4) into a single "…" entry, always
+keeping:
+
+- the root crumb (e.g. "Dashboard"), so there's always a way back to the top, and
+- the last two crumbs (the immediate parent and the current page), so "where
+  am I" stays answerable at a glance.
+
+`Breadcrumbs.tsx` renders that "…" entry as a button
+(`aria-label="Show N hidden breadcrumb items"`) backed by the existing
+`DropdownMenu` primitive, which opens a standard, keyboard-operable menu
+listing the hidden crumbs as links. Because it's Radix's `DropdownMenu`,
+focus management, `Escape`-to-close, and arrow-key navigation come for free.
+
+```
+Dashboard / Settings / Account / Verification / Documents   (source trail)
+Dashboard / …        / Verification / Documents             (rendered — "…" opens Settings, Account)
+```
+
+## Truncating long labels
+
+Independent of trail-level collapsing, any single crumb label longer than
+`MAX_LABEL_LENGTH` (24 characters) is shortened with `truncateMiddle` (also
+in `lib/breadcrumbs.ts`), which keeps the start and end of the string and
+splices in an ellipsis, e.g. `"Verification Requirements" ->
+"Verific…ments"`. Middle truncation (rather than CSS's end-only
+`text-overflow: ellipsis`) is used because for path-like or ID-bearing
+labels the identifying part is often at either edge, not just the start.
+
+The full label is never lost: it's set as `aria-label` and `title` on the
+rendered element, so screen readers announce the untruncated text and
+sighted mouse users can hover for the full string. Each crumb's container
+also carries `truncate` (CSS) plus `min-w-0` on its flex ancestors as a
+layout-level backstop, in case a truncated label is still wider than the
+space a narrow viewport leaves it.
+
 ## Reduced motion
 
 `ActiveCrumb` calls Framer Motion's `useReducedMotion()` (which reads
@@ -97,7 +139,14 @@ pnpm test components/navbar/__tests__/Breadcrumbs
   crumb at a time, the morph completing on a depth change, *no* re-trigger
   when the trail is unchanged (same content, new array reference — simulates
   an unrelated parent re-render), and the reduced-motion path swapping
-  synchronously with no animation.
+  synchronously with no animation. It also covers overflow: a long trail
+  collapses to root + ellipsis + last two crumbs, the ellipsis menu exposes
+  the hidden crumbs as working links, a trail that already fits is left
+  uncollapsed, and a long single label renders middle-ellipsized while
+  keeping its full text available via `aria-label`.
+- `lib/__tests__/breadcrumbs.test.ts` also covers `truncateMiddle` (label
+  under/at/over the length limit) and `collapseBreadcrumbTrail` (under,
+  exactly at, and over `maxVisible`) in isolation.
 
 ## Manually verifying in the browser
 

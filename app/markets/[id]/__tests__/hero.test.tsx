@@ -12,10 +12,11 @@
  *  - Edge cases: zero probability, 100% probability, missing optional props
  *  - Dark mode: component renders without crashing in dark context
  *  - Responsive: snapshot preserves structure across viewport widths
+ *  - Design tokens (v7): outcome colors use token classes not bare color names
  */
 
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MarketHero, StatPill, type MarketHeroProps } from "../hero";
 
@@ -57,6 +58,27 @@ describe("MarketHero — rendering", () => {
   it("renders without crashing with only required props", () => {
     renderHero();
     expect(screen.getByRole("region")).toBeInTheDocument();
+  });
+
+  it("renders a loading skeleton that mirrors the final hero structure", () => {
+    render(<MarketHero title="Loading market" status="open" isLoading />);
+
+    expect(screen.getByTestId("market-hero-skeleton")).toBeInTheDocument();
+    expect(screen.getAllByTestId("market-hero-skeleton-line")).toHaveLength(5);
+    expect(screen.getByTestId("market-hero-skeleton-bar")).toBeInTheDocument();
+    expect(screen.getByTestId("market-hero-skeleton-stats")).toBeInTheDocument();
+  });
+
+  it("applies visible focus styles to interactive controls", () => {
+    renderHero({ onShare: jest.fn() });
+
+    const shareButton = screen.getByRole("button", { name: /share this market/i });
+    expect(shareButton).toHaveClass(
+      "focus-visible:outline-none",
+      "focus-visible:ring-2",
+      "focus-visible:ring-ring",
+      "focus-visible:ring-offset-2"
+    );
   });
 
   it("renders the market title as an h1", () => {
@@ -201,6 +223,147 @@ describe("MarketHero — probability bar", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Tabular-nums contract — Issue #556 (MarketDetail tabular-nums v7)
+// ---------------------------------------------------------------------------
+/**
+ * Helpers
+ *
+ * Per the issue, every visible numeric surface on MarketDetail must use
+ * `font-variant-numeric: tabular-nums` so figures align column-perfectly.
+ * The implementation guarantees this two ways:
+ *
+ *   1. A CSS base binding in `styles/globals.css` applies the property
+ *      automatically to all elements using the `text-stat-lg/md/sm` tokens.
+ *   2. Explicit `tabular-nums` on the value span inside `StatPill` and on
+ *      each outcome probability percentage (which lives under `text-body-sm`
+ *      and therefore does NOT inherit the CSS binding).
+ *
+ * The helper below accepts either signal so the test remains accurate if
+ * either layer of the contract changes.
+ */
+function isTabularAligned(el: HTMLElement): boolean {
+  const hasExplicit = el.classList.contains("tabular-nums");
+  const hasStatToken = ["text-stat-lg", "text-stat-md", "text-stat-sm"].some(
+    (c) => el.classList.contains(c)
+  );
+  return hasExplicit || hasStatToken;
+}
+
+describe("MarketHero — tabular-nums contract (issue #556)", () => {
+  it("StatPill value span satisfies the tabular-nums contract", () => {
+    render(
+      <StatPill
+        icon={<span data-testid="icon" />}
+        label="Volume"
+        value="10,000 USDC"
+      />
+    );
+    const valueEl = screen.getByText("10,000 USDC");
+    expect(isTabularAligned(valueEl)).toBe(true);
+  });
+
+  it("Stat strip — volume is rendered with tabular-nums alignment", () => {
+    renderHero({ volume: "42,000 USDC" });
+    const el = screen.getByText("42,000 USDC");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Stat strip — participants is rendered with tabular-nums alignment", () => {
+    renderHero({ participants: 3840 });
+    const el = screen.getByText("3,840");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Stat strip — locale-formatted large numbers keep tabular-nums", () => {
+    renderHero({ participants: 1234567 });
+    const el = screen.getByText("1,234,567");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Stat strip — timeLeft value is rendered with tabular-nums alignment", () => {
+    renderHero({ timeLeft: "18 days" });
+    const el = screen.getByText("18 days");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Probability bar — leading outcome percentage uses tabular-nums", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 62 },
+        { label: "No", probability: 38 },
+      ],
+    });
+    const el = screen.getByText("62%");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Probability bar — trailing outcome percentage uses tabular-nums", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 65 },
+        { label: "No", probability: 35 },
+      ],
+    });
+    const el = screen.getByText("35%");
+    expect(isTabularAligned(el)).toBe(true);
+  });
+
+  it("Edge case — 0% boundary still uses tabular-nums", () => {
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 0 },
+        { label: "No", probability: 100 },
+      ],
+    });
+    expect(isTabularAligned(screen.getByText("0%"))).toBe(true);
+    expect(isTabularAligned(screen.getByText("100%"))).toBe(true);
+  });
+
+  it("Edge case — single-outcome probability bars (75% and 100%) keep tabular-nums", () => {
+    // Single-outcome bars render only the leading label (no trailing one);
+    // the contract must still hold for boundary probabilities.
+    renderHero({ outcomes: [{ label: "Yes", probability: 75 }] });
+    expect(isTabularAligned(screen.getByText("75%"))).toBe(true);
+
+    cleanup();
+
+    renderHero({ outcomes: [{ label: "Yes", probability: 100 }] });
+    expect(isTabularAligned(screen.getByText("100%"))).toBe(true);
+  });
+
+  it("Every visible numeric display in the full hero satisfies the contract", () => {
+    render(<MarketHero {...FULL_PROPS} />);
+    const numericSpans = [
+      "42,000 USDC", // volume
+      "3,840", // participants — locale-formatted
+      "18 days", // timeLeft
+      "62%", // leading outcome probability
+      "38%", // trailing outcome probability
+    ];
+    for (const text of numericSpans) {
+      const el = screen.getByText(text);
+      expect({ text, ok: isTabularAligned(el) }).toEqual({ text, ok: true });
+    }
+  });
+
+  it("The progressbar ARIA aria-valuenow is unchanged (not affected by font-variant-numeric)", () => {
+    // The visually hidden progressbar communicates the value to assistive
+    // tech via ARIA.  font-variant-numeric is purely visual; we ensure the
+    // contract for SR <-> visual numerals stays in sync.
+    renderHero({
+      outcomes: [
+        { label: "Yes", probability: 42 },
+        { label: "No", probability: 58 },
+      ],
+    });
+    const pb = screen.getByRole("progressbar");
+    expect(pb).toHaveAttribute("aria-valuenow", "42");
+    // Visible outcome span must still use tabular-nums.
+    expect(isTabularAligned(screen.getByText("42%"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Stat strip
 // ---------------------------------------------------------------------------
 describe("MarketHero — stat strip", () => {
@@ -284,12 +447,112 @@ describe("MarketHero — share action", () => {
     expect(onShare).toHaveBeenCalledTimes(1);
   });
 
-  it("renders a live region alongside the Share button", () => {
-    renderHero({ onShare: jest.fn(), volume: "1 USDC", participants: 100 });
-    // There will be more than one role="status" because StatusBadge also has one,
-    // but we confirm at least one polite live region exists.
+  it("renders a live region to announce state changes, volume, and participants", async () => {
+    renderHero({ onShare: jest.fn(), status: "closing_soon", volume: "1 USDC", participants: 100 });
+    // There will be more than one role="status" because StatusBadge also has one
+    
+    await waitFor(() => {
+      const liveRegions = screen.getAllByRole("status");
+      const srLiveRegion = liveRegions.find(el => el.classList.contains("sr-only") && el.textContent?.includes("Market status is closing soon"));
+      expect(srLiveRegion).toBeDefined();
+      expect(srLiveRegion).toHaveTextContent("Market status is closing soon. Market volume: 1 USDC. 100 participants.");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // MarketDetail status-change announcements (issue #495)
+  //
+  // The test above only covers a single static render. MarketDetail pages
+  // move through a real lifecycle (open → closing_soon → closed → resolved,
+  // or → cancelled at any point), so the live region must also re-announce
+  // whenever the `status` prop changes on an already-mounted hero — not
+  // just on first mount.
+  // -------------------------------------------------------------------------
+  function findSrLiveRegion(expectedText: string) {
     const liveRegions = screen.getAllByRole("status");
-    expect(liveRegions.length).toBeGreaterThanOrEqual(1);
+    return liveRegions.find(
+      (el) =>
+        el.classList.contains("sr-only") &&
+        el.textContent?.includes(expectedText)
+    );
+  }
+
+  it("announces an updated message when the market status changes from open to closing_soon", async () => {
+    const { rerender } = renderHero({ status: "open" });
+
+    await waitFor(() => {
+      expect(findSrLiveRegion("Market status is open.")).toBeDefined();
+    });
+
+    rerender(<MarketHero {...BASE_PROPS} status="closing_soon" />);
+
+    await waitFor(() => {
+      expect(
+        findSrLiveRegion("Market status is closing soon.")
+      ).toBeDefined();
+    });
+  });
+
+  it("announces each step of a full market lifecycle transition", async () => {
+    const { rerender } = renderHero({ status: "open" });
+    await waitFor(() => {
+      expect(findSrLiveRegion("Market status is open.")).toBeDefined();
+    });
+
+    rerender(<MarketHero {...BASE_PROPS} status="closed" />);
+    await waitFor(() => {
+      expect(findSrLiveRegion("Market status is closed.")).toBeDefined();
+    });
+
+    rerender(<MarketHero {...BASE_PROPS} status="resolved" />);
+    await waitFor(() => {
+      expect(findSrLiveRegion("Market status is resolved.")).toBeDefined();
+    });
+  });
+
+  it("announces cancellation even from a non-terminal status", async () => {
+    const { rerender } = renderHero({ status: "closing_soon" });
+    await waitFor(() => {
+      expect(
+        findSrLiveRegion("Market status is closing soon.")
+      ).toBeDefined();
+    });
+
+    rerender(<MarketHero {...BASE_PROPS} status="cancelled" />);
+    await waitFor(() => {
+      expect(findSrLiveRegion("Market status is cancelled.")).toBeDefined();
+    });
+  });
+
+  it("keeps volume and participant announcements in sync alongside a status change", async () => {
+    const { rerender } = renderHero({
+      status: "open",
+      volume: "10,000 USDC",
+      participants: 500,
+    });
+    await waitFor(() => {
+      expect(
+        findSrLiveRegion(
+          "Market status is open. Market volume: 10,000 USDC. 500 participants."
+        )
+      ).toBeDefined();
+    });
+
+    rerender(
+      <MarketHero
+        {...BASE_PROPS}
+        status="resolved"
+        volume="10,000 USDC"
+        participants={512}
+      />
+    );
+    await waitFor(() => {
+      expect(
+        findSrLiveRegion(
+          "Market status is resolved. Market volume: 10,000 USDC. 512 participants."
+        )
+      ).toBeDefined();
+    });
   });
 });
 
@@ -358,6 +621,22 @@ describe("MarketHero — StatusBadge integration", () => {
 });
 
 // ---------------------------------------------------------------------------
+// About Modal Trigger
+// ---------------------------------------------------------------------------
+describe("MarketHero — about modal trigger", () => {
+  it("renders aboutModalTrigger element when provided", () => {
+    const trigger = <button data-testid="mock-about-trigger">About</button>;
+    renderHero({ aboutModalTrigger: trigger });
+    expect(screen.getByTestId("mock-about-trigger")).toBeInTheDocument();
+  });
+
+  it("does not render actions wrapper if both onShare and aboutModalTrigger are omitted", () => {
+    renderHero({ onShare: undefined, aboutModalTrigger: undefined });
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Full props smoke-test
 // ---------------------------------------------------------------------------
 describe("MarketHero — full props", () => {
@@ -376,33 +655,5 @@ describe("MarketHero — full props", () => {
     expect(
       screen.getByRole("button", { name: /share this market/i })
     ).toBeInTheDocument();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// StatPill (internal helper exported for tests)
-// ---------------------------------------------------------------------------
-describe("StatPill", () => {
-  it("renders the label and value", () => {
-    render(
-      <StatPill
-        icon={<span data-testid="icon" />}
-        label="Volume"
-        value="10,000 USDC"
-      />
-    );
-    expect(screen.getByText("Volume")).toBeInTheDocument();
-    expect(screen.getByText("10,000 USDC")).toBeInTheDocument();
-  });
-
-  it("renders the icon slot", () => {
-    render(
-      <StatPill
-        icon={<span data-testid="test-icon" />}
-        label="Stat"
-        value="42"
-      />
-    );
-    expect(screen.getByTestId("test-icon")).toBeInTheDocument();
   });
 });

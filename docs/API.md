@@ -163,6 +163,26 @@ Keeping the request inside the store actions (for events) and at the page or
 data-hook level (for transactions and bets) means components keep consuming the
 same typed shapes, so no component changes are required when the API is wired in.
 
+## LeaderboardTable component props
+
+`components/leaderboard/LeaderboardTable.tsx` accepts the following props:
+
+| Prop | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `users` | `LeaderboardUser[]` | Yes | — | Array of leaderboard entries to render. |
+| `onUserVisibilityChange` | `(isVisible: boolean) => void` | No | — | Callback invoked when the current user's row enters or leaves the viewport. |
+| `onShare` | `() => void` | No | — | Callback invoked when the user clicks the Share button in the sticky action bar. When omitted, the Share button is not rendered. |
+
+### Sticky action bar
+
+When the user scrolls past 50px inside the table viewport, a sticky bottom action bar slides in. It provides:
+
+- **Back to top** – scrolls the table back to the top. Disabled when the user is within 15% of the bottom.
+- **Share** – only rendered when `onShare` is provided. Calls the callback on click.
+- **Predictor count** – shows the total number of entries (hidden on mobile via `hidden sm:inline`).
+
+The action bar uses `sticky bottom-0` positioning, `backdrop-blur-md`, and respects dark-mode design tokens (`bg-slate-900/95`, `border-slate-800`, `text-slate-400`, `text-cyan-400`).
+
 ## Mocked vs. real status
 
 | Area | Status | Source of truth today |

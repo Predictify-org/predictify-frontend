@@ -71,6 +71,56 @@ const auditItems: AuditItem[] = [
       'Global focus rings remain visible in dark mode and are paired with strong contrast for interactive surfaces.',
     evidence: ['app/styles/focus.css', 'app/globals.css', 'app/__tests__/focus-visible.test.js'],
   },
+  {
+    component: 'SkipToContent',
+    status: 'Verified',
+    summary:
+      'WCAG 2.1 AA SC 2.4.1 (Bypass Blocks). First focusable link on pages, bypasses standard headers to main content.',
+    evidence: [
+      'app/components/SkipToContent.tsx',
+      'app/components/__tests__/SkipToContent.test.tsx',
+      'app/layout.tsx',
+      'app/(dashboard)/layout.tsx',
+      'app/(marketing)/layout.tsx',
+    ],
+  },
+  {
+    component: 'MobileBottomTabs badge',
+    status: 'Verified',
+    summary:
+      'WCAG 2.1 AA SC 1.4.11 and 4.1.3 satisfied. Custom red badge shows unread counts visually while aria-labels announce unread status.',
+    evidence: [
+      'components/navbar/MobileBottomTabs.tsx',
+      'components/navbar/__tests__/MobileBottomTabs.test.tsx',
+    ],
+  },
+  {
+    component: 'AboutMarketModal',
+    status: 'Verified',
+    summary:
+      'Modal uses DialogContentWithFocusReturn to restore focus on close, provides full keyboard support, and uses custom sr-only descriptions for screen readers.',
+    evidence: [
+      'app/components/AboutMarketModal.tsx',
+      'app/components/__tests__/AboutMarketModal.test.tsx',
+    ],
+  },
+  {
+    component: 'Dashboard interactive elements (#484)',
+    status: 'Verified',
+    summary:
+      'Keyboard-only focus outlines are now visible on all Dashboard interactive surfaces: notification items, activity timeline group headers, recommendation cards, recently viewed links, and inline market title links.',
+    evidence: [
+      'app/(dashboard)/dashboard/page.tsx',
+      'app/dashboard/NotifDigest.tsx',
+      'components/activity-timeline/activity-timeline.tsx',
+      'components/dashboard/RecommendationsStrip.tsx',
+      'app/components/RecentlyViewedRail.tsx',
+      'app/dashboard/NotifDigest.test.tsx',
+      'components/activity-timeline/__tests__/activity-timeline.test.tsx',
+      'components/dashboard/__tests__/RecommendationsStrip.test.tsx',
+      'app/components/__tests__/RecentlyViewedRail.test.tsx',
+    ],
+  },
 ]
 
 const statusStyles: Record<AuditItem['status'], string> = {

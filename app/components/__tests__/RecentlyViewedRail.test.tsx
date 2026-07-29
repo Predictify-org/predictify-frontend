@@ -1,7 +1,6 @@
 import React from "react"
 import { render, screen, fireEvent } from "@testing-library/react"
 import { RecentlyViewedRail } from "../RecentlyViewedRail"
-import * as useRecentlyViewedModule from "@/hooks/useRecentlyViewed"
 
 const mockItems = [
   { id: "1", title: "Arsenal vs Liverpool", category: "Football", href: "/events/event-page/1", viewedAt: Date.now() },
@@ -10,6 +9,10 @@ const mockItems = [
 ]
 
 const mockRemove = jest.fn()
+
+jest.mock("@/hooks/useRecentlyViewed", () => ({
+  useRecentlyViewed: jest.fn(),
+}))
 
 function mockOverflow(container: HTMLElement) {
   Object.defineProperty(container, "scrollWidth", { value: 2000, configurable: true })
@@ -20,10 +23,12 @@ function mockOverflow(container: HTMLElement) {
   }) as unknown as typeof container.scrollTo
 }
 
+import { useRecentlyViewed } from "@/hooks/useRecentlyViewed"
+
 describe("RecentlyViewedRail", () => {
   beforeEach(() => {
     mockRemove.mockClear()
-    jest.spyOn(useRecentlyViewedModule, "useRecentlyViewed").mockReturnValue({
+    ;(useRecentlyViewed as jest.Mock).mockReturnValue({
       items: mockItems,
       addRecentlyViewed: jest.fn(),
       removeRecentlyViewed: mockRemove,
@@ -32,12 +37,12 @@ describe("RecentlyViewedRail", () => {
   })
 
   afterEach(() => {
-    jest.restoreAllMocks()
+    jest.clearAllMocks()
   })
 
   describe("empty state", () => {
     it("shows empty state when there are no items", () => {
-      jest.spyOn(useRecentlyViewedModule, "useRecentlyViewed").mockReturnValue({
+      ;(useRecentlyViewed as jest.Mock).mockReturnValue({
         items: [],
         addRecentlyViewed: jest.fn(),
         removeRecentlyViewed: jest.fn(),
@@ -75,6 +80,16 @@ describe("RecentlyViewedRail", () => {
       const links = screen.getAllByRole("link")
       expect(links).toHaveLength(3)
       expect(links[0]).toHaveAttribute("href", "/events/event-page/1")
+    })
+
+    it("applies focus-visible ring styles to recently viewed links for keyboard navigation", () => {
+      render(<RecentlyViewedRail />)
+      const links = screen.getAllByRole("link")
+      links.forEach((link) => {
+        expect(link).toHaveClass("focus-visible:ring-2")
+        expect(link).toHaveClass("focus-visible:ring-primary/50")
+        expect(link).toHaveClass("focus-visible:outline-none")
+      })
     })
 
     it("renders a remove button for each item", () => {

@@ -19,6 +19,26 @@ type FormErrors = Partial<Record<FieldName, string>> & { form?: string }
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+/**
+ * FWC26 campaign stats shown above the login form.
+ *
+ * These are static display values that represent live platform activity for
+ * the GrantFox FWC26 (Stellar Wave) campaign. Each value uses:
+ *   - `tabular-nums`       — Tailwind/CSS utility: font-variant-numeric: tabular-nums
+ *   - `data-numeric="true"` — attribute-based opt-in (see src/styles/typography.css)
+ *
+ * Both mechanisms are redundant on purpose: the class is tree-shaken by Tailwind,
+ * the attribute selector works in any plain-CSS context (e.g. email receipts, SSR).
+ *
+ * Tabular-nums ensures digits occupy equal horizontal space so the layout does
+ * not shift as values update in place (WCAG 1.4.4 – Resize Text, stable layout).
+ */
+const CAMPAIGN_STATS = [
+  { label: "Participants", value: "12,543", testId: "stat-participants" },
+  { label: "Prize Pool", value: "50,000 XLM", testId: "stat-prize-pool" },
+  { label: "Markets Open", value: "128", testId: "stat-markets-open" },
+] as const
+
 export default function LoginPage() {
   const router = useRouter()
   const emailId = useId()
@@ -130,7 +150,52 @@ export default function LoginPage() {
   const formError = errors.form
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4 gap-6">
+      {/*
+       * GrantFox FWC26 campaign stats banner
+       *
+       * Surfacing key platform numbers on the login screen gives prospective
+       * participants an at-a-glance sense of campaign scale before they sign in.
+       *
+       * Accessibility:
+       *   - role="region" + aria-label groups the stats for screen-reader navigation.
+       *   - Each stat value uses `tabular-nums` (font-variant-numeric: tabular-nums)
+       *     so digits align vertically — numbers will not cause layout reflow when
+       *     they update in place (e.g. via polling/websocket in a future iteration).
+       *   - `data-numeric="true"` provides an attribute-based opt-in that works
+       *     in any CSS context (plain stylesheets, email templates, SSR) without
+       *     relying on the Tailwind class being present.
+       *
+       * Responsive:
+       *   - Single-row flex wrap. Collapses gracefully to a single column on xs.
+       */}
+      <section
+        aria-label="GrantFox FWC26 campaign statistics"
+        className="w-full max-w-md"
+      >
+        <dl className="flex flex-wrap justify-around gap-4 rounded-xl border bg-card px-4 py-3 shadow-sm">
+          {CAMPAIGN_STATS.map(({ label, value, testId }) => (
+            <div key={testId} className="flex flex-col items-center gap-0.5 min-w-[5rem]">
+              {/*
+               * `tabular-nums` — Tailwind utility → font-variant-numeric: tabular-nums
+               * `data-numeric="true"` — attribute selector in src/styles/typography.css
+               *
+               * Both are applied so the rule is robust: Tailwind's JIT purge removes
+               * unused classes but the CSS attribute rule always applies.
+               */}
+              <dd
+                data-testid={testId}
+                data-numeric="true"
+                className="text-stat-sm font-bold tabular-nums leading-tight text-foreground"
+              >
+                {value}
+              </dd>
+              <dt className="text-caption text-muted-foreground">{label}</dt>
+            </div>
+          ))}
+        </dl>
+      </section>
+
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
@@ -201,4 +266,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

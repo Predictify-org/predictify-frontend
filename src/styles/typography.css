@@ -1,0 +1,45 @@
+/* ==========================================================================
+   typography.css — Project-wide typographic utilities
+
+   Imported by app/globals.css via @layer utilities so these classes
+   are available alongside Tailwind's generated utilities.
+   ========================================================================== */
+
+/**
+ * tabular-nums
+ *
+ * Makes all digit glyphs occupy equal horizontal space using
+ * `font-variant-numeric: tabular-nums`. This is critical for numeric
+ * displays that update in place (live tickers, leaderboard ranks,
+ * balance cards) so the surrounding layout does not shift as values change.
+ *
+ * Applied to:
+ *   - StatCard value display  (components/cards/stat-card.tsx)
+ *   - Finances KPI cards      (app/(dashboard)/finances/page.tsx)
+ *   - Profile header counts   (app/profile/[addr]/page.tsx)
+ *   - Login FWC26 stats       (app/(auth)/login/page.tsx) -- GrantFox FWC26 campaign stats banner
+ *   - Any element with        data-numeric="true"
+ *
+ * Usage:
+ *   className="tabular-nums"          — explicit class
+ *   data-numeric="true"               — attribute opt-in
+ *
+ * Notes:
+ *   • No colour changes — safe for dark mode and high-contrast mode.
+ *   • Tailwind ships its own `tabular-nums` utility that compiles to the
+ *     same rule; this file makes the class available as plain CSS too
+ *     and documents where it is used in the project.
+ */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/**
+ * Attribute-based opt-in.
+ * Any element marked data-numeric="true" gets tabular-nums automatically,
+ * useful for dynamically-rendered numeric cells where adding a class
+ * would require extra plumbing.
+ */
+[data-numeric="true"] {
+  font-variant-numeric: tabular-nums;
+}

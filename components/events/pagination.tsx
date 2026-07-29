@@ -81,7 +81,7 @@ export function EventsPagination({ className }: PaginationProps) {
         size="sm"
         onClick={handlePrevious}
         disabled={pagination.page === 1}
-        className="gap-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="gap-1 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="Go to previous page"
       >
         <ChevronLeft className="h-4 w-4" />
@@ -91,9 +91,8 @@ export function EventsPagination({ className }: PaginationProps) {
       {/* Page Numbers */}
       <div className="flex items-center gap-1">
         {pageNumbers.map((pageNum, index) => {
-          if (pageNum === "...") {
-            return (
-              <span key={`ellipsis-${index}`} className="px-2 py-1 text-sm text-gray-500" aria-hidden="true">
+          if (pageNum === "...") {              return (
+              <span key={`ellipsis-${index}`} className="px-2 py-1 text-body-sm text-muted-foreground" aria-hidden="true">
                 ...
               </span>
             )
@@ -108,10 +107,10 @@ export function EventsPagination({ className }: PaginationProps) {
               size="sm"
               onClick={() => handlePageChange(pageNum as number)}
               className={cn(
-                "min-w-[2.5rem] h-9 transition-all duration-200 rounded-lg",
+                "min-w-[2.5rem] h-9 transition-all duration-200 rounded-lg text-body-sm",
                 isCurrentPage
                   ? "bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
               )}
               aria-label={`Go to page ${pageNum}`}
               aria-current={isCurrentPage ? "page" : undefined}
@@ -128,7 +127,7 @@ export function EventsPagination({ className }: PaginationProps) {
         size="sm"
         onClick={handleNext}
         disabled={pagination.page === totalPages}
-        className="gap-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="gap-1 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="Go to next page"
       >
         <span className="hidden sm:inline">Next</span>

@@ -18,6 +18,7 @@ persistence and mounts itself nowhere, so a host page decides when a tour runs.
 | [`app/hooks/useFocusReturn.ts`](../app/hooks/useFocusReturn.ts) | Remembers the triggering element and hands focus back on close. |
 | [`components/ui/live-region.tsx`](../components/ui/live-region.tsx) | Polite `role="status"` region used to announce step changes. |
 | [`hooks/use-media-query.ts`](../hooks/use-media-query.ts) | Drives the bottom-sheet / anchored-card switch at the `sm` breakpoint. |
+| [`components/ui/tooltip.tsx`](../components/ui/tooltip.tsx) | Radix `Tooltip` wrapper behind the progress dots' hover/focus preview cards. |
 
 ## Usage
 
@@ -149,19 +150,38 @@ WCAG 2.1 AA criteria this component is built against:
 | Criterion | How it's met |
 | --- | --- |
 | **1.4.11** Non-text Contrast | Spotlight ring uses `ring-ring` with a background-coloured offset, the same token pair as the global focus layer. |
-| **2.1.1** Keyboard | Every action — navigate, skip, close — is reachable by keyboard. |
+| **1.4.13** Content on Hover or Focus | Progress-dot preview cards (Radix `Tooltip`) are dismissible (`Escape`), stay open while hovered, and have an identical focus-triggered equivalent — not hover-only. |
+| **2.1.1** Keyboard | Every action — navigate, skip, close, preview/jump to a step — is reachable by keyboard. |
 | **2.1.2** No Keyboard Trap | The focus cycle is deliberate, and `Escape` always exits it. |
 | **2.3.3** Animation from Interactions | All motion is dropped under `prefers-reduced-motion`. |
 | **2.4.3** Focus Order | Focus enters at the heading, cycles through controls in DOM order, and returns to the trigger on close. |
 | **2.4.7** Focus Visible | Inherited from the global `:focus-visible` layer. |
-| **2.5.5** Target Size | Controls are `min-h-11` (44 px). |
+| **2.5.5** Target Size | Controls are `min-h-11` (44 px); the 6 px progress dots reach the same 44 px hit area via `touch-target-expand`. |
 | **4.1.2** Name, Role, Value | `role="dialog"`, `aria-modal="true"`, `aria-labelledby` → title, `aria-describedby` → description. |
 | **4.1.3** Status Messages | Step changes announce "Step *n* of *N*: *title*" through a polite live region. |
 
-The progress dots are `aria-hidden` and non-interactive by design: at 6 px they
-could not meet the 44 px target size, and the position they convey is already
-available as visible text ("Step 2 of 3") and in the live region. `Home` and
-`End` cover jumping to the first and last step.
+The progress dots double as jump-to-step previews. Each is a `<button>`
+wrapped in a Radix `Tooltip`, labelled `aria-label="Preview step n of N:
+{title}"` and marked `aria-current="step"` on the active one:
+
+- **Hover** shows a small card with that step's title and description, so a
+  step can be previewed without committing to it via Next/Back.
+- **Focus** (`Tab`/`Shift+Tab`) shows the identical card — Radix `Tooltip`
+  triggers on focus as well as hover with no extra wiring, which is the
+  built-in keyboard-accessible equivalent WCAG **1.4.13** requires for any
+  hover-triggered content: dismissible (`Escape`), hoverable, and persistent
+  while the trigger is focused or the pointer is over the card.
+- **Click** jumps straight to that step (`goTo(dotIndex)` — the same path
+  Next/Back/Home/End use), so the preview and the navigation share one
+  mechanism.
+- Visually the dots stay 6 px tall/wide; `touch-target-expand` (see
+  [`app/styles/touch.css`](../app/styles/touch.css)) gives each an invisible
+  44 px hit area via a centered pseudo-element, satisfying **2.5.5** without
+  changing the compact look.
+
+The step counter ("Step 2 of 3") and the live region remain the primary way
+position is conveyed; the dots are an additional, optional preview/jump
+affordance layered on top, not a replacement for either.
 
 ## Testing
 
@@ -179,6 +199,15 @@ rect for every element — which the component reads as "no resolvable target".
 Tests that exercise the anchored branch therefore mount a target with a stubbed
 rect; see `mountTarget()` in the test file. `window.matchMedia` also has to be
 mocked, since both `useReducedMotion` and `useMediaQuery` call it on mount.
+
+The `"step preview dots"` block covers the progress-dot preview/jump behaviour:
+each dot's `aria-label`, `aria-current` on the active one, the preview card's
+content appearing on `user.hover()` and again on `user.tab()` (the keyboard
+path, no mouse involved), and a click jumping to that step. Radix `Tooltip`
+renders its content twice — a visible card plus a visually-hidden
+`role="tooltip"` accessibility echo — so these tests assert against
+`screen.getByRole("tooltip")` rather than `getByText`, which would otherwise
+match both copies and never resolve.
 
 ## Known follow-ups
 
