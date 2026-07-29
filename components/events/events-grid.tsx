@@ -342,6 +342,7 @@ export function EventsGrid({ className }: EventsGridProps) {
 
   const [deleteTarget, setDeleteTarget] = React.useState<Event | null>(null)
   const [animationReady, setAnimationReady] = React.useState(false)
+  const errorMessageId = React.useId()
 
   React.useEffect(() => {
     setAnimationReady(true)
@@ -354,6 +355,7 @@ export function EventsGrid({ className }: EventsGridProps) {
 
   // ── Error state ──
   if (error && filteredEvents.length === 0) {
+
     return (
       <div
         role="alert"
@@ -365,12 +367,16 @@ export function EventsGrid({ className }: EventsGridProps) {
         <h3 className="text-lg font-semibold text-white mb-1">
           Failed to load events
         </h3>
-        <p className="text-sm text-muted-foreground max-w-sm mb-4">
+        <p
+          id={errorMessageId}
+          className="text-sm text-muted-foreground max-w-sm mb-4"
+        >
           {error}
         </p>
         <Button
           variant="outline"
           onClick={() => window.location.reload()}
+          aria-describedby={errorMessageId}
           className="border-[#540D8D] text-[#540D8D] hover:bg-[#540D8D]/10"
         >
           Try again

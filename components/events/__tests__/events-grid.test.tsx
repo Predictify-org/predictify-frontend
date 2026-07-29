@@ -120,8 +120,10 @@ jest.mock("@/lib/compare-store", () => ({
 
 // Mock next/link
 jest.mock("next/link", () => {
-  return ({ children, href, ...props }: { children: React.ReactNode; href: string }) =>
+  const MockLink = ({ children, href, ...props }: { children: React.ReactNode; href: string }) =>
     React.createElement("a", { href, ...props }, children)
+  MockLink.displayName = "MockLink"
+  return MockLink
 })
 
 const { useEventsStore } = require("@/lib/events-store")
@@ -218,6 +220,37 @@ describe("EventsGrid — error state", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: /failed to load events/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument()
+  })
+
+  it("links retry button to error message via aria-describedby", () => {
+    useEventsStore.mockImplementation(
+      (selector?: (s: ReturnType<typeof createMockStoreState>) => unknown) => {
+        const state = createMockStoreState({ error: "Network error", filteredEvents: [] })
+        return selector ? selector(state) : state
+      },
+    )
+    render(<EventsGrid />)
+    const retryButton = screen.getByRole("button", { name: /try again/i })
+    const describedById = retryButton.getAttribute("aria-describedby")
+    expect(describedById).toBeTruthy()
+    // Verify the described-by element exists and contains the error text
+    const describedByEl = document.getElementById(describedById!)
+    expect(describedByEl).toBeInTheDocument()
+    expect(describedByEl).toHaveTextContent("Network error")
+  })
+
+  it("error message paragraph id is stable across renders", () => {
+    useEventsStore.mockImplementation(
+      (selector?: (s: ReturnType<typeof createMockStoreState>) => unknown) => {
+        const state = createMockStoreState({ error: "Network error", filteredEvents: [] })
+        return selector ? selector(state) : state
+      },
+    )
+    const { rerender } = render(<EventsGrid />)
+    const firstId = screen.getByRole("button", { name: /try again/i }).getAttribute("aria-describedby")
+    rerender(<EventsGrid />)
+    const secondId = screen.getByRole("button", { name: /try again/i }).getAttribute("aria-describedby")
+    expect(firstId).toBe(secondId)
   })
 
   it("does not render error state when there are cached events", () => {
