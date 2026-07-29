@@ -86,7 +86,7 @@ export function NotifDigest({
                 variant="danger"
                 size="sm"
                 aria-hidden="true"
-                className="absolute -right-1 -top-1 min-w-[1.1rem] justify-center px-1 py-0"
+                className="absolute -right-1 -top-1 min-w-[1.1rem] justify-center px-1 py-0 tabular-nums"
               >
                 {badgeLabel}
               </Badge>

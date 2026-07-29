@@ -39,7 +39,9 @@ describe("NotifDigest", () => {
     expect(
       screen.getByRole("button", { name: /notifications, 12 unread/i })
     ).toBeInTheDocument()
-    expect(screen.getByText("9+")).toBeInTheDocument()
+    const badge = screen.getByText("9+")
+    expect(badge).toBeInTheDocument()
+    expect(badge).toHaveClass("tabular-nums")
   })
 
   it("lists notifications newest-first when the panel is opened", async () => {

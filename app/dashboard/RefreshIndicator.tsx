@@ -58,7 +58,7 @@ export function RefreshIndicator({
       <span className="sr-only">Last refresh:</span>
 
       {/* Visible elapsed time; aria-live notifies AT on change */}
-      <span aria-live="polite" aria-atomic="true">
+      <span aria-live="polite" aria-atomic="true" className="tabular-nums">
         {label}
       </span>
 

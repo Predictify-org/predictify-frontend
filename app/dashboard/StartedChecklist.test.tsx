@@ -73,7 +73,9 @@ describe("StartedChecklist", () => {
 
   it("shows the correct progress text initially", () => {
     setup(<StartedChecklist />)
-    expect(screen.getByText("0 of 5 tasks completed")).toBeInTheDocument()
+    const progressText = screen.getByText("0 of 5 tasks completed")
+    expect(progressText).toBeInTheDocument()
+    expect(progressText).toHaveClass("tabular-nums")
   })
 
   it("renders the progress bar", () => {
