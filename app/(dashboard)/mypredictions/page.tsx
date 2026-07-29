@@ -10,6 +10,7 @@ import {
   Activity,
 } from "lucide-react";
 import { PortfolioPie, STATUS_COLORS } from "@/components/PortfolioPie";
+import { EmptyState } from "@/components/EmptyState";
 
 // --- 1. Type Definitions ---
 
@@ -286,42 +287,6 @@ const getPredictionsByTab = (
   return predictions.filter((p) => p.status === status);
 };
 
-const FilteredPredictionsEmptyState: React.FC<{
-  activeTab: FilterTab;
-  searchQuery: string;
-  onReset: () => void;
-}> = ({ activeTab, searchQuery, onReset }) => {
-  const hasSearch = searchQuery.trim().length > 0;
-  const activeLabel = hasSearch
-    ? `No predictions match "${searchQuery.trim()}".`
-    : `No predictions match the ${activeTab} filter.`;
-
-  return (
-    <section
-      role="status"
-      aria-live="polite"
-      className="col-span-full rounded-2xl border border-white/20 bg-white/10 px-6 py-12 text-center shadow-xl"
-    >
-      <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-white">
-        <Search size={26} aria-hidden="true" />
-      </div>
-      <h2 className="text-xl font-semibold text-white">
-        No predictions match your filters
-      </h2>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-purple-100">
-        {activeLabel} Reset filters to return to the full predictions list.
-      </p>
-      <button
-        type="button"
-        onClick={onReset}
-        className="mt-6 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#540D8D] transition hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#540D8D]"
-      >
-        Reset filters
-      </button>
-    </section>
-  );
-};
-
 export const PredictionsList: React.FC<PredictionsListProps> = ({
   predictions = MOCK_PREDICTIONS,
 }) => {
@@ -398,10 +363,16 @@ export const PredictionsList: React.FC<PredictionsListProps> = ({
             <PredictionCard key={prediction.id} prediction={prediction} />
           ))
         ) : (
-          <FilteredPredictionsEmptyState
-            activeTab={activeTab}
-            searchQuery={searchQuery}
-            onReset={resetFilters}
+          <EmptyState
+            title="No predictions match your filters"
+            description={
+              searchQuery.trim().length > 0
+                ? `No predictions match "${searchQuery.trim()}". Reset filters to return to the full predictions list.`
+                : `No predictions match the ${activeTab} filter. Reset filters to return to the full predictions list.`
+            }
+            ctaText="Reset filters"
+            onCtaClick={resetFilters}
+            className="col-span-full border-white/20 bg-white/10"
           />
         )}
       </div>
