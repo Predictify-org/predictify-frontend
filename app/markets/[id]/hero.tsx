@@ -123,7 +123,7 @@ function StatPill({ icon, label, value }: StatPillProps) {
         {icon}
         {label}
       </span>
-      <span className="text-stat-sm font-bold tabular-nums text-foreground">
+      <span className="text-stat-sm font-bold tabular-nums text-foreground overflow-hidden text-ellipsis">
         {value}
       </span>
     </div>
@@ -225,7 +225,7 @@ export function MarketHero({
         </div>
 
         <div
-          className="mb-5 flex flex-wrap gap-x-6 gap-y-3 border-t border-border pt-4"
+          className="mb-5 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-3"
           data-testid="market-hero-skeleton-stats"
         >
           <div className="flex min-w-0 flex-col gap-2">
@@ -260,7 +260,7 @@ export function MarketHero({
       )}
     >
       {/* ── Row 1 · Labels ──────────────────────────────────────── */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2 gap-y-1.5">
         {/* GrantFox FWC26 campaign badge */}
         {isGrantFoxCampaign && (
           <Badge
@@ -383,7 +383,7 @@ export function MarketHero({
       {/* ── Row 4 · Stat strip ───────────────────────────────────── */}
       {(volume || participants != null || timeLeft) && (
         <div
-          className="mb-5 grid grid-cols-3 gap-y-3 border-t border-border pt-4 sm:flex sm:flex-wrap sm:gap-x-6 sm:gap-y-3"
+          className="mb-5 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-3"
           data-testid="stat-strip"
         >
           {volume && (

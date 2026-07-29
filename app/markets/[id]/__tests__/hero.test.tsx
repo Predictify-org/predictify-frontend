@@ -657,3 +657,88 @@ describe("MarketHero — full props", () => {
     ).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Responsive layout
+// ---------------------------------------------------------------------------
+describe("MarketHero — responsive layout", () => {
+  it("stat strip stacks vertically on mobile (flex-col) and horizontally on sm+ (sm:flex-row)", () => {
+    renderHero({
+      volume: "42,000 USDC",
+      participants: 3840,
+      timeLeft: "18 days",
+    });
+    const strip = screen.getByTestId("stat-strip");
+    // Mobile: flex-col stacks items vertically
+    expect(strip).toHaveClass("flex-col");
+    // Desktop: sm:flex-row lays items horizontally
+    expect(strip).toHaveClass("sm:flex-row");
+    // Items wrap when they exceed container width
+    expect(strip).toHaveClass("sm:flex-wrap");
+    // Consistent gap between items
+    expect(strip).toHaveClass("gap-3");
+  });
+
+  it("labels row has vertical gap for wrapped items", () => {
+    renderHero({
+      category: "Football",
+      isGrantFoxCampaign: true,
+    });
+    const labels = screen.getByText(/GrantFox FWC26/).parentElement!;
+    expect(labels).toHaveClass("gap-y-1.5");
+  });
+
+  it("StatPill value span prevents overflow on narrow viewports", () => {
+    render(
+      <StatPill
+        icon={<span data-testid="icon" />}
+        label="Volume"
+        value="42,000 USDC"
+      />
+    );
+    const valueEl = screen.getByText("42,000 USDC");
+    expect(valueEl).toHaveClass("overflow-hidden");
+    expect(valueEl).toHaveClass("text-ellipsis");
+  });
+
+  it("skeleton stat strip matches responsive layout classes", () => {
+    render(<MarketHero title="Loading" status="open" isLoading />);
+    const skeletonStats = screen.getByTestId("market-hero-skeleton-stats");
+    expect(skeletonStats).toHaveClass("flex-col");
+    expect(skeletonStats).toHaveClass("sm:flex-row");
+    expect(skeletonStats).toHaveClass("gap-3");
+  });
+
+  it("stat strip renders with any subset of stats without layout breakage", () => {
+    const { rerender } = render(
+      <MarketHero
+        title="Test"
+        status="open"
+        volume="1,000 USDC"
+      />
+    );
+    expect(screen.getByTestId("stat-strip")).toBeInTheDocument();
+    expect(screen.getByText("1,000 USDC")).toBeInTheDocument();
+
+    rerender(
+      <MarketHero
+        title="Test"
+        status="open"
+        participants={100}
+        timeLeft="2 days"
+      />
+    );
+    expect(screen.getByTestId("stat-strip")).toBeInTheDocument();
+    expect(screen.getByText("100")).toBeInTheDocument();
+    expect(screen.getByText("2 days")).toBeInTheDocument();
+  });
+
+  it("stat strip is absent when no stats are provided", () => {
+    renderHero({
+      volume: undefined,
+      participants: undefined,
+      timeLeft: undefined,
+    });
+    expect(screen.queryByTestId("stat-strip")).not.toBeInTheDocument();
+  });
+});

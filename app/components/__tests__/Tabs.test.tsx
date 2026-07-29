@@ -759,3 +759,33 @@ describe("Tabs — edge cases", () => {
     expect(activePanel).toHaveAttribute("tabindex", "0");
   });
 });
+
+// ---------------------------------------------------------------------------
+// 14. Responsive / touch-friendly sizing
+// ---------------------------------------------------------------------------
+
+describe("Tabs — responsive sizing", () => {
+  it("tablist has minimum width to prevent excessive compression on narrow viewports", () => {
+    renderTabs();
+    const tablist = screen.getByRole("tablist");
+    expect(tablist).toHaveClass("min-w-fit");
+  });
+
+  it("tab buttons have touch-friendly minimum height on mobile (WCAG 2.1 AA 2.5.5)", () => {
+    renderTabs();
+    const tabs = screen.getAllByRole("tab");
+    tabs.forEach((tab) => {
+      expect(tab).toHaveClass("min-h-[44px]");
+      expect(tab).toHaveClass("sm:min-h-0");
+    });
+  });
+
+  it("tab button padding is smaller on mobile, larger on sm+", () => {
+    renderTabs();
+    const tabs = screen.getAllByRole("tab");
+    tabs.forEach((tab) => {
+      expect(tab).toHaveClass("px-3");
+      expect(tab).toHaveClass("sm:px-4");
+    });
+  });
+});
