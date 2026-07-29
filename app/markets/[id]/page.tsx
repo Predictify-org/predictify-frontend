@@ -172,7 +172,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
        * here; real panels (BetForm, ActivityTimeline, etc.) are wired in
        * follow-up tasks once the primitive is approved.
        */}
-      <section aria-label="Market detail sections" className="mt-8">
+      <section aria-label="Market detail sections" className="mt-6 sm:mt-8">
         <Tabs
           aria-label="Market detail sections"
           defaultValue="overview"

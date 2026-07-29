@@ -143,6 +143,12 @@ const [tab, setTab] = useSearchParamState("tab", "overview");
 />
 ```
 
+## Responsive Behaviour
+
+- **TabList**: Uses `overflow-x-auto scrollbar-hide` so that tabs can be horizontally scrolled on narrow viewports. A `min-w-fit` class prevents the tablist from being compressed below its content width.
+- **Tab buttons**: Touch-friendly minimum height (`min-h-[44px]` on mobile, `sm:min-h-0` on desktop) satisfies WCAG 2.1 AA § 2.5.5 target size. Padding is tighter on mobile (`px-3`) and more spacious on desktop (`sm:px-4`).
+- **Keyboard hints**: The `MarketKbdHints` strip is `hidden sm:flex` — only shown on viewports ≥ 640 px where a physical keyboard is likely present.
+
 ---
 
 ## Keyboard Interaction

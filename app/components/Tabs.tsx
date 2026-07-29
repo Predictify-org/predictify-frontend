@@ -307,6 +307,10 @@ function TabList({
         "scrollbar-hide",
         // Bottom border that the active-tab indicator sits on
         "border-b border-border",
+        // Ensure tabs fill available width on narrow viewports
+        "min-w-fit",
+        // Touch-friendly padding on mobile, tighter on desktop
+        "px-1 sm:px-0",
         // Vertical layout variant
         orientation === "vertical" && "flex-col border-b-0 border-r",
         className
@@ -366,8 +370,10 @@ function Tab({ value, children, disabled, className }: TabProps) {
       className={cn(
         // Base
         "relative flex items-center justify-center gap-2",
-        "whitespace-nowrap px-4 py-2.5",
+        "whitespace-nowrap px-3 py-2.5 sm:px-4",
         "text-sm font-medium",
+        // Touch-friendly minimum height (WCAG 2.1 AA 2.5.5)
+        "min-h-[44px] sm:min-h-0",
         "rounded-t-md",
         // Transition
         "transition-colors duration-150",

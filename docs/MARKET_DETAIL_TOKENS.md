@@ -282,3 +282,26 @@ Mitigation strategies used in this codebase:
 If `tailwind-merge` is upgraded to v3+ (which supports custom class groups via
 configuration), these mitigations can be replaced with a `twMerge` config that
 registers all custom token classes.
+
+---
+
+## Changelog (responsive audit — v7)
+
+| Date | File | Change |
+|------|------|--------|
+| 2026-07-28 | `hero.tsx` | Stat strip: `grid grid-cols-3` → `flex flex-col sm:flex-row sm:flex-wrap` for better stacking on mobile |
+| 2026-07-28 | `hero.tsx` | Labels row: added `gap-y-1.5` for consistent vertical spacing when badges wrap |
+| 2026-07-28 | `hero.tsx` | StatPill value span: added `overflow-hidden text-ellipsis` to prevent overflow on narrow viewports |
+| 2026-07-28 | `hero.tsx` | Skeleton stat strip: updated layout to match new responsive stat strip classes |
+| 2026-07-28 | `Tabs.tsx` | Tab buttons: added `min-h-[44px] sm:min-h-0` for WCAG touch targets; `px-3 sm:px-4` for responsive padding |
+| 2026-07-28 | `Tabs.tsx` | TabList: added `min-w-fit` to prevent compression; `px-1 sm:px-0` for responsive padding |
+| 2026-07-28 | `page.tsx` | Tabs section spacing: `mt-8` → `mt-6 sm:mt-8` for tighter mobile layout |
+| 2026-07-28 | `hero.test.tsx` | Added `MarketHero — responsive layout` test block (8 tests) |
+| 2026-07-28 | `Tabs.test.tsx` | Added `Tabs — responsive sizing` test block (3 tests) |
+
+### Affected test counts
+
+| Test file | Before | After | Delta |
+|-----------|--------|-------|-------|
+| `hero.test.tsx` | 79 | 87 | +8 |
+| `Tabs.test.tsx` | 55 | 58 | +3 |

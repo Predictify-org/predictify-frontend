@@ -157,7 +157,9 @@ Enabled via Tailwind's `class`-based dark mode strategy (configured in `tailwind
 The hero is single-column at all breakpoints. Responsive behaviour is handled via:
 
 - `text-h1-responsive` — fluid heading size via `sm:` / `md:` / `lg:` prefixes (defined in `app/globals.css`). Scales: `text-2xl` → `sm:text-3xl` → `md:text-4xl` → `lg:text-h1`.
-- `flex-wrap gap-x-6 gap-y-3` on the stat strip — pills wrap naturally on narrow screens.
+- `flex flex-col sm:flex-row sm:flex-wrap` on the stat strip — pills stack vertically on mobile (< 640 px) for easy scanning, and flow horizontally on sm+ (≥ 640 px) via `sm:flex-row`. Vertical gap `gap-3` on mobile, horizontal gap `gap-x-6` on desktop.
+- `gap-y-1.5` on the labels row — when badges/categories wrap to a new line on very narrow screens, the vertical gap remains visually consistent.
+- `overflow-hidden text-ellipsis` on stat value spans — prevents long formatted values from overflowing on extremely narrow viewports.
 - `line-clamp-3` on the description — prevents the hero from becoming too tall on small screens.
 
 ### Accessibility (WCAG 2.1 AA)
