@@ -12,6 +12,7 @@ Built with Next.js 15, React 19, TypeScript, and the Stellar Wallets Kit, Predic
 
 - **Decentralized & Transparent**: All predictions are recorded on-chain with complete transparency. No central authority controls the outcomes.
 - **Shareable Prediction Receipts**: Completed predictions can now be shared with a polished receipt summary for campaigns such as GrantFox FWC26.
+- **Profile Loading Parity**: Profile loading skeleton now mirrors profile card height, spacing, and shape to reduce first-paint layout jump.
 - **Instant Payouts**: Smart contracts automatically distribute winnings immediately after event resolution. No waiting periods.
 - **Multi-Wallet Support**: Connect with your preferred Stellar wallet (Freighter, LOBSTR, XBull, Albedo, Rabet).
 - **Accessibility First**: WCAG 2.1 AA compliant with reduced-motion support, high contrast themes, and comprehensive screen reader accessibility.
