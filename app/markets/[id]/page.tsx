@@ -121,6 +121,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { AboutMarketModal } from "@/app/components/AboutMarketModal";
 import { SearchX } from "lucide-react";
 import { MarketDetailClient } from "./MarketDetailClient";
+import PredictionCommentsLoader from "@/app/components/PredictionCommentsLoader";
 
 export default async function MarketDetailPage({ params }: PageProps) {
   const { id } = await params;
@@ -234,6 +235,15 @@ export default async function MarketDetailPage({ params }: PageProps) {
        * Rendered below the tabs so it doesn't interrupt the reading flow.
        * Hidden on touch devices and narrow viewports automatically.
        */}
+      {/*
+       * Per-prediction comment thread mini-UI (GrantFox FWC26 — issue #342).
+       * Collapsible section below the tabs; keeps the core market hero/tabs
+       * uncluttered while still surfacing community discussion.
+       */}
+      <div className="mt-6">
+        <PredictionCommentsLoader predictionId={market.id} />
+      </div>
+
       <MarketDetailClient
         marketTitle={market.title}
         marketId={market.id}
