@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle2, Download, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, Printer, ArrowLeft } from 'lucide-react';
 import { ReceiptShare } from '@/app/components/ReceiptShare';
 
 interface ReceiptProps {
@@ -122,13 +122,18 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
         </div>
       </div>
 
-      <div className="w-full max-w-lg mt-8 space-y-3 print-hide px-4">
-        <button 
+      <div className="w-full max-w-lg mt-8 space-y-3 print-hide px-4" data-print="hide">
+        {/* Print Receipt — triggers the browser print dialog.
+            The print.css stylesheet in app/styles/print.css isolates the
+            receipt card and hides all other page content at print time. */}
+        <button
+          type="button"
           onClick={handlePrint}
+          aria-label="Print this receipt"
           className="w-full flex items-center justify-center gap-2 bg-foreground text-background py-3.5 px-4 rounded-xl font-semibold hover:opacity-90 transition-opacity"
         >
-          <Download className="w-4 h-4" />
-          Download Receipt
+          <Printer className="w-4 h-4" aria-hidden="true" />
+          Print Receipt
         </button>
         <ReceiptShare
           receiptId={receiptId}
@@ -139,11 +144,13 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
           campaign="GrantFox FWC26"
           className="w-full justify-center"
         />
-        <button 
+        <button
+          type="button"
           className="w-full flex items-center justify-center gap-2 bg-transparent text-muted-foreground py-3.5 px-4 rounded-xl font-semibold hover:bg-muted/50 transition-colors"
           onClick={() => window.history.back()}
+          aria-label="Return to the previous page"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           Back to Dashboard
         </button>
       </div>

@@ -4,6 +4,7 @@ import "./globals.css"
 import "./styles/patterns.css"
 import "./styles/touch.css"
 import "./styles/themes/high-contrast.css"
+import "./styles/print.css"
 import { Providers } from "@/components/providers";
 import { SkipToContent } from "@/app/components/SkipToContent";
 
