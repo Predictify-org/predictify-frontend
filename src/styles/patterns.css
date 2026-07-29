@@ -67,6 +67,26 @@
   background-size: 8px 8px;
 }
 
+/* NotificationsPanel status-chip patterns (info/neutral only; warning and
+   success are shared with the AmountInput patterns above). */
+.status-pattern-info {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(59, 130, 246, 0.15),
+    rgba(59, 130, 246, 0.15) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.status-pattern-neutral {
+  background-image: radial-gradient(
+    rgba(100, 116, 139, 0.2) 1.5px,
+    transparent 1.5px
+  );
+  background-size: 6px 6px;
+}
+
 /* Dark mode adjustments for WCAG 2.1 AA contrast compliance */
 @media (prefers-color-scheme: dark) {
   .status-pattern-active {
@@ -116,5 +136,24 @@
       transparent 2px
     );
     background-size: 8px 8px;
+  }
+
+  /* NotificationsPanel dark mode */
+  .status-pattern-info {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(96, 165, 250, 0.2),
+      rgba(96, 165, 250, 0.2) 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  }
+
+  .status-pattern-neutral {
+    background-image: radial-gradient(
+      rgba(148, 163, 184, 0.25) 1.5px,
+      transparent 1.5px
+    );
+    background-size: 6px 6px;
   }
 }

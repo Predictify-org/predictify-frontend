@@ -18,6 +18,19 @@ import { useNotificationsStore } from "@/app/state/notifications"
 import { NOTIFICATION_CATEGORY_CONFIG, sortNotifications } from "@/lib/notifications"
 import type { NotificationCategory, NotificationItem } from "@/types/notifications"
 import { cn } from "@/lib/utils"
+import "../styles/patterns.css"
+
+/**
+ * Maps each badge variant to a subtle background pattern class (see
+ * `src/styles/patterns.css`) so notification statuses remain distinguishable
+ * for color-blind users, not just by hue.
+ */
+const BADGE_VARIANT_PATTERN_CLASS: Record<string, string> = {
+  info: "status-pattern-info",
+  warning: "status-pattern-warning",
+  success: "status-pattern-success",
+  neutral: "status-pattern-neutral",
+}
 
 const CATEGORIES: Array<{ value: NotificationCategory | "all"; label: string }> = [
   { value: "all", label: "All" },
@@ -283,7 +296,10 @@ function NotificationRow({
           <Badge
             variant={NOTIFICATION_CATEGORY_CONFIG[item.category].badgeVariant}
             size="sm"
-            className="shrink-0"
+            className={cn(
+              "shrink-0",
+              BADGE_VARIANT_PATTERN_CLASS[NOTIFICATION_CATEGORY_CONFIG[item.category].badgeVariant],
+            )}
           >
             {NOTIFICATION_CATEGORY_CONFIG[item.category].label}
           </Badge>
