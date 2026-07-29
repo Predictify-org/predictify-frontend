@@ -1,6 +1,6 @@
 import React from "react"
 import { render, screen } from "@testing-library/react"
-import { Skeleton } from "../Skeleton"
+import { Skeleton, ProfilePageSkeleton } from "../Skeleton"
 
 describe("MarketDetail Skeleton (Stellar Wave theme)", () => {
   it("renders correctly with accessibility attributes", () => {
@@ -43,5 +43,35 @@ describe("MarketCardSkeleton", () => {
     
     const container = screen.getByRole("status")
     expect(container).toHaveClass("custom-test-class")
+  })
+})
+
+describe("ProfilePageSkeleton", () => {
+  it("renders loading status semantics for assistive tech", () => {
+    render(<ProfilePageSkeleton />)
+
+    const container = screen.getByRole("status")
+    expect(container).toBeInTheDocument()
+    expect(container).toHaveAttribute("aria-live", "polite")
+    expect(container).toHaveAttribute("aria-busy", "true")
+    expect(container).toHaveAttribute("aria-label", "Loading Profile Page")
+
+    expect(screen.getByText("Loading profile page...")).toBeInTheDocument()
+  })
+
+  it("keeps major layout parity with profile page structure", () => {
+    const { container } = render(<ProfilePageSkeleton />)
+
+    expect(container.querySelector(".flex.flex-col.gap-4")).not.toBeNull()
+    expect(container.querySelector(".grid.gap-4.md\\:grid-cols-2")).not.toBeNull()
+    expect(container.querySelector(".h-20.w-20.rounded-full")).not.toBeNull()
+    expect(container.querySelectorAll(".rounded-xl.border.bg-card").length).toBeGreaterThanOrEqual(3)
+  })
+
+  it("uses design tokens instead of campaign-specific hardcoded purple in profile skeleton", () => {
+    const { container } = render(<ProfilePageSkeleton />)
+
+    const classBlob = Array.from(container.querySelectorAll("[class]")).map((el) => el.className).join(" ")
+    expect(classBlob).not.toContain("#540D8D")
   })
 })

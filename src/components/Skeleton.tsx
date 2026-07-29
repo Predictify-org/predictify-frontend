@@ -71,3 +71,115 @@ export function MarketCardSkeleton({ className }: { className?: string }) {
     </div>
   )
 }
+
+export function ProfilePageSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Loading Profile Page"
+      className={cn("flex flex-col gap-4", className)}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <UiSkeleton className="h-8 w-40" />
+        <UiSkeleton className="h-9 w-28" />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border bg-card">
+          <div className="space-y-2 px-6 pb-4 pt-6">
+            <UiSkeleton className="h-6 w-48" />
+            <UiSkeleton className="h-4 w-64" />
+          </div>
+
+          <div className="space-y-6 px-6 pb-6">
+            <div className="flex items-center gap-4">
+              <UiSkeleton className="h-20 w-20 rounded-full" />
+              <UiSkeleton className="h-9 w-32" />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <UiSkeleton className="h-4 w-24" />
+                <UiSkeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <UiSkeleton className="h-4 w-24" />
+                <UiSkeleton className="h-10 w-full" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <UiSkeleton className="h-4 w-20" />
+              <UiSkeleton className="h-10 w-full" />
+            </div>
+
+            <div className="space-y-2">
+              <UiSkeleton className="h-4 w-24" />
+              <UiSkeleton className="h-10 w-full" />
+            </div>
+
+            <UiSkeleton className="h-10 w-32" />
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-card">
+          <div className="space-y-2 px-6 pb-4 pt-6">
+            <UiSkeleton className="h-6 w-24" />
+            <UiSkeleton className="h-4 w-72" />
+          </div>
+
+          <div className="space-y-6 px-6 pb-6">
+            <div className="space-y-2">
+              <UiSkeleton className="h-4 w-36" />
+              <UiSkeleton className="h-10 w-full" />
+            </div>
+
+            <UiSkeleton className="h-px w-full" />
+
+            <div className="space-y-2">
+              <UiSkeleton className="h-4 w-28" />
+              <UiSkeleton className="h-10 w-full" />
+            </div>
+
+            <div className="space-y-2">
+              <UiSkeleton className="h-4 w-36" />
+              <UiSkeleton className="h-10 w-full" />
+            </div>
+
+            <div className="space-y-2">
+              <UiSkeleton className="h-4 w-44" />
+              <UiSkeleton className="h-3 w-48" />
+              <UiSkeleton className="h-3 w-52" />
+              <UiSkeleton className="h-3 w-40" />
+            </div>
+
+            <UiSkeleton className="h-10 w-36" />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card px-6 py-6">
+        <div className="space-y-2 pb-4">
+          <UiSkeleton className="h-6 w-40" />
+          <UiSkeleton className="h-4 w-72" />
+        </div>
+
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-center justify-between gap-4 border-b pb-4 last:border-b-0 last:pb-0">
+              <div className="space-y-2">
+                <UiSkeleton className="h-5 w-40" />
+                <UiSkeleton className="h-4 w-64" />
+              </div>
+              {i === 0 ? <UiSkeleton className="h-6 w-28 rounded-full" /> : null}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <span className="sr-only">Loading profile page...</span>
+    </div>
+  )
+}
