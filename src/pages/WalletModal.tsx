@@ -4,7 +4,7 @@ import { useWallet } from "@/hooks/useWallet.hook";
 import { recordLastUsedWallet, getLastUsedWalletId } from "@/app/state/walletPrefs";
 import { AlertCircle, Check, Clock, Copy, LogOut } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,6 +115,15 @@ export function WalletModal({
    */
   const [lastUsedId, setLastUsedId] = useState<string | null>(null);
 
+  // Tracks whether the modal body has been scrolled, so the sticky footer
+  // can grow a divider/shadow once there is content scrolled up behind it.
+  const [bodyScrolled, setBodyScrolled] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  const handleBodyScroll = () => {
+    setBodyScrolled((bodyRef.current?.scrollTop ?? 0) > 0);
+  };
+
   const prefersReduced = useReducedMotion();
   const reducedMotion = reducedMotionProp ?? prefersReduced;
 
@@ -128,6 +137,7 @@ export function WalletModal({
     if (!isOpen) {
       setConnectionError(null);
       setConnectingWalletId(null);
+      setBodyScrolled(false);
     } else {
       // Check wallet availability when modal opens
       try {
@@ -215,6 +225,11 @@ export function WalletModal({
           </DialogDescription>
         </DialogHeader>
 
+        <div
+          ref={bodyRef}
+          onScroll={handleBodyScroll}
+          className="max-h-[min(60vh,26rem)] overflow-y-auto -mx-6 px-6"
+        >
         {/* ── Error banner ───────────────────────────────────────────────── */}
         {connectionError && (
           <div
@@ -313,9 +328,22 @@ export function WalletModal({
           })}
         </div>
 
-        {/* ── Disconnect footer ──────────────────────────────────────────── */}
+        {/*
+         * ── Sticky disconnect action bar ──────────────────────────────────
+         * `sticky bottom-0` pins it to the bottom of the scrollable body
+         * (its nearest scrolling ancestor) as the wallet list scrolls
+         * beneath it, rather than letting it scroll out of view. Grows a
+         * top border/shadow once the body has actually been scrolled, so
+         * it reads as a distinct bar floating over content rather than
+         * empty space when everything already fits without scrolling.
+         */}
         {isConnected && (
-          <DialogFooter>
+          <DialogFooter
+            data-testid="wallet-modal-action-bar"
+            className={`sticky bottom-0 bg-background pt-3 transition-shadow ${
+              bodyScrolled ? "border-t shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]" : ""
+            } ${reducedMotion ? "transition-none" : ""}`}
+          >
             <Button
               variant="outline"
               onClick={handleDisconnect}
@@ -326,6 +354,7 @@ export function WalletModal({
             </Button>
           </DialogFooter>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );
