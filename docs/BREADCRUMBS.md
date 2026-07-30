@@ -107,6 +107,12 @@ also carries `truncate` (CSS) plus `min-w-0` on its flex ancestors as a
 layout-level backstop, in case a truncated label is still wider than the
 space a narrow viewport leaves it.
 
+The trail is rendered at every breakpoint and constrained to the available
+width. If a caller supplies `backHref` or `onBack`, that explicit back control
+replaces the trail below the `md` breakpoint; otherwise (as in the dashboard
+layout) the middle-ellipsis trail remains visible on mobile instead of leaving
+an empty navigation region.
+
 ## Reduced motion
 
 `ActiveCrumb` calls Framer Motion's `useReducedMotion()` (which reads
@@ -143,7 +149,9 @@ pnpm test components/navbar/__tests__/Breadcrumbs
   collapses to root + ellipsis + last two crumbs, the ellipsis menu exposes
   the hidden crumbs as working links, a trail that already fits is left
   uncollapsed, and a long single label renders middle-ellipsized while
-  keeping its full text available via `aria-label`.
+  keeping its full text available via `aria-label`. Responsive coverage checks
+  that the trail remains visible and width-constrained on mobile unless an
+  explicit mobile back control is supplied.
 - `lib/__tests__/breadcrumbs.test.ts` also covers `truncateMiddle` (label
   under/at/over the length limit) and `collapseBreadcrumbTrail` (under,
   exactly at, and over `maxVisible`) in isolation.

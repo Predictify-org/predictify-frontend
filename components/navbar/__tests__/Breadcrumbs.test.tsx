@@ -88,8 +88,17 @@ describe("Breadcrumbs", () => {
   })
 
   it("renders the mobile back link when backHref is provided", () => {
-    render(<Breadcrumbs items={dashboardEvents} backHref="/dashboard" />)
+    const { container } = render(<Breadcrumbs items={dashboardEvents} backHref="/dashboard" />)
     expect(screen.getByRole("link", { name: /back/i })).toHaveAttribute("href", "/dashboard")
+    expect(container.querySelector("ol")).toHaveClass("hidden", "md:flex")
+  })
+
+  it("keeps the breadcrumb trail visible on mobile when no back control is provided", () => {
+    const { container } = render(<Breadcrumbs items={dashboardEventsNew} />)
+    const trail = container.querySelector("ol")
+
+    expect(trail).toHaveClass("flex", "w-full", "min-w-0", "max-w-full")
+    expect(trail).not.toHaveClass("hidden")
   })
 
   describe("long-path overflow", () => {
@@ -152,6 +161,7 @@ describe("Breadcrumbs", () => {
       expect(current.textContent).not.toBe(fullLabel)
       expect(current.textContent).toContain("…")
       expect(current.textContent?.length).toBeLessThan(fullLabel.length)
+      expect(current).toHaveClass("truncate")
     })
   })
 })
