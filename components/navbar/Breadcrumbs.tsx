@@ -44,12 +44,13 @@ const CRUMB_TEXT_CLASSNAME = "font-medium tracking-widest text-xs uppercase";
 function ActiveCrumb({ label, displayLabel }: { label: string; displayLabel: string }) {
   const shouldReduceMotion = useReducedMotion();
   const isTruncated = displayLabel !== label;
+  const className = `block truncate text-[#69daff] ${CRUMB_TEXT_CLASSNAME}`;
 
   if (shouldReduceMotion) {
     // Motion-safe default: swap instantaneously, no fade/slide/morph.
     return (
       <span
-        className={`text-[#69daff] ${CRUMB_TEXT_CLASSNAME}`}
+        className={className}
         aria-current="page"
         aria-label={isTruncated ? label : undefined}
         title={isTruncated ? label : undefined}
@@ -69,7 +70,7 @@ function ActiveCrumb({ label, displayLabel }: { label: string; displayLabel: str
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -8 }}
         transition={MORPH_TRANSITION}
-        className={`text-[#69daff] ${CRUMB_TEXT_CLASSNAME}`}
+        className={className}
         aria-current="page"
         aria-label={isTruncated ? label : undefined}
         title={isTruncated ? label : undefined}
@@ -82,9 +83,13 @@ function ActiveCrumb({ label, displayLabel }: { label: string; displayLabel: str
 
 export function Breadcrumbs({ items, backHref, onBack, className = "" }: BreadcrumbsProps) {
   const trail = collapseBreadcrumbTrail(items);
+  const hasMobileBackControl = Boolean(backHref || onBack);
 
   return (
-    <nav aria-label="Breadcrumb" className={`flex flex-col gap-4 mb-6 ${className}`}>
+    <nav
+      aria-label="Breadcrumb"
+      className={`flex min-w-0 flex-col gap-4 mb-6 ${className}`}
+    >
       {/* Mobile Back Button */}
       {(backHref || onBack) && (
         <div className="md:hidden flex items-center">
@@ -102,15 +107,18 @@ export function Breadcrumbs({ items, backHref, onBack, className = "" }: Breadcr
         </div>
       )}
 
-      {/* Desktop & Tablet Breadcrumbs */}
-      <ol className="hidden md:flex items-center gap-2 text-sm text-[#a3aac4] min-w-0">
+      {/* An explicit back control replaces the trail on mobile; otherwise keep
+          the responsive trail available at every breakpoint. */}
+      <ol
+        className={`${hasMobileBackControl ? "hidden md:flex" : "flex"} w-full min-w-0 max-w-full items-center gap-2 text-sm text-[#a3aac4]`}
+      >
         {trail.map((item, index) => {
           const isLast = index === trail.length - 1;
 
           if ("isEllipsis" in item) {
             const hiddenCount = item.collapsedItems.length;
             return (
-              <li key="breadcrumb-ellipsis" className="flex items-center">
+              <li key="breadcrumb-ellipsis" className="flex shrink-0 items-center">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -135,7 +143,7 @@ export function Breadcrumbs({ items, backHref, onBack, className = "" }: Breadcr
                 </DropdownMenu>
 
                 {!isLast && (
-                  <span className="mx-2 flex text-slate-600">
+                  <span className="mx-2 flex shrink-0 text-slate-600" aria-hidden="true">
                     <span className="text-[#a3aac4]/50">/</span>
                   </span>
                 )}
@@ -151,7 +159,7 @@ export function Breadcrumbs({ items, backHref, onBack, className = "" }: Breadcr
               {item.href && !item.isCurrentPage ? (
                 <Link
                   href={item.href}
-                  className={`hover:text-cyan-400 transition-colors truncate ${CRUMB_TEXT_CLASSNAME}`}
+                  className={`block truncate hover:text-cyan-400 transition-colors ${CRUMB_TEXT_CLASSNAME}`}
                   aria-label={isTruncated ? item.label : undefined}
                   title={isTruncated ? item.label : undefined}
                 >
@@ -161,7 +169,7 @@ export function Breadcrumbs({ items, backHref, onBack, className = "" }: Breadcr
                 <ActiveCrumb label={item.label} displayLabel={displayLabel} />
               ) : (
                 <span
-                  className={`text-[#a3aac4] truncate ${CRUMB_TEXT_CLASSNAME}`}
+                  className={`block truncate text-[#a3aac4] ${CRUMB_TEXT_CLASSNAME}`}
                   aria-current={item.isCurrentPage ? "page" : undefined}
                   aria-label={isTruncated ? item.label : undefined}
                   title={isTruncated ? item.label : undefined}
@@ -171,7 +179,7 @@ export function Breadcrumbs({ items, backHref, onBack, className = "" }: Breadcr
               )}
 
               {!isLast && (
-                <span className="mx-2 flex text-slate-600">
+                <span className="mx-2 flex shrink-0 text-slate-600" aria-hidden="true">
                   <span className="text-[#a3aac4]/50">/</span>
                 </span>
               )}
