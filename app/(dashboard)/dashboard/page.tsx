@@ -232,8 +232,12 @@ export default function DashboardPage() {
           // Issue #1 Fix: Add explicit grid-cols-1 for mobile-first responsive scaling
           // Ensures single column on mobile (< 640px), 2 columns at sm (640px+), 4 at lg (1024px+)
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* h-44 matches StatCard's own "loading" skeleton (see
+                components/cards/stat-card.tsx) and the success-state card's
+                actual rendered height (p-6/sm:p-8 + value + label), so
+                first paint doesn't jump when data arrives. */}
             {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-32 w-full rounded-xl" />
+              <Skeleton key={i} className="h-44 w-full rounded-xl" />
             ))}
           </div>
         );
