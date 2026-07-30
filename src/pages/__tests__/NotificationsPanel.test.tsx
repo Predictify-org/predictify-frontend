@@ -269,5 +269,15 @@ describe("NotificationsPanel", () => {
       expect(within(items[1]).getByText("Dispute update")).toBeInTheDocument()
       expect(within(items[2]).getByText("Payout received")).toBeInTheDocument()
     })
+
+    it("augments each status badge with a color-blind-safe background pattern", () => {
+      render(<NotificationsPanel />)
+
+      const items = screen.getAllByRole("listitem")
+      // n1: market -> info, n2: dispute -> warning, n3: payout -> success
+      expect(within(items[0]).getByText("Market")).toHaveClass("status-pattern-info")
+      expect(within(items[1]).getByText("Dispute")).toHaveClass("status-pattern-warning")
+      expect(within(items[2]).getByText("Payout")).toHaveClass("status-pattern-success")
+    })
   })
 })
