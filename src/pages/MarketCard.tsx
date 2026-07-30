@@ -102,7 +102,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-body-sm text-muted-foreground">
         {volume && <span className="tabular-nums">Volume: {volume}</span>}
-        {endDate && <span>Ends: {endDate}</span>}
+        {endDate && <span className="tabular-nums">Ends: {endDate}</span>}
       </div>
     </article>
   );
