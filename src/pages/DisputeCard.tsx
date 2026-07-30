@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { WarningBanner } from '@/components/disputes/shared/WarningBanner';
 import { ExternalLink, ShieldAlert } from 'lucide-react';
 import type { DisputeData, DisputeState } from '@/types/disputes';
 import '../styles/focus.css';
+import '../styles/print.css';
 
 const VALID_STATES: DisputeState[] = ['none', 'open', 'voting', 'ended', 'executed'];
 
@@ -29,6 +31,36 @@ export function DisputeCard({
   onViewAudit,
   className,
 }: DisputeCardProps) {
+  const cardRef = useRef<HTMLElement>(null);
+
+  // Expand any collapsed audit-ref accordion before printing so the record
+  // is complete on paper, then restore whatever the reader had open.
+  useEffect(() => {
+    const openedByPrint: HTMLButtonElement[] = [];
+
+    const handleBeforePrint = () => {
+      const triggers = cardRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? [];
+      triggers.forEach((trigger) => {
+        if (/show details/i.test(trigger.textContent ?? '')) {
+          trigger.click();
+          openedByPrint.push(trigger);
+        }
+      });
+    };
+
+    const handleAfterPrint = () => {
+      openedByPrint.forEach((trigger) => trigger.click());
+      openedByPrint.length = 0;
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, []);
+
   const resolvedState: DisputeState = VALID_STATES.includes(data.state as DisputeState)
     ? (data.state as DisputeState)
     : 'none';
@@ -43,6 +75,7 @@ export function DisputeCard({
 
   return (
     <article
+      ref={cardRef}
       className={`dispute-card ${className ?? ''}`}
       data-testid="dispute-card"
       aria-label={`Dispute for ${data.eventTitle}`}
@@ -135,6 +168,7 @@ export function DisputeCard({
             <Button
               variant="outline"
               size="sm"
+              className="dispute-card-chrome"
               onClick={onRaiseDispute}
               aria-label={`Raise a dispute for ${data.eventTitle}`}
             >
@@ -145,6 +179,7 @@ export function DisputeCard({
             <Button
               variant="ghost"
               size="sm"
+              className="dispute-card-chrome"
               asChild
             >
               <a href="#dispute-details" aria-label="View dispute details">
