@@ -40,6 +40,7 @@ import { useDensity, densityTokens, type Density, type DensityTokens } from "@/h
 import { useSoundEnabled } from "@/hooks/useSoundEnabled"
 import { usePrivacy } from '@/context/PrivacyContext';
 import { cn } from "@/lib/utils"
+import { HelpPopover } from "@/components/patterns/HelpPopover"
 
 type TimeFormat = "local-12h" | "local-24h" | "utc"
 type CurrencyDisplay = "usd" | "usdc" | "both"
@@ -258,6 +259,15 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-2">
                     <LayoutGrid className="h-4 w-4 text-muted-foreground" />
                     <CardTitle className="text-xl">Display preferences</CardTitle>
+                    <HelpPopover
+                      title="Display preferences"
+                      description="Controls how dense, animated, and payout-focused the product feels day to day. These settings affect the layout of market cards, the level of motion in dashboards, and how wallet balances are displayed."
+                      tips={[
+                        "Start with 'Cozy' density to see full details — you can switch to 'Compact' or 'Ultra' later as you get familiar with the interface.",
+                        "Reducing motion can make the interface easier to scan for users sensitive to animation.",
+                        "High contrast mode overrides the current theme for maximum readability.",
+                      ]}
+                    />
                   </div>
                   <CardDescription>
                     Controls that shape how dense, animated, and payout-focused the product feels day to day.
@@ -379,6 +389,15 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-2">
                     <Pin className="h-4 w-4 text-muted-foreground" />
                     <CardTitle className="text-xl">Command Palette Shortcuts</CardTitle>
+                    <HelpPopover
+                      title="Command Palette Shortcuts"
+                      description="The Command Palette (Cmd/Ctrl+K) gives you quick access to frequently used pages and actions. Pin the shortcuts you use most and reorder them for faster navigation."
+                      tips={[
+                        "Press Cmd/Ctrl+K anywhere in the app to open the Command Palette.",
+                        "Pin only the actions you use regularly to keep the palette clean and focused.",
+                        "Use the up/down arrows to arrange pinned actions in your preferred order.",
+                      ]}
+                    />
                   </div>
                   <CardDescription>
                     Configure and reorder the pinned actions displayed when opening the Command Palette (Cmd/Ctrl+K).
@@ -480,6 +499,15 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-2">
                     <Bell className="h-4 w-4 text-muted-foreground" />
                     <CardTitle className="text-xl">Notifications</CardTitle>
+                    <HelpPopover
+                      title="Notification settings"
+                      description="Control which alerts and updates you receive. The notification intensity preset determines the baseline volume, while individual toggles let you fine-tune specific alert types."
+                      tips={[
+                        "'Important only' is a safe starting point — it covers account, settlement, and dispute alerts without overwhelming you.",
+                        "Quiet hours suppress non-critical notifications during your selected time window.",
+                        "Wallet errors and claim failures always appear regardless of quiet hours.",
+                      ]}
+                    />
                   </div>
                   <CardDescription>
                     Keep alerts high-signal by default, then opt into noisier market tracking only if you want it.
@@ -612,6 +640,15 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-muted-foreground" />
                     <CardTitle className="text-xl">Wallet privacy</CardTitle>
+                    <HelpPopover
+                      title="Wallet privacy"
+                      description="Wallet addresses are portable identities across apps. These settings help you control what information is visible to others and how your address is displayed."
+                      tips={[
+                        "Activity sharing is off by default — only enable it if you want your trades, votes, and claims to be publicly visible.",
+                        "Using a wallet alias shows a human-friendly name instead of your full address in shared views.",
+                        "Consider using a separate wallet if you want to keep prediction market activity distinct from your main identity.",
+                      ]}
+                    />
                   </div>
                   <CardDescription>
                     Wallet addresses are portable identities. These defaults help users avoid oversharing while keeping trust cues intact.
