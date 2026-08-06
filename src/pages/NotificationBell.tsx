@@ -2,9 +2,11 @@
 
 import React from "react"
 import { motion } from "framer-motion"
-import { Bell } from "lucide-react"
+import { Bell, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/hooks/useReducedMotion"
+import { ErrorBoundary } from "@/components/error-boundary"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -263,4 +265,118 @@ export function NotificationBell({
   )
 }
 
-export default NotificationBell
+// ---------------------------------------------------------------------------
+// Error Fallback
+// ---------------------------------------------------------------------------
+
+/**
+ * NotificationBellErrorFallback
+ *
+ * A compact, attractive error-state fallback shown when the NotificationBell
+ * crashes. Renders a bell icon with a subtle error indicator and a
+ * tooltip-triggered retry button, so users can recover without leaving the
+ * current page.
+ *
+ * ## Accessibility
+ * - The wrapper is a `<button>` with `aria-label` describing the error state.
+ * - The error icon is `aria-hidden`; the retry action is announced via the
+ *   tooltip and `aria-label`.
+ * - Focus-visible ring uses `ring-ring` design token.
+ * - Hit area is at least 44×44 CSS px (WCAG Target Size AA).
+ *
+ * ## Design Tokens
+ * - Icon: `text-destructive` (error tint)
+ * - Background hover: `bg-destructive/10`
+ * - Focus ring: `ring-2 ring-ring ring-offset-2 ring-offset-background`
+ * - All tokens resolve automatically in light + dark mode.
+ */
+export function NotificationBellErrorFallback({
+  resetErrorBoundary,
+  testId = "notification-bell-error",
+}: {
+  /** Called when the user clicks the retry button. */
+  resetErrorBoundary?: () => void
+  /** Optional test ID prefix. */
+  testId?: string
+}) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            data-testid={testId}
+            onClick={resetErrorBoundary}
+            aria-label="Notifications unavailable — click to retry"
+            className={cn(
+              "relative inline-flex items-center justify-center",
+              "h-11 w-11 min-h-[44px] min-w-[44px]",
+              "rounded-xl",
+              "text-destructive",
+              "hover:bg-destructive/10",
+              "focus-visible:outline-none",
+              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "active:scale-[0.98]",
+              "transition-colors duration-200",
+            )}
+          >
+            <span className="relative inline-flex items-center justify-center">
+              <Bell
+                className="h-5 w-5 shrink-0"
+                aria-hidden="true"
+                strokeWidth={1.75}
+              />
+              <span
+                data-testid={`${testId}-indicator`}
+                className={cn(
+                  "pointer-events-none absolute -top-0.5 -right-0.5",
+                  "flex items-center justify-center",
+                )}
+                aria-hidden="true"
+              >
+                <AlertCircle className="h-3 w-3 text-destructive" />
+              </span>
+            </span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="center">
+          <p className="text-xs">Notifications unavailable — click to retry</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// NotificationBellWithErrorBoundary — wraps the bell in an ErrorBoundary
+// ---------------------------------------------------------------------------
+
+/**
+ * NotificationBellWithErrorBoundary
+ *
+ * Wraps the `NotificationBell` in the project's `ErrorBoundary` with a
+ * compact, attractive fallback that includes a retry action. Consumers
+ * should use this component instead of `NotificationBell` directly to
+ * gracefully handle runtime errors.
+ */
+export function NotificationBellWithErrorBoundary(
+  props: NotificationBellProps,
+) {
+  return (
+    <ErrorBoundary
+      fallback={
+        <NotificationBellErrorFallback />
+      }
+    >
+      <NotificationBell {...props} />
+    </ErrorBoundary>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Exports
+// ---------------------------------------------------------------------------
+
+export { NotificationBell }
+
+export default NotificationBellWithErrorBoundary
