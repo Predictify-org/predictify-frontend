@@ -60,4 +60,12 @@ describe("MarketFilters", () => {
     const outer = container.firstChild as HTMLElement
     expect(outer).toHaveClass("custom-class")
   })
+
+  it("uses focus-visible ring classes on category buttons for keyboard accessibility", () => {
+    render(<MarketFilters />)
+    const buttons = screen.getAllByRole("checkbox")
+    buttons.forEach((btn) => {
+      expect(btn.className).toContain("focus-visible:ring-2")
+    })
+  })
 })

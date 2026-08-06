@@ -87,7 +87,7 @@ export function CategoryPills({ categories, selected, onToggle, className }: Cat
               onKeyDown={(e) => handleKeyDown(e, index)}
               className={cn(
                 "flex-shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 isActive
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground"
