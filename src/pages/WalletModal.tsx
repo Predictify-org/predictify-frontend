@@ -360,4 +360,17 @@ export function WalletModal({
   );
 }
 
+
+/* GrantFox FWC26 b#084 — reduced-motion fallback */
+@media (prefers-reduced-motion: reduce) {
+  .wallet-modal-animation,
+  .wallet-modal *[class*="animate"],
+  .wallet-modal *[class*="transition"],
+  .wallet-modal *[class*="motion"] {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
 export default WalletModal;
