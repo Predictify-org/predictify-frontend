@@ -161,6 +161,82 @@ describe('PredictionsList loading state', () => {
   });
 });
 
+// --- Tooltip Tests ---
+
+describe('PredictionCard tooltips', () => {
+  it('renders tooltip content on the status icon when hovered', async () => {
+    const user = userEvent.setup();
+    render(<PredictionCard prediction={mockPrediction} />);
+
+    // The Tooltip component wraps the icon. On hover, the tooltip content should appear.
+    // Instead of targeting the icon directly (which is aria-hidden), hover the status badge area.
+    const statusBadge = screen.getByLabelText('Status: Active');
+    await user.hover(statusBadge);
+
+    // The tooltip for 'active' status should appear
+    expect(await screen.findByText('This prediction is currently active')).toBeInTheDocument();
+  });
+
+  it('renders correct tooltip content for each status variant', async () => {
+    const user = userEvent.setup();
+    const statuses: Array<{ status: Prediction['status']; tooltip: string }> = [
+      { status: 'won', tooltip: 'This prediction was correct' },
+      { status: 'lost', tooltip: 'This prediction was incorrect' },
+      { status: 'pending', tooltip: 'This prediction is awaiting resolution' },
+    ];
+
+    for (const { status, tooltip } of statuses) {
+      const prediction: Prediction = {
+        ...mockPrediction,
+        id: `${status}-test`,
+        status,
+        ...(status === 'won' || status === 'lost' ? { resolvedDate: '01/06/2023' } : {}),
+      };
+      const { unmount } = render(<PredictionCard prediction={prediction} />);
+
+      const badge = screen.getByLabelText(`Status: ${status.charAt(0).toUpperCase() + status.slice(1)}`);
+      await user.hover(badge);
+      expect(await screen.findByText(tooltip)).toBeInTheDocument();
+
+      unmount();
+    }
+  });
+
+  it('shows odds expand/collapse tooltip on the odds trigger', async () => {
+    const user = userEvent.setup();
+    render(<PredictionCard prediction={mockPrediction} />);
+
+    // Hover over the odds trigger button
+    const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
+    await user.hover(oddsTrigger);
+
+    // Should show the expand tooltip initially
+    expect(await screen.findByText('Click to expand odds details')).toBeInTheDocument();
+  });
+
+  it('updates odds tooltip after expanding', async () => {
+    const user = userEvent.setup();
+    render(<PredictionCard prediction={mockPrediction} />);
+
+    const oddsTrigger = document.querySelector('[aria-controls="odds-breakdown"]') as HTMLElement;
+
+    // Click to expand
+    await user.click(oddsTrigger);
+    expect(oddsTrigger).toHaveAttribute('aria-expanded', 'true');
+
+    // Now hover again - should show "collapse" tooltip
+    await user.hover(oddsTrigger);
+    expect(await screen.findByText('Click to collapse odds details')).toBeInTheDocument();
+  });
+
+  it('does not show tooltip content by default (no hover)', () => {
+    render(<PredictionCard prediction={mockPrediction} />);
+
+    expect(screen.queryByText('This prediction is currently active')).toBeNull();
+    expect(screen.queryByText('Click to expand odds details')).toBeNull();
+  });
+});
+
 // --- Touch Target Tests (WCAG 2.5.5 / Apple HIG ≥44px) ---
 
 describe('PredictionCard touch targets', () => {

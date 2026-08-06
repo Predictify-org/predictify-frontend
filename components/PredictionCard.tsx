@@ -8,6 +8,7 @@ import { OutcomeIcon } from '@/components/icons/OutcomeIcons';
 import type { OutcomeVariant } from '@/components/icons/OutcomeIcons';
 import { getCategoryEmojiUrl } from '@/lib/categories/emojiMap';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip } from '@/app/components/Tooltip';
 
 interface PredictionCardProps {
   /** The prediction data to display. When omitted, a themed skeleton is rendered. */
@@ -20,6 +21,14 @@ const statusMap: Record<PredictionStatus, { icon: React.ElementType; label: stri
   lost: { icon: XCircle, label: 'Lost', className: 'text-red-600 dark:text-red-500 border-red-600/20 bg-red-50/50 dark:bg-red-500/10' },
   pending: { icon: Clock, label: 'Pending', className: 'text-yellow-600 dark:text-yellow-500 border-yellow-600/20 bg-yellow-50/50 dark:bg-yellow-500/10' },
   active: { icon: Activity, label: 'Active', className: 'text-blue-600 dark:text-blue-500 border-blue-600/20 bg-blue-50/50 dark:bg-blue-500/10' },
+};
+
+// Tooltip descriptions for each status
+const statusTooltip: Record<PredictionStatus, string> = {
+  won: 'This prediction was correct',
+  lost: 'This prediction was incorrect',
+  pending: 'This prediction is awaiting resolution',
+  active: 'This prediction is currently active',
 };
 
 /**
@@ -129,16 +138,16 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
           )}
         </div>
         <Badge variant="outline" className={`gap-1.5 shrink-0 ${className}`} aria-label={`Status: ${label}`}>
-          {/*
-           * Shape icon (color-blind safe) — rendered BEFORE the status icon.
-           * aria-hidden because the Badge's aria-label already names the status.
-           * Distinguishable by shape under Deuteranopia & Tritanopia simulations.
-           */}
-          <OutcomeIcon
-            variant={statusOutcomeVariant[status]}
-            aria-hidden
-          />
-          <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+          {/* Shape icon (color-blind safe) — rendered BEFORE the status icon. */}
+          <Tooltip content={`Status shape indicator: ${statusOutcomeVariant[status]} outcome`} placement="top">
+            <OutcomeIcon
+              variant={statusOutcomeVariant[status]}
+              aria-hidden
+            />
+          </Tooltip>
+          <Tooltip content={statusTooltip[status]} placement="top">
+            <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+          </Tooltip>
           {label}
         </Badge>
       </div>
@@ -156,14 +165,19 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
         <Collapsible open={isOddsExpanded} onOpenChange={setIsOddsExpanded}>
           <CollapsibleTrigger asChild>
             {/* touch-target: guarantees ≥44px tap area on the Odds trigger (WCAG 2.5.5). */}
-            <button
-              className="touch-target touch-ripple flex w-full items-center justify-between px-2 rounded hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-expanded={isOddsExpanded}
-              aria-controls="odds-breakdown"
+            <Tooltip
+              content={isOddsExpanded ? 'Click to collapse odds details' : 'Click to expand odds details'}
+              placement="top"
             >
-              <p className="text-muted-foreground">Odds</p>
-              <p className="text-card-foreground font-medium tabular-nums">{odds.toFixed(1)}x</p>
-            </button>
+              <button
+                className="touch-target touch-ripple flex w-full items-center justify-between px-2 rounded hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-expanded={isOddsExpanded}
+                aria-controls="odds-breakdown"
+              >
+                <p className="text-muted-foreground">Odds</p>
+                <p className="text-card-foreground font-medium tabular-nums">{odds.toFixed(1)}x</p>
+              </button>
+            </Tooltip>
           </CollapsibleTrigger>
           <CollapsibleContent id="odds-breakdown" className="mt-2 text-sm text-muted-foreground">
             <p className="tabular-nums">Implied probability: {(1 / odds * 100).toFixed(1)}%</p>
