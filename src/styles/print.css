@@ -76,3 +76,43 @@
     height: auto !important;
   }
 }
+
+/* ReceiptShare print presentation. The header, chrome, and live-region are
+ * hidden; receipt cards retain their structure and break gracefully. */
+@media print {
+  .receiptshare-page {
+    max-width: none !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .receiptshare-page [class*="text-muted-foreground"] {
+    color: #374151 !important;
+  }
+
+  .receiptshare-page [class*="bg-card"],
+  .receiptshare-page [class*="bg-background"],
+  .receiptshare-page [class*="bg-muted"] {
+    background: #fff !important;
+  }
+
+  .receiptshare-chrome,
+  .receiptshare-page [data-testid="receiptshare-live-region"] {
+    display: none !important;
+  }
+
+  .receiptshare-page ul {
+    margin: 0;
+    padding: 0;
+  }
+
+  .receiptshare-page li {
+    break-inside: avoid;
+  }
+
+  .receiptshare-page a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+}

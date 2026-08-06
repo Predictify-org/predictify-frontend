@@ -114,14 +114,14 @@ export default function ReceiptShare() {
   }, [reducedMotion]);
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:max-w-5xl lg:px-8">
+    <div className="receiptshare-page mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:max-w-5xl lg:px-8">
       {/* ARIA live region for screen-reader status announcements (#650) */}
       <LiveRegion
         message={announcement}
         data-testid="receiptshare-live-region"
       />
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="receiptshare-chrome flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1.5">
           <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             Receipt Share
@@ -130,7 +130,7 @@ export default function ReceiptShare() {
             Track status of your claim receipts and settlements.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="receiptshare-chrome flex items-center gap-2">
           {status === "error" && (
             <Button variant="outline" size="sm" onClick={handleRetry} className="rounded-full">
               Retry
@@ -153,7 +153,7 @@ export default function ReceiptShare() {
         aria-labelledby="receipts-heading"
         className="space-y-3 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:space-y-4 sm:p-5"
       >
-        <div className="flex items-center gap-2">
+        <div className="receiptshare-chrome flex items-center gap-2">
           <h2 id="receipts-heading" className="text-base font-semibold text-foreground sm:text-lg">
             Receipt Statuses
           </h2>
@@ -182,7 +182,7 @@ export default function ReceiptShare() {
 
         {status === "error" && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-            <div className="flex items-center gap-2">
+            <div className="receiptshare-chrome flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
               <p className="text-sm font-medium text-destructive">Failed to load receipt statuses</p>
             </div>
