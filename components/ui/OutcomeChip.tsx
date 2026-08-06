@@ -11,8 +11,14 @@
  *     so the state is still identifiable when hue perception is reduced,
  *     fulfilling SC 1.4.1 (Use of Color).
  *
- * Responsive behaviour is inherited from the parent layout; the chip
- * scales its text via Tailwind's text-xs / text-sm utility classes.
+ * Mobile audit (issue #821):
+ *  - Chip no longer truncates or overflows at <=375px: label wraps onto a
+ *    second line instead of clipping (whitespace-normal, break-words).
+ *  - Minimum 44px tap target at all breakpoints (WCAG 2.1 AA / 2.5.5),
+ *    achieved via min-h-[44px] + py-3 rather than a fixed height so the
+ *    label can still wrap without clipping the target.
+ *  - Responsive padding: tighter on mobile (px-2.5) vs desktop (px-3).
+ *  - Responsive font: text-xs on mobile, text-sm on sm+.
  *
  * Dark mode is handled automatically because the chart-* tokens are
  * defined in globals.css with separate HSL values for :root and .dark.
@@ -68,6 +74,15 @@ export function OutcomeChip({
         // text-white on darkened chart tokens satisfies WCAG 2.1 AA SC 1.4.3
         // font-semibold boosts effective contrast for small badge text
         "border-transparent text-white font-semibold",
+
+        // Mobile-responsive layout (issue #821):
+        // - min-h-[44px] ensures WCAG 2.1 AA 2.5.5 minimum tap target at all breakpoints
+        // - whitespace-normal + break-words allows label to wrap instead of clipping
+        // - py-3 gives vertical padding while keeping 44px min-height
+        // - px-2.5 on mobile, px-3 on sm+ for tighter fit on small screens
+        // - text-xs on mobile, text-sm on sm+ for readability
+        "min-h-[44px] whitespace-normal break-words py-3 px-2.5 sm:px-3 text-xs sm:text-sm",
+
         chartClass ?? style.chart,
         patternClass ?? style.pattern,
         className,
