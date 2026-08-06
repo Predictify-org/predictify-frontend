@@ -1,11 +1,12 @@
 /**
- * TrendingRail.tsx � Displays trending insights with empty state fallback
+ * TrendingRail.tsx – Displays trending insights with empty state fallback
  *
  * Shows a curated list of trending items, with:
  *   - Loading skeleton while fetching
  *   - Error banner on failures
  *   - Empty state with CTA when no data available
  *   - Responsive grid layout with WCAG 2.1 AA compliance
+ *   - Optimistic UI on primary action (click) with revert on failure
  */
 
 'use client';
@@ -28,6 +29,10 @@ export const TrendingRail: React.FC = () => {
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Optimistic UI state
+  const [optimisticId, setOptimisticId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const fetchTrendingData = useCallback(async () => {
     setIsLoading(true);
     setIsError(false);
@@ -49,6 +54,48 @@ export const TrendingRail: React.FC = () => {
   useEffect(() => {
     fetchTrendingData();
   }, [fetchTrendingData]);
+
+  /**
+   * Handles the primary action on a trending item with optimistic UI.
+   *
+   * 1. Immediately updates the UI (shows optimistic state)
+   * 2. Performs the API call in the background
+   * 3. On success, clears the optimistic state
+   * 4. On failure, reverts the optimistic state and shows the error
+   */
+  const handlePrimaryAction = useCallback(async (item: TrendingItem) => {
+    // Clear any previous action error
+    setActionError(null);
+
+    // Step 1: Optimistic update — immediately show the card as "active"
+    setOptimisticId(item.id);
+
+    try {
+      // Step 2: Simulate the API call (e.g., follow/bookmark the trending item)
+      const response = await fetch('/api/trending/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id, action: 'select' }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Action failed: ${response.statusText}`);
+      }
+
+      // Step 3: Success — clear optimistic state after a brief delay
+      // so the user can see the positive feedback
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setOptimisticId(null);
+    } catch (err) {
+      // Step 4: Failure — revert the optimistic state and show error
+      setOptimisticId(null);
+      const message = err instanceof Error ? err.message : 'Action failed';
+      setActionError(message);
+
+      // Auto-dismiss the error after 3 seconds
+      setTimeout(() => setActionError(null), 3000);
+    }
+  }, []);
 
   // Loading state
   if (isLoading) {
@@ -75,7 +122,7 @@ export const TrendingRail: React.FC = () => {
     );
   }
 
-  // Empty state � no trending data
+  // Empty state – no trending data
   if (trendingData.length === 0) {
     return (
       <div className={styles.container}>
@@ -95,21 +142,47 @@ export const TrendingRail: React.FC = () => {
   return (
     <div className={styles.container}>
       <h2 className={styles.heading}>Trending</h2>
+
+      {/* Action error toast */}
+      {actionError && (
+        <div className={styles.actionErrorToast} role="alert">
+          <span className={styles.actionErrorIcon} aria-hidden="true">&#9888;</span>
+          <span>{actionError}</span>
+        </div>
+      )}
+
       <div className={styles.grid}>
-        {trendingData.map((item) => (
-          <div
-            key={item.id}
-            className={`${styles.card} ${styles[`trend-${item.trend}`]}`}
-          >
-            <h3 className={styles.title}>{item.title}</h3>
-            <p className={styles.value}>{item.value.toFixed(2)}</p>
-            <span
-              className={`${styles.change} ${styles[`change-${item.trend}`]}`}
+        {trendingData.map((item) => {
+          const isOptimistic = optimisticId === item.id;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`
+                ${styles.card}
+                ${styles[`trend-${item.trend}`]}
+                ${isOptimistic ? styles.cardOptimistic : ''}
+                ${styles.cardClickable}
+              `}
+              onClick={() => handlePrimaryAction(item)}
+              disabled={optimisticId !== null && !isOptimistic}
+              aria-label={`View ${item.title} — $${item.value.toFixed(2)} — ${item.change > 0 ? '+' : ''}${item.change.toFixed(2)}%`}
+              aria-pressed={isOptimistic}
             >
-              {item.change > 0 ? '+' : ''}{item.change.toFixed(2)}%
-            </span>
-          </div>
-        ))}
+              {isOptimistic && (
+                <span className={styles.optimisticSpinner} aria-hidden="true" />
+              )}
+              <h3 className={styles.title}>{item.title}</h3>
+              <p className={styles.value}>{item.value.toFixed(2)}</p>
+              <span
+                className={`${styles.change} ${styles[`change-${item.trend}`]}`}
+              >
+                {item.change > 0 ? '+' : ''}{item.change.toFixed(2)}%
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
