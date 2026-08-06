@@ -94,6 +94,41 @@ const SOCIAL_PLATFORMS: SharePlatform[] = [
   },
 ]
 
+/**
+ * Detect whether the user is on macOS (for ⌘ vs Ctrl display).
+ */
+const isMac =
+  typeof navigator !== "undefined" && navigator.platform?.toLowerCase().includes("mac")
+
+/**
+ * Small keyboard shortcut chip used to hint at available keyboard actions.
+ * Renders as a compact kbd-style badge with the modifier key label.
+ */
+function KbdChip({
+  keys,
+  className,
+}: {
+  /** Array of key labels, e.g. ["⌘", "C"] or ["Esc"] */
+  keys: string[]
+  className?: string
+}) {
+  return (
+    <kbd
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-md border border-border/40 bg-muted/60 px-1.5 py-0.5",
+        "text-[10px] font-mono font-medium leading-none text-muted-foreground",
+        "shadow-[0_1px_0_0_rgba(0,0,0,0.08)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)]",
+        className,
+      )}
+      aria-hidden="true"
+    >
+      {keys.map((key, i) => (
+        <span key={i}>{key}</span>
+      ))}
+    </kbd>
+  )
+}
+
 export function ShareSheet({
   title,
   text,
@@ -116,21 +151,6 @@ export function ShareSheet({
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
     }
   }, [])
-
-  // Load QR code when sheet opens (desktop fallback)
-  React.useEffect(() => {
-    if (open && !hasNativeShare && generateQrCode && !qrCode && !isLoadingQr) {
-      setIsLoadingQr(true)
-      Promise.resolve(generateQrCode(url))
-        .then((data) => {
-          setQrCode(data)
-          setIsLoadingQr(false)
-        })
-        .catch(() => {
-          setIsLoadingQr(false)
-        })
-    }
-  }, [open, generateQrCode, url, qrCode, isLoadingQr])
 
   const handleNativeShare = React.useCallback(async () => {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -193,6 +213,26 @@ export function ShareSheet({
     }
   }, [url, toast])
 
+  // Register global keyboard shortcut for Copy Link (⌘C / Ctrl+C) when the
+  // sheet is open. This makes the footer hint chip functional, not decorative.
+  React.useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!open) return
+      const mod = isMac ? e.metaKey : e.ctrlKey
+      if (mod && (e.key === "c" || e.key === "C")) {
+        // Don't intercept if the user is focused on an input/textarea
+        const tag = (e.target as HTMLElement)?.tagName?.toLowerCase()
+        if (tag === "input" || tag === "textarea" || (e.target as HTMLElement)?.isContentEditable) {
+          return
+        }
+        e.preventDefault()
+        handleCopyLink()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [open, handleCopyLink])
+
   const handlePlatformShare = React.useCallback(
     (platform: SharePlatform) => {
       try {
@@ -216,6 +256,8 @@ export function ShareSheet({
     typeof window !== "undefined"
 
   const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768
+
+  const modKey = isMac ? "⌘" : "Ctrl"
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -374,9 +416,23 @@ export function ShareSheet({
             })}
           </div>
 
-          <p className="text-xs text-center text-muted-foreground">
-            Share via your preferred platform or copy the direct link.
-          </p>
+          {/* Keyboard shortcut hints */}
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <KbdChip keys={[modKey, "C"]} />
+              <span>Copy link</span>
+            </span>
+            {hasNativeShare && (
+              <span className="inline-flex items-center gap-1.5">
+                <KbdChip keys={[modKey, "S"]} />
+                <span>Native share</span>
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5">
+              <KbdChip keys={["Esc"]} />
+              <span>Close</span>
+            </span>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
