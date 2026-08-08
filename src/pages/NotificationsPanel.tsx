@@ -19,6 +19,7 @@ import { NOTIFICATION_CATEGORY_CONFIG, sortNotifications } from "@/lib/notificat
 import type { NotificationCategory, NotificationItem } from "@/types/notifications"
 import { cn } from "@/lib/utils"
 import "../styles/patterns.css"
+import "../styles/contrast.css"
 
 /**
  * Maps each badge variant to a subtle background pattern class (see
@@ -124,7 +125,7 @@ export default function NotificationsPanel({ maxItems }: NotificationsPanelProps
 
       <div
         className={cn(
-          "mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:max-w-5xl lg:px-8",
+          "notifications-panel mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:max-w-5xl lg:px-8",
           "pb-[calc(4rem+var(--safe-pb,0px))] motion-reduce:pb-16",
         )}
       >
