@@ -1,0 +1,65 @@
+/* ==========================================================================
+   MarketCard prefers-contrast: more overrides
+   ==========================================================================
+   Activated automatically when the user's OS / browser is set to
+   "High Contrast" mode (prefers-contrast: more).
+   Replaces semi-transparent borders and muted text with solid,
+   high-contrast alternatives so the card remains readable at
+   WCAG AAA (≥ 7:1) for normal text.
+   ========================================================================== */
+
+@media (prefers-contrast: more) {
+  /* ── Card border ──────────────────────────────────────────────────────── */
+  .market-card {
+    border-color: rgba(255, 255, 255, 0.8) !important;
+    border-width: 2px !important;
+  }
+
+  /* ── Text contrast ────────────────────────────────────────────────────── */
+  .market-card h3 {
+    color: #ffffff !important;
+  }
+
+  .market-card p,
+  .market-card .text-white\/70 {
+    color: #e5e7eb !important;   /* gray-200 — ≈ 15:1 on #1e1b4b */
+  }
+
+  .market-card .text-white\/85 {
+    color: #f3f4f6 !important;   /* gray-100 — ≈ 17:1 */
+  }
+
+  .market-card .text-white\/60 {
+    color: #d1d5db !important;   /* gray-300 — ≈ 12:1 */
+  }
+
+  /* ── Odds values ──────────────────────────────────────────────────────── */
+  .market-card .text-green-400 {
+    color: #4ade80 !important;   /* green-400 — explicit v. bg */
+  }
+
+  .market-card .text-red-400 {
+    color: #f87171 !important;   /* red-400   — explicit v. bg */
+  }
+
+  /* ── Probability bar ───────────────────────────────────────────────────── */
+  .market-card .bg-white\/10 {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+  }
+
+  /* ── Following indicator ───────────────────────────────────────────────── */
+  .market-card [data-testid="following-indicator"] {
+    border: 1px solid #c084fc !important;  /* purple-400 */
+  }
+
+  /* ── Betting-limit nudge ───────────────────────────────────────────────── */
+  .market-card [data-testid="betting-limit-nudge"] {
+    border-color: rgba(255, 255, 255, 0.5) !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  /* ── Disable backdrop blur (can reduce contrast) ───────────────────────── */
+  .market-card {
+    backdrop-filter: none !important;
+  }
+}
