@@ -76,3 +76,39 @@
     height: auto !important;
   }
 }
+
+/* StreamPanel print presentation. The aria-live region (screen-reader only)
+ * is omitted from printed output, while the status indicator and label are
+ * preserved as a clean summary. */
+@media print {
+  .stream-panel-container {
+    max-width: none !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .stream-panel-container .sr-only {
+    display: none !important;
+  }
+
+  .stream-panel-container [class*="text-muted-foreground"] {
+    color: #374151 !important;
+  }
+
+  .stream-panel-container [class*="bg-card"],
+  .stream-panel-container [class*="bg-background"],
+  .stream-panel-container [class*="bg-muted"] {
+    background: #fff !important;
+  }
+
+  .stream-panel-container a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+
+  .stream-panel-container .stream-panel {
+    border: 1px solid #d1d5db !important;
+    box-shadow: none !important;
+  }
+}

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { LiveRegion } from "../components/LiveRegion";
+import "../styles/print.css";
 
 export type StreamStatus =
   | "connected"
@@ -35,15 +36,17 @@ function formatLabel(status: StreamStatus): string {
 
 export function StreamPanel({ status, label }: StreamPanelProps) {
   return (
-    <div className="stream-panel flex items-center gap-3 rounded-lg border p-4 shadow-sm">
-      <span
-        className={`inline-block h-3 w-3 rounded-full ${STATUS_COLORS[status]}`}
-        aria-hidden="true"
-      />
-      <span className="text-sm font-medium">
-        {label ?? formatLabel(status)}
-      </span>
-      <LiveRegion message={STATUS_MESSAGES[status]} />
+    <div className="stream-panel-container">
+      <div className="stream-panel flex items-center gap-3 rounded-lg border p-4 shadow-sm">
+        <span
+          className={`inline-block h-3 w-3 rounded-full ${STATUS_COLORS[status]}`}
+          aria-hidden="true"
+        />
+        <span className="text-sm font-medium">
+          {label ?? formatLabel(status)}
+        </span>
+        <LiveRegion message={STATUS_MESSAGES[status]} />
+      </div>
     </div>
   );
 }
