@@ -13,6 +13,7 @@ import { useUserLimitsStore } from "@/app/state/userLimits"
 import Sparkline from "@/components/Sparkline"
 import { HeatStrip } from "@/app/components/HeatStrip"
 import { BookmarkButton } from "@/app/components/BookmarkButton"
+import "../styles/themes/market-card-contrast.css"
 
 // ---------------------------------------------------------------------------
 // Icon / colour mapping (internal – consumers need only pass a Market)
@@ -80,7 +81,7 @@ export function MarketCard({
 
   return (
     <Card
-      className={`border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm transition-all duration-300 hover:bg-[#201F3780]/80 ${
+      className={`market-card border-white/10 bg-[#201F3780] p-4 backdrop-blur-sm transition-all duration-300 hover:bg-[#201F3780]/80 ${
         reducedMotion ? "" : "animate-slide-up"
       } ${className ?? ""}`}
       style={{
