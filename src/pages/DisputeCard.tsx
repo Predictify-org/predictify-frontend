@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { DisputeStateBadge } from '@/components/disputes/DisputeStateBadge';
 import { DetailsAccordion } from '@/components/disputes/shared/DetailsAccordion';
 import { WarningBanner } from '@/components/disputes/shared/WarningBanner';
 import { ExternalLink, ShieldAlert } from 'lucide-react';
+import { LiveRegion } from '@/components/ui/live-region';
 import type { DisputeData, DisputeState } from '@/types/disputes';
 import '../styles/focus.css';
 import '../styles/print.css';
@@ -32,6 +33,26 @@ export function DisputeCard({
   className,
 }: DisputeCardProps) {
   const cardRef = useRef<HTMLElement>(null);
+  const [announcement, setAnnouncement] = useState('');
+
+  const resolvedState: DisputeState = VALID_STATES.includes(data.state as DisputeState)
+    ? (data.state as DisputeState)
+    : 'none';
+
+  const stateLabels: Record<DisputeState, string> = {
+    none: 'No active dispute',
+    open: 'Dispute open — staking',
+    voting: 'Community voting',
+    ended: 'Voting ended',
+    executed: 'Outcome executed',
+  };
+
+  // Announce resolved state changes to screen readers via a polite
+  // aria-live region (WCAG 2.1 SC 4.1.3). The LiveRegion component
+  // dedupes identical messages so re-announcements still fire.
+  useEffect(() => {
+    setAnnouncement(stateLabels[resolvedState]);
+  }, [resolvedState]);
 
   // Expand any collapsed audit-ref accordion before printing so the record
   // is complete on paper, then restore whatever the reader had open.
@@ -61,18 +82,6 @@ export function DisputeCard({
     };
   }, []);
 
-  const resolvedState: DisputeState = VALID_STATES.includes(data.state as DisputeState)
-    ? (data.state as DisputeState)
-    : 'none';
-
-  const stateLabels: Record<DisputeState, string> = {
-    none: 'No active dispute',
-    open: 'Dispute open — staking',
-    voting: 'Community voting',
-    ended: 'Voting ended',
-    executed: 'Outcome executed',
-  };
-
   return (
     <article
       ref={cardRef}
@@ -80,6 +89,7 @@ export function DisputeCard({
       data-testid="dispute-card"
       aria-label={`Dispute for ${data.eventTitle}`}
     >
+      <LiveRegion message={announcement} data-testid="dispute-card-live-region" />
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
           <div className="flex flex-col gap-1 min-w-0">
