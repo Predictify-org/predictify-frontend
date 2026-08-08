@@ -3,9 +3,15 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { ErrorRecoveryScreen } from "@/components/error/ErrorRecoveryScreen";
 
+interface FallbackRenderProps {
+  error: Error;
+  incidentId: string | null;
+  resetErrorBoundary: () => void;
+}
+
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
+  fallback?: ReactNode | ((props: FallbackRenderProps) => ReactNode);
 }
 
 interface State {
@@ -50,6 +56,13 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
+        if (typeof this.props.fallback === "function") {
+          return (this.props.fallback as (props: FallbackRenderProps) => ReactNode)({
+            error: this.state.error!,
+            incidentId: this.state.incidentId,
+            resetErrorBoundary: this.handleReset,
+          });
+        }
         return this.props.fallback;
       }
 

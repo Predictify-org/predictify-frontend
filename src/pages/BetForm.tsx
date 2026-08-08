@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { StellarWaveEmptyState } from "../components/EmptyState";
+import { ErrorBoundary } from "../../components/error-boundary";
+import { BetFormErrorFallback } from "../components/BetFormErrorFallback";
 
 type FormState = "idle" | "submitting" | "success" | "error";
 
@@ -41,7 +43,7 @@ export default function BetForm({ campaignActive = true }: BetFormProps = {}) {
       {!campaignActive ? (
         <StellarWaveEmptyState />
       ) : (
-        <>
+        <ErrorBoundary fallback={BetFormErrorFallback}>
           <LiveRegion message={announcement} />
 
           <Card className="overflow-hidden border-border/60 bg-card/80 shadow-sm">
@@ -95,7 +97,7 @@ export default function BetForm({ campaignActive = true }: BetFormProps = {}) {
               )}
             </CardContent>
           </Card>
-        </>
+        </ErrorBoundary>
       )}
     </div>
   );
