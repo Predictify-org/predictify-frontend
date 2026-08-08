@@ -29,7 +29,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import QuickBetPresets from "@/components/QuickBetPresets";
 import KbdHint from "../../src/components/KbdHint";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -49,6 +49,15 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit, isLoading = false }) => {
   const [amount, setAmount] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const reducedMotion = useReducedMotion();
+
+  /** Tracks whether the scrollable content area has been scrolled, so the
+   *  sticky action bar can grow a divider/shadow once content scrolls behind it. */
+  const [bodyScrolled, setBodyScrolled] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  const handleBodyScroll = () => {
+    setBodyScrolled((bodyRef.current?.scrollTop ?? 0) > 0);
+  };
 
   /** The numeric value of the current input, or null when empty / invalid. */
   const numericAmount = amount !== "" && !isNaN(Number(amount)) ? Number(amount) : null;
@@ -140,101 +149,129 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit, isLoading = false }) => {
     >
       <div className="flex flex-col gap-3 sm:gap-4">
         {/*
-         * Preset chips
-         * ────────────
-         * flex-wrap    — chips wrap on narrow viewports instead of overflowing.
-         * gap-2        — consistent horizontal + vertical gap between chips.
-         * justify-start — left-align chips; they should not stretch to fill the row.
-         * Each chip gets min-w-[60px] via QuickBetPresets (see component) to
-         * ensure a touchable target on mobile (WCAG 2.5.5).
-         */}
-        <QuickBetPresets
-          selectedAmount={numericAmount}
-          onSelect={handlePresetSelect}
-        />
-
-        {/* Amount input */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="bet-amount"
-            className="text-label text-foreground"
-          >
-            Amount (XLM)
-          </label>
-          <input
-            id="bet-amount"
-            type="number"
-            min="0.0000001"
-            step="any"
-            value={amount}
-            onChange={handleAmountChange}
-            placeholder="Enter amount"
-            aria-describedby={error ? "bet-amount-error" : undefined}
-            aria-invalid={error ? true : undefined}
-            /*
-             * Responsive padding:
-             *  px-3 py-2 on mobile — compact but comfortable (38 px height).
-             *  sm:px-4 sm:py-2.5  — slightly more breathing room on ≥ 640 px.
-             */
-            className={[
-              "w-full rounded-md border",
-              "px-3 py-2 sm:px-4 sm:py-2.5",
-              "text-body-sm tabular-nums",
-              "bg-background text-foreground placeholder:text-muted-foreground",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              "focus-visible:ring-offset-background",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-              error
-                ? "border-destructive focus-visible:ring-destructive"
-                : "border-border",
-            ].join(" ")}
+         * Scrollable content area
+         * ──────────────────────
+         * Wraps the preset chips and amount input in a max-height container
+         * so that on constrained viewports the content scrolls independently
+         * while the sticky action bar below remains reachable.
+         */
+        }
+        <div
+          ref={bodyRef}
+          onScroll={handleBodyScroll}
+          className="max-h-[min(60vh,26rem)] overflow-y-auto flex flex-col gap-3 sm:gap-4"
+        >
+          {/*
+           * Preset chips
+           * ────────────
+           * flex-wrap    — chips wrap on narrow viewports instead of overflowing.
+           * gap-2        — consistent horizontal + vertical gap between chips.
+           * justify-start — left-align chips; they should not stretch to fill the row.
+           * Each chip gets min-w-[60px] via QuickBetPresets (see component) to
+           * ensure a touchable target on mobile (WCAG 2.5.5).
+           */}
+          <QuickBetPresets
+            selectedAmount={numericAmount}
+            onSelect={handlePresetSelect}
           />
-          {error && (
-            <p
-              id="bet-amount-error"
-              role="alert"
-              className="text-body-sm text-destructive"
+
+          {/* Amount input */}
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="bet-amount"
+              className="text-label text-foreground"
             >
-              {error}
-            </p>
-          )}
+              Amount (XLM)
+            </label>
+            <input
+              id="bet-amount"
+              type="number"
+              min="0.0000001"
+              step="any"
+              value={amount}
+              onChange={handleAmountChange}
+              placeholder="Enter amount"
+              aria-describedby={error ? "bet-amount-error" : undefined}
+              aria-invalid={error ? true : undefined}
+              /*
+               * Responsive padding:
+               *  px-3 py-2 on mobile — compact but comfortable (38 px height).
+               *  sm:px-4 sm:py-2.5  — slightly more breathing room on ≥ 640 px.
+               */
+              className={[
+                "w-full rounded-md border",
+                "px-3 py-2 sm:px-4 sm:py-2.5",
+                "text-body-sm tabular-nums",
+                "bg-background text-foreground placeholder:text-muted-foreground",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "focus-visible:ring-offset-background",
+                "disabled:cursor-not-allowed disabled:opacity-50",
+                error
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : "border-border",
+              ].join(" ")}
+            />
+            {error && (
+              <p
+                id="bet-amount-error"
+                role="alert"
+                className="text-body-sm text-destructive"
+              >
+                {error}
+              </p>
+            )}
+          </div>
         </div>
 
         {/*
-         * Submit button
-         * ─────────────
-         * Full-width on all breakpoints (w-full) — the form is already
-         * constrained by max-w-sm on the wrapper, so the button never
-         * becomes comically wide.
-         * min-h-[44px] — WCAG 2.5.5 minimum touch target height.
+         * ── Sticky action bar ──────────────────────────────────────────
+         * `sticky bottom-0` pins it to the bottom of the form (the nearest
+         * scrolling ancestor is the overflow-y-auto container above) as the
+         * content scrolls beneath it. Grows a top border and shadow once the
+         * body has actually been scrolled, so it reads as a distinct bar
+         * floating over content rather than empty space when everything
+         * already fits without scrolling.
          */}
-        <button
-          type="submit"
+        <div
+          data-testid="betform-action-bar"
           className={[
-            "w-full min-h-[44px] rounded-md",
-            "px-4 py-2 sm:py-2.5",
-            "text-body-sm font-semibold",
-            "flex items-center justify-center gap-2",
-            "bg-primary text-primary-foreground",
-            "hover:bg-primary/90",
-            !reducedMotion && "transition-colors duration-150",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-            "focus-visible:ring-offset-background",
+            "sticky bottom-0 bg-background z-10 pt-3",
+            bodyScrolled
+              ? "border-t border-border shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]"
+              : "",
+            reducedMotion ? "transition-none" : "transition-shadow",
           ]
             .filter(Boolean)
             .join(" ")}
         >
-          <span>Place Bet</span>
-          {/* Keyboard shortcut hint — hidden on narrow screens to save space */}
-          <span className="hidden sm:flex items-center gap-1 opacity-80">
-            <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">
-              ⌘
-            </KbdHint>
-            <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">
-              ↵
-            </KbdHint>
-          </span>
-        </button>
+          <button
+            type="submit"
+            className={[
+              "w-full min-h-[44px] rounded-md",
+              "px-4 py-2 sm:py-2.5",
+              "text-body-sm font-semibold",
+              "flex items-center justify-center gap-2",
+              "bg-primary text-primary-foreground",
+              "hover:bg-primary/90",
+              !reducedMotion && "transition-colors duration-150",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              "focus-visible:ring-offset-background",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <span>Place Bet</span>
+            {/* Keyboard shortcut hint — hidden on narrow screens to save space */}
+            <span className="hidden sm:flex items-center gap-1 opacity-80">
+              <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">
+                ⌘
+              </KbdHint>
+              <KbdHint className="bg-primary-foreground/20 text-primary-foreground border-transparent">
+                ↵
+              </KbdHint>
+            </span>
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -315,4 +352,4 @@ export const BetFormSkeleton: React.FC = () => {
       />
     </div>
   );
-};
+};
