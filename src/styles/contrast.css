@@ -1,0 +1,56 @@
+/**
+ * contrast.css — High-contrast mode overrides
+ *
+ * When the user's OS is set to "more contrast" (prefers-contrast: more),
+ * translucent borders, subtle background tints, and low-contrast text
+ * become hard to read.  These overrides ensure every interactive and
+ * informational element has a distinct visual boundary.
+ *
+ * WCAG 2.1 AA compliance:
+ *   - Explicit 1px solid borders replace the default translucent borders
+ *     so they meet the 1.5:1 minimum for non-text contrast (SC 1.4.11).
+ *   - Text colours are forced to the full design-token value (no opacity
+ *     reduction) so body copy meets the 4.5:1 ratio (SC 1.4.3).
+ *   - Status chips get a stronger border so they are distinguishable
+ *     without relying on hue alone.
+ *   - The input field gets a solid, fully opaque border.
+ */
+
+/* ── AmountInput high-contrast overrides ─────────────────────────────── */
+@media (prefers-contrast: more) {
+  .amount-input label {
+    color: #000 !important;
+  }
+
+  .amount-input input {
+    border-color: #000 !important;
+    border-width: 1.5px !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .amount-input input::placeholder {
+    color: #374151 !important;
+    opacity: 1 !important;
+  }
+
+  .amount-input [role="status"] {
+    font-weight: 600 !important;
+  }
+
+  .amount-input [role="status"] .rounded-sm {
+    border-width: 1.5px !important;
+    border-color: #000 !important;
+  }
+
+  .amount-input [role="status"] span.text-muted-foreground,
+  .amount-input [class*="text-muted-foreground"] {
+    color: #374151 !important;
+  }
+
+  .amount-input [class*="bg-card"],
+  .amount-input [class*="bg-background"],
+  .amount-input [class*="bg-muted"] {
+    background: #fff !important;
+  }
+}
