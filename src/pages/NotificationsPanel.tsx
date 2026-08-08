@@ -140,7 +140,7 @@ export default function NotificationsPanel({ maxItems }: NotificationsPanelProps
             <p className="text-sm leading-6 text-muted-foreground">
               {allRead
                 ? "You're all caught up."
-                : `You have ${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}.`}
+                : <>You have <span className="tabular-nums">{unreadCount}</span> unread notification{unreadCount === 1 ? "" : "s"}.</>}
             </p>
           </div>
           {!allRead && (
@@ -198,7 +198,7 @@ export default function NotificationsPanel({ maxItems }: NotificationsPanelProps
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:max-w-5xl lg:px-8">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-sm text-muted-foreground whitespace-nowrap">
-              <span className="font-semibold text-foreground">{unreadCount}</span>
+              <span className="tabular-nums font-semibold text-foreground">{unreadCount}</span>
               {" "}unread
             </span>
             <Badge
@@ -206,7 +206,7 @@ export default function NotificationsPanel({ maxItems }: NotificationsPanelProps
               size="sm"
               className="hidden shrink-0 sm:inline-flex"
             >
-              {notifications.length} total
+              <span className="tabular-nums">{notifications.length}</span> total
             </Badge>
           </div>
 
