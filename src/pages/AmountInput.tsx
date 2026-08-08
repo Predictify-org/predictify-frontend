@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import "@/styles/patterns.css"; // Ensure patterns are loaded if used directly
+import "../styles/contrast.css";
 
 export type AmountStatus = "idle" | "success" | "warning" | "error";
 
@@ -72,7 +73,7 @@ export const AmountInput: React.FC<AmountInputProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-2 w-full max-w-sm">
+    <div className="amount-input flex flex-col gap-2 w-full max-w-sm">
       <label htmlFor="amount-input" className="text-sm font-medium text-foreground">
         Amount
       </label>
