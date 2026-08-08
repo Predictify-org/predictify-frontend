@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import { Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/hooks/useReducedMotion"
+import { Tooltip } from "@/app/components/Tooltip"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -161,28 +162,30 @@ export function NotificationBell({
 
   if (reducedMotion) {
     return (
-      <button
-        type="button"
-        data-testid={`${testId}-static`}
-        onClick={onClick}
-        aria-label={ariaLabel}
-        className={cn(
-          // Hit area: ≥ 44×44 px (WCAG 2.5.5 Target Size AA)
-          "relative inline-flex items-center justify-center",
-          "h-11 w-11 min-h-[44px] min-w-[44px]",
-          "rounded-xl",
-          // Semantic tokens, no hardcoded colors
-          "text-foreground",
-          "hover:bg-accent hover:text-accent-foreground",
-          "focus-visible:outline-none",
-          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-          "active:scale-[0.98]",
-          className,
-        )}
-      >
-        {bellIcon}
-        {badge}
-      </button>
+      <Tooltip content={ariaLabel} placement="bottom">
+        <button
+          type="button"
+          data-testid={`${testId}-static`}
+          onClick={onClick}
+          aria-label={ariaLabel}
+          className={cn(
+            // Hit area: ≥ 44×44 px (WCAG 2.5.5 Target Size AA)
+            "relative inline-flex items-center justify-center",
+            "h-11 w-11 min-h-[44px] min-w-[44px]",
+            "rounded-xl",
+            // Semantic tokens, no hardcoded colors
+            "text-foreground",
+            "hover:bg-accent hover:text-accent-foreground",
+            "focus-visible:outline-none",
+            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            "active:scale-[0.98]",
+            className,
+          )}
+        >
+          {bellIcon}
+          {badge}
+        </button>
+      </Tooltip>
     )
   }
 
@@ -204,62 +207,64 @@ export function NotificationBell({
   }
 
   return (
-    <motion.button
-      type="button"
-      data-testid={testId}
-      onClick={onClick}
-      aria-label={ariaLabel}
-      initial="idle"
-      animate={hasUnread ? "ring" : "idle"}
-      variants={bellVariants}
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 400, damping: 20 }}
-      className={cn(
-        // Same layout / hit-area / tokens as the static branch
-        "relative inline-flex items-center justify-center",
-        "h-11 w-11 min-h-[44px] min-w-[44px]",
-        "rounded-xl",
-        "text-foreground",
-        "hover:bg-accent hover:text-accent-foreground",
-        "focus-visible:outline-none",
-        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        className,
-      )}
-    >
-      <motion.span
-        // Nested span so the swing only applies to the icon geometry,
-        // not the badge. Keeps the badge anchored top-right.
+    <Tooltip content={ariaLabel} placement="bottom">
+      <motion.button
+        type="button"
+        data-testid={testId}
+        onClick={onClick}
+        aria-label={ariaLabel}
+        initial="idle"
         animate={hasUnread ? "ring" : "idle"}
         variants={bellVariants}
-        className="inline-flex items-center justify-center"
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.97 }}
+        transition={{ type: "spring", stiffness: 400, damping: 20 }}
+        className={cn(
+          // Same layout / hit-area / tokens as the static branch
+          "relative inline-flex items-center justify-center",
+          "h-11 w-11 min-h-[44px] min-w-[44px]",
+          "rounded-xl",
+          "text-foreground",
+          "hover:bg-accent hover:text-accent-foreground",
+          "focus-visible:outline-none",
+          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          className,
+        )}
       >
-        {bellIcon}
-      </motion.span>
-
-      {hasUnread ? (
-        <span
-          data-testid={`${testId}-badge`}
-          role="status"
-          aria-live="polite"
-          className={cn(
-            // Same layout as static badge
-            "pointer-events-none absolute -top-1 -right-1",
-            "min-w-[18px] h-[18px] px-1",
-            "flex items-center justify-center",
-            "rounded-full",
-            "text-[10px] font-bold leading-none",
-            "bg-primary text-primary-foreground",
-            "shadow-sm shadow-black/10 dark:shadow-black/30",
-            "ring-2 ring-background",
-            // Motion-only: soft pulse (not distracting, draws eye subtly)
-            "animate-pulse",
-          )}
+        <motion.span
+          // Nested span so the swing only applies to the icon geometry,
+          // not the badge. Keeps the badge anchored top-right.
+          animate={hasUnread ? "ring" : "idle"}
+          variants={bellVariants}
+          className="inline-flex items-center justify-center"
         >
-          {badgeText}
-        </span>
-      ) : null}
-    </motion.button>
+          {bellIcon}
+        </motion.span>
+
+        {hasUnread ? (
+          <span
+            data-testid={`${testId}-badge`}
+            role="status"
+            aria-live="polite"
+            className={cn(
+              // Same layout as static badge
+              "pointer-events-none absolute -top-1 -right-1",
+              "min-w-[18px] h-[18px] px-1",
+              "flex items-center justify-center",
+              "rounded-full",
+              "text-[10px] font-bold leading-none",
+              "bg-primary text-primary-foreground",
+              "shadow-sm shadow-black/10 dark:shadow-black/30",
+              "ring-2 ring-background",
+              // Motion-only: soft pulse (not distracting, draws eye subtly)
+              "animate-pulse",
+            )}
+          >
+            {badgeText}
+          </span>
+        ) : null}
+      </motion.button>
+    </Tooltip>
   )
 }
 
