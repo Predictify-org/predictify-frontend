@@ -280,4 +280,32 @@ describe("NotificationsPanel", () => {
       expect(within(items[2]).getByText("Payout")).toHaveClass("status-pattern-success")
     })
   })
+
+  describe("high-contrast mode", () => {
+    it("applies the notifications-panel wrapper class for high-contrast styling", () => {
+      render(<NotificationsPanel />)
+
+      const panel = document.querySelector(".notifications-panel")
+      expect(panel).not.toBeNull()
+    })
+
+    it("imports the contrast stylesheet so prefers-contrast overrides are applied", () => {
+      // The component must import ../styles/contrast.css. We assert the
+      // stylesheet is referenced so the high-contrast overrides are loaded.
+      const source = require("fs").readFileSync(
+        "src/pages/NotificationsPanel.tsx",
+        "utf-8"
+      )
+      expect(source).toContain("../styles/contrast.css")
+    })
+
+    it("keeps visible border and text tokens available for high-contrast overrides", () => {
+      render(<NotificationsPanel />)
+
+      const list = screen.getByRole("list")
+      // The list container carries a border/border/60 utility that the
+      // contrast.css override promotes to a full-contrast border.
+      expect(list.className).toContain("border-border")
+    })
+  })
 })
