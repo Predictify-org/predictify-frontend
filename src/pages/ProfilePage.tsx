@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useRef } from "react"
 import ProfilePageRaw from "@/app/(dashboard)/profile/page"
 import { ProfilePageSkeleton } from "../components/Skeleton"
 import KbdHint from "../components/KbdHint"
+import "../styles/contrast.css"
 
 export default function ProfilePage(props: any) {
   const containerRef = useRef<HTMLDivElement>(null)

@@ -13,6 +13,7 @@ import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ProfileShareCard } from "@/components/profile/ProfileShareCard"
 import { useWalletContext } from "@/context/WalletContext"
+import "@/src/styles/contrast.css"
 
 export default function ProfilePage() {
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -32,7 +33,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="profile-header flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Your Profile</h1>
         <ProfileShareCard profile={shareProfile} />
