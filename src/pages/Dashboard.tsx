@@ -1,5 +1,6 @@
 import React from "react"
 import { StellarWaveEmptyState } from "../components/EmptyState"
+import "../styles/print.css";
 
 /**
  * Dashboard page component (Legacy Pages Router).
@@ -18,6 +19,11 @@ import { StellarWaveEmptyState } from "../components/EmptyState"
  *   layer (src/styles/focus.css) for WCAG 2.1 AA 3:1 contrast ratio.
  * - Tap targets: All interactive elements maintain ≥44×44px minimum
  *   (WCAG 2.5.5) via Button size="lg" in the StellarWaveEmptyState.
+ *
+ * Issue #805: Add print stylesheet section for Dashboard.
+ * - Chrome (navigation + interactive controls) is hidden via .dashboard-chrome.
+ * - Collapsible sections are expanded when printing so the printed Dashboard
+ *   shows all content without requiring user interaction.
  */
 export default function Dashboard() {
   return (
@@ -30,7 +36,9 @@ export default function Dashboard() {
       <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">
         Dashboard
       </h1>
-      <StellarWaveEmptyState />
+      <div className="dashboard-chrome">
+        <StellarWaveEmptyState />
+      </div>
     </div>
   )
 }
