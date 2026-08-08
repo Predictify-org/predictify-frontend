@@ -76,3 +76,34 @@
     height: auto !important;
   }
 }
+
+/* Dashboard print presentation. Interactive controls and navigation
+ * chrome are omitted from the printed page. The empty state content
+ * is preserved so the printed Dashboard provides a clean summary. */
+@media print {
+  .dashboard-container {
+    max-width: none !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .dashboard-chrome {
+    display: none !important;
+  }
+
+  .dashboard-container [class*="text-muted-foreground"] {
+    color: #374151 !important;
+  }
+
+  .dashboard-container [class*="bg-card"],
+  .dashboard-container [class*="bg-background"],
+  .dashboard-container [class*="bg-muted"] {
+    background: #fff !important;
+  }
+
+  .dashboard-container a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+}
