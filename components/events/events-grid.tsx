@@ -60,6 +60,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { CopyableText } from "@/components/ui/CopyableText"
 import { EventsGridSkeleton } from "./events-grid-skeleton"
 import { NoMatchEmptyState } from "./NoMatchEmptyState"
 import {
@@ -240,7 +241,12 @@ function EventCard({ event, index, onDelete }: EventCardProps) {
               {event.title}
             </h3>
             <p className="text-xs text-muted-foreground truncate mt-0.5">
-              #{event.txHash}
+              <CopyableText
+                text={`#${event.txHash}`}
+                truncateMiddle={false}
+                className="text-xs"
+                aria-label={`Copy transaction hash ${event.txHash}`}
+              />
             </p>
           </div>
         </div>
