@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { WalletModal } from "../WalletModal";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -13,23 +13,32 @@ jest.mock("next/image", () => ({
   ),
 }));
 
+// Mock wallet-kits.constant to avoid ESM stellar-wallets-kit import issue
+jest.mock("@/constants/wallet-kits.constant", () => ({
+  getKit: jest.fn(() => ({
+    getSupportedWallets: jest.fn().mockResolvedValue([]),
+  })),
+}));
+
 // Mock useReducedMotion hook
 const mockUseReducedMotion = jest.fn(() => false);
 jest.mock("@/hooks/useReducedMotion", () => ({
   useReducedMotion: () => mockUseReducedMotion(),
 }));
 
-// Mock useWallet hook
+// Mock useWallet hook — default to a connected wallet so the copy
+// address button (and its tooltip) is rendered.
+const mockWallet = {
+  connectWallet: jest.fn(),
+  disconnectWallet: jest.fn(),
+  isConnected: true,
+  walletAddress: "GDQERJZWU...AbCd1234",
+  walletName: "Freighter",
+  isConnecting: false,
+  error: null,
+};
 jest.mock("@/hooks/useWallet.hook", () => ({
-  useWallet: () => ({
-    connectWallet: jest.fn(),
-    disconnectWallet: jest.fn(),
-    isConnected: false,
-    walletAddress: null,
-    walletName: null,
-    isConnecting: false,
-    error: null,
-  }),
+  useWallet: () => mockWallet,
 }));
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -63,7 +72,6 @@ describe("WalletModal — reduced-motion fallback (#633)", () => {
     const dialogContent = screen.getByRole("dialog");
     expect(dialogContent).toBeInTheDocument();
 
-    // Verify animation classes are stripped/bypassed and replaced with static classes
     expect(dialogContent.className).toContain("duration-0");
     expect(dialogContent.className).toContain("transition-none");
     expect(dialogContent.className).not.toContain("data-[state=open]:animate-in");
@@ -77,10 +85,40 @@ describe("WalletModal — reduced-motion fallback (#633)", () => {
     const dialogContent = screen.getByRole("dialog");
     expect(dialogContent).toBeInTheDocument();
 
-    // Verify system preference is respected and static fallback is applied
     expect(dialogContent.className).toContain("duration-0");
     expect(dialogContent.className).toContain("transition-none");
     expect(dialogContent.className).not.toContain("data-[state=open]:animate-in");
     expect(dialogContent.className).not.toContain("duration-200");
+  });
+});
+
+describe("WalletModal — copy-address tooltip (#783)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockUseReducedMotion.mockReset();
+    mockUseReducedMotion.mockReturnValue(false);
+  });
+
+  it("renders a copy button with a tooltip trigger when a wallet is connected", () => {
+    render(<WalletModal isOpen={true} onOpenChange={jest.fn()} />);
+
+    // The copy address button is present when connected
+    const copyButton = screen.getByRole("button", { name: /copy wallet address/i });
+    expect(copyButton).toBeInTheDocument();
+  });
+
+  it("shows 'Copy wallet address' tooltip content when the tooltip is opened", async () => {
+    render(<WalletModal isOpen={true} onOpenChange={jest.fn()} />);
+
+    const copyButton = screen.getByRole("button", { name: /copy wallet address/i });
+
+    // Focus the trigger (Radix tooltip opens on focus / hover)
+    fireEvent.focus(copyButton);
+
+    // The tooltip content should become visible
+    await waitFor(() => {
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Copy wallet address");
   });
 });

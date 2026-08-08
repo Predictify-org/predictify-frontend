@@ -33,6 +33,12 @@ import {
 } from "@/components/connect-wallet-modal.messages";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { getKit } from "@/constants/wallet-kits.constant";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -251,18 +257,27 @@ export function WalletModal({
                   <p className="text-xs text-muted-foreground">
                     {truncateAddress(walletAddress ?? "")}
                   </p>
-                  <button
-                    type="button"
-                    onClick={copyAddress}
-                    aria-label={copied ? addressCopiedLabel : copyAddressLabel}
-                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 p-0"
-                  >
-                    {copied ? (
-                      <Check className="h-3 w-3" aria-hidden="true" />
-                    ) : (
-                      <Copy className="h-3 w-3" aria-hidden="true" />
-                    )}
-                  </button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={copyAddress}
+                          aria-label={copied ? addressCopiedLabel : copyAddressLabel}
+                          className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 p-0"
+                        >
+                          {copied ? (
+                            <Check className="h-3 w-3" aria-hidden="true" />
+                          ) : (
+                            <Copy className="h-3 w-3" aria-hidden="true" />
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{copied ? addressCopiedLabel : copyAddressLabel}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             </div>
