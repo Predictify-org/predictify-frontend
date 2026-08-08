@@ -2,33 +2,72 @@
 
 import { Badge } from "@/components/ui/badge"
 
-import React, { useState } from "react"
+import React, { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ProfileShareCard } from "@/components/profile/ProfileShareCard"
 import { useWalletContext } from "@/context/WalletContext"
 
+type SaveState = "idle" | "saving" | "success" | "error";
+
 export default function ProfilePage() {
-  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [saveState, setSaveState] = useState<SaveState>("idle")
   const { address, name } = useWalletContext()
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    // Simulate API call
-    setTimeout(() => {
-      setSaveSuccess(true)
+
+    // Optimistic update: immediately show success
+    setSaveState("saving")
+
+    try {
+      // Simulate API call
+      await new Promise<void>((resolve, reject) => {
+        setTimeout(() => {
+          // Simulate 90% success rate
+          if (Math.random() > 0.1) {
+            resolve()
+          } else {
+            reject(new Error("Network error"))
+          }
+        }, 1500)
+      })
+
+      setSaveState("success")
 
       // Clear success message after 3 seconds
       setTimeout(() => {
-        setSaveSuccess(false)
+        setSaveState("idle")
       }, 3000)
-    }, 1000)
+    } catch {
+      // Revert on failure
+      setSaveState("error")
+
+      // Clear error message after 4 seconds
+      setTimeout(() => {
+        setSaveState("idle")
+      }, 4000)
+    }
+  }, [])
+
+  const shareProfile = {
+    displayName: name || "Anonymous",
+    handle: address
+      ? `${address.slice(0, 6)}...${address.slice(-4)}`
+      : "user",
+    avatarUrl: "/placeholder.svg?height=80&width=80",
+    winRate: 0.62,
+    totalPredictions: 128,
+    topCategory: "Sports",
+    publicProfileUrl: address
+      ? `https://predictify.vercel.app/profile/${address}`
+      : "https://predictify.vercel.app/profile",
   }
 
   return (
@@ -46,10 +85,16 @@ export default function ProfilePage() {
               <CardDescription>Update your personal information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {saveSuccess && (
+              {saveState === "success" && (
                 <Alert className="bg-green-500/15 text-green-500 border-green-500/50">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>Profile updated successfully!</AlertDescription>
+                </Alert>
+              )}
+              {saveState === "error" && (
+                <Alert className="bg-red-500/15 text-red-500 border-red-500/50" role="alert">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>Failed to update profile. Please try again.</AlertDescription>
                 </Alert>
               )}
 
@@ -92,7 +137,16 @@ export default function ProfilePage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={saveState === "saving"}>
+                {saveState === "saving" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
             </CardFooter>
           </form>
         </Card>
