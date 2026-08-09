@@ -19,6 +19,13 @@ jest.mock("@/hooks/useReducedMotion", () => ({
   useReducedMotion: () => mockUseReducedMotion(),
 }));
 
+// Mock wallet-kits constant to avoid ESM import issues with stellar-wallets-kit
+jest.mock("@/constants/wallet-kits.constant", () => ({
+  getKit: () => ({
+    getSupportedWallets: () => Promise.resolve([]),
+  }),
+}));
+
 // Mock useWallet hook
 jest.mock("@/hooks/useWallet.hook", () => ({
   useWallet: () => ({

@@ -2,9 +2,10 @@
 
 import React from "react"
 import { motion } from "framer-motion"
-import { Bell } from "lucide-react"
+import { AlertCircle, Bell, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/hooks/useReducedMotion"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,6 +47,43 @@ function formatBadgeCount(count: number, max: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Error fallback (compact, keeps the header/bell slot intact)
+// ---------------------------------------------------------------------------
+
+/**
+ * Compact error fallback shown by the ErrorBoundary when the NotificationBell
+ * throws during render. Keeps the button slot so the header layout doesn't
+ * shift, and offers a Retry action (WCAG 2.1 AA) to reset the boundary.
+ */
+function NotificationBellErrorFallback({
+  onRetry,
+  testId = DEFAULT_TEST_ID,
+}: {
+  onRetry: () => void
+  testId?: string
+}) {
+  return (
+    <span
+      data-testid={`${testId}-error-fallback`}
+      role="alert"
+      className="relative inline-flex items-center justify-center h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl text-destructive border border-destructive/30 bg-destructive/5"
+    >
+      <span className="sr-only">Notification bell error</span>
+      <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+      <button
+        type="button"
+        data-testid={`${testId}-retry`}
+        onClick={onRetry}
+        aria-label="Retry loading notification bell"
+        className="absolute -bottom-1 -right-1 inline-flex items-center justify-center rounded-full bg-background border border-border p-1 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+      >
+        <RefreshCw className="h-3 w-3" aria-hidden="true" />
+      </button>
+    </span>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -64,6 +102,7 @@ function formatBadgeCount(count: number, max: number): string {
  * - WCAG 2.1 AA: accessible button, announced count, focus-visible rings
  * - Light + dark mode via semantic Tailwind tokens
  * - Responsive hit area (min 44×44px at all breakpoints)
+ * - Error-boundary fallback with Retry action if the bell ever throws
  *
  * ## Accessibility
  * - Semantic `<button>` with `aria-label` containing the unread count
@@ -96,7 +135,10 @@ function formatBadgeCount(count: number, max: number): string {
  * />
  * ```
  */
-export function NotificationBell({
+
+// Internal renderer — the actual bell. Exported under a wrapper below so the
+// ErrorBoundary can catch render errors and show the compact fallback.
+function NotificationBellInner({
   unreadCount = 0,
   maxDisplay = 99,
   onClick,
@@ -260,6 +302,26 @@ export function NotificationBell({
         </span>
       ) : null}
     </motion.button>
+  )
+}
+
+/**
+ * Public `NotificationBell` — wraps the inner bell in an `ErrorBoundary`.
+ * If the bell throws during render, a compact fallback with a Retry action
+ * is shown instead of crashing the surrounding header.
+ */
+export function NotificationBell(props: NotificationBellProps) {
+  const [retryKey, setRetryKey] = React.useState(0)
+
+  const handleRetry = () => setRetryKey((k) => k + 1)
+
+  return (
+    <ErrorBoundary
+      key={retryKey}
+      fallback={<NotificationBellErrorFallback onRetry={handleRetry} testId={props.testId} />}
+    >
+      <NotificationBellInner {...props} />
+    </ErrorBoundary>
   )
 }
 
