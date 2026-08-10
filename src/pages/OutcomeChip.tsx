@@ -1,11 +1,14 @@
 
 import * as React from "react";
+import { PreviewCard } from "@/src/components/PreviewCard";
 
 /**
  * OutcomeChip
  *
  * Displays a single market outcome (e.g. "Yes" / "No", or a named outcome)
  * as a tappable chip, optionally with a probability/odds badge.
+ *
+ * Hover (or keyboard focus) shows a PreviewCard with outcome details.
  *
  * Mobile audit fixes (issue #636):
  *  - Chip no longer truncates or overflows at <=375px: label wraps onto a
@@ -85,34 +88,40 @@ export const OutcomeChip: React.FC<OutcomeChipProps> = ({
   };
 
   return (
-    <button
-      type="button"
-      role="button"
-      aria-pressed={selected}
-      aria-disabled={disabled || undefined}
-      disabled={disabled}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      className={[
-        "outcome-chip",
-        selected ? "outcome-chip--selected" : "",
-        disabled ? "outcome-chip--disabled" : "",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      style={
-        {
-          "--chip-bg": selected ? tokens.bgSelected : tokens.bg,
-          "--chip-fg": selected ? "var(--outcome-selected-fg, #FFFFFF)" : tokens.fg,
-          "--chip-border": tokens.border,
-        } as React.CSSProperties
-      }
+    <PreviewCard
+      label={label}
+      variant={variant}
+      badge={badge}
+      selected={selected}
     >
-      <span className="outcome-chip__label">{label}</span>
-      {badge ? <span className="outcome-chip__badge">{badge}</span> : null}
+      <button
+        type="button"
+        role="button"
+        aria-pressed={selected}
+        aria-disabled={disabled || undefined}
+        disabled={disabled}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        className={[
+          "outcome-chip",
+          selected ? "outcome-chip--selected" : "",
+          disabled ? "outcome-chip--disabled" : "",
+          className,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        style={
+          {
+            "--chip-bg": selected ? tokens.bgSelected : tokens.bg,
+            "--chip-fg": selected ? "var(--outcome-selected-fg, #FFFFFF)" : tokens.fg,
+            "--chip-border": tokens.border,
+          } as React.CSSProperties
+        }
+      >
+        <span className="outcome-chip__label">{label}</span>
+        {badge ? <span className="outcome-chip__badge">{badge}</span> : null}
 
-      <style>{`
+        <style>{`
         .outcome-chip {
           display: inline-flex;
           align-items: center;
@@ -195,7 +204,8 @@ export const OutcomeChip: React.FC<OutcomeChipProps> = ({
           }
         }
       `}</style>
-    </button>
+      </button>
+    </PreviewCard>
   );
 };
 
