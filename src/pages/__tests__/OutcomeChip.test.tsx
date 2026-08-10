@@ -2,6 +2,19 @@ import * as React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { OutcomeChip } from "../OutcomeChip";
+import type { MechanicHelpContent } from "@/components/patterns/MechanicHelp";
+
+const mockHelpContent: MechanicHelpContent = {
+  title: "Outcome odds",
+  tooltip: "The probability of each outcome based on market activity.",
+  summary: "Outcome odds reflect the market's current estimate of each outcome's likelihood.",
+  sections: [
+    {
+      title: "How odds work",
+      body: "Higher odds mean higher perceived probability. Odds shift as participants trade.",
+    },
+  ],
+};
 
 describe("OutcomeChip", () => {
   it("renders the label", () => {
@@ -64,5 +77,28 @@ describe("OutcomeChip", () => {
     fireEvent.keyDown(chip, { key: "Enter", code: "Enter" });
     fireEvent.click(chip); // jsdom doesn't auto-trigger click on Enter for <button>
     expect(onSelect).toHaveBeenCalled();
+  });
+
+  it("renders a contextual help button when helpContent is provided", () => {
+    render(<OutcomeChip label="Yes" variant="yes" helpContent={mockHelpContent} />);
+    // The help button is rendered with the "Quick help" aria-label
+    expect(
+      screen.getByRole("button", { name: /show quick help for outcome odds/i })
+    ).toBeInTheDocument();
+  });
+
+  it("does not render a help button when helpContent is omitted", () => {
+    render(<OutcomeChip label="Yes" variant="yes" />);
+    expect(
+      screen.queryByRole("button", { name: /show quick help for/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not trigger the chip onSelect when the help button is clicked", () => {
+    const onSelect = jest.fn();
+    render(<OutcomeChip label="Yes" variant="yes" onSelect={onSelect} helpContent={mockHelpContent} />);
+    const helpButton = screen.getByRole("button", { name: /show quick help for outcome odds/i });
+    fireEvent.click(helpButton);
+    expect(onSelect).not.toHaveBeenCalled();
   });
 });

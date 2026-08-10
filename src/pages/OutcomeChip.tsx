@@ -1,5 +1,7 @@
 
 import * as React from "react";
+import type { MechanicHelpContent } from "@/components/patterns/MechanicHelp";
+import { MechanicHelp } from "@/components/patterns/MechanicHelp";
 
 /**
  * OutcomeChip
@@ -36,6 +38,12 @@ export interface OutcomeChipProps {
   onSelect?: () => void;
   /** Optional additional className for layout composition */
   className?: string;
+  /**
+   * Optional contextual help content. When provided, a help icon + popover
+   * is rendered next to the chip label, helping first-time users understand
+   * the outcome metric/field.
+   */
+  helpContent?: MechanicHelpContent;
 }
 
 const variantTokenMap: Record<OutcomeChipVariant, { bg: string; bgSelected: string; fg: string; border: string }> = {
@@ -67,6 +75,7 @@ export const OutcomeChip: React.FC<OutcomeChipProps> = ({
   disabled = false,
   onSelect,
   className = "",
+  helpContent,
 }) => {
   const tokens = variantTokenMap[variant];
 
@@ -111,6 +120,11 @@ export const OutcomeChip: React.FC<OutcomeChipProps> = ({
     >
       <span className="outcome-chip__label">{label}</span>
       {badge ? <span className="outcome-chip__badge">{badge}</span> : null}
+      {helpContent ? (
+        <span className="outcome-chip__help" onClick={(e) => e.stopPropagation()}>
+          <MechanicHelp content={helpContent} />
+        </span>
+      ) : null}
 
       <style>{`
         .outcome-chip {
@@ -171,6 +185,29 @@ export const OutcomeChip: React.FC<OutcomeChipProps> = ({
           padding: 2px 6px;
           border-radius: 999px;
           background-color: rgba(0, 0, 0, 0.06);
+        }
+
+        /* Contextual help icon: keep it compact and clickable without
+           expanding the chip's focus ring or tap target. stopPropagation
+           in JSX prevents the chip's onSelect from firing when the help
+           icon itself is activated. */
+        .outcome-chip__help {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: 2px;
+          color: var(--outcome-help-fg, rgba(0, 0, 0, 0.55));
+        }
+
+        .outcome-chip__help :global(button) {
+          min-height: 28px;
+          min-width: 28px;
+        }
+
+        @media (prefers-contrast: more) {
+          .outcome-chip__help {
+            color: var(--outcome-help-fg, #000000);
+          }
         }
 
         /* <=375px: audited breakpoint from issue #636.
