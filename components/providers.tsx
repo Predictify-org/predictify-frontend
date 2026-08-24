@@ -21,8 +21,6 @@ interface ProvidersProps {
  * Includes ErrorBoundary, ThemeProvider, WalletProvider, and Toaster
  */
 export function Providers({ children }: ProvidersProps) {
-  // Initialize global shortcut for hide balances toggle
-  useHideBalancesShortcut();
   return (
     <ErrorBoundary>
       <RouteDocumentTitle />
@@ -36,6 +34,7 @@ export function Providers({ children }: ProvidersProps) {
         themes={["light", "dark", "high-contrast"]}
       >
         <PrivacyProvider>
+          <PrivacyShortcut />
           <WalletProvider>
             <ClaimShareProvider>
               {children}
@@ -49,6 +48,10 @@ export function Providers({ children }: ProvidersProps) {
   );
 }
 
+function PrivacyShortcut() {
+  useHideBalancesShortcut();
+  return null;
+}
 
 
 

@@ -1,11 +1,5 @@
 /**
- * TrendingRail.tsx – Displays trending insights with empty state fallback
- *
- * Shows a curated list of trending items, with:
- *   - Loading skeleton while fetching
- *   - Error banner on failures
- *   - Empty state with CTA when no data available
- *   - Responsive grid layout with WCAG 2.1 AA compliance
+ * TrendingRail.tsx - Displays trending insights with empty state fallback.
  */
 
 'use client';
@@ -36,7 +30,7 @@ export const TrendingRail: React.FC = () => {
     try {
       const response = await fetch('/api/trending');
       if (!response.ok) throw new Error('Failed to fetch trending data');
-      const data = await response.json();
+      const data = (await response.json()) as TrendingItem[];
       setTrendingData(data);
     } catch (err) {
       setIsError(true);
@@ -47,23 +41,21 @@ export const TrendingRail: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchTrendingData();
+    void fetchTrendingData();
   }, [fetchTrendingData]);
 
-  // Loading state
   if (isLoading) {
     return (
       <div className={styles.container}>
         <div className={styles.loadingSkeleton} aria-busy="true">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className={styles.skeletonItem} />
+          {[...Array(3)].map((_, index) => (
+            <div key={index} className={styles.skeletonItem} />
           ))}
         </div>
       </div>
     );
   }
 
-  // Error state
   if (isError) {
     return (
       <div className={styles.container}>
@@ -75,12 +67,11 @@ export const TrendingRail: React.FC = () => {
     );
   }
 
-  // Empty state – no trending data
   if (trendingData.length === 0) {
     return (
       <div className={styles.container}>
         <EmptyState
-          icon="??"
+          icon="?"
           title="No trending data yet"
           description="Check back soon for trending insights from across the network"
           ctaLabel="Refresh"
@@ -91,21 +82,15 @@ export const TrendingRail: React.FC = () => {
     );
   }
 
-  // Render trending items
   return (
     <div className={styles.container}>
       <h2 className={styles.heading}>Trending</h2>
       <div className={styles.grid}>
         {trendingData.map((item) => (
-          <div
-            key={item.id}
-            className={`${styles.card} ${styles[`trend-${item.trend}`]}`}
-          >
+          <div key={item.id} className={`${styles.card} ${styles[`trend-${item.trend}`]}`}>
             <h3 className={styles.title}>{item.title}</h3>
             <p className={styles.value}>{item.value.toFixed(2)}</p>
-            <span
-              className={`${styles.change} ${styles[`change-${item.trend}`]}`}
-            >
+            <span className={`${styles.change} ${styles[`change-${item.trend}`]}`}>
               {item.change > 0 ? '+' : ''}{item.change.toFixed(2)}%
             </span>
           </div>
