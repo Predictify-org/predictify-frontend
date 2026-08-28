@@ -248,101 +248,102 @@ export function EventsTable({ className }: EventsTableProps) {
             </TableHeader>
             <TableBody>
               {paginatedEvents.map((event, index) => {
-                // Mark row as seen after initial render
                 React.useEffect(() => {
                   seenIds.current.add(event.id)
                 }, [event.id])
 
                 return (
-                <TableRow
-                  key={event.id}
-                  className={cn(
-                    "hover:bg-[#540D8D] transition-colors border-0",
-                    index !== paginatedEvents.length - 1 && "border-b border-[#540D8D]",
-                    animationReady && !prefersReduced && !seenIds.current.has(event.id) && index < 12 && "animate-in fade-in slide-in-from-bottom-2"
-                  )}
-                  style={animationReady && !prefersReduced && !seenIds.current.has(event.id) && index < 12 ? { transitionDelay: `${index * 30}ms`, animationFillMode: 'both' } : undefined}
-                >
-                  {/* Compare checkbox */}
-                  <TableCell className="py-3 md:py-4 px-4 md:px-6 w-10">
-                    <Checkbox
-                      checked={selectedIds.includes(event.id)}
-                      onCheckedChange={() => toggle(event.id)}
-                      disabled={
-                        !selectedIds.includes(event.id) &&
-                        selectedIds.length >= MAX_COMPARE
-                      }
-                      aria-label={`Select ${event.title} for comparison`}
-                      className="border-[#540D8D] data-[state=checked]:bg-[#540D8D] data-[state=checked]:border-[#540D8D]"
-                    />
-                  </TableCell>
-                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[200px] sm:min-w-0">
-                    <div className="space-y-1">
-                      <div className="font-medium text-sm leading-tight text-White">{event.title}</div>
-                      <div className="text-xs text-muted-foreground">#{event.txHash}</div>
-                    </div>
-                  </TableCell>                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[100px] sm:min-w-0">
-                    <Badge className={cn(getCategoryBadgeVariant(event.category), "inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1")}>
-                      {getCategoryIcon(event.category)}
-                      {event.category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0">
-                    <div className="font-medium text-sm text-white">{event.odds}</div>
-                  </TableCell>
-                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[180px] sm:min-w-0 text-white">
-                    <div className="text-xs sm:text-sm leading-tight">
-                      <div className="sm:hidden">
-                        {/* Mobile: Stack dates vertically */}
-                        <div>{formatDate(new Date(event.startDate))}</div>
-                        <div>{formatDate(new Date(event.endDate))}</div>
+                  <TableRow
+                    key={event.id}
+                    className={cn(
+                      "hover:bg-[#540D8D] transition-colors border-0",
+                      index !== paginatedEvents.length - 1 && "border-b border-[#540D8D]",
+                      animationReady && !prefersReduced && !seenIds.current.has(event.id) && index < 12 && "animate-in fade-in slide-in-from-bottom-2"
+                    )}
+                    style={animationReady && !prefersReduced && !seenIds.current.has(event.id) && index < 12 ? { transitionDelay: `${index * 30}ms`, animationFillMode: 'both' } : undefined}
+                  >
+                    {/* Compare checkbox */}
+                    <TableCell className="py-3 md:py-4 px-4 md:px-6 w-10">
+                      <Checkbox
+                        checked={selectedIds.includes(event.id)}
+                        onCheckedChange={() => toggle(event.id)}
+                        disabled={
+                          !selectedIds.includes(event.id) &&
+                          selectedIds.length >= MAX_COMPARE
+                        }
+                        aria-label={`Select ${event.title} for comparison`}
+                        className="border-[#540D8D] data-[state=checked]:bg-[#540D8D] data-[state=checked]:border-[#540D8D]"
+                      />
+                    </TableCell>
+                    <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[200px] sm:min-w-0">
+                      <div className="space-y-1">
+                        <div className="font-medium text-sm leading-tight text-White">{event.title}</div>
+                        <div className="text-xs text-muted-foreground">#{event.txHash}</div>
                       </div>
-                      <div className="hidden sm:block">
-                        {/* Desktop: Show dates inline with dash */}
-                        {formatDate(new Date(event.startDate))} - {formatDate(new Date(event.endDate))}
+                    </TableCell>
+                    <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[100px] sm:min-w-0">
+                      <Badge className={cn(getCategoryBadgeVariant(event.category), "inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1")}>
+                        {getCategoryIcon(event.category)}
+                        {event.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0">
+                      <div className="font-medium text-sm text-white">{event.odds}</div>
+                    </TableCell>
+                    <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[180px] sm:min-w-0 text-white">
+                      <div className="text-xs sm:text-sm leading-tight">
+                        <div className="sm:hidden">
+                          {/* Mobile: Stack dates vertically */}
+                          <div>{formatDate(new Date(event.startDate))}</div>
+                          <div>{formatDate(new Date(event.endDate))}</div>
+                        </div>
+                        <div className="hidden sm:block">
+                          {/* Desktop: Show dates inline with dash */}
+                          {formatDate(new Date(event.startDate))} - {formatDate(new Date(event.endDate))}
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[160px] sm:min-w-0">
-                    <TimeRemainingProgress event={event} />
-                  </TableCell>
-                  {/* NEW: Participants cell showing formatted participant count */}
-                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[120px] sm:min-w-0">
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      <span className="font-medium text-foreground">{event.participants.toLocaleString()}</span>
-                    </div>
-                  </TableCell>
-                  {/* NEW: Actions cell with dropdown menu for Edit/Delete */}
-                  <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open actions menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                          <Link href={`/events/${event.id}/edit`} className="flex items-center gap-2">
-                            <Edit className="h-4 w-4" />
-                            Edit Event
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
-                          onSelect={() => setDeleteTarget(event)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete Event
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[160px] sm:min-w-0">
+                      <TimeRemainingProgress event={event} />
+                    </TableCell>
+                    {/* NEW: Participants cell showing formatted participant count */}
+                    <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[120px] sm:min-w-0">
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        <span className="font-medium text-foreground">{event.participants.toLocaleString()}</span>
+                      </div>
+                    </TableCell>
+                    {/* NEW: Actions cell with dropdown menu for Edit/Delete */}
+                    <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[80px] sm:min-w-0 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open actions menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem asChild>
+                            <Link href={`/events/${event.id}/edit`} className="flex items-center gap-2">
+                              <Edit className="h-4 w-4" />
+                              Edit Event
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
+                            onSelect={() => setDeleteTarget(event)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete Event
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

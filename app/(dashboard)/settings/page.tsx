@@ -75,7 +75,7 @@ const densityOptions: Array<{
   label: string
   description: string
   icon: React.ElementType
-  tokens: (typeof densityTokens)["cozy"]
+  tokens: (typeof densityTokens)[Density]
 }> = [
   {
     value: "cozy",
@@ -112,6 +112,7 @@ export default function SettingsPage() {
   const [reduceMotion, setReduceMotion] = useState(false)
   const [showNetPayouts, setShowNetPayouts] = useState(true)
   const [showWalletBadge, setShowWalletBadge] = useState(true)
+  const [publicActivity, setPublicActivity] = useState(false)
   const [disputeAlerts, setDisputeAlerts] = useState(true)
   const [oracleDelayAlerts, setOracleDelayAlerts] = useState(true)
   const [priceMovementAlerts, setPriceMovementAlerts] = useState(false)

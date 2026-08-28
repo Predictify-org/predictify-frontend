@@ -20,7 +20,7 @@ export default function NewEventPage() {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
-  const [deadline, setDeadline] = useState(null)
+  const [deadline, setDeadline] = useState<Date | null>(null)
   const [options, setOptions] = useState([{ text: "", probability: "" }])
   const [newOption, setNewOption] = useState("")
   const [isPublic, setIsPublic] = useState(true)
@@ -33,13 +33,13 @@ export default function NewEventPage() {
     }
   }
 
-  const removeOption = (index) => {
+  const removeOption = (index: number) => {
     const updatedOptions = [...options]
     updatedOptions.splice(index, 1)
     setOptions(updatedOptions)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     // In a real app, you would send this data to your API
     console.log({
@@ -116,7 +116,7 @@ export default function NewEventPage() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={deadline} onSelect={setDeadline} initialFocus />
+                    <Calendar mode="single" selected={deadline ?? undefined} onSelect={(date) => setDeadline(date ?? null)} initialFocus />
                   </PopoverContent>
                 </Popover>
               </div>

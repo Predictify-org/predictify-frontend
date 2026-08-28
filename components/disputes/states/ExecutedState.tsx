@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { TallyBar } from '@/components/disputes/shared/TallyBar';
 import { DetailsAccordion } from '@/components/disputes/shared/DetailsAccordion';
 import type { DisputeData, DisputeState } from '@/types/disputes';
+import { normalizeDisputeEvidence } from '@/lib/dispute-evidence';
 
 interface ExecutedStateProps {
   data: DisputeData;
@@ -40,8 +41,8 @@ export function ExecutedState({ data }: ExecutedStateProps) {
             Audit references
           </p>
           <ul className="flex flex-col gap-1">
-            {data.auditRefs.map((ref) => (
-              <li key={ref.url}>
+            {normalizeDisputeEvidence(data.auditRefs).map((ref) => (
+              <li key={ref.id}>
                 <a
                   href={ref.url}
                   target="_blank"
