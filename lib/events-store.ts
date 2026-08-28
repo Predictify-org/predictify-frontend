@@ -226,10 +226,17 @@ interface EventsStore {
   sort: EventSort
   pagination: PaginationState
 
+  // Filter-cursor synchronization
+  /** Version counter for filters (incremented on any filter change) */
+  filterVersion: number
+  /** Last known filter version applied to current results */
+  appliedFilterVersion: number
+
   // Infinite scroll state
   hasNextPage: boolean
   isFetchingNextPage: boolean
   lastFetchTime: number | null
+  nextPageRequestId: number
 
   // Actions
   setFilters: (filters: Partial<EventFilters>) => void
@@ -246,6 +253,8 @@ interface EventsStore {
   loadNextPage: () => Promise<void>
   /** NEW: Check if data is stale and needs refresh */
   isDataStale: () => boolean
+  /** NEW: Reset cursor when filters change (sync filters with pagination) */
+  syncFilterAndCursor: () => void
 }
 
 // Stale time threshold: 60 seconds
@@ -278,19 +287,27 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
     page: 1,
     pageSize: 5, // Reduced page size to better show pagination
     total: 0,
+    cursor: null,
+    filterVersion: 0,
   },
+
+  // Filter-cursor synchronization tracking
+  filterVersion: 0,
+  appliedFilterVersion: 0,
 
   // Infinite scroll state
   hasNextPage: true,
   isFetchingNextPage: false,
   lastFetchTime: null,
+  nextPageRequestId: 0,
 
   // Actions
   setFilters: (newFilters) => {
     set((state) => ({
       filters: { ...state.filters, ...newFilters },
+      filterVersion: state.filterVersion + 1,
     }))
-    get().applyFilters()
+    get().syncFilterAndCursor()
   },
 
   setSort: (sort) => {
@@ -307,8 +324,9 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
   setSearch: (search) => {
     set((state) => ({
       filters: { ...state.filters, search },
+      filterVersion: state.filterVersion + 1,
     }))
-    get().applyFilters()
+    get().syncFilterAndCursor()
   },
 
   setDateRange: (from, to) => {
@@ -317,14 +335,32 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
         ...state.filters,
         dateRange: { from, to },
       },
+      filterVersion: state.filterVersion + 1,
     }))
-    get().applyFilters()
+    get().syncFilterAndCursor()
   },
 
   setStatus: (status) => {
     set((state) => ({
       filters: { ...state.filters, status },
-      pagination: { ...state.pagination, page: 1 },
+      filterVersion: state.filterVersion + 1,
+    }))
+    get().syncFilterAndCursor()
+  },
+
+  syncFilterAndCursor: () => {
+    const { filterVersion } = get()
+
+    set((state) => ({
+      pagination: {
+        ...state.pagination,
+        page: 1,
+        cursor: null,
+        filterVersion,
+      },
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      nextPageRequestId: state.nextPageRequestId + 1,
     }))
     get().applyFilters()
   },
@@ -387,7 +423,10 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
       pagination: {
         ...state.pagination,
         total: filtered.length,
+        filterVersion: state.filterVersion,
       },
+      appliedFilterVersion: state.filterVersion,
+      hasNextPage: state.pagination.page * state.pagination.pageSize < filtered.length,
     }))
   },
 
@@ -416,11 +455,12 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
 
   /** NEW: Load next page for infinite scroll */
   loadNextPage: async () => {
-    const { isFetchingNextPage, hasNextPage, pagination, filteredEvents } = get()
+    const { isFetchingNextPage, hasNextPage, pagination, filteredEvents, filterVersion } = get()
     
     if (isFetchingNextPage || !hasNextPage) return
 
-    set({ isFetchingNextPage: true, error: null })
+    const requestId = get().nextPageRequestId + 1
+    set({ isFetchingNextPage: true, error: null, nextPageRequestId: requestId })
     
     try {
       // Simulate API call for next page
@@ -429,6 +469,20 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
       const nextPage = pagination.page + 1
       const startIndex = (nextPage - 1) * pagination.pageSize
       const endIndex = startIndex + pagination.pageSize
+
+      // A filter change invalidates this request; never apply an old page.
+      const currentState = get()
+      if (
+        currentState.nextPageRequestId !== requestId ||
+        currentState.filterVersion !== filterVersion ||
+        currentState.pagination.page !== pagination.page ||
+        currentState.pagination.filterVersion !== filterVersion
+      ) {
+        if (currentState.nextPageRequestId === requestId) {
+          set({ isFetchingNextPage: false })
+        }
+        return
+      }
       
       // Check if we've reached the end
       const hasMore = endIndex < filteredEvents.length
@@ -437,16 +491,20 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
         pagination: {
           ...state.pagination,
           page: nextPage,
+          cursor: String(endIndex),
+          filterVersion,
         },
         hasNextPage: hasMore,
         isFetchingNextPage: false,
         lastFetchTime: Date.now(),
       }))
     } catch (error) {
-      set({ 
-        isFetchingNextPage: false, 
-        error: "Failed to load more events" 
-      })
+      if (get().nextPageRequestId === requestId) {
+        set({
+          isFetchingNextPage: false,
+          error: "Failed to load more events",
+        })
+      }
     }
   },
 
