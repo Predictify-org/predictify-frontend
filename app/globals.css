@@ -361,6 +361,27 @@ html.motion-reduced *::after {
 /* Receipt print rules have been extracted to app/styles/print.css,          */
 /* which is imported globally from app/layout.tsx.                           */
 
+/* ===== SENSITIVE WALLET DATA ===== */
+/* Sensitive wallet material (private keys, seed phrases, recovery codes)   */
+/* must never be selectable/copyable in normal views and must be excluded   */
+/* from print output. Components opt in with .sensitive-wallet-data or      */
+/* data-sensitive-wallet on the smallest container holding the value.       */
+[data-sensitive-wallet],
+.sensitive-wallet-data {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@media print {
+  [data-sensitive-wallet],
+  .sensitive-wallet-data {
+    display: none !important;
+  }
+}
+
 .quiet-hours-active *,
 .quiet-hours-active *::before,
 .quiet-hours-active *::after {
