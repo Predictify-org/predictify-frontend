@@ -15,6 +15,7 @@ import {
   Pin,
   ArrowUp,
   ArrowDown,
+  AlertCircle,
 } from "lucide-react"
 import { getPinnedActions, savePinnedActions, ALL_AVAILABLE_ACTIONS } from "@/lib/command-palette/pins"
 import { DEFAULT_QUIET_HOURS, useQuietHours, type QuietHoursSettings } from "@/lib/quiet-hours"
@@ -110,7 +111,8 @@ const densityOptions: Array<{
 ]
 
 export default function SettingsPage() {
-  const [saveState, setSaveState] = useState<"idle" | "saved">("idle")
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle")
+  const [saveError, setSaveError] = useState<string | null>(null)
   
   // Density from global hook
   const { density, setDensity, tokens: densityTokensCurrent } = useDensity()
@@ -175,21 +177,58 @@ export default function SettingsPage() {
     [notificationPreset]
   )
 
-  const handleSave = (event: SyntheticEvent) => {
+  const handleSave = async (event: SyntheticEvent) => {
     event.preventDefault()
-    // Persist pinned actions configure
-    savePinnedActions(pinnedActionIds)
-    saveQuietHoursSettings(quietHours)
-    setQuietHoursDirty(false)
-    setSaveState("saved")
-    window.setTimeout(() => setSaveState("idle"), 2500)
+    if (saveState === "saving") return
+
+    setSaveState("saving")
+    setSaveError(null)
+
+    let attempt = 0
+    const maxRetries = 3
+    let success = false
+
+    while (attempt < maxRetries && !success) {
+      try {
+        await new Promise((resolve, reject) => {
+          setTimeout(() => {
+            if (Math.random() < 0.1) {
+              reject(new Error("Network timeout"))
+            } else {
+              resolve(true)
+            }
+          }, 1000)
+        })
+
+        // Persist pinned actions configure
+        savePinnedActions(pinnedActionIds)
+        saveQuietHoursSettings(quietHours)
+        
+        success = true
+      } catch (err) {
+        attempt++
+        if (attempt >= maxRetries) {
+          setSaveError("Failed to save settings after multiple attempts. Please try again.")
+        } else {
+          await new Promise((r) => setTimeout(r, 1000 * attempt))
+        }
+      }
+    }
+
+    if (success) {
+      setQuietHoursDirty(false)
+      setSaveState("saved")
+      window.setTimeout(() => setSaveState("idle"), 2500)
+    } else {
+      setSaveState("idle")
+    }
   }
 
 
   return (
     <form className="mx-auto flex w-full max-w-6xl flex-col gap-6" onSubmit={handleSave}>
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {saveState === "saved" ? "Settings saved" : ""}
+        {saveState === "saved" ? "Settings saved" : saveState === "saving" ? "Saving settings..." : ""}
       </div>
       <div aria-live="polite" aria-atomic="true" className="sr-only" key={String(soundEnabled)}>
         {soundEnabled ? "Sound effects on" : "Sound effects off"}
@@ -248,6 +287,12 @@ export default function SettingsPage() {
             <Alert className="border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
               <Sparkles className="h-4 w-4" />
               <AlertDescription>Your settings were saved. Safe defaults remain enabled for wallet privacy.</AlertDescription>
+            </Alert>
+          ) : null}
+          {saveError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{saveError}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -722,8 +767,8 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button type="submit" className="w-full sm:w-auto">
-                    Save settings
+                  <Button type="submit" className="w-full sm:w-auto" disabled={saveState === "saving"}>
+                    {saveState === "saving" ? "Saving..." : "Save settings"}
                   </Button>
                 </CardFooter>
               </Card>
