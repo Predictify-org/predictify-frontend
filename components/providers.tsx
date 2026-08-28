@@ -11,6 +11,7 @@ import { ClaimShareProvider } from "@/context/ClaimShareContext";
 import { GlobalLiveRegion } from "@/app/components/GlobalLiveRegion";
 import { RouteDocumentTitle } from "@/app/hooks/useDocumentTitle";
 import { LangAttribute } from "@/app/i18n/LangAttribute";
+import { NotificationStreamConnector } from "@/components/notification-stream-connector";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -36,6 +37,7 @@ export function Providers({ children }: ProvidersProps) {
         <PrivacyProvider>
           <PrivacyShortcut />
           <WalletProvider>
+            <NotificationStreamConnector />
             <ClaimShareProvider>
               {children}
             </ClaimShareProvider>
@@ -52,6 +54,5 @@ function PrivacyShortcut() {
   useHideBalancesShortcut();
   return null;
 }
-
 
 
