@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { OracleStatusBadge } from "@/components/oracle/OracleStatusBadge";
 
 export interface AboutMarketModalProps {
   market: {
@@ -32,9 +33,17 @@ export interface AboutMarketModalProps {
     isGrantFoxCampaign?: boolean;
     timeLeft?: string;
   };
+  /**
+   * When true, surfaces the live oracle freshness + fallback status panel.
+   * Off by default so existing callers keep their current behavior.
+   */
+  showOracleStatus?: boolean;
 }
 
-export function AboutMarketModal({ market }: AboutMarketModalProps) {
+export function AboutMarketModal({
+  market,
+  showOracleStatus = false,
+}: AboutMarketModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   // We customize the resolution criteria specifically for the FWC26 campaign
@@ -72,7 +81,7 @@ export function AboutMarketModal({ market }: AboutMarketModalProps) {
             About this market
           </DialogTitle>
           <DialogDescription id="about-market-description" className="text-body-sm text-muted-foreground">
-            Learn about this market's resolution parameters, official sources, and dispute terms.
+            Learn about this market&apos;s resolution parameters, official sources, and dispute terms.
           </DialogDescription>
         </DialogHeader>
 
@@ -123,6 +132,11 @@ export function AboutMarketModal({ market }: AboutMarketModalProps) {
               </span>
             </div>
           </div>
+
+          {/* Live oracle freshness + fallback status (opt-in) */}
+          {showOracleStatus && (
+            <OracleStatusBadge marketId={market.id} />
+          )}
 
           {/* Resolution rules card */}
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">
