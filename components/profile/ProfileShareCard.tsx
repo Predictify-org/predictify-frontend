@@ -112,8 +112,8 @@ export function ProfileShareCard({ profile, trigger }: ProfileShareCardProps) {
         link.download = `predictify-profile-${targetSize}.png`
         link.href = dataUrl
         link.click()
-      } catch (err) {
-        console.error("Failed to export card image:", err)
+      } catch {
+        console.error("Failed to export card image")
       } finally {
         setExporting(null)
       }
@@ -233,25 +233,28 @@ export function ProfileShareCard({ profile, trigger }: ProfileShareCardProps) {
         </DialogContent>
       </Dialog>
 
-      <div
-        ref={exportRef}
-        className="fixed left-[-9999px] top-0"
-        style={{ width: dims.width, height: dims.height }}
-      >
+      {exporting !== null && (
         <div
-          className={cn(isDark ? "text-white" : "text-slate-900")}
+          ref={exportRef}
+          aria-hidden="true"
+          className="fixed left-[-9999px] top-0 select-none print:hidden pointer-events-none"
           style={{ width: dims.width, height: dims.height }}
         >
-          <CardContent
-            qrDataUrl={qrDataUrl}
-            winRateDisplay={winRateDisplay}
-            avatarInitial={avatarInitial}
-            size={size}
-            dims={dims}
-            profile={profile}
-          />
+          <div
+            className={cn(isDark ? "text-white" : "text-slate-900")}
+            style={{ width: dims.width, height: dims.height }}
+          >
+            <CardContent
+              qrDataUrl={qrDataUrl}
+              winRateDisplay={winRateDisplay}
+              avatarInitial={avatarInitial}
+              size={size}
+              dims={dims}
+              profile={profile}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </IsDarkCtx.Provider>
   )
 }
