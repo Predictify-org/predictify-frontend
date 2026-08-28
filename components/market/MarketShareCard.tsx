@@ -5,6 +5,15 @@ import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2, Timer } from "lucide-react";
 import { getThemedSticker } from "@/app/utils/sticker";
 
+const WALLET_ADDRESS_PATTERN = /\b0[xX][a-fA-F0-9]{40}\b/g;
+
+function redactWalletData(value: string): string {
+  return value.replace(
+    WALLET_ADDRESS_PATTERN,
+    (address) => `${address.slice(0, 6)}...${address.slice(-4)}`
+  );
+}
+
 export type MarketStatus = "active" | "resolved" | "tied" | "disputed";
 
 interface MarketShareCardProps {
@@ -32,6 +41,7 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
   creatorName,
   creatorImage,
 }) => {
+  const displayCreatorName = creatorName ? redactWalletData(creatorName) : "Anonymous";
   return (
     <div
       className={cn(
@@ -69,28 +79,28 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
           {(creatorName || creatorImage) && (
             <div className="flex items-center gap-3 mb-6">
               {creatorImage ? (
-                <img src={creatorImage} alt={creatorName} className="w-12 h-12 rounded-full object-cover border-2 border-white/10" />
+                <img src={creatorImage} alt={displayCreatorName} className="w-12 h-12 rounded-full object-cover border-2 border-white/10" />
               ) : (
                 <div 
                   className={cn(
                     "w-12 h-12 rounded-full flex items-center justify-center border-2 border-white/10 text-xl font-bold shadow-lg", 
                     getThemedSticker(creatorName || "").backgroundClass
                   )}
-                  aria-label={`Avatar for ${creatorName || "Anonymous"}`}
-                  title={creatorName || "Anonymous"}
+                  aria-label={`Avatar for ${displayCreatorName}`}
+                  title={displayCreatorName}
                 >
                   {getThemedSticker(creatorName || "").emoji}
                 </div>
               )}
               <div className="flex flex-col">
                 <span className="text-caption text-white/50 uppercase tracking-widest">Creator</span>
-                <span className="text-h5 font-semibold text-white/90">{creatorName || "Anonymous"}</span>
+                <span className="text-h5 font-semibold text-white/90">{displayCreatorName}</span>
               </div>
             </div>
           )}
 
           <h1 className="text-[64px] leading-[1.1] font-bold text-white mb-12 max-w-[900px] text-balance">
-            {title}
+            {redactWalletData(title ?? "")}
           </h1>
 
           {status === "active" && (
@@ -104,7 +114,7 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
                     {probability}%
                   </span>
                   <span className="text-h2 font-semibold text-white/80">
-                    {outcome}
+                    {outcome ? redactWalletData(outcome) : outcome}
                   </span>
                 </div>
               </div>
@@ -140,7 +150,7 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
                     Winning Outcome
                   </span>
                   <span className="text-[80px] font-bold text-white leading-tight">
-                    {winner}
+                    {winner ? redactWalletData(winner) : winner}
                   </span>
                 </div>
               </div>
