@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 /* NEW: Added lucide icons for row actions and compare */
-import { Edit, MoreHorizontal, Trash2, Users, Calendar, Trophy, Building2, CircleDollarSign, LineChart, TrendingUp, GitCompareArrows } from "lucide-react"
+import { Edit, MoreHorizontal, Trash2, Users, Calendar, Trophy, Building2, CircleDollarSign, LineChart, TrendingUp, GitCompareArrows, ShieldCheck, Clock, AlertTriangle } from "lucide-react"
 import { HoverTooltip } from "@/components/HoverTooltip"
 import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -121,6 +121,11 @@ function TimeRemainingProgress({ event }: { event: Event }) {
     red: "High urgency",
   }
   const urgencyLabel = urgencyLabels[color] ?? "Unknown urgency"
+  const urgencyIcons: Record<string, React.ReactNode> = {
+    green: <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />,
+    orange: <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />,
+    red: <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />,
+  }
 
   const progressColorClasses: Record<string, string> = {
     green: "bg-[#16DB30]",
@@ -142,8 +147,11 @@ function TimeRemainingProgress({ event }: { event: Event }) {
     <div className="space-y-2 min-w-[120px]">
       <div className={cn("text-body-sm font-medium", textColorClass)}>
         {timeString}
-        {/* Visible urgency text keeps status independent of color. */}
-        <span className="ml-1 text-muted-foreground"> — {urgencyLabel}</span>
+        {/* Visible urgency icon and text keep status independent of color. */}
+        <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
+          {urgencyIcons[color]}
+          <span>{urgencyLabel}</span>
+        </span>
       </div>
       <div
         role="progressbar"
@@ -428,34 +436,34 @@ export function EventsTable({ className }: EventsTableProps) {
       >
         {/* Rows become readable cards below lg without duplicating accessible content. */}
         <div className="overflow-visible xl:overflow-x-auto">
-          <Table className="block w-full xl:table xl:min-w-[980px]">
+          <Table aria-label="Events" className="block w-full xl:table xl:min-w-[980px]">
             <TableHeader className="sr-only xl:not-sr-only xl:table-header-group">
               <TableRow className="border-b border-border bg-muted text-foreground hover:bg-muted">
                 {/* Compare select column */}
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 w-10">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 w-10">
                   <span className="sr-only">Compare</span>
                 </TableHead>
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[200px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[200px] sm:min-w-0">
                   Event Title
                 </TableHead>
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[100px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[100px] sm:min-w-0">
                   Category
                 </TableHead>
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[80px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[80px] sm:min-w-0">
                   Odds
                 </TableHead>
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[180px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[180px] sm:min-w-0">
                   End Date
                 </TableHead>
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[160px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[160px] sm:min-w-0">
                   Time Remaining
                 </TableHead>
                 {/* NEW: Participants column header */}
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[120px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[120px] sm:min-w-0">
                   Participants
                 </TableHead>
                 {/* NEW: Actions column header */}
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-right min-w-[80px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-right min-w-[80px] sm:min-w-0">
                   Actions
                 </TableHead>
               </TableRow>
