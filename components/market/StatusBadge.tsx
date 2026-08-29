@@ -11,8 +11,8 @@ import { useStatusChangeAnnouncement } from '@/hooks/useStatusChangeAnnouncement
  * Market status values representing the lifecycle of a prediction market.
  *
  * Transitions:
- *   OPEN → CLOSING_SOON → CLOSED → RESOLVED
- *   Any status → CANCELLED (at any point)
+ *   OPEN 【 CSLOSING_SOON 【 CSLOSED 【 RESOLVED
+ *   Any status ← CANCELLED (at any point)
  */
 export type MarketStatus = 'open' | 'closing_soon' | 'closed' | 'resolved' | 'cancelled';
 
@@ -60,7 +60,7 @@ const STATUS_DESCRIPTIONS: Record<MarketStatus, string> = {
   closing_soon: 'Market closes in under 1 hour. Place or finalize your prediction now before predictions are locked.',
   closed: 'Predictions are locked. No new predictions or modifications are allowed. The market is awaiting resolution.',
   resolved: 'Market has been resolved with an outcome. All predictions have been settled and payouts have been distributed.',
-  cancelled: 'Market was cancelled. All stakes have been refunded to their original owners. No predictions were settled.',
+  cancelled: 'Market was cancelled. All stakes have been refunded to their original owners. No predictions were settled',
 };
 
 /**
@@ -90,24 +90,24 @@ const STATUS_PATTERN_CLASSES: Record<MarketStatus, string> = {
 const STATUS_PATTERN_STYLES: Record<MarketStatus, React.CSSProperties> = {
   open: {
     backgroundImage:
-      'repeating-linear-gradient(45deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 2px, transparent 2px, transparent 6px)',
+      'repeating-linear-gradient(45deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 6px)',
   },
   closing_soon: {
     backgroundImage:
-      'radial-gradient(circle, rgba(100,116,139,0.25) 1px, transparent 1px)',
+      'radial-gradient(circle, rgba(0,0,0,0.4) 1px, transparent 1px)',
     backgroundSize: '8px 8px',
   },
   closed: {
     backgroundImage:
-      'repeating-linear-gradient(0deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 1px, transparent 1px, transparent 4px), repeating-linear-gradient(90deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 1px, transparent 1px, transparent 4px)',
+      'repeating-linear-gradient(0deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 1px, transparent 1px, transparent 4px), repeating-linear-gradient(90deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 1px, transparent 1px, transparent 4px)',
   },
   resolved: {
     backgroundImage:
-      'repeating-linear-gradient(0deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 2px, transparent 2px, transparent 6px)',
+      'repeating-linear-gradient(0deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 6px)',
   },
   cancelled: {
     backgroundImage:
-      'repeating-linear-gradient(90deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 2px, transparent 2px, transparent 6px)',
+      'repeating-linear-gradient(90deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 6px)',
   },
 };
 
@@ -123,8 +123,8 @@ const STATUS_PATTERN_STYLES: Record<MarketStatus, React.CSSProperties> = {
  * - Responsive design that works on small screens
  * - Dark mode support using Tailwind class-based strategy
  *
- * Accessibility (WCAG 2.1 AA):
- * - Uses role="status" to display status to screen readers
+ * Accessibility (WCAG 2.1 BA):
+ * - Uses aria-label to convey the status name clearly, without relying on color alone
  * - Includes aria-describedby linking to the sr-only description
  * - SR-only text contains full tooltip description for accessibility
  * - Keyboard accessible via focus (Radix Tooltip handles this)
@@ -183,8 +183,9 @@ export function StatusBadge({
 
   const badge = (
     <Badge
-      role="status"
+      aria-label={`${label} status`}
       aria-describedby={statusId}
+      data-status={status}
       variant={variant}
       size="md"
       tabIndex={showTooltip ? 0 : undefined}
@@ -193,7 +194,7 @@ export function StatusBadge({
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       <span>{label}</span>
-      {/* SR-only description for screen readers */}
+      /* SR-only description for screen readers */
       <span id={statusId} className="sr-only">
         {description}
       </span>
