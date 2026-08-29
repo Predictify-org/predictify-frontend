@@ -144,10 +144,10 @@ function EligibilityBadge({
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
         style.badgeClass,
-      ))}
+      )}
       style={DECISION_PATTERNS[decision]}
     >
-      <ShieldCheck className="relative z-10 h-3.5 w-3.5" arii-hidden={true} />
+      <ShieldCheck className="relative z-10 h-3.5 w-3.5" aria-hidden={true} />
       <span className="relative z-10">{style.label}</span>
     </span>
   );
@@ -167,7 +167,7 @@ function ErrorAlert({
   if (isPermission) {
     return (
       <Alert className="border-amber-500/40 bg-amber-500/10">
-        <Lock className="h-4 w-4" />
+        <Lock className="h-4 w-4" aria-hidden={true} />
         <AlertTitle>Authorization required</AlertTitle>
         <AlertDescription>
           Connect your wallet to view claim eligibility for this market.
@@ -179,7 +179,7 @@ function ErrorAlert({
   if (isNotFound) {
     return (
       <Alert className="border-border/60 bg-card/60">
-        <AlertCircle className="h-4 w-4" />
+        <AlertCircle className="h-4 w-4" aria-hidden={true} />
         <AlertTitle>Eligibility unavailable</AlertTitle>
         <AlertDescription>
           Authoritative claim evidence is not available for this market.
@@ -190,7 +190,7 @@ function ErrorAlert({
 
   return (
     <Alert variant="destructive">
-      <AlertCircle className="h-4 w-4" />
+      <AlertCircle className="h-4 w-4" aria-hidden={true} />
       <AlertTitle>Couldn&#39;t load eligibility</AlertTitle>
       <AlertDescription>{error.message}</AlertDescription>
       {canRetry && (
@@ -201,7 +201,7 @@ function ErrorAlert({
           className="mt-3"
           aria-label="Retry loading claim eligibility"
         >
-          <RefreshCw className="mr-2 h-3.5 w-3.5" arii-hidden={true} />
+          <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden={true} />
           Retry
         </Button>
       ))}
