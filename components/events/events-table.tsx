@@ -94,8 +94,17 @@ function TimeRemainingProgress({ event }: { event: Event }) {
     return () => clearInterval(interval)
   }, [])
 
-  if (!event.timeRemainingMs) {
+  if (typeof event.timeRemainingMs !== "number" || !Number.isFinite(event.timeRemainingMs)) {
     return <span className="text-muted-foreground">-</span>
+  }
+
+  if (event.timeRemainingMs <= 0) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-body-sm font-medium text-muted-foreground">
+        <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+        Ended
+      </span>
+    )
   }
 
   const color = getTimeRemainingColor(event.timeRemainingMs)
@@ -106,19 +115,26 @@ function TimeRemainingProgress({ event }: { event: Event }) {
   const currentDays = event.timeRemainingMs / (24 * 60 * 60 * 1000)
   const progressValue = Math.max(0, Math.min(100, (currentDays / maxDays) * 100))
 
-  const urgencyLabel = { green: "Low urgency", orange: "Medium urgency", red: "High urgency" }[color]
+  const urgencyLabels: Record<string, string> = {
+    green: "Low urgency",
+    orange: "Medium urgency",
+    red: "High urgency",
+  }
+  const urgencyLabel = urgencyLabels[color] ?? "Unknown urgency"
 
-  const progressColorClass = {
+  const progressColorClasses: Record<string, string> = {
     green: "bg-[#16DB30]",
     orange: "bg-[#FFBB00]",
     red: "bg-[#FF5858]",
-  }[color]
+  }
+  const progressColorClass = progressColorClasses[color] ?? "bg-gray-200"
 
-  const textColorClass = {
+  const textColorClasses: Record<string, string> = {
     green: "text-[#16DB30]",
     orange: "text-[#FFBB00]",
     red: "text-[#FF5858]",
-  }[color]
+  }
+  const textColorClass = textColorClasses[color] ?? "text-muted-foreground"
 
   const progressValueRounded = Math.round(progressValue)
 
@@ -135,6 +151,7 @@ function TimeRemainingProgress({ event }: { event: Event }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`Time remaining: ${timeString} (${urgencyLabel})`}
+        aria-valuetext={`${timeString} (${urgencyLabel})`}
         className="w-full bg-gray-200 rounded-full h-2"
       >
         <div
