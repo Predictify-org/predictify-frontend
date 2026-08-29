@@ -183,6 +183,55 @@ export function ActivityTimeline({
     );
   }
 
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
+  if (virtualItems.length === 0 && flatRows.length > 0) {
+    return (
+      <div className={cn("space-y-6", className)}>
+        <div className="space-y-4">
+          {flatRows.map((row) => (
+            <div key={row.key}>
+              {row.type === "header" && (
+                <GroupHeader
+                  group={row.group}
+                  isExpanded={expandedGroups.has(row.group.groupType)}
+                  onToggle={() => handleToggleGroup(row.group.groupType)}
+                />
+              )}
+              {row.type === "collapsed-summary" && (
+                <div className="px-4 py-3 md:px-6 md:py-4 text-sm text-gray-600 flex items-center gap-2 bg-white">
+                  <span>{row.group.eventCount} activities</span>
+                  <span className="text-gray-400">•</span>
+                  <span>Click to expand</span>
+                </div>
+              )}
+              {row.type === "event" && (
+                <ActivityTimelineItem
+                  event={row.event}
+                  groupColor={
+                    ACTIVITY_GROUP_CONFIG[row.group.groupType].color
+                  }
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {hasMore && (
+          <div className="flex justify-center pt-4">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              className="w-full sm:w-auto"
+            >
+              Load Older Activities
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={cn("space-y-6", className)}>
       <div
@@ -196,7 +245,7 @@ export function ActivityTimeline({
             position: "relative",
           }}
         >
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          {virtualItems.map((virtualRow) => {
             const row = flatRows[virtualRow.index];
             if (!row) return null;
 
