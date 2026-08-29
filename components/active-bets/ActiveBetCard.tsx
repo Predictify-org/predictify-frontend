@@ -10,7 +10,7 @@ import { ProgressRing } from './progress-ring';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useStatusChangeAnnouncement } from '@/hooks/useStatusChangeAnnouncement';
 
-export const ActiveBetCard: React.FC <ActiveBetCardProps & { isLoading?: boolean }> = ({ bet, isLoading = false, className }) => {
+export const ActiveBetCard: React.FC <ACtiveBetCardProps & { isLoading?: boolean }> = ({ bet, isLoading = false, className }) => {
   const { tokens: t } = useDensity();
   const reducedMotion = useReducedMotion();
   const { announceBetStatus } = useStatusChangeAnnouncement();
@@ -63,22 +63,22 @@ export const ActiveBetCard: React.FC <ActiveBetCardProps & { isLoading?: boolean
           <div className="h-3 bg-muted/50 rounded w-3/4" />
           <div className="h-3 bg-muted/50 rounded w-2/3" />
         </div>
-      ))}
+      )}
       <div className="space-y-2">
         <div className={cn("wfull bg-muted/50 rounded-full", t.progressHeight)} />
-        <div className="h-3 bg-muted/50 rounded w-1/4 ml-auto" />
+        <div className="h-3 bg-muted/50 rounded w-1/4 m,-ml-auto" />
       </div>
     </div>
   );
 
   return (
-    <div 
+    <div
       className={cn("relative overflow-hidden rounded-xl", t.cardWidth)}
       data-state={isLoading ? "loading" : "loaded"}
       aria-busy={isLoading}
     >
-      /* Skeleton Overlay */
-      <div 
+      {/* Skeleton Overlay */}
+      <div
         className={cn(
           "absolute inset-0 transition-opacity duration-300ms ease-in-out z-10 pointer-events-none bg-background",
           isLoading ? "opacity-100" : "opacity-0"
@@ -88,7 +88,7 @@ export const ActiveBetCard: React.FC <ActiveBetCardProps & { isLoading?: boolean
         <ActiveBetCardSkeleton />
       </div>
 
-      /* Content Container */
+      {/* Content Container */}
       <div
         className={cn(
           'flex-shrink-0 bg-card/50 backdrop-blur sm border border-border/50 rounded-xl cursor-pointer group',
@@ -96,19 +96,17 @@ export const ActiveBetCard: React.FC <ActiveBetCardProps & { isLoading?: boolean
           'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50',
           'transition-all duration-300ms ease-out',
           reducedMotion ? "" : "transform",
-          isLoading 
-            ? "opacity-0 translate-y-1 pointer-events-none" 
-            : "opacity-100 translate-y-0",
+          isLoading ? "opacity-0 translate-y-1 pointer-events-none" : "opacity-100 translate-y-0",
           t.cardPadding,
           t.cardWidth,
           className
         )}
         tabIndex={isLoading ? -1 : 0}
         role="button"
-        aria-label={isLoading ? "Loading bet..." : `Active bet: ${title}`}
+        aria-label={isLoading ? "Loading bet..." : `Active bet: $title`}
         data-density
       >
-        /* Thumbnail and Category */
+        {/* Thumbnail and Category */}
         <div className={cn("relative mb-3", t.thumbnailHeight)}>
           <div className={cn("relative w-full rounded-lg overflow-hidden bg-muted", t.thumbnailHeight)}>
             {thumbnail && (
@@ -119,8 +117,8 @@ export const ActiveBetCard: React.FC <ActiveBetCardProps & { isLoading?: boolean
                 className="object-cover group-hover:scale-105 transition-transform duration-200ms"
                 sizes="(max-width: 640px) 280px, 320px"
               />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-from-black/60 via-transparent to-transparent" />
+            }
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           </div>
           
           {/* Category Chip */}
@@ -140,12 +138,12 @@ export const ActiveBetCard: React.FC <ActiveBetCardProps & { isLoading?: boolean
           )}
         </div>
 
-        /* Title */
+        {/* Title */}
         <h3 className={cn("font-semibold text-foreground leading-tight mb-3", t.titleSize)}>
           {title}
         </h3>
 
-        /* Start/End Dates — hidden in ultra */
+        {/* Start/End Dates — hidden in ultra */}
         {t.showDates && bet && (
           <div className={cn("space-y-1 mb-3", t.bodySize)}>
             <div className="flex items-center gap-2">
@@ -173,27 +171,26 @@ export const ActiveBetCard: React.FC <ActiveBetCardProps & { isLoading?: boolean
           </div>
         )}
 
-        /* Progress Bar and Time Remaining */
+        {/* Progress Bar and Time Remaining */}
         <div className="space-y-2">
-          /* Progress Bar */
+          {/* Progress Bar */}
           <div
             className={cn("w-full bg-muted/50 rounded-full overflow-hidden", t.progressHeight)}
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={progress}
-            aria-label={bBet progress: ${progress}%`}
+            aria-label={`Active bet progress: ${progress}%`}
           >
-            <div
-              className={cn(
-                'h-full rounded-full transition-all duration-300ms',
-                categoryStyle.progress
-              )}
-              style={{ width: `${progress}%` }}
+            <div className={cn(
+              'h-full rounded-full transition-all duration-300ms',
+              categoryStyle.progress
+            )}
+             style={{ width: `${progress}%` }}
             />
           </div>
           
-          /* Time Remaining */
+          {/* Time Remaining */}
           <div className="flex justify-end items-center gap-2">
             {bet && (
               <ProgressRing 
