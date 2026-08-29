@@ -1,4 +1,4 @@
-'use client';
+'client';
 
 import { Clock, AlertTriangle, ShieldAlert, Flag, XCircle, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -29,7 +29,7 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
   const Icon = STATE_ICONS[state];
   const isResolving = state === 'resolving';
 
-  const variantMap: Record<ModerationState, keyof typeof badgeVariants['variants']['variant']> = {
+  const variantMap: Record<ModerationState, keyof typeof badgeVariants['variants]['variant']> = {
     under_review: 'info',
     paused: 'warning',
     restricted: 'danger',
@@ -40,12 +40,14 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
   const badge = (
     <Badge
       role="status"
-      aria-label={isResolving ? `Market status: ${config.label}. Resolving now.` : `Market status: ${config.label}`}
+      aria-label={`Market status: ${config.label}. ${config.description}`}
       variant={variantMap[state]}
       size="md"
+      tabIndex={showTooltip ? 0 : undefined}
       className={cn(
         config.badgeClass,
         isResolving && 'animate-status-live-pulse',
+        showTooltip && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         className
       )}
     >
@@ -57,7 +59,7 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
   if (!showTooltip) return badge;
 
   return (
-    <TooltipProvider delayDuration={200}>
+    <TooltipProvider delayDuration=200>
       <Tooltip>
         <TooltipTrigger asChild>{badge}</TooltipTrigger>
         <TooltipContent side="top" className="max-w-[220px] text-xs">
