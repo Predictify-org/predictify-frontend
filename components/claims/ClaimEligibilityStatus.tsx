@@ -70,7 +70,7 @@ const DECISION_STYLES: Record<ClaimEligibilityDecision, DecisionStyle> = {
   },
   already_claimed: {
     label: "Already claimed",
-    badgeClass: "bg-muted text-muted-foreground pattern-crosshatch",
+    badgeClass: "bg-muted text-foreground pattern-crosshatch",
     tone: "neutral",
   },
   pending: {
@@ -85,17 +85,17 @@ const DECISION_STYLES: Record<ClaimEligibilityDecision, DecisionStyle> = {
   },
   ineligible_wrong_outcome: {
     label: "Not eligible",
-    badgeClass: "bg-muted text-muted-foreground pattern-crosshatch",
+    badgeClass: "bg-muted text-foreground pattern-crosshatch",
     tone: "neutral",
   },
   ineligible_unresolved: {
     label: "Outcome pending",
-    badgeClass: "bg-muted text-muted-foreground pattern-horizontal",
+    badgeClass: "bg-muted text-foreground pattern-horizontal",
     tone: "neutral",
   },
   unknown: {
     label: "Eligibility unknown",
-    badgeClass: "bg-muted text-muted-foreground pattern-crosshatch",
+    badgeClass: "bg-muted text-foreground pattern-crosshatch",
     tone: "warning",
   },
 };
@@ -207,6 +207,7 @@ function ErrorAlert({
       <AlertDescription>{error.message}</AlertDescription>
       {canRetry && (
         <Button
+          type="button"
           variant="outline"
           size="sm"
           onClick={onRetry}
@@ -291,6 +292,7 @@ export const ClaimEligibilityStatus: React.FC<ClaimEligibilityStatusProps> = ({
       aria-live="polite"
       aria-atomic="true"
       aria-busy={phase === "loading"}
+      aria-label={`Claim eligibility for market ${marketId}`}
       data-testid={`claim-eligibility-${marketId}`}
     >
       {content}
