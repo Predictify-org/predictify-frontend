@@ -31,3 +31,6 @@ export interface NotificationDigestData {
   isLoading: boolean
   error?: string | null
 }
+
+export * from "./notification-preferences"
+
