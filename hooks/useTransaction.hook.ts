@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useWallet } from '@/hooks/useWallet.hook';
 import { toast } from '@/hooks/use-toast';
 import {
   pollForConfirmation,
   submitTransaction,
 } from '@/lib/stellar/transaction';
+import {
+  normalizeContractError,
+  normalizeFromFailureType,
+} from '@/lib/stellar/contract-error-normalizer';
 
 export type TransactionStatus =
   | 'idle'
@@ -76,7 +80,7 @@ export const useTransaction = (): UseTransactionResult => {
       setTransactionError(null);
       setFailureType(null);
       setTransactionHash(null);
-      
+
       lastBuildXdrRef.current = buildXdr;
       lastSignedXdrRef.current = null;
       lastSubmittedHashRef.current = null;
@@ -101,21 +105,20 @@ export const useTransaction = (): UseTransactionResult => {
         const signResult = await signTransaction(xdr);
 
         if (!signResult.success) {
-          const error = signResult.error ?? 'Transaction signing failed';
-          const userRejected = isUserRejectedError(error);
+          const rawError = signResult.error ?? 'Transaction signing failed';
+          const userRejected = isUserRejectedError(rawError);
+          const ft: TransactionFailureType = userRejected ? 'userRejected' : 'signFailed';
+          // Normalize for toast display; keep raw error in state for diagnostics
+          const normalized = normalizeFromFailureType(ft, rawError);
           setStatus('failed');
-          setTransactionError(error);
-          setFailureType(userRejected ? 'userRejected' : 'signFailed');
+          setTransactionError(rawError);
+          setFailureType(ft);
           toast({
-            title: userRejected ? 'Transaction rejected' : 'Signing failed',
-            description: error,
+            title: normalized.title,
+            description: normalized.description,
             variant: 'destructive',
           });
-          return {
-            success: false,
-            error,
-            failureType: (userRejected ? 'userRejected' : 'signFailed') as TransactionFailureType,
-          };
+          return { success: false, error: rawError, failureType: ft };
         }
 
         lastSignedXdrRef.current = signResult.signedTxXdr!;
@@ -128,13 +131,15 @@ export const useTransaction = (): UseTransactionResult => {
 
         const submissionResult = await submitTransaction(signResult.signedTxXdr!);
         if (!submissionResult.success) {
+          // error from submitTransaction is already normalized by transaction.ts
           const error = submissionResult.error;
           setStatus('failed');
           setTransactionError(error);
           setFailureType('submitFailed');
+          const normalized = normalizeFromFailureType('submitFailed', error);
           toast({
-            title: 'Submission failed',
-            description: error,
+            title: normalized.title,
+            description: normalized.description,
             variant: 'destructive',
           });
           return {
@@ -154,21 +159,23 @@ export const useTransaction = (): UseTransactionResult => {
 
         const confirmationResult = await pollForConfirmation(submissionResult.hash);
         if (!confirmationResult.success) {
-          const failure = confirmationResult.status === 'confirmationTimeout'
-            ? 'confirmationTimeout'
-            : 'confirmationFailed';
+          const ft: TransactionFailureType =
+            confirmationResult.status === 'confirmationTimeout'
+              ? 'confirmationTimeout'
+              : 'confirmationFailed';
           setStatus('failed');
           setTransactionError(confirmationResult.error);
-          setFailureType(failure as TransactionFailureType);
+          setFailureType(ft);
+          const normalized = normalizeFromFailureType(ft, confirmationResult.error);
           toast({
-            title: failure === 'confirmationTimeout' ? 'Confirmation timed out' : 'Confirmation failed',
-            description: confirmationResult.error,
+            title: normalized.title,
+            description: normalized.description,
             variant: 'destructive',
           });
           return {
             success: false,
             error: confirmationResult.error,
-            failureType: failure as TransactionFailureType,
+            failureType: ft,
           };
         }
 
@@ -180,16 +187,17 @@ export const useTransaction = (): UseTransactionResult => {
         });
         return { success: true, hash: confirmationResult.hash };
       } catch (error: unknown) {
-        const message = (error as Error)?.message || 'Unknown transaction error';
+        const rawMessage = (error as Error)?.message || 'Unknown transaction error';
+        const normalized = normalizeContractError(rawMessage);
         setStatus('failed');
-        setTransactionError(message);
+        setTransactionError(rawMessage);
         setFailureType('requestFailed');
         toast({
-          title: 'Transaction failed',
-          description: message,
+          title: normalized.title,
+          description: normalized.description,
           variant: 'destructive',
         });
-        return { success: false, error: message, failureType: 'requestFailed' as TransactionFailureType };
+        return { success: false, error: rawMessage, failureType: 'requestFailed' as TransactionFailureType };
       }
     },
     [isConnected, signTransaction],
@@ -213,21 +221,23 @@ export const useTransaction = (): UseTransactionResult => {
 
         const confirmationResult = await pollForConfirmation(lastSubmittedHashRef.current);
         if (!confirmationResult.success) {
-          const failure = confirmationResult.status === 'confirmationTimeout'
-            ? 'confirmationTimeout'
-            : 'confirmationFailed';
+          const ft: TransactionFailureType =
+            confirmationResult.status === 'confirmationTimeout'
+              ? 'confirmationTimeout'
+              : 'confirmationFailed';
           setStatus('failed');
           setTransactionError(confirmationResult.error);
-          setFailureType(failure as TransactionFailureType);
+          setFailureType(ft);
+          const normalized = normalizeFromFailureType(ft, confirmationResult.error);
           toast({
-            title: failure === 'confirmationTimeout' ? 'Confirmation timed out' : 'Confirmation failed',
-            description: confirmationResult.error,
+            title: normalized.title,
+            description: normalized.description,
             variant: 'destructive',
           });
           return {
             success: false,
             error: confirmationResult.error,
-            failureType: failure as TransactionFailureType,
+            failureType: ft,
           };
         }
 
@@ -238,8 +248,8 @@ export const useTransaction = (): UseTransactionResult => {
           description: `Hash: ${confirmationResult.hash}`,
         });
         return { success: true, hash: confirmationResult.hash };
-      } 
-      
+      }
+
       if ((failureType === 'submitFailed' || failureType === 'confirmationFailed') && lastSignedXdrRef.current) {
         setStatus('submitting');
         toast({
@@ -253,9 +263,10 @@ export const useTransaction = (): UseTransactionResult => {
           setStatus('failed');
           setTransactionError(error);
           setFailureType('submitFailed');
+          const normalized = normalizeFromFailureType('submitFailed', error);
           toast({
-            title: 'Submission failed',
-            description: error,
+            title: normalized.title,
+            description: normalized.description,
             variant: 'destructive',
           });
           return {
@@ -275,21 +286,23 @@ export const useTransaction = (): UseTransactionResult => {
 
         const confirmationResult = await pollForConfirmation(submissionResult.hash);
         if (!confirmationResult.success) {
-          const failure = confirmationResult.status === 'confirmationTimeout'
-            ? 'confirmationTimeout'
-            : 'confirmationFailed';
+          const ft: TransactionFailureType =
+            confirmationResult.status === 'confirmationTimeout'
+              ? 'confirmationTimeout'
+              : 'confirmationFailed';
           setStatus('failed');
           setTransactionError(confirmationResult.error);
-          setFailureType(failure as TransactionFailureType);
+          setFailureType(ft);
+          const normalized = normalizeFromFailureType(ft, confirmationResult.error);
           toast({
-            title: failure === 'confirmationTimeout' ? 'Confirmation timed out' : 'Confirmation failed',
-            description: confirmationResult.error,
+            title: normalized.title,
+            description: normalized.description,
             variant: 'destructive',
           });
           return {
             success: false,
             error: confirmationResult.error,
-            failureType: failure as TransactionFailureType,
+            failureType: ft,
           };
         }
 
@@ -313,20 +326,25 @@ export const useTransaction = (): UseTransactionResult => {
       return { success: false, error: message, failureType: 'requestFailed' as TransactionFailureType };
 
     } catch (error: unknown) {
-      const message = (error as Error)?.message || 'Unknown transaction error';
+      const rawMessage = (error as Error)?.message || 'Unknown transaction error';
+      const normalized = normalizeContractError(rawMessage);
       setStatus('failed');
-      setTransactionError(message);
+      setTransactionError(rawMessage);
       setFailureType('requestFailed');
       toast({
-        title: 'Retry failed',
-        description: message,
+        title: normalized.title,
+        description: normalized.description,
         variant: 'destructive',
       });
-      return { success: false, error: message, failureType: 'requestFailed' as TransactionFailureType };
+      return { success: false, error: rawMessage, failureType: 'requestFailed' as TransactionFailureType };
     }
   }, [status, failureType, executeTransaction]);
 
-  const canRetry = status === 'failed' && (lastBuildXdrRef.current !== null || lastSignedXdrRef.current !== null || lastSubmittedHashRef.current !== null);
+  const canRetry = status === 'failed' && (
+    lastBuildXdrRef.current !== null ||
+    lastSignedXdrRef.current !== null ||
+    lastSubmittedHashRef.current !== null
+  );
 
   return {
     status,

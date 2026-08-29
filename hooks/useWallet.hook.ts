@@ -66,6 +66,7 @@ import {
 import { useState } from "react";
 import { getKit } from "../constants/wallet-kits.constant";
 import { getClientConfig } from "@/lib/config";
+import { normalizeContractError } from "@/lib/stellar/contract-error-normalizer";
 
 export const useWallet = () => {
   const walletState = useWalletContext();
@@ -99,11 +100,13 @@ export const useWallet = () => {
 
       return { success: true, address };
     } catch (error: unknown) {
-      const errorMessage =
-        (error as Error)?.message || "Error connecting wallet";
-      setError(errorMessage);
+      const rawMessage = (error as Error)?.message || "Error connecting wallet";
+      // Use normalized message for user-facing error state; log raw for diagnostics
+      const normalized = normalizeContractError(rawMessage);
+      const userMessage = normalized.description;
+      setError(userMessage);
       console.error("Error connecting wallet:", error);
-      return { success: false, error: errorMessage };
+      return { success: false, error: userMessage };
     } finally {
       setIsConnecting(false);
     }
@@ -117,11 +120,12 @@ export const useWallet = () => {
       walletState.disconnect();
       return { success: true };
     } catch (error: unknown) {
-      const errorMessage =
-        (error as Error)?.message || "Error disconnecting wallet";
-      setError(errorMessage);
+      const rawMessage = (error as Error)?.message || "Error disconnecting wallet";
+      const normalized = normalizeContractError(rawMessage);
+      const userMessage = normalized.description;
+      setError(userMessage);
       console.error("Error disconnecting wallet:", error);
-      return { success: false, error: errorMessage };
+      return { success: false, error: userMessage };
     }
   };
 
@@ -146,11 +150,13 @@ export const useWallet = () => {
 
       return { success: true, signedTxXdr };
     } catch (error: unknown) {
-      const errorMessage =
-        (error as Error)?.message || "Error signing transaction";
-      setError(errorMessage);
+      const rawMessage = (error as Error)?.message || "Error signing transaction";
+      // Use normalized message for user-facing error state; log raw for diagnostics
+      const normalized = normalizeContractError(rawMessage);
+      const userMessage = normalized.description;
+      setError(userMessage);
       console.error("Error signing transaction:", error);
-      return { success: false, error: errorMessage };
+      return { success: false, error: userMessage };
     }
   };
 
