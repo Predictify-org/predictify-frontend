@@ -5,6 +5,7 @@ import { Clock, TrendingUp, Lock, CheckCircle2, AlertCircle } from 'lucide-react
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useStatusChangeAnnouncement } from '@/hooks/useStatusChangeAnnouncement';
 
 /**
  * Market status values representing the lifecycle of a prediction market.
@@ -22,6 +23,10 @@ interface StatusBadgeProps {
   className?: string;
   /** Whether to show tooltip on hover (default: true) */
   showTooltip?: boolean;
+  /** Optional market ID for accessibility announcements */
+  marketId?: string;
+  /** Optional market title for accessibility announcements */
+  marketTitle?: string;
 }
 
 /**
@@ -88,21 +93,36 @@ const STATUS_PATTERN_CLASSES: Record<MarketStatus, string> = {
  * Features:
  * - Displays current market status with appropriate icon and color
  * - Live tooltip showing status meaning and any transition information
+ * - Automatic screen reader announcements when status changes (Issue #906)
  * - Full screen reader support via sr-only text and ARIA attributes
  * - Keyboard accessible (visible on focus as well as hover)
  * - Responsive design that works on small screens
  * - Dark mode support using Tailwind class-based strategy
  *
  * Accessibility (WCAG 2.1 AA):
- * - Uses role="status" to announce status changes to screen readers
+ * - Uses role="status" to display status to screen readers
  * - Includes aria-describedby linking to the sr-only description
  * - SR-only text contains full tooltip description for accessibility
  * - Keyboard accessible via focus (Radix Tooltip handles this)
+ * - Announces status changes via global live region when marketId provided
+ *
+ * Announcement Behavior (Issue #906):
+ * - Pass marketId and marketTitle to enable automatic status change announcements
+ * - Announcements are deduplicated (won't spam for rapid repeated calls)
+ * - Time-critical statuses (resolved, cancelled) use assertive priority
+ * - Other statuses use polite priority to avoid interrupting user
  *
  * @example
  * ```tsx
- * // Basic usage
+ * // Basic usage (no announcements)
  * <StatusBadge status="open" />
+ *
+ * // With announcements enabled
+ * <StatusBadge
+ *   status="closed"
+ *   marketId="market-123"
+ *   marketTitle="Will Bitcoin reach $100k?"
+ * />
  *
  * // With custom styling
  * <StatusBadge status="closing_soon" className="mr-2" />
@@ -115,6 +135,8 @@ export function StatusBadge({
   status,
   className,
   showTooltip = true,
+  marketId,
+  marketTitle,
 }: StatusBadgeProps): JSX.Element {
   const Icon = STATUS_ICONS[status];
   const label = STATUS_LABELS[status];
@@ -122,7 +144,17 @@ export function StatusBadge({
   const variant = STATUS_VARIANTS[status];
   const patternClass = STATUS_PATTERN_CLASSES[status] ?? 'pattern-diagonal';
 
-  const statusId = `status-description-${status}-${Math.random().toString(36).substr(2, 9)}`;
+  const statusId = React.useId();
+
+  // Announce status changes to assistive technology (WCAG 2.1 SC 4.1.3)
+  const { announceMarketStatus } = useStatusChangeAnnouncement();
+
+  React.useEffect(() => {
+    // Only announce if market ID is provided (opt-in to avoid spam)
+    if (marketId) {
+      announceMarketStatus(marketId, status, marketTitle);
+    }
+  }, [status, marketId, marketTitle, announceMarketStatus]);
 
   const badge = (
     <Badge
