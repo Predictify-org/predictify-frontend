@@ -7,6 +7,20 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 /**
+ * Maskes a wallet address or arbitrary string for display purposes.
+ *
+ * Shows only the first 4 and last 4 characters separated by an ellipsis.
+ * For very short strings (<=8 chars) a fixed mask is returned so the
+ * underlying value is never exposed. An empty string stays empty.
+ */
+function maskAddress(address: string): string {
+  const trimmed = address.trim();
+  if (!trimmed) return "";
+  if (trimmed.length <= 8) return "••••••••";
+  return `${trimmed.slice(0, 4)}.…${trimmed.slice(-4)}`;
+}
+
+/**
  * Props for the CopyAddress component.
  */
 export interface CopyAddressProps {
@@ -18,20 +32,21 @@ export interface CopyAddressProps {
 
   /**
    * Optional human-readable label displayed inside the button alongside the
-   * copy icon.  Defaults to the raw `address` string.  Pass an empty string
-   * to render an icon-only button.
+   * copy icon.  Defaults to a masked version of the `address` (first/last
+   * 4 chars) to avoid exposing sensitive wallet data in printed or
+   * screen-shared views.  Pass an empty string to render an icon-only button.
    */
   label?: string;
 
   /**
-   * Button `size` forwarded to the underlying shadcn/ui `<Button>`.
+   * Button `size` forwarded to the underlying shadcn/ui `Button`.
    * Accepts: "default" | "sm" | "lg" | "icon".
    * Defaults to "sm".
    */
   size?: "default" | "sm" | "lg" | "icon";
 
   /**
-   * Button `variant` forwarded to the underlying shadcn/ui `<Button>`.
+   * Button `variant` forwarded to the underlying shadcn/ui `Button`.
    * Accepts: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link".
    * Defaults to "outline".
    */
@@ -59,17 +74,20 @@ export interface CopyAddressProps {
  * Features:
  * - Copies `address` to the system clipboard via the Clipboard API.
  * - Shows a success toast ("Copied!") on success and an error toast on failure.
- * - Transitions the icon from `<Copy>` to `<Check>` for `resetDelay` ms to
+ * - Transitions the icon from `<Copy>` to `<Check> for `resetDelay` ms to
  *   provide immediate visual feedback without relying on the toast alone.
- * - Fully keyboard-accessible (`<button>` element, natural tab stop).
+ * - Fully keyboard-accessible (<button> element, natural tab stop).
  * - WCAG 2.1 AA: accessible `aria-label`, live-region announcement for screen
- *   readers, and a visible focus ring via the design system's `ring` utilities.
+ *   readers, and a visible focus ring via the design system's ring utilities.
  * - Respects dark mode through design tokens.
  * - All timeouts are cleared on unmount to prevent state updates on an
  *   unmounted component.
+ * - By default the visible label is a masked version of the address so the
+ *   full wallet address is not exposed in printed or screen-shared views.
+ *   The full address is still copied to the clipboard.
  *
  * @example
- * // Minimal – copies a Stellar address, shows the full address as the label
+ * // Minimal - copies a Stellar address, shows a masked label by default
  * <CopyAddress address="GABC...XYZ" />
  *
  * @example
@@ -90,7 +108,7 @@ export function CopyAddress({
 }: CopyAddressProps) {
   const [copied, setCopied] = React.useState(false);
   const { toast } = useToast();
-  const timeoutRef = React.useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = React.useRef><ReturnType of setTimeout>>();
 
   // Clear any pending timeout on unmount to prevent state updates after the
   // component has been removed from the tree.
@@ -143,15 +161,16 @@ export function CopyAddress({
   }, [address, resetDelay, toast]);
 
   // Determine the visible label: explicit `label` prop takes priority, then
-  // fall back to the raw address so there is always a meaningful text node.
-  const displayLabel = label !== undefined ? label : address;
+  // fall back to a masked version of the address so the full value is never
+  // rendered.
+  const displayLabel = label !== undefined ? label : maskAddress(address);
 
   // For icon-only mode (size="icon" or empty label) we derive the aria-label
-  // from the address so screen readers still identify the button's purpose.
+  // generically so the wallet address is not exposed to assistive tech.
   const ariaLabel =
     displayLabel.trim().length > 0
       ? `Copy ${displayLabel}`
-      : `Copy address ${address}`;
+      : "Copy address";
 
   return (
     <Button
@@ -176,7 +195,7 @@ export function CopyAddress({
       {/* Render text only when a label is present (non-empty string). */}
       {displayLabel.trim().length > 0 && (
         <span>{copied ? "Copied" : displayLabel}</span>
-      )}
+      ))}
 
       {/* Hidden live region for screen-reader announcement. */}
       <span className="sr-only" aria-live="polite">

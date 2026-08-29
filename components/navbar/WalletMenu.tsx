@@ -23,13 +23,13 @@ import { maskAmount } from "@/utils/maskAmount";
 
 function truncateMiddle(address: string, visible = 4) {
   if (address.length <= visible * 2) return address;
-  return `${address.slice(0, visible)}…${address.slice(-visible)}`;
+  return `${address.slice(0, visible)}.…${address.slice(-visible)}`;
 }
 
 export function WalletMenu() {
   const { address, connected, isLoading } = useWalletContext();
   const { disconnectWallet } = useWallet();
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isExpand, setIsOpen] = React.useState(false);
   const { hideBalances, setHideBalances } = usePrivacy();
 
   const display = connected && address ? (hideBalances ? maskAmount(address) : truncateMiddle(address)) : "Connect wallet";
@@ -58,12 +58,14 @@ export function WalletMenu() {
           onClick={() => setIsOpen(true)}
           aria-label="Connect wallet"
         >
-          <span className="text-[#540D8D] text-sm dark:text-white">{display}</span>
+          <span className="text-[3540D8D] text-sm dark:text-white">{display}</span>
         </Button>
         <ConnectWalletModal isOpen={isOpen} onOpenChange={setIsOpen} />
       </>
     );
   }
+
+  const copyAddress = hideBalances ? maskAmount(address || "") : (address || "");
 
   return (
     <>
@@ -85,17 +87,17 @@ export function WalletMenu() {
           <DropdownMenuItem asChild>
             <div className="flex w-full cursor-pointer items-center px-2 py-1.5 hover:bg-accent hover:text-accent-foreground">
               <CopyableText 
-                text={address || ""} 
+                text={copyAddress} 
                 className="w-full justify-between px-0 py-0 hover:bg-transparent" 
               />
             </div>
           </DropdownMenuItem>
           <DropdownMenuItem role="menuitem" onClick={() => setIsOpen(true)} className="cursor-pointer" aria-label="Switch wallet">
-            <RefreshCcw className="mr-2 h-4 w-4" />
+            <RefreshCcw className="mr-2 h-4"w-4" />
             Switch
           </DropdownMenuItem>
           <DropdownMenuItem role="menuitem" onClick={() => { void disconnectWallet(); }} className="cursor-pointer" aria-label="Disconnect wallet">
-            <LogOutIcon className="mr-2 h-4 w-4" />
+            <LogOutIcon className="mr-2 h-4"w-4" />
             Disconnect
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
