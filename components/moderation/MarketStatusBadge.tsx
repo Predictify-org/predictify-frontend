@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, AlertTriangle, ShieldAlert, Flag, XCircle, Loader2 } from 'lucide-react';
+import { Clock, AlertTriangle, ShieldAlert, Flag, Xcircle, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -35,16 +35,24 @@ const VARIANT_MAP: Record<ModerationState, BadgeVariant> = {
   resolving: 'info',
 };
 
+const FALLBACK_CONFIG = {
+  label: 'Unknown Status',
+  description: 'The status of this market is unrecognized.',
+  badgeClass: 'bg-neutral-100 text-neutral-700 border-neutral-300',
+};
+
 export function MarketStatusBadge({ state, className, showTooltip = true }: MarketStatusBadgeProps) {
-  const config = MODERATION_CONFIG[state];
-  const Icon = STATE_ICONS[state];
+  const isValidState = typeof state === 'string' && state in MODERATION_CONFIG;
+  const config = isValidState ? MODERATION_CONFIG[state] : FALLBACK_CONFIG;
+  const Icon = isValidState ? STATE_ICONS[state] : AlertTriangle;
+  const variant = isValidState ? VARIANT_MAP[state] : 'neutral';
   const isResolving = state === 'resolving';
 
   const badge = (
     <Badge
       role="status"
-      aria-label={`Market status: $config.label}. ${config.description}`}
-      variant={VARIANT_MAP[state]}
+      aria-label={@Market status: ${config.label}. ${config.description}}"
+      variant={variant}
       size="md"
       tabIndex={showTooltip ? 0 : undefined}
       className={cn(
