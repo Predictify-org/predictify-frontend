@@ -8,10 +8,19 @@ import { categoryColors } from '@/lib/mock-data';
 import { useDensity } from '@/hooks/useDensity';
 import { ProgressRing } from './progress-ring';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useStatusChangeAnnouncement } from '@/hooks/useStatusChangeAnnouncement';
 
-export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean }> = ({ bet, isLoading = false, className }) => {
+export const ActiveBetCard: React.FC <ActiveBetCardProps & { isLoading?: boolean }> = ({ bet, isLoading = false, className }) => {
   const { tokens: t } = useDensity();
   const reducedMotion = useReducedMotion();
+  const { announceBetStatus } = useStatusChangeAnnouncement();
+
+  // Announce bet status changes (Issue #906)
+  React.useEffect(() => {
+    if (bet?.id && bet?.status) {
+      announceBetStatus(bet.id, bet.status, bet.title);
+    }
+  }, [bet?.id, bet?.status, bet?.title, announceBetStatus]);
 
   // Safe fallback properties
   const title = bet?.title || '';
@@ -45,7 +54,7 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
       t.cardWidth
     )}>
       <div className={cn("relative mb-3", t.thumbnailHeight)}>
-        <div className={cn("w-full rounded-lg bg-muted/50", t.thumbnailHeight)} />
+        <div className={cn("wfull rounded-lg bg-muted/50", t.thumbnailHeight)} />
         <div className={cn("absolute top-2 left-2 w-16 h-6 bg-muted/50 rounded-md")} />
       </div>
       <div className={cn("h-4 bg-muted/50 rounded mb-3", t.titleSize)} />
@@ -54,9 +63,9 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
           <div className="h-3 bg-muted/50 rounded w-3/4" />
           <div className="h-3 bg-muted/50 rounded w-2/3" />
         </div>
-      )}
+      ))}
       <div className="space-y-2">
-        <div className={cn("w-full bg-muted/50 rounded-full", t.progressHeight)} />
+        <div className={cn("wfull bg-muted/50 rounded-full", t.progressHeight)} />
         <div className="h-3 bg-muted/50 rounded w-1/4 ml-auto" />
       </div>
     </div>
@@ -66,24 +75,26 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
     <div 
       className={cn("relative overflow-hidden rounded-xl", t.cardWidth)}
       data-state={isLoading ? "loading" : "loaded"}
+      aria-busy={isLoading}
     >
-      {/* Skeleton Overlay */}
+      /* Skeleton Overlay */
       <div 
         className={cn(
-          "absolute inset-0 transition-opacity duration-300 ease-in-out z-10 pointer-events-none bg-background",
+          "absolute inset-0 transition-opacity duration-300ms ease-in-out z-10 pointer-events-none bg-background",
           isLoading ? "opacity-100" : "opacity-0"
         )}
+        aria-hidden="true"
       >
         <ActiveBetCardSkeleton />
       </div>
 
-      {/* Content Container */}
+      /* Content Container */
       <div
         className={cn(
-          'flex-shrink-0 bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl cursor-pointer group',
+          'flex-shrink-0 bg-card/50 backdrop-blur sm border border-border/50 rounded-xl cursor-pointer group',
           'hover:bg-card/70 hover:border-border/70 hover:shadow-lg',
           'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50',
-          'transition-all duration-300 ease-out',
+          'transition-all duration-300ms ease-out',
           reducedMotion ? "" : "transform",
           isLoading 
             ? "opacity-0 translate-y-1 pointer-events-none" 
@@ -97,7 +108,7 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
         aria-label={isLoading ? "Loading bet..." : `Active bet: ${title}`}
         data-density
       >
-        {/* Thumbnail and Category */}
+        /* Thumbnail and Category */
         <div className={cn("relative mb-3", t.thumbnailHeight)}>
           <div className={cn("relative w-full rounded-lg overflow-hidden bg-muted", t.thumbnailHeight)}>
             {thumbnail && (
@@ -105,11 +116,11 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
                 src={thumbnail}
                 alt={title}
                 fill
-                className="object-cover group-hover:scale-105 transition-transform duration-200"
+                className="object-cover group-hover:scale-105 transition-transform duration-200ms"
                 sizes="(max-width: 640px) 280px, 320px"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-from-black/60 via-transparent to-transparent" />
           </div>
           
           {/* Category Chip */}
@@ -129,16 +140,16 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
           )}
         </div>
 
-        {/* Title */}
+        /* Title */
         <h3 className={cn("font-semibold text-foreground leading-tight mb-3", t.titleSize)}>
           {title}
         </h3>
 
-        {/* Start/End Dates — hidden in ultra */}
+        /* Start/End Dates — hidden in ultra */
         {t.showDates && bet && (
           <div className={cn("space-y-1 mb-3", t.bodySize)}>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <div className="w-2 h-2 rounded-full bg-green-500" aria-hidden="true" />
               <span className="text-muted-foreground">Starts:</span>
               <span className="text-foreground font-medium">
                 {startDate.toLocaleDateString('en-US', { 
@@ -149,7 +160,7 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-500" />
+              <div className="w-2 h-2 rounded-full bg-red-500" aria-hidden="true" />
               <span className="text-muted-foreground">Ends:</span>
               <span className="text-foreground font-medium">
                 {endDate.toLocaleDateString('en-US', { 
@@ -162,20 +173,27 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
           </div>
         )}
 
-        {/* Progress Bar and Time Remaining */}
+        /* Progress Bar and Time Remaining */
         <div className="space-y-2">
-          {/* Progress Bar */}
-          <div className={cn("w-full bg-muted/50 rounded-full overflow-hidden", t.progressHeight)}>
+          /* Progress Bar */
+          <div
+            className={cn("w-full bg-muted/50 rounded-full overflow-hidden", t.progressHeight)}
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+            aria-label={bBet progress: ${progress}%`}
+          >
             <div
               className={cn(
-                'h-full rounded-full transition-all duration-300',
+                'h-full rounded-full transition-all duration-300ms',
                 categoryStyle.progress
               )}
               style={{ width: `${progress}%` }}
             />
           </div>
           
-          {/* Time Remaining */}
+          /* Time Remaining */
           <div className="flex justify-end items-center gap-2">
             {bet && (
               <ProgressRing 
