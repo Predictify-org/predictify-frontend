@@ -87,6 +87,30 @@ const STATUS_PATTERN_CLASSES: Record<MarketStatus, string> = {
   cancelled: 'pattern-vertical',
 };
 
+const STATUS_PATTERN_STYLES: Record<MarketStatus, React.CSSProperties> = {
+  open: {
+    backgroundImage:
+      'repeating-linear-gradient(45deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 2px, transparent 2px, transparent 6px)',
+  },
+  closing_soon: {
+    backgroundImage:
+      'radial-gradient(circle, rgba(100,116,139,0.25) 1px, transparent 1px)',
+    backgroundSize: '8px 8px',
+  },
+  closed: {
+    backgroundImage:
+      'repeating-linear-gradient(0deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 1px, transparent 1px, transparent 4px), repeating-linear-gradient(90deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 1px, transparent 1px, transparent 4px)',
+  },
+  resolved: {
+    backgroundImage:
+      'repeating-linear-gradient(0deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 2px, transparent 2px, transparent 6px)',
+  },
+  cancelled: {
+    backgroundImage:
+      'repeating-linear-gradient(90deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 2px, transparent 2px, transparent 6px)',
+  },
+};
+
 /**
  * StatusBadge component for displaying market status transitions with live tooltips.
  *
@@ -138,11 +162,12 @@ export function StatusBadge({
   marketId,
   marketTitle,
 }: StatusBadgeProps): JSX.Element {
-  const Icon = STATUS_ICONS[status];
-  const label = STATUS_LABELS[status];
-  const description = STATUS_DESCRIPTIONS[status];
-  const variant = STATUS_VARIANTS[status];
+  const Icon = STATUS_ICONS[status] ?? AlertCircle;
+  const label = STATUS_LABELS[status] ?? 'Unknown';
+  const description = STATUS_DESCRIPTIONS[status] ?? 'Unknown market status.';
+  const variant = STATUS_VARIANTS[status] ?? 'neutral';
   const patternClass = STATUS_PATTERN_CLASSES[status] ?? 'pattern-diagonal';
+  const patternStyle: React.CSSProperties = STATUS_PATTERN_STYLES[status] ?? {};
 
   const statusId = React.useId();
 
@@ -162,6 +187,8 @@ export function StatusBadge({
       aria-describedby={statusId}
       variant={variant}
       size="md"
+      tabIndex={showTooltip ? 0 : undefined}
+      style={patternStyle}
       className={cn('relative gap-1.5 overflow-hidden', patternClass, className)}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
