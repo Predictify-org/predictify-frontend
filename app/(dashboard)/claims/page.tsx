@@ -17,11 +17,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useWalletContext } from "@/context/WalletContext";
 import { cn } from "@/lib/utils";
+import { ClaimEligibilityStatus } from "@/components/claims/ClaimEligibilityStatus";
+import { ClaimEligibilityClientError } from "@/lib/claim-eligibility-client";
+import type { ClaimEvidence, ClaimStatus } from "@/types/claim-eligibility";
+
+// Re-export for backward compatibility with any callers importing ClaimStatus
+// from this page module. The canonical definition now lives in
+// types/claim-eligibility.ts alongside the rest of the claim data model.
+export type { ClaimStatus };
 
 // ── Type Definitions ────────────────────────────────────────────────────────
 
-export type ClaimStatus = "available" | "claimed" | "pending" | "disputed";
+// (ClaimStatus is imported from types/claim-eligibility.ts)
 
 export interface Claim {
   id: string;
@@ -162,6 +171,69 @@ export const MOCK_CLAIMS: Claim[] = [
 /** Simulated claim latency (ms). Exported for tests. */
 export const CLAIM_LATENCY_MS = 600;
 
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/**
+ * Mock authoritative-evidence fetcher for the claims demo.
+ *
+ * Stands in for the production `fetchClaimEligibility` client (which talks to
+ * /api/claim-eligibility). It derives a deterministic `ClaimEvidence` record
+ * from the locally-defined `MOCK_CLAIMS` so the full eligibility state machine
+ * is visible in the UI. When no account is connected it rejects with a
+ * permission error, mirroring the 401 the real endpoint returns for
+ * unauthorized callers. Swap this for `fetchClaimEligibility` once a
+ * settlement source is wired up — the rest of the UI is unchanged.
+ */
+export const mockClaimEligibilityFetcher = (
+  marketId: string,
+  options: { account?: string; signal?: AbortSignal },
+): Promise<ClaimEvidence> => {
+  if (!options.account || !options.account.trim()) {
+    return Promise.reject(
+      new ClaimEligibilityClientError(
+        "Connect your wallet to view claim eligibility.",
+        "permission",
+        false,
+      ),
+    );
+  }
+
+  const claim = MOCK_CLAIMS.find((c) => c.id === marketId);
+  if (!claim) {
+    return Promise.reject(
+      new ClaimEligibilityClientError(
+        "Claim eligibility is not available for this market.",
+        "not_found",
+        false,
+      ),
+    );
+  }
+
+  const now = Date.now();
+  const resolvedAt =
+    claim.status === "available"
+      ? marketId === "claim-5"
+        ? now - 2 * DAY_MS
+        : now - 2 * HOUR_MS
+      : now - 3 * DAY_MS;
+
+  const evidence: ClaimEvidence = {
+    marketId: claim.id,
+    outcome: claim.prediction,
+    userPrediction: claim.prediction,
+    resolvedAt,
+    source: "oracle",
+    claimed: claim.status === "claimed",
+    claimStatus: claim.status,
+    winnings: claim.winnings,
+    winningsToken: claim.winningsToken,
+    marketTitle: claim.marketTitle,
+  };
+
+  return Promise.resolve(evidence);
+};
+
 // ── Color-Blind Safe Status Badge ───────────────────────────────────────────
 
 /**
@@ -205,6 +277,13 @@ export interface ClaimCardProps {
   onClaim?: (claim: Claim) => void;
   isClaiming?: boolean;
   reducedMotion?: boolean;
+  /** Authoritative-evidence fetcher; when provided, renders live eligibility. */
+  eligibilityFetcher?: (
+    marketId: string,
+    options: { account?: string; signal?: AbortSignal },
+  ) => Promise<ClaimEvidence>;
+  /** Connected account used to scope eligibility (drives the permission state). */
+  account?: string;
 }
 
 /**
@@ -221,6 +300,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   onClaim,
   isClaiming = false,
   reducedMotion = false,
+  eligibilityFetcher,
+  account,
 }) => {
   const {
     marketTitle,
@@ -316,6 +397,14 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             )}
           </div>
         </div>
+        {eligibilityFetcher && (
+          <ClaimEligibilityStatus
+            marketId={claim.id}
+            account={account}
+            fetcher={eligibilityFetcher}
+            reducedMotion={reducedMotion}
+          />
+        )}
       </CardContent>
     </Card>
   );
@@ -420,6 +509,7 @@ const ClaimFlowPage: React.FC = () => {
   type TabValue = (typeof TABS)[number];
 
   const reducedMotion = useReducedMotion();
+  const { address } = useWalletContext();
   const [activeTab, setActiveTab] = useState<TabValue>("All");
   const [status, setStatus] = useState<"loading" | "success" | "empty" | "error">(
     "loading"
@@ -543,6 +633,8 @@ const ClaimFlowPage: React.FC = () => {
                 onClaim={handleClaim}
                 isClaiming={claimingId === claim.id}
                 reducedMotion={reducedMotion}
+                eligibilityFetcher={mockClaimEligibilityFetcher}
+                account={address ?? undefined}
               />
             ))}
           </div>
