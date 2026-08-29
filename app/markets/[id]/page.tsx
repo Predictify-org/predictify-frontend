@@ -160,7 +160,9 @@ export default async function MarketDetailPage({ params }: PageProps) {
           { label: "No", probability: 100 - market.probability },
         ]}
         isGrantFoxCampaign={market.isGrantFoxCampaign}
-        aboutModalTrigger={<AboutMarketModal market={market} />}
+        aboutModalTrigger={
+          <AboutMarketModal market={market} showOracleStatus />
+        }
       />
 
       {/*
