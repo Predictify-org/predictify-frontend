@@ -8,10 +8,19 @@ import { categoryColors } from '@/lib/mock-data';
 import { useDensity } from '@/hooks/useDensity';
 import { ProgressRing } from './progress-ring';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useStatusChangeAnnouncement } from '@/hooks/useStatusChangeAnnouncement';
 
 export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean }> = ({ bet, isLoading = false, className }) => {
   const { tokens: t } = useDensity();
   const reducedMotion = useReducedMotion();
+  const { announceBetStatus } = useStatusChangeAnnouncement();
+
+  // Announce bet status changes (Issue #906)
+  React.useEffect(() => {
+    if (bet?.id && bet?.status) {
+      announceBetStatus(bet.id, bet.status, bet.title);
+    }
+  }, [bet?.id, bet?.status, bet?.title, announceBetStatus]);
 
   // Safe fallback properties
   const title = bet?.title || '';
