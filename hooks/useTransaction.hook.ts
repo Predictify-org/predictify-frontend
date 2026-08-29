@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWallet } from '@/hooks/useWallet.hook';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -55,7 +55,7 @@ function isUserRejectedError(message: string) {
 }
 
 export const useTransaction = (): UseTransactionResult => {
-  const { signTransaction, isConnected } = useWallet();
+  const { signTransaction, isConnected, identityGeneration } = useWallet();
   const [status, setStatus] = useState<TransactionStatus>('idle');
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   const [transactionError, setTransactionError] = useState<string | null>(null);
@@ -64,6 +64,7 @@ export const useTransaction = (): UseTransactionResult => {
   const lastBuildXdrRef = useRef<(() => Promise<string> | string) | null>(null);
   const lastSignedXdrRef = useRef<string | null>(null);
   const lastSubmittedHashRef = useRef<string | null>(null);
+  const retryIdentityGenerationRef = useRef(identityGeneration);
 
   const resetTransaction = useCallback(() => {
     setStatus('idle');
@@ -73,7 +74,17 @@ export const useTransaction = (): UseTransactionResult => {
     lastBuildXdrRef.current = null;
     lastSignedXdrRef.current = null;
     lastSubmittedHashRef.current = null;
-  }, []);
+    retryIdentityGenerationRef.current = identityGeneration;
+  }, [identityGeneration]);
+
+  const previousIdentityGenerationRef = useRef(identityGeneration);
+  useEffect(() => {
+    if (previousIdentityGenerationRef.current !== identityGeneration) {
+      // Signed payloads and retry callbacks are privileged to the identity that created them.
+      resetTransaction();
+      previousIdentityGenerationRef.current = identityGeneration;
+    }
+  }, [identityGeneration, resetTransaction]);
 
   const executeTransaction = useCallback(
     async (buildXdr: () => Promise<string> | string) => {
@@ -84,6 +95,7 @@ export const useTransaction = (): UseTransactionResult => {
       lastBuildXdrRef.current = buildXdr;
       lastSignedXdrRef.current = null;
       lastSubmittedHashRef.current = null;
+      retryIdentityGenerationRef.current = identityGeneration;
 
       if (!isConnected) {
         const error = 'Connect a wallet before submitting a transaction.';
@@ -200,10 +212,14 @@ export const useTransaction = (): UseTransactionResult => {
         return { success: false, error: rawMessage, failureType: 'requestFailed' as TransactionFailureType };
       }
     },
-    [isConnected, signTransaction],
+    [identityGeneration, isConnected, signTransaction],
   );
 
   const retryTransaction = useCallback(async () => {
+    if (retryIdentityGenerationRef.current !== identityGeneration) {
+      resetTransaction();
+      return { success: false, error: 'Wallet identity changed. Start a new transaction.', failureType: 'requestFailed' as TransactionFailureType };
+    }
     if (status !== 'failed' || !failureType) {
       return { success: false, error: 'No failed transaction to retry', failureType: 'requestFailed' as TransactionFailureType };
     }
@@ -338,7 +354,7 @@ export const useTransaction = (): UseTransactionResult => {
       });
       return { success: false, error: rawMessage, failureType: 'requestFailed' as TransactionFailureType };
     }
-  }, [status, failureType, executeTransaction]);
+  }, [executeTransaction, failureType, identityGeneration, resetTransaction, status]);
 
   const canRetry = status === 'failed' && (
     lastBuildXdrRef.current !== null ||
