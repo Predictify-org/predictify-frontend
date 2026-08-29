@@ -23,7 +23,8 @@
  */
 
 import React from "react";
-import { AlertCircle, Loader2, Lock, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, HelpCircle, Loader2, Lock, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,6 +100,16 @@ const DECISION_STYLES: Record<ClaimEligibilityDecision, DecisionStyle> = {
   },
 };
 
+const DECISION_ICONS: Record<ClaimEligibilityDecision, LucideIcon> = {
+  eligible: CheckCircle2,
+  already_claimed: ShieldCheck,
+  pending: Clock,
+  disputed: AlertTriangle,
+  ineligible_wrong_outcome: XCircle,
+  ineligible_unresolved: Clock,
+  unknown: HelpCircle,
+};
+
 // Inline background patterns ensure the visual distinction is not dependent on
 // external CSS (SC 1.4.1). Each pattern uses a subtle, high-contrast stripe/
 // geometry that is visible on the decision-specific background class.
@@ -139,6 +150,7 @@ function EligibilityBadge({
   decision: ClaimEligibilityDecision;
 }) {
   const style = DECISION_STYLES[decision];
+  const Icon = DECISION_ICONS[decision];
   return (
     <span
       className={cn(
@@ -147,7 +159,7 @@ function EligibilityBadge({
       )}
       style={DECISION_PATTERNS[decision]}
     >
-      <ShieldCheck className="relative z-10 h-3.5 w-3.5" aria-hidden={true} />
+      <Icon className="relative z-10 h-3.5 w-3.5" aria-hidden={true} />
       <span className="relative z-10">{style.label}</span>
     </span>
   );
