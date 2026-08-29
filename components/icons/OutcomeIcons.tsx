@@ -4,11 +4,11 @@
  * Color-blind safe shape-based icons for prediction outcome tiles.
  * Shapes are distinguishable under Deuteranopia and Tritanopia simulations
  * because differentiation is based on geometry, not hue alone.
-*
- * Palette ? Shape mapping (also documented in app/design-system/tokens.md):
- *   "positive" / "yes" / index 0  ?  TriangleUp
- *   "negative" / "no"  / index 1  ?  TriangleDown
- *   "neutral"  / third / index 2  ?  Diamond
+ *
+ * Palette -> Shape mapping (also documented in app/design-system/tokens.md):
+ *   "positive" / "yes" / index 0  ->  TriangleUp
+ *   "negative" / "no"  / index 1  ->  TriangleDown
+ *   "neutral"  / third / index 2  ->  Diamond
  *
  * Usage:
  *   <OutcomeIcon variant="positive" aria-hidden />
@@ -22,6 +22,9 @@
  *     or "aria-labelledby" to expose an accessible name. When "title" is
  *     used, it is rendered as an SVG <title> child for reliable
  *     screen-reader support.
+ *   - In addition, setting `aria-hidden={false}` without an explicit label
+ *     causes the component to use `getVariantLabel(variant)` as the
+ *     accessible name, ensuring standalone icons are never unnamed.
  *   - getVariantLabel(variant) returns a human-readable label that can be
  *     passed to aria-label for standalone icons.
  */
@@ -88,13 +91,37 @@ export function OutcomeIcon({
   className,
   ...props
 }: OutcomeIconProps): JSX.Element {
-  const { title, ...restProps } = props;
+  const {
+    title,
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledBy,
+    'aria-hidden': ariaHidden,
+    focusable,
+    ...restProps
+  } = props;
+
   const titleText = typeof title === 'string' && title.length > 0 ? title : undefined;
-  const hasAccessibleName = Boolean(
-    restProps['aria-label'] || restProps['aria-labelledby'] || titleText,
-  );
+  const hasExplicitName = Boolean(ariaLabel ?? ariaLabelledBy ?? titleText);
+
+  // Respect an explicit aria-hidden value. When omitted, hide the icon if it has
+  // no accessible name (decorative use). Accept both boolean and string forms.
+  const ariaHiddenValue = ariaHidden === undefined
+    ? undefined
+    : ariaHidden === true || ariaHidden === 'true';
+  const isAriaHidden = ariaHiddenValue ?? !hasExplicitName;
+
+  // If the icon is not hidden but lacks an explicit accessible name, derive one
+  // from the outcome variant so standalone icons are never anonymously rendered.
+  const computedLabel = !isAriaHidden && !hasExplicitName ? getVariantLabel(variant) : undefined;
+  const effectiveAriaLabel = ariaLabel ?? (ariaLabelledBy ? undefined : computedLabel);
+  const hasAccessibleName = Boolean(effectiveAriaLabel ?? ariaLabelledBy ?? titleText);
+
+  // Render an SVG <title> only when a "title" prop is provided and no stronger
+  // accessible-name mechanism (aria-label/aria-labelledby) is present.
+  const titleNode = titleText && !ariaLabel && !ariaLabelledBy ? <title>{titleText}</title> : null;
+
   const normalized = normalizeVariant(variant);
-  let shape: JSX.Element;
+  let shape: JS.Element;
 
   switch (normalized) {
     case 'positive':
@@ -112,15 +139,15 @@ export function OutcomeIcon({
     <svg
       {...restProps}
       viewBox="0 0 24 24"
-      aria-hidden={!hasAccessibleName}
-      role={hasAccessibleName ? 'img' : undefined}
+      role={!isAriaHidden && hasAccessibleName ? 'img' : undefined}
+      aria-hidden={isAriaHidden}
+      aria-label={!isAriaHidden ? effectiveAriaLabel : undefined}
+      aria-labelledby={!isAriaHidden ? ariaLabelledBy : undefined}
       className={cn('h-4 w-4', className)}
-      focusable={restProps.focusable ?? false}
+      focusable={focusable ?? false}
       data-variant={normalized}
     >
-      {titleText && !restProps['aria-label'] && !restProps['aria-labelledby'] && (
-        <title>{titleText}</title>
-      )}
+      {titleNode}
       {shape}
     </svg>
   );
