@@ -292,7 +292,16 @@ function EventRow({
 
 export function EventsTable({ className }: EventsTableProps) {
   /* MODIFIED: Added deleteEvent from store */
-  const { filteredEvents, loading, pagination, deleteEvent, filters, setFilters, setSearch } = useEventsStore()
+  const {
+    filteredEvents,
+    loading,
+    lastFetchTime,
+    pagination,
+    deleteEvent,
+    filters,
+    setFilters,
+    setSearch,
+  } = useEventsStore()
   /* Compare store */
   const { selectedIds, toggle } = useCompareStore()
 
@@ -313,7 +322,9 @@ export function EventsTable({ className }: EventsTableProps) {
   const endIndex = startIndex + pagination.pageSize
   const paginatedEvents = filteredEvents.slice(startIndex, endIndex)
 
-  if (loading) {
+  // During a retry, preserve the last good page instead of replacing it with a
+  // skeleton. This avoids losing the user's position while live data is stale.
+  if (loading && (filteredEvents.length === 0 || lastFetchTime === null)) {
     return <EventsTableSkeleton />
   }
 
