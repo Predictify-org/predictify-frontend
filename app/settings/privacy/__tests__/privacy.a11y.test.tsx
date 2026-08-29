@@ -1,9 +1,21 @@
 import React from "react"
-import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import PrivacySettingsPage from "../page"
+import { useConsentStore } from "@/app/state/consent"
 
 describe("Settings → Privacy page", () => {
+  beforeEach(() => {
+    act(() => {
+      useConsentStore.setState({ analyticsConsent: false })
+    })
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
   it("renders the page heading and description", () => {
     render(<PrivacySettingsPage />)
 
@@ -114,8 +126,10 @@ describe("Settings → Privacy page", () => {
   it("each switch row displays an icon and a badge in the summary card", () => {
     render(<PrivacySettingsPage />)
 
-    const summaryBadges = screen.getAllByText(/visible|hidden/i)
-    expect(summaryBadges.length).toBe(5)
+    // Anchored to the exact badge values so surrounding copy (e.g. "...information is
+    // visible to other users...") can never inflate the count.
+    const summaryBadges = screen.getAllByText(/^(visible|hidden)$/i)
+    expect(summaryBadges).toHaveLength(5)
   })
 
   it("all switches have unique ids matching their labels", () => {
@@ -128,5 +142,21 @@ describe("Settings → Privacy page", () => {
       const label = document.querySelector(`[for="${id}"]`)
       expect(label).toBeInTheDocument()
     })
+  })
+
+  it("the analytics toggle is backed by the consent store (single source of truth)", () => {
+    expect(useConsentStore.getState().analyticsConsent).toBe(false)
+
+    render(<PrivacySettingsPage />)
+
+    const analytics = screen.getByRole("switch", { name: /allow usage analytics/i })
+    fireEvent.click(analytics)
+
+    expect(useConsentStore.getState().analyticsConsent).toBe(true)
+    expect(analytics).toBeChecked()
+
+    fireEvent.click(analytics)
+    expect(useConsentStore.getState().analyticsConsent).toBe(false)
+    expect(analytics).not.toBeChecked()
   })
 })

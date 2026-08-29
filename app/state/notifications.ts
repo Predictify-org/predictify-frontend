@@ -13,11 +13,12 @@ import { generateMockNotifications } from "@/lib/notifications";
 export interface NotificationsState {
   notifications: NotificationItem[];
   setNotifications: (notifications: NotificationItem[]) => void;
+  upsertNotification: (notification: NotificationItem) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
 }
 
-const CURRENT_USER_ID = "current-user";
+export const CURRENT_USER_ID = "current-user";
 const NOTIFICATIONS_STORAGE_KEY = "predictify-notifications";
 const STORAGE_LISTENER_FLAG = "__predictifyNotificationsStorageListenerAttached";
 
@@ -153,6 +154,30 @@ export const useNotificationsStore = create<NotificationsState>()(
         set((state) => ({
           notifications: mergeKnownReadState(notifications, state.notifications),
         })),
+
+      upsertNotification: (notification) =>
+        set((state) => {
+          const index = state.notifications.findIndex(
+            (item) => item.id === notification.id
+          );
+
+          if (index === -1) {
+            return { notifications: [notification, ...state.notifications] };
+          }
+
+          const notifications = [...state.notifications];
+          const existing = notifications[index];
+
+          // A replay must never turn a notification the user has read back into
+          // an unread one. Other server-owned fields may still be refreshed.
+          notifications[index] = {
+            ...existing,
+            ...notification,
+            read: existing.read || notification.read,
+          };
+
+          return { notifications };
+        }),
 
       markAsRead: (id) => {
         const notifications = get().notifications;

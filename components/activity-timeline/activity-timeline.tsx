@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 import {
   ActivityEvent,
@@ -19,40 +20,29 @@ import { ChevronDown, AlertCircle } from "lucide-react";
 import { ActivityTimelineItem } from "./activity-timeline-item";
 import { ActivityTimelineEmpty, ActivityTimelineError, EmptyStateVariant } from "./activity-timeline-empty";
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type TimelineRow =
+  | { type: "header"; group: GroupedActivity; key: string }
+  | { type: "collapsed-summary"; group: GroupedActivity; key: string }
+  | { type: "event"; event: ActivityEvent; group: GroupedActivity; key: string };
+
 interface ActivityTimelineProps {
   className?: string;
-  /** Optional custom activities list. If not provided, mock data is used */
   activities?: ActivityEvent[];
-  /** Whether to show the component in loading state */
   isLoading?: boolean;
-  /** Error message if activity fetch failed */
   error?: string | null;
-  /** Page size for "load more" pagination */
   pageSize?: number;
-  /** Callback when user clicks "load more" */
   onLoadMore?: () => void;
-  /** Variant for empty state display */
   emptyStateVariant?: EmptyStateVariant;
 }
 
-/**
- * ActivityTimeline Component
- *
- * Displays a chronological list of user activities with intelligent grouping.
- * Features:
- * - Grouped events by type (Predictions, Events, Disputes, etc.)
- * - Collapsible groups for noisy events
- * - Relative timestamps ("2 hours ago", "Yesterday")
- * - Load more functionality
- * - Empty, loading, and error states
- * - Responsive design
- *
- * Grouping Rules:
- * - Events are automatically grouped by type
- * - Groups with >3 similar events are collapsed by default
- * - User-relevant events (settled, resolved, claimed) are always expanded
- * - Within-group events sorted by most recent first
- */
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function ActivityTimeline({
   className,
   activities,
@@ -70,17 +60,16 @@ export function ActivityTimeline({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [hasMore, setHasMore] = useState(false);
 
-  // Initialize with mock data or provided activities
+  const parentRef = useRef<HTMLDivElement>(null);
+
   const activityData = activities || generateMockActivities(24);
 
-  // Group activities when data changes
   useEffect(() => {
     const grouped = groupActivities(activityData);
     setGroupedActivities(grouped);
     setCurrentPage(0);
     setExpandedGroups(new Set());
 
-    // Initialize expanded state for groups that aren't collapsed
     const initialExpanded = new Set<string>();
     grouped.forEach((group) => {
       if (group.isExpanded) {
@@ -89,7 +78,6 @@ export function ActivityTimeline({
     });
     setExpandedGroups(initialExpanded);
 
-    // Paginate and display
     const { items, hasMore: hasMorePages } = paginateGroupedActivities(
       grouped,
       0,
@@ -124,7 +112,50 @@ export function ActivityTimeline({
     onLoadMore?.();
   };
 
-  // Loading state
+  const flatRows = useMemo<TimelineRow[]>(() => {
+    const rows: TimelineRow[] = [];
+    displayedGroups.forEach((group) => {
+      rows.push({ type: "header", group, key: `header-${group.groupType}` });
+      if (expandedGroups.has(group.groupType)) {
+        group.events.forEach((event) => {
+          rows.push({
+            type: "event",
+            event,
+            group,
+            key: `event-${event.id}`,
+          });
+        });
+      } else if (group.eventCount > 1) {
+        rows.push({
+          type: "collapsed-summary",
+          group,
+          key: `summary-${group.groupType}`,
+        });
+      }
+    });
+    return rows;
+  }, [displayedGroups, expandedGroups]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: flatRows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: (index) => {
+      const row = flatRows[index];
+      if (!row) return 80;
+      switch (row.type) {
+        case "header":
+          return 80;
+        case "collapsed-summary":
+          return 56;
+        case "event":
+          return 100;
+        default:
+          return 80;
+      }
+    },
+    overscan: 5,
+  });
+
   if (isLoading) {
     return (
       <div className={cn("space-y-4", className)}>
@@ -133,7 +164,6 @@ export function ActivityTimeline({
     );
   }
 
-  // Error state
   if (error) {
     return (
       <ActivityTimelineError
@@ -144,26 +174,121 @@ export function ActivityTimeline({
     );
   }
 
-  // Empty state
   if (activityData.length === 0) {
-    return <ActivityTimelineEmpty className={className} variant={emptyStateVariant} />;
+    return (
+      <ActivityTimelineEmpty
+        className={className}
+        variant={emptyStateVariant}
+      />
+    );
+  }
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
+  if (virtualItems.length === 0 && flatRows.length > 0) {
+    return (
+      <div className={cn("space-y-6", className)}>
+        <div className="space-y-4">
+          {flatRows.map((row) => (
+            <div key={row.key}>
+              {row.type === "header" && (
+                <GroupHeader
+                  group={row.group}
+                  isExpanded={expandedGroups.has(row.group.groupType)}
+                  onToggle={() => handleToggleGroup(row.group.groupType)}
+                />
+              )}
+              {row.type === "collapsed-summary" && (
+                <div className="px-4 py-3 md:px-6 md:py-4 text-sm text-gray-600 flex items-center gap-2 bg-white">
+                  <span>{row.group.eventCount} activities</span>
+                  <span className="text-gray-400">•</span>
+                  <span>Click to expand</span>
+                </div>
+              )}
+              {row.type === "event" && (
+                <ActivityTimelineItem
+                  event={row.event}
+                  groupColor={
+                    ACTIVITY_GROUP_CONFIG[row.group.groupType].color
+                  }
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {hasMore && (
+          <div className="flex justify-center pt-4">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              className="w-full sm:w-auto"
+            >
+              Load Older Activities
+            </Button>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
     <div className={cn("space-y-6", className)}>
-      {/* Timeline container */}
-      <div className="space-y-4">
-        {displayedGroups.map((group) => (
-          <ActivityTimelineGroup
-            key={group.groupType}
-            group={group}
-            isExpanded={expandedGroups.has(group.groupType)}
-            onToggle={() => handleToggleGroup(group.groupType)}
-          />
-        ))}
+      <div
+        ref={parentRef}
+        className="max-h-[600px] overflow-auto rounded-lg border border-gray-200"
+      >
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative",
+          }}
+        >
+          {virtualItems.map((virtualRow) => {
+            const row = flatRows[virtualRow.index];
+            if (!row) return null;
+
+            return (
+              <div
+                key={virtualRow.key}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                {row.type === "header" && (
+                  <GroupHeader
+                    group={row.group}
+                    isExpanded={expandedGroups.has(row.group.groupType)}
+                    onToggle={() => handleToggleGroup(row.group.groupType)}
+                  />
+                )}
+                {row.type === "collapsed-summary" && (
+                  <div className="px-4 py-3 md:px-6 md:py-4 text-sm text-gray-600 flex items-center gap-2 bg-white">
+                    <span>{row.group.eventCount} activities</span>
+                    <span className="text-gray-400">•</span>
+                    <span>Click to expand</span>
+                  </div>
+                )}
+                {row.type === "event" && (
+                  <ActivityTimelineItem
+                    event={row.event}
+                    groupColor={
+                      ACTIVITY_GROUP_CONFIG[row.group.groupType].color
+                    }
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Load More Button */}
       {hasMore && (
         <div className="flex justify-center pt-4">
           <Button
@@ -179,11 +304,11 @@ export function ActivityTimeline({
   );
 }
 
-/**
- * ActivityTimelineGroup Component
- * Renders a collapsible group of activities by type
- */
-function ActivityTimelineGroup({
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function GroupHeader({
   group,
   isExpanded,
   onToggle,
@@ -198,14 +323,12 @@ function ActivityTimelineGroup({
     (group.eventCount > 1 && !group.isExpanded);
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white hover:shadow-md transition-shadow">
-      {/* Group Header */}
+    <div className="border-b border-gray-100">
       <button
         onClick={onToggle}
         className={cn(
           "w-full px-4 py-3 md:px-6 md:py-4 flex items-center justify-between gap-3",
           "bg-gradient-to-r hover:opacity-90 transition-opacity",
-          "border-b border-gray-100",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         )}
         style={{
@@ -213,7 +336,6 @@ function ActivityTimelineGroup({
         }}
       >
         <div className="flex items-center gap-3 flex-1 text-left">
-          {/* Group Icon */}
           <div
             className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: config.color, opacity: 0.2 }}
@@ -224,8 +346,6 @@ function ActivityTimelineGroup({
               style={{ color: config.color }}
             />
           </div>
-
-          {/* Group Label and Count */}
           <div className="min-w-0">
             <h3 className="font-semibold text-sm sm:text-base text-gray-900">
               {config.label}
@@ -238,8 +358,6 @@ function ActivityTimelineGroup({
             </p>
           </div>
         </div>
-
-        {/* Collapse Toggle */}
         {showCollapse && (
           <ChevronDown
             className={cn(
@@ -250,42 +368,15 @@ function ActivityTimelineGroup({
           />
         )}
       </button>
-
-      {/* Group Content */}
-      {isExpanded && (
-        <div className="divide-y divide-gray-100">
-          {group.events.map((event, index) => (
-            <ActivityTimelineItem
-              key={event.id}
-              event={event}
-              isFirst={index === 0}
-              groupColor={config.color}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Collapsed summary */}
-      {!isExpanded && group.eventCount > 1 && (
-        <div className="px-4 py-3 md:px-6 md:py-4 text-sm text-gray-600 flex items-center gap-2">
-          <span>{group.eventCount} activities</span>
-          <span className="text-gray-400">•</span>
-          <span>Click to expand</span>
-        </div>
-      )}
     </div>
   );
 }
 
-/**
- * Loading skeleton for activity timeline
- */
 function ActivityTimelineLoadingSkeleton() {
   return (
     <div className="space-y-4">
       {[...Array(3)].map((_, i) => (
         <div key={i} className="border border-gray-200 rounded-lg overflow-hidden">
-          {/* Header skeleton */}
           <div className="px-4 py-4 md:px-6 md:py-4 bg-gray-100 flex items-center gap-3">
             <Skeleton className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg" />
             <div className="flex-1 space-y-2">
@@ -293,8 +384,6 @@ function ActivityTimelineLoadingSkeleton() {
               <Skeleton className="h-3 w-16" />
             </div>
           </div>
-
-          {/* Items skeleton */}
           {[...Array(2)].map((_, j) => (
             <div
               key={j}
@@ -314,9 +403,6 @@ function ActivityTimelineLoadingSkeleton() {
   );
 }
 
-/**
- * Icon component wrapper for dynamic icon rendering
- */
 function IconComponent({
   name,
   className,
@@ -326,7 +412,6 @@ function IconComponent({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  // Import common icons from lucide-react
   const iconMap: Record<string, React.ReactNode> = {
     target: "🎯",
     "check-circle": "✓",

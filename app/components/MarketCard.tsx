@@ -15,6 +15,20 @@ import { HeatStrip } from "@/app/components/HeatStrip"
 import { BookmarkButton } from "@/app/components/BookmarkButton"
 
 // ---------------------------------------------------------------------------
+// Stable animation delay helper
+// ---------------------------------------------------------------------------
+
+function stableAnimationDelay(id: string, reducedMotion: boolean): string {
+  if (reducedMotion) return "0ms";
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return `${Math.abs(hash) % 5 * 150}ms`;
+}
+
+// ---------------------------------------------------------------------------
 // Icon / colour mapping (internal – consumers need only pass a Market)
 // ---------------------------------------------------------------------------
 
@@ -51,6 +65,11 @@ interface MarketCardProps {
  * Displays a prediction market summary card with odds, sparkline,
  * 24h activity heat strip, follow indicator, and daily betting nudge.
  *
+ * ## Stability
+ * The animation delay is derived from the market identity (`market.id`) so
+ * that cards remain visually stable across data refreshes even when the
+ * render order changes.
+ *
  * ## Responsive layout
  * - **≥ sm (640 px):** icon + content on the left; odds block on the right
  *   (side-by-side, `flex-row`).
@@ -84,7 +103,7 @@ export function MarketCard({
         reducedMotion ? "" : "animate-slide-up"
       } ${className ?? ""}`}
       style={{
-        animationDelay: reducedMotion ? "0ms" : `${index * 150}ms`,
+        animationDelay: stableAnimationDelay(market.id, reducedMotion),
         animationFillMode: "both",
       }}
     >

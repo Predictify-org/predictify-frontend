@@ -4,6 +4,12 @@
  * A simple form for placing a bet. Includes QuickBetPresets chips so users
  * can populate the amount field with one click rather than typing.
  *
+ * Accessibility Enhancements (Issue #906):
+ * - Announces validation errors via screen reader live region (assertive priority)
+ * - Announces pending bet status when form is submitted (if marketId provided)
+ * - Deduplicates rapid announcements to avoid notification spam
+ * - Integrates with global live region for consistent announcement handling
+ *
  * Responsive breakpoint audit (v7 — GrantFox FWC26):
  *  - Narrow (< sm / < 640 px):
  *    • Form fills available width with compact px-3 py-2 padding.
@@ -34,21 +40,39 @@ import QuickBetPresets from "@/components/QuickBetPresets";
 import KbdHint from "../../src/components/KbdHint";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useStatusChangeAnnouncement } from "@/hooks/useStatusChangeAnnouncement";
+import { useGlobalLiveRegion } from "@/hooks/use-global-live-region";
 
 export interface BetFormProps {
   /** Called with the chosen amount (in XLM) when the form is submitted. */
   onSubmit?: (amount: number) => void;
   /** Whether the form is currently loading its initial data. */
   isLoading?: boolean;
+  /** Optional market ID for accessibility announcements (Issue #906) */
+  marketId?: string;
+  /** Optional market title for accessibility announcements (Issue #906) */
+  marketTitle?: string;
 }
 
 /**
  * Controlled bet form with quick-preset chips and a free-text amount input.
+ * 
+ * Accessibility (Issue #906):
+ * Pass marketId and marketTitle to enable automatic announcements of bet placement
+ * success via screen reader live regions. Announcements follow the global live region
+ * priority system: assertive for important outcomes, polite otherwise.
  */
-const BetForm: React.FC<BetFormProps> = ({ onSubmit, isLoading = false }) => {
+const BetForm: React.FC<BetFormProps> = ({ 
+  onSubmit, 
+  isLoading = false,
+  marketId,
+  marketTitle,
+}) => {
   const [amount, setAmount] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const reducedMotion = useReducedMotion();
+  const { announceBetStatus } = useStatusChangeAnnouncement();
+  const { announce } = useGlobalLiveRegion();
 
   /** The numeric value of the current input, or null when empty / invalid. */
   const numericAmount = amount !== "" && !isNaN(Number(amount)) ? Number(amount) : null;
@@ -67,7 +91,20 @@ const BetForm: React.FC<BetFormProps> = ({ onSubmit, isLoading = false }) => {
   const attemptSubmit = () => {
     if (numericAmount === null || numericAmount <= 0) {
       setError("Please enter a valid bet amount greater than 0 XLM.");
+      // Announce error to screen readers (Issue #906)
+      announce({
+        message: "Invalid bet amount. Please enter an amount greater than 0.",
+        priority: "assertive",
+      });
       return;
+    }
+
+    // Generate a unique bet ID for tracking announcements
+    const betId = `bet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Announce pending bet status
+    if (marketId) {
+      announceBetStatus(betId, "pending", marketTitle);
     }
 
     onSubmit?.(numericAmount);

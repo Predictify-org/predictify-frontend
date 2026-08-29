@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { useConsentStore } from "@/app/state/consent"
 
 type SaveState = "idle" | "saving" | "saved" | "error"
 
@@ -24,7 +25,8 @@ export default function PrivacySettingsPage() {
   const [showActivity, setShowActivity] = useState(true)
   const [showLeaderboard, setShowLeaderboard] = useState(true)
   const [showBalance, setShowBalance] = useState(true)
-  const [allowAnalytics, setAllowAnalytics] = useState(false)
+  const analyticsConsent = useConsentStore((s) => s.analyticsConsent)
+  const setAnalyticsConsent = useConsentStore((s) => s.setAnalyticsConsent)
 
   const [saveState, setSaveState] = useState<SaveState>("idle")
 
@@ -75,8 +77,8 @@ export default function PrivacySettingsPage() {
       icon: Eye,
       label: "Allow usage analytics",
       description: "Help improve Predictify by sharing anonymised interaction data. No wallet data is included.",
-      checked: allowAnalytics,
-      onChange: setAllowAnalytics,
+      checked: analyticsConsent,
+      onChange: setAnalyticsConsent,
     },
   ]
 
@@ -211,7 +213,7 @@ export default function PrivacySettingsPage() {
                   setShowActivity(true)
                   setShowLeaderboard(true)
                   setShowBalance(true)
-                  setAllowAnalytics(false)
+                  setAnalyticsConsent(false)
                 }}
               >
                 Reset defaults

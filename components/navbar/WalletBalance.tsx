@@ -16,6 +16,9 @@ function formatBalance(balance: string): string {
   });
 }
 
+// Prevent sensitive wallet data from being copied or printed.
+const privacyClasses = "select-none print:hidden";
+
 export function WalletBalance({ className = "" }: { className?: string }) {
   const { address, connected } = useWalletContext();
   const { balance, isLoading } = useStellarBalance(connected ? address : null);
@@ -26,7 +29,7 @@ export function WalletBalance({ className = "" }: { className?: string }) {
   if (isLoading && !balance) {
     return (
       <div
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 animate-pulse ${className}`}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 animate-pulse ${className} ${privacyClasses}`
         aria-label="Loading wallet balance"
       >
         <div className="h-3 w-16 bg-slate-700 rounded" />
@@ -37,7 +40,7 @@ export function WalletBalance({ className = "" }: { className?: string }) {
   if (hideBalances) {
     return (
       <div
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 text-slate-400 text-sm font-mono ${className}`}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 text-slate-400 text-sm font-mono ${className} ${privacyClasses}`}
         aria-label="Wallet balance hidden"
       >
         <Wallet className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
@@ -51,7 +54,7 @@ export function WalletBalance({ className = "" }: { className?: string }) {
 
   return (
     <div
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 text-slate-300 text-sm font-mono ${className}`}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 text-slate-300 text-sm font-mono ${className} ${privacyClasses}`
       aria-label={`Wallet balance: ${formatBalance(balance)} XLM`}
     >
       <Wallet className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />

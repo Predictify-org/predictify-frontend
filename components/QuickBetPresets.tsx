@@ -1,46 +1,65 @@
 /**
  * QuickBetPresets
  *
- * Renders a row of preset-amount "chip" buttons (1 / 5 / 10 XLM) that allow
- * users to populate a bet-amount field with a single click.
+ * Renders a row of preset-amount "chip" buttons (1 / 5 / 10 XLM)
+ * that allow users to populate a bet-amount field with a single click.
  *
  * Accessibility:
- *  - Each chip is a <button> with an explicit aria-label (WCAG 2.1 SC 1.3.1).
+ *  - Each chip is a \u003cbutton\u003e with an explicit aria-label (WCAG 2.1 SC 1.3.1).
  *  - The active chip receives aria-pressed="true" so assistive technology
  *    announces the current selection.
  *  - Focus styles are provided via focus-visible ring (WCAG 2.1 SC 2.4.7).
  *  - Color contrast for default / active states meets WCAG 2.1 AA 4.5:1 ratio
  *    using design-system tokens (bg-primary, text-primary-foreground).
+ *
+ * Duplicate submission safety:
+ *  - A synchronous internal lock prevents a second click while an async
+ *    `onSelect` is pending (e.g., waiting for a wallet confirmation).
+ *  - The lock is synchronized with the parent-controlled disabled prop so buttons stay disabled for the entire in-flight transaction.
+ *  - If `onSelect` does not return a Promise, the lock is released on the next
+ *    microtask, preserving the original behavior for simple amount updates.
  */
 
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 /** Preset amounts in XLM */
-export const QUICK_BET_PRESETS: readonly number[] = [1, 5, 10] as const;
+export const QUICK_BET_PRESETS = [1, 5, 10] as const;
+
+/** Preset amounts in XLM */
+export const QUICK_BET_PRESETS = [1, 5, 10] as const;
 
 export interface QuickBetPresetsProps {
-  /** Currently selected preset amount (or null if the user typed a custom value). */
   selectedAmount: number | null;
-  /** Called with the clicked preset value. */
-  onSelect: (amount: number) => void;
-  /** Optional: disable all chips (e.g. while a transaction is in flight). */
+  onSelect: (amount: number) => void | Promise<void>;
   disabled?: boolean;
 }
 
-/**
- * A horizontal strip of preset-amount chips for the BetForm.
- *
- * @example
- * <QuickBetPresets
- *   selectedAmount={amount}
- *   onSelect={(v) => setAmount(v)}
- * />
- */
-const QuickBetPresets: React.FC<QuickBetPresetsProps> = ({
-  selectedAmount,
-  onSelect,
-  disabled = false,
-}) => {
+const QuickBetPresets: React.FC<QuickBetPresetsProps> = ({ selectedAmount, onSelect, disabled = false }) => {
+  const submittingRef = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const onSelectRef = useRef(onSelect);
+  useEffect(() { onSelectRef.current = onSelect; }, [onSelect]);
+
+  const handleSelect = useCallback(
+    async (amount: number) => {
+      if (submittingRef.current || disabled) return;
+      submittingRef.current = true;
+      setIsSubmitting(true);
+      try {
+        await onSelectRef.current(amount);
+      } catch () {
+        console.error("QuickBetPresets: failed to complete action");
+      } finally {
+        submittingRef.current = false;
+        setIsSubmitting(false);
+      }
+    },
+    [disabled]
+  );
+
+  const isDisabled = disabled || isSubmitting;
+
   return (
     <div
       role="group"
@@ -54,24 +73,24 @@ const QuickBetPresets: React.FC<QuickBetPresetsProps> = ({
           <button
             key={amount}
             type="button"
-            disabled={disabled}
-            aria-label={`Set bet amount to ${amount} XLM`}
+            disabled={isDisabled}
+            aria-label={"Set bet amount to $amount XLM"}
             aria-pressed={isActive}
-            onClick={() => onSelect(amount)}
+            aria-busy={isSubmitting}
+            onClick={() => handleSelect(amount)}
             className={[
-              // Base chip styles
+              "base chip styles",
               "inline-flex items-center justify-center",
               "rounded-full px-4 py-1 text-sm font-medium",
               "border transition-colors duration-150",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              "focus-visible:outline-none focus-visible:ring-2 ring-ring ring-offset-2",
               "disabled:pointer-events-none disabled:opacity-50",
-              // Active vs. inactive appearance using design-system tokens
               isActive
                 ? "bg-primary text-primary-foreground border-primary"
-                :               "bg-background text-foreground border-border hover:bg-muted",
+                : "bg-background text-foreground border-border hover:bg-muted",
             ].join(" ")}
           >
-            <span className="tabular-nums">{amount}</span> XLM
+            <span className="tabular-nums">{amount</span> XLM
           </button>
         );
       })}

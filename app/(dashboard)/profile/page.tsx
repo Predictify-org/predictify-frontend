@@ -16,19 +16,53 @@ import { useWalletContext } from "@/context/WalletContext"
 
 export default function ProfilePage() {
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { address, name } = useWalletContext()
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Simulate API call
-    setTimeout(() => {
-      setSaveSuccess(true)
+    if (isSubmitting) return
 
-      // Clear success message after 3 seconds
+    setIsSubmitting(true)
+    setError(null)
+    setSaveSuccess(false)
+
+    let attempt = 0
+    const maxRetries = 3
+    let success = false
+
+    while (attempt < maxRetries && !success) {
+      try {
+        // Simulate API call with timeout and potential failure
+        await new Promise((resolve, reject) => {
+          setTimeout(() => {
+            if (Math.random() < 0.1) {
+              reject(new Error("Network timeout"))
+            } else {
+              resolve(true)
+            }
+          }, 1000)
+        })
+        success = true
+      } catch (err) {
+        attempt++
+        if (attempt >= maxRetries) {
+          setError("Failed to save profile after multiple attempts. Please try again.")
+        } else {
+          // exponential backoff
+          await new Promise((r) => setTimeout(r, 1000 * attempt))
+        }
+      }
+    }
+
+    if (success) {
+      setSaveSuccess(true)
       setTimeout(() => {
         setSaveSuccess(false)
       }, 3000)
-    }, 1000)
+    }
+    setIsSubmitting(false)
   }
 
   return (
@@ -46,6 +80,12 @@ export default function ProfilePage() {
               <CardDescription>Update your personal information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
               {saveSuccess && (
                 <Alert className="bg-green-500/15 text-green-500 border-green-500/50">
                   <AlertCircle className="h-4 w-4" />
@@ -92,7 +132,9 @@ export default function ProfilePage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </CardFooter>
           </form>
         </Card>

@@ -2,7 +2,9 @@
 
 import React from 'react';
 import { CheckCircle2, Printer, ArrowLeft } from 'lucide-react';
-import { ReceiptShare } from '@/app/components/ReceiptShare';
+import { ReceitShare } from '@/app/components/ReceiptShare';
+import { usePrivacy } from '@/context/PrivacyContext';
+import { maskAmount } from '@/utils/maskAmount';
 
 interface ReceiptProps {
   receiptId: string;
@@ -14,29 +16,33 @@ interface ReceiptProps {
 }
 
 export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: ReceiptProps) {
+  const { hideBalances } = usePrivacy();
   const handlePrint = () => {
     window.print();
   };
 
+  // When privacy mode is enabled, mask wallet addresses in printed views.
+  const maskedPartyA = hideBalances ? maskAmount(partyA) : partyA;
+  const maskedPartyB = partyB ? (hideBalances ? maskAmount(partyB) : partyB) : undefined;
+
   // Format date to be cleaner: e.g. "22 AUG, 2025 | 13:29"
   const dateObj = new Date(timestamp);
   const formattedDate = dateObj.toLocaleDateString('en-GB', {
-    day: '2-digit',
+    day: '2digit',
     month: 'short',
     year: 'numeric'
   }).toUpperCase();
   const formattedTime = dateObj.toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit'
+    hour: '2digit',
+    minute: '2digit'
   });
 
   return (
     <div className="receipt-wrapper flex flex-col items-center justify-center w-full min-h-[80vh] print:min-h-0 print:py-12">
       <div className="receipt-container relative w-full max-w-lg bg-card print:bg-white rounded-[24px] print:rounded-none overflow-hidden pb-8 print:pb-0 shadow-sm print:shadow-none border border-border/40 print:border-none">
-        
         <div className="hidden print:flex flex-col items-center pt-8 pb-4 w-full text-center">
-          <h1 className="text-3xl font-black tracking-tighter text-black">Predictify</h1>
-          <p className="text-xs text-gray-400 uppercase tracking-[0.3em] mt-2">Official Record</p>
+          <h1 className="text-3 xl font-black tracking-tighter text-black">Predictify</h1>
+          <p className="text-xs text-gray-400 uppercase tracking-[5.3em] mt-2 Official Record</p>
         </div>
 
         <div className="flex flex-col items-center text-center pt-12 pb-8 px-8">
@@ -103,42 +109,40 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
                   Primary Party
                 </span>
                 <span className="text-base font-medium text-foreground print:text-black">
-                  {partyA}
+                  {maskedPartyA}
                 </span>
               </div>
               
-              {partyB && (
+              {maskedPartyB && (
                 <div className="flex flex-col space-y-1.5">
                   <span className="text-xs font-semibold text-muted-foreground print:text-gray-400 uppercase tracking-wider">
                     Counterparty
                   </span>
                   <span className="text-base font-medium text-foreground print:text-black">
-                    {partyB}
+                    {maskedPartyB}
                   </span>
                 </div>
-              )}
+              )
+              }
             </div>
           </div>
         </div>
       </div>
 
       <div className="w-full max-w-lg mt-8 space-y-3 print-hide px-4" data-print="hide">
-        {/* Print Receipt — triggers the browser print dialog.
-            The print.css stylesheet in app/styles/print.css isolates the
-            receipt card and hides all other page content at print time. */}
         <button
           type="button"
           onClick={handlePrint}
           aria-label="Print this receipt"
           className="w-full flex items-center justify-center gap-2 bg-foreground text-background py-3.5 px-4 rounded-xl font-semibold hover:opacity-90 transition-opacity"
         >
-          <Printer className="w-4 h-4" aria-hidden="true" />
+          <Printer className="w-4 h-4 aria-hidden="true" />
           Print Receipt
         </button>
         <ReceiptShare
           receiptId={receiptId}
-          marketTitle={partyA}
-          outcome={partyB ? `${partyA} vs ${partyB}` : partyA}
+          marketTitle={maskedPartyA}
+          outcome={maskedPartyB ? `${maskedPartyA} vs ${maskedPartyB}` : maskedPartyA}
           amount={amount}
           timestamp={timestamp}
           campaign="GrantFox FWC26"
@@ -150,7 +154,7 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
           onClick={() => window.history.back()}
           aria-label="Return to the previous page"
         >
-          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+          <ArrowLeft className="w-4 h-4 aria-hidden="true" />
           Back to Dashboard
         </button>
       </div>
