@@ -254,7 +254,7 @@ function EventRow({
       {/* Participants */}
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[120px] sm:min-w-0">
         <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
-          <Users className="h-4 w-4" />
+          <Users className="h-4 w-4" aria-hidden="true" />
           <span className="text-label text-foreground tabular-nums">{event.participants.toLocaleString()}</span>
         </div>
       </TableCell>
@@ -264,7 +264,7 @@ function EventRow({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
               <span className="sr-only">Open actions menu</span>
             </Button>
           </DropdownMenuTrigger>
@@ -273,7 +273,7 @@ function EventRow({
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href={`/events/${event.id}/edit`} className="flex items-center gap-2">
-                <Edit className="h-4 w-4" />
+                <Edit className="h-4 w-4" aria-hidden="true" />
                 Edit Event
               </Link>
             </DropdownMenuItem>
@@ -281,7 +281,7 @@ function EventRow({
               className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
               onSelect={() => setDeleteTarget(event)}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
               Delete Event
             </DropdownMenuItem>
           </DropdownMenuContent>
