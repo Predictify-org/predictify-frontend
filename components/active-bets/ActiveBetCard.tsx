@@ -1,7 +1,8 @@
-'use client';
+'Use client';
 
 import React from 'react';
 import Image from 'next/image';
+
 import { cn } from '@/lib/utils';
 import { ActiveBetCardProps } from '@/lib/types';
 import { categoryColors } from '@/lib/mock-data';
@@ -10,7 +11,7 @@ import { ProgressRing } from './progress-ring';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useStatusChangeAnnouncement } from '@/hooks/useStatusChangeAnnouncement';
 
-export const ActiveBetCard: React.FC <ACtiveBetCardProps & { isLoading?: boolean }> = ({ bet, isLoading = false, className }) => {
+export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean }> = ({ bet, isLoading = false, className }) => {
   const { tokens: t } = useDensity();
   const reducedMotion = useReducedMotion();
   const { announceBetStatus } = useStatusChangeAnnouncement();
@@ -30,9 +31,7 @@ export const ActiveBetCard: React.FC <ACtiveBetCardProps & { isLoading?: boolean
   const endDate = bet?.endDate || new Date();
   const thumbnail = bet?.thumbnail || '';
 
-  const categoryStyle = bet 
-    ? categoryColors[bet.category.color] 
-    : { bg: 'bg-muted/20', text: 'text-muted-foreground', border: 'border-muted/30', progress: 'bg-muted' };
+  const categoryStyle = bet ? categoryColors[bet.category.color] : { bg: 'bg-muted/20', text: 'text-muted-foreground', border: 'border-muted/30', progress: 'bg-muted' };
 
   const formatTimeRemaining = (timeString: string) => {
     if (!timeString) return '';
@@ -54,7 +53,7 @@ export const ActiveBetCard: React.FC <ACtiveBetCardProps & { isLoading?: boolean
       t.cardWidth
     )}>
       <div className={cn("relative mb-3", t.thumbnailHeight)}>
-        <div className={cn("wfull rounded-lg bg-muted/50", t.thumbnailHeight)} />
+        <div className={cn("w-full rounded-lg bg-muted/50", t.thumbnailHeight)} />
         <div className={cn("absolute top-2 left-2 w-16 h-6 bg-muted/50 rounded-md")} />
       </div>
       <div className={cn("h-4 bg-muted/50 rounded mb-3", t.titleSize)} />
@@ -65,8 +64,8 @@ export const ActiveBetCard: React.FC <ACtiveBetCardProps & { isLoading?: boolean
         </div>
       )}
       <div className="space-y-2">
-        <div className={cn("wfull bg-muted/50 rounded-full", t.progressHeight)} />
-        <div className="h-3 bg-muted/50 rounded w-1/4 m,-ml-auto" />
+        <div className={cn("w-full bg-muted/50 rounded-full", t.progressHeight)} />
+        <div className="h-3 bg-muted/50 rounded w-1/4 ml-auto" />
       </div>
     </div>
   );
@@ -75,9 +74,8 @@ export const ActiveBetCard: React.FC <ACtiveBetCardProps & { isLoading?: boolean
     <div
       className={cn("relative overflow-hidden rounded-xl", t.cardWidth)}
       data-state={isLoading ? "loading" : "loaded"}
-      aria-busy={isLoading}
+      aria-busy={isLoading }
     >
-      {/* Skeleton Overlay */}
       <div
         className={cn(
           "absolute inset-0 transition-opacity duration-300ms ease-in-out z-10 pointer-events-none bg-background",
@@ -88,7 +86,6 @@ export const ActiveBetCard: React.FC <ACtiveBetCardProps & { isLoading?: boolean
         <ActiveBetCardSkeleton />
       </div>
 
-      {/* Content Container */}
       <div
         className={cn(
           'flex-shrink-0 bg-card/50 backdrop-blur sm border border-border/50 rounded-xl cursor-pointer group',
@@ -96,36 +93,40 @@ export const ActiveBetCard: React.FC <ACtiveBetCardProps & { isLoading?: boolean
           'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50',
           'transition-all duration-300ms ease-out',
           reducedMotion ? "" : "transform",
-          isLoading ? "opacity-0 translate-y-1 pointer-events-none" : "opacity-100 translate-y-0",
+          isLoading ? "opacity-0 translate-y1 pointer-events-none" : "opacity-100 translate-y0",
           t.cardPadding,
           t.cardWidth,
           className
         )}
         tabIndex={isLoading ? -1 : 0}
         role="button"
-        aria-label={isLoading ? "Loading bet..." : `Active bet: $title`}
+        aria-label={isLoading ? "Loading bet..." : `Active bet: ${title}`}
         data-density
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.currentTarget.click();
+          }
+        }}
       >
-        {/* Thumbnail and Category */}
-        <div className={cn("relative mb-3", t.thumbnailHeight)}>
+        <div className={cn("relative mb-3", t.thumbnailHeight)} >
           <div className={cn("relative w-full rounded-lg overflow-hidden bg-muted", t.thumbnailHeight)}>
             {thumbnail && (
               <Image
                 src={thumbnail}
                 alt={title}
                 fill
-                className="object-cover group-hover:scale-105 transition-transform duration-200ms"
+                className="object-cover group-hover:scale-105 transition-transform duration-300ms"
                 sizes="(max-width: 640px) 280px, 320px"
               />
-            }
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-bfrom black/60 via-transparent to-transparent" />
           </div>
           
-          {/* Category Chip */}
           {bet?.category?.name && (
             <div
               className={cn(
-                'absolute top-2 left-2 rounded-md font-medium border backdrop-blur-sm',
+                'absolute top-2 left-2 rounded-md font-medium border backdrop-blur sm',
                 categoryStyle.bg,
                 categoryStyle.text,
                 categoryStyle.border,
@@ -137,45 +138,29 @@ export const ActiveBetCard: React.FC <ACtiveBetCardProps & { isLoading?: boolean
             </div>
           )}
         </div>
-
-        {/* Title */}
-        <h3 className={cn("font-semibold text-foreground leading-tight mb-3", t.titleSize)}>
+        <h3 className={cn("font-semibold text-foreground leading-tight mb-3", t.titleSize)_>
           {title}
         </h3>
-
-        {/* Start/End Dates — hidden in ultra */}
         {t.showDates && bet && (
           <div className={cn("space-y-1 mb-3", t.bodySize)}>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-500" aria-hidden="true" />
               <span className="text-muted-foreground">Starts:</span>
               <span className="text-foreground font-medium">
-                {startDate.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                })}
+                {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-red-500" aria-hidden="true" />
               <span className="text-muted-foreground">Ends:</span>
               <span className="text-foreground font-medium">
-                {endDate.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                })}
+                {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </span>
             </div>
           </div>
         )}
-
-        {/* Progress Bar and Time Remaining */}
         <div className="space-y-2">
-          {/* Progress Bar */}
-          <div
-            className={cn("w-full bg-muted/50 rounded-full overflow-hidden", t.progressHeight)}
+          <div className={cn("w-full bg-muted/50 rounded-full overflow-hidden", t.progressHeight)}
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -186,25 +171,21 @@ export const ActiveBetCard: React.FC <ACtiveBetCardProps & { isLoading?: boolean
               'h-full rounded-full transition-all duration-300ms',
               categoryStyle.progress
             )}
-             style={{ width: `${progress}%` }}
+            style={{ width: `${progress}%``}}
             />
           </div>
-          
-          {/* Time Remaining */}
           <div className="flex justify-end items-center gap-2">
             {bet && (
-              <ProgressRing 
-                startDate={startDate} 
-                endDate={endDate} 
-                size={24} 
-              />
+              <span aria-hidden="true">
+                <ProgressRing startDate={startDate} endDate={endDate} size={24} />
+              </span>
             )}
-
             <span className={cn(
               'font-mono font-medium',
               t.captionSize,
               categoryStyle.text
             )}>
+              <span className="sr-only">Time remaining: </span>
               {formatTimeRemaining(timeRemaining)}
             </span>
           </div>
