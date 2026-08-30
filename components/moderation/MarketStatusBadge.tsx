@@ -4,6 +4,7 @@ import { Clock, AlertTriangle, ShieldAlert, Flag, XCircle, Loader2 } from 'lucid
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Badge, badgeVariants } from '@/components/ui/badge';
+import { useAccessibility } from '@/context/AccessibilityContext';
 
 import type { ModerationState } from '@/types/moderation';
 import { MODERATION_CONFIG } from './moderation-config';
@@ -28,6 +29,11 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
   const config = MODERATION_CONFIG[state];
   const Icon = STATE_ICONS[state];
   const isResolving = state === 'resolving';
+  
+  // Respect user's reduced-motion preference (Issue #XXX — Quality-2 High)
+  // When reduceMotion is true, the pulsing animation is suppressed so the
+  // "resolving" badge renders as a static indicator.
+  const { reduceMotion } = useAccessibility();
 
   const variantMap: Record<ModerationState, keyof typeof badgeVariants['variants']['variant']> = {
     under_review: 'info',
@@ -45,7 +51,8 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
       size="md"
       className={cn(
         config.badgeClass,
-        isResolving && 'animate-status-live-pulse',
+        // Only apply the pulse animation when reduceMotion is false
+        isResolving && !reduceMotion && 'animate-status-live-pulse',
         className
       )}
     >
