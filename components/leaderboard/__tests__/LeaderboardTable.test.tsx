@@ -52,7 +52,7 @@ function simulateScroll(div: HTMLDivElement, scrollTop: number, overrides?: Part
 }
 
 describe("LeaderboardTable", () => {
-  it("sorts by profit descending by default and exposes the active sort state", async () => {
+  it("sorts by profit descending by default and exposes the active sort state", () => {
     render(<LeaderboardTable users={createUsers()} />);
 
     const profitButton = screen.getByRole("button", { name: /sort by profit/i });
@@ -249,6 +249,121 @@ describe("LeaderboardTable", () => {
       await waitFor(() => {
         expect(screen.queryByLabelText("Scroll to top of leaderboard")).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe("Empty, Loading, and Error states", () => {
+    it("renders loading state when isLoading is true", () => {
+      render(<LeaderboardTable users={[]} isLoading={true} />);
+
+      expect(screen.getByText("Loading rankings...")).toBeInTheDocument();
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    });
+
+    it("renders error state when error is provided", () => {
+      render(<LeaderboardTable users={[]} error="Something went wrong" />);
+
+      expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    });
+
+    it("renders empty state when users array is empty and no isLoading/error", () => {
+      render(<LeaderboardTable users={[]} />);
+
+      expect(screen.getByText("No Rankings Yet")).toBeInTheDocument();
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    });
+
+    it("renders retry button in error state when onRetry is provided", async () => {
+      const onRetry = jest.fn();
+      render(<LeaderboardTable users={[]} error="Failed" onRetry={onRetry} />);
+
+      const retryButton = screen.getByRole("button", { name: /try again/i });
+      await userEvent.click(retryButton);
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders retry button in empty state when onRetry is provided", async () => {
+      const onRetry = jest.fn();
+      render(<LeaderboardTable users={[]} onRetry={onRetry} />);
+
+      const retryButton = screen.getByRole("button", { name: /refresh/i });
+      await userEvent.click(retryButton);
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not render table when loading even with users data", () => {
+      render(<LeaderboardTable users={createUsers()} isLoading={true} />);
+
+      expect(screen.queryByRole("row")).not.toBeInTheDocument();
+      expect(screen.getByText("Loading rankings...")).toBeInTheDocument();
+    });
+
+    it("does not render table when error is present", () => {
+      render(<LeaderboardTable users={createUsers()} error="Failed" />);
+
+      expect(screen.queryByRole("row")).not.toBeInTheDocument();
+    });
+
+    it("does not render table when users is empty", () => {
+      render(<LeaderboardTable users={[]} />);
+
+      expect(screen.queryByRole("row")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Partial data handling", () => {
+    it("renders partial data without crashing", () => {
+      const partialUsers: LeaderboardUser[] = [
+        { rank: 1, name: "Alpha", profit: 1000, winRate: 80, predictions: 50 },
+      ];
+
+      render(<LeaderboardTable users={partialUsers} />);
+
+      expect(screen.getByText("Alpha")).toBeInTheDocument();
+      expect(screen.getByRole("row")).toBeInTheDocument();
+    });
+
+    it("handles users with missing optional fields", () => {
+      const partialUsers: LeaderboardUser[] = [
+        { rank: 1, name: "Alpha", profit: 1000, winRate: 80, predictions: 50 },
+        { rank: 2, name: "Beta" },
+      ];
+
+      render(<LeaderboardTable users={partialUsers} />);
+
+      expect(screen.getByText("Alpha")).toBeInTheDocument();
+      expect(screen.getByText("Beta")).toBeInTheDocument();
+    });
+  });
+
+  describe("Sorting", () => {
+    it("sorts by rank ascending when rank sort is clicked", async () => {
+      const user = userEvent.setup();
+      render(<LeaderboardTable users={createUsers()} />);
+
+      const rankButton = screen.getByRole("button", { name: /sort by rank/i });
+      await user.click(rankButton);
+
+      expect(screen.getAllByRole("row")[1]).toHaveTextContent("Alpha");
+      expect(rankButton).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("toggles sort direction when same column is clicked", async () => {
+      const user = userEvent.setup();
+      render(<LeaderboardTable users={createUsers()} />);
+
+      const profitButton = screen.getByRole("button", { name: /sort by profit/i });
+      await user.click(profitButton);
+
+      expect(screen.getAllByRole("row")[1]).toHaveTextContent("Alpha");
+    });
+
+    it("renders sort direction indicator", async () => {
+      render(<LeaderboardTable users={createUsers()} />);
+
+      const profitButton = screen.getByRole("button", { name: /sort by profit/i });
+      expect(profitButton.textContent).toContain("↓");
     });
   });
 });

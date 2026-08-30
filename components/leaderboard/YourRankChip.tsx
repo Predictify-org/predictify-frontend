@@ -8,12 +8,16 @@ import { LeaderboardUser } from "@/lib/leaderboard-data";
 import { cn } from "@/lib/utils";
 
 interface YourRankChipProps {
-  user: LeaderboardUser;
+  user?: LeaderboardUser | null;
   isVisible: boolean;
 }
 
 export function YourRankChip({ user, isVisible }: YourRankChipProps) {
   const [dismissed, setDismissed] = useState(false);
+
+  if (!user) {
+    return null;
+  }
 
   // Reset dismissed state if user becomes visible again (so it can show up again if they scroll away later)
   useEffect(() => {
