@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { AlertTriangle, CheckCircle, Filter, Search } from "lucide-react"
 import { DisputePanel } from "@/components/disputes/DisputePanel"
+import { DisputeEvidencePreview } from "@/components/disputes/DisputeEvidencePreview"
 import { mockDisputesByState } from "@/components/disputes/mock-data"
 import type { DisputeData, DisputeState } from "@/types/disputes"
 import { Button } from "@/components/ui/button"
@@ -25,21 +26,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { ExternalLink } from "@/components/ExternalLink"
 
-// Type for local disputes mock data
-interface LocalDispute {
-  id: string
-  eventId: string
-  eventTitle: string
-  category: string
-  submittedBy: string
-  submittedDate: string
-  reason: string
-  status: string
-  priority: string
-  evidence: string
-}
+type DisputePriority = "high" | "medium" | "low";
+
+type PendingDispute = {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  category: string;
+  submittedBy: string;
+  submittedDate: string;
+  reason: string;
+  status: string;
+  priority: DisputePriority;
+  evidence: string;
+};
 
 // Mock data for disputes
 const disputes = [
@@ -123,7 +124,7 @@ export default function DisputesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
-  const [selectedDispute, setSelectedDispute] = useState<LocalDispute | null>(null)
+  const [selectedDispute, setSelectedDispute] = useState<PendingDispute | null>(null)
   const [resolution, setResolution] = useState("")
   const [resolutionNotes, setResolutionNotes] = useState("")
   const [selectedDisputeData, setSelectedDisputeData] = useState<DisputeData>(mockDisputesByState.none)
@@ -141,7 +142,7 @@ export default function DisputesPage() {
     return matchesSearch && matchesStatus && matchesPriority
   })
 
-  const getPriorityBadge = (priority: string) => {
+  const getPriorityBadge = (priority: DisputePriority | string) => {
     switch (priority) {
       case "high":
         return <Badge className="bg-red-500">High</Badge>
@@ -155,9 +156,11 @@ export default function DisputesPage() {
   }
 
   const handleResolve = () => {
+    if (!selectedDispute) return;
+
     // In a real app, you would send this data to your API
     console.log({
-      disputeId: selectedDispute?.id,
+      disputeId: selectedDispute.id,
       resolution,
       notes: resolutionNotes,
     })
@@ -275,13 +278,7 @@ export default function DisputesPage() {
 
                               <div className="space-y-2">
                                 <Label>Evidence</Label>
-                                <div className="flex items-center gap-2">
-                                  <Button variant="outline" size="sm" asChild>
-                                    <ExternalLink href={selectedDispute.evidence}>
-                                      View Evidence
-                                    </ExternalLink>
-                                  </Button>
-                                </div>
+                                <DisputeEvidencePreview evidence={selectedDispute.evidence} />
                               </div>
 
                               <div className="space-y-2">

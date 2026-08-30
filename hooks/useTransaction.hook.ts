@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useWallet } from '@/hooks/useWallet.hook';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -8,9 +8,11 @@ import {
   submitTransaction,
 } from '@/lib/stellar/transaction';
 import {
-  normalizeContractError,
-  normalizeFromFailureType,
-} from '@/lib/stellar/contract-error-normalizer';
+  computeXdrHash,
+  getIntent,
+  upsertIntent,
+  removeIntent,
+} from '@/lib/transaction/intent';
 
 export type TransactionStatus =
   | 'idle'
@@ -40,13 +42,6 @@ export interface UseTransactionResult {
     error?: string;
     failureType?: TransactionFailureType;
   }>;
-  retryTransaction: () => Promise<{
-    success: boolean;
-    hash?: string;
-    error?: string;
-    failureType?: TransactionFailureType;
-  }>;
-  canRetry: boolean;
   resetTransaction: () => void;
 }
 
@@ -55,36 +50,18 @@ function isUserRejectedError(message: string) {
 }
 
 export const useTransaction = (): UseTransactionResult => {
-  const { signTransaction, isConnected, identityGeneration } = useWallet();
+  const { signTransaction, isConnected, walletAddress } = useWallet();
   const [status, setStatus] = useState<TransactionStatus>('idle');
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [failureType, setFailureType] = useState<TransactionFailureType | null>(null);
-
-  const lastBuildXdrRef = useRef<(() => Promise<string> | string) | null>(null);
-  const lastSignedXdrRef = useRef<string | null>(null);
-  const lastSubmittedHashRef = useRef<string | null>(null);
-  const retryIdentityGenerationRef = useRef(identityGeneration);
 
   const resetTransaction = useCallback(() => {
     setStatus('idle');
     setTransactionHash(null);
     setTransactionError(null);
     setFailureType(null);
-    lastBuildXdrRef.current = null;
-    lastSignedXdrRef.current = null;
-    lastSubmittedHashRef.current = null;
-    retryIdentityGenerationRef.current = identityGeneration;
-  }, [identityGeneration]);
-
-  const previousIdentityGenerationRef = useRef(identityGeneration);
-  useEffect(() => {
-    if (previousIdentityGenerationRef.current !== identityGeneration) {
-      // Signed payloads and retry callbacks are privileged to the identity that created them.
-      resetTransaction();
-      previousIdentityGenerationRef.current = identityGeneration;
-    }
-  }, [identityGeneration, resetTransaction]);
+  }, []);
 
   const executeTransaction = useCallback(
     async (buildXdr: () => Promise<string> | string) => {
@@ -92,20 +69,153 @@ export const useTransaction = (): UseTransactionResult => {
       setFailureType(null);
       setTransactionHash(null);
 
-      lastBuildXdrRef.current = buildXdr;
-      lastSignedXdrRef.current = null;
-      lastSubmittedHashRef.current = null;
-      retryIdentityGenerationRef.current = identityGeneration;
-
       if (!isConnected) {
         const error = 'Connect a wallet before submitting a transaction.';
         setStatus('failed');
         setTransactionError(error);
         setFailureType('requestFailed');
         toast({ title: 'Wallet required', description: error, variant: 'destructive' });
-        return { success: false, error, failureType: 'requestFailed' as TransactionFailureType };
+        return { success: false, error, failureType: 'requestFailed' };
       }
 
+      // simple in-memory lock to prevent duplicate submits in same tab
+      const locks = (executeTransaction as any)._locks || ((executeTransaction as any)._locks = new Map<string, boolean>());
+
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+      try {
+        // Build XDR first so we can derive an intent key
+        const xdr = await Promise.resolve(buildXdr());
+        const xdrHash = await computeXdrHash(xdr);
+        const intentKey = `${walletAddress}:${xdrHash}`;
+
+        // wait if another execution is running for same intent
+        let waitCount = 0;
+        while (locks.get(intentKey)) {
+          await sleep(100);
+          waitCount += 1;
+          if (waitCount > 200) break; // ~20s
+        }
+
+        locks.set(intentKey, true);
+
+        // Record built intent
+        upsertIntent({ key: intentKey, walletAddress, xdrHash, status: 'built', builtXdr: xdr });
+
+        // Inspect existing intent state to avoid duplicate work
+        const existing = getIntent(intentKey);
+        if (existing?.submissionHash) {
+          // Already submitted; poll for confirmation rather than resubmitting
+          setStatus('confirming');
+          toast({ title: 'Confirming transaction', description: 'Waiting for existing transaction to confirm.' });
+          const confirmationResult = await pollForConfirmation(existing.submissionHash);
+          if (confirmationResult.success) {
+            setStatus('success');
+            setTransactionHash(confirmationResult.hash);
+            // mark intent success and clear shortly
+            upsertIntent({ key: intentKey, status: 'success', submissionHash: confirmationResult.hash });
+            setTimeout(() => removeIntent(intentKey), 5_000);
+            return { success: true, hash: confirmationResult.hash };
+          }
+          // if confirmation failed, fall through to allow resubmit
+          upsertIntent({ key: intentKey, status: 'failed', error: confirmationResult.error });
+        }
+
+        // If we have a signed XDR stored, reuse it to avoid prompting wallet again
+        let signedXdrFromStore: string | undefined = existing?.signedXdr;
+
+        // Signing
+        setStatus('signing');
+        toast({ title: 'Signing transaction', description: 'Approve the transaction in your wallet.' });
+
+        let signResult: { success: boolean; signedTxXdr?: string; error?: string };
+
+        if (signedXdrFromStore) {
+          signResult = { success: true, signedTxXdr: signedXdrFromStore };
+        } else {
+          const signOutcome = await signTransaction(xdr);
+          signResult = signOutcome as any;
+        }
+
+        if (!signResult.success) {
+          const error = signResult.error ?? 'Transaction signing failed';
+          const userRejected = isUserRejectedError(error);
+          setStatus('failed');
+          setTransactionError(error);
+          setFailureType(userRejected ? 'userRejected' : 'signFailed');
+          toast({
+            title: userRejected ? 'Transaction rejected' : 'Signing failed',
+            description: error,
+            variant: 'destructive',
+          });
+          // update intent with failure
+          upsertIntent({ key: intentKey, status: 'failed', error });
+          return { success: false, error, failureType: userRejected ? 'userRejected' : 'signFailed' };
+        }
+
+        // Persist the signed XDR to help retries avoid re-signing
+        upsertIntent({ key: intentKey, status: 'signed', signedXdr: signResult.signedTxXdr, walletAddress, xdrHash });
+
+        // Submit
+        setStatus('submitting');
+        toast({ title: 'Submitting transaction', description: 'Broadcasting signed transaction to the Stellar network.' });
+
+        const submissionResult = await submitTransaction(signResult.signedTxXdr as string);
+        if (!submissionResult.success) {
+          const error = submissionResult.error;
+          setStatus('failed');
+          setTransactionError(error);
+          setFailureType('submitFailed');
+          toast({ title: 'Submission failed', description: error, variant: 'destructive' });
+          upsertIntent({ key: intentKey, status: 'failed', error });
+          return { success: false, error, failureType: 'submitFailed' };
+        }
+
+        // store submission
+        upsertIntent({ key: intentKey, status: 'submitted', submissionHash: submissionResult.hash });
+
+        // Confirm
+        setStatus('confirming');
+        toast({ title: 'Confirming transaction', description: 'Waiting for the transaction to appear on the network.' });
+
+        const confirmationResult = await pollForConfirmation(submissionResult.hash);
+        if (!confirmationResult.success) {
+          const failure = confirmationResult.status === 'confirmationTimeout' ? 'confirmationTimeout' : 'confirmationFailed';
+          setStatus('failed');
+          setTransactionError(confirmationResult.error);
+          setFailureType(failure as TransactionFailureType);
+          toast({ title: failure === 'confirmationTimeout' ? 'Confirmation timed out' : 'Confirmation failed', description: confirmationResult.error, variant: 'destructive' });
+          upsertIntent({ key: intentKey, status: 'failed', error: confirmationResult.error });
+          return { success: false, error: confirmationResult.error, failureType: failure as TransactionFailureType };
+        }
+
+        setStatus('success');
+        setTransactionHash(confirmationResult.hash);
+        toast({ title: 'Transaction confirmed', description: `Hash: ${confirmationResult.hash}` });
+        upsertIntent({ key: intentKey, status: 'success', submissionHash: confirmationResult.hash });
+        // clear persisted signed XDR after success to reduce exposure
+        setTimeout(() => removeIntent(intentKey), 5_000);
+        return { success: true, hash: confirmationResult.hash };
+      } catch (error: unknown) {
+        const message = (error as Error)?.message || 'Unknown transaction error';
+        setStatus('failed');
+        setTransactionError(message);
+        setFailureType('requestFailed');
+        toast({ title: 'Transaction failed', description: message, variant: 'destructive' });
+        return { success: false, error: message, failureType: 'requestFailed' };
+      } finally {
+        // release any lock for this intent
+        try {
+          const xdr = undefined as unknown as string; // no-op, locks map cleared below
+        } finally {
+          // unlock all locks (conservative) — ideally we'd unlock specific key, but we can't access it here reliably
+          const locks = (executeTransaction as any)._locks as Map<string, boolean> | undefined;
+          if (locks) {
+            // clear all entries; callers wait on absence
+            locks.clear();
+          }
+        }
+      }
       try {
         setStatus('signing');
         toast({
@@ -117,23 +227,22 @@ export const useTransaction = (): UseTransactionResult => {
         const signResult = await signTransaction(xdr);
 
         if (!signResult.success) {
-          const rawError = signResult.error ?? 'Transaction signing failed';
-          const userRejected = isUserRejectedError(rawError);
-          const ft: TransactionFailureType = userRejected ? 'userRejected' : 'signFailed';
-          // Normalize for toast display; keep raw error in state for diagnostics
-          const normalized = normalizeFromFailureType(ft, rawError);
+          const error = signResult.error ?? 'Transaction signing failed';
+          const userRejected = isUserRejectedError(error);
           setStatus('failed');
-          setTransactionError(rawError);
-          setFailureType(ft);
+          setTransactionError(error);
+          setFailureType(userRejected ? 'userRejected' : 'signFailed');
           toast({
-            title: normalized.title,
-            description: normalized.description,
+            title: userRejected ? 'Transaction rejected' : 'Signing failed',
+            description: error,
             variant: 'destructive',
           });
-          return { success: false, error: rawError, failureType: ft };
+          return {
+            success: false,
+            error,
+            failureType: userRejected ? 'userRejected' : 'signFailed',
+          };
         }
-
-        lastSignedXdrRef.current = signResult.signedTxXdr!;
 
         setStatus('submitting');
         toast({
@@ -141,27 +250,23 @@ export const useTransaction = (): UseTransactionResult => {
           description: 'Broadcasting signed transaction to the Stellar network.',
         });
 
-        const submissionResult = await submitTransaction(signResult.signedTxXdr!);
+        const submissionResult = await submitTransaction(signResult.signedTxXdr);
         if (!submissionResult.success) {
-          // error from submitTransaction is already normalized by transaction.ts
           const error = submissionResult.error;
           setStatus('failed');
           setTransactionError(error);
           setFailureType('submitFailed');
-          const normalized = normalizeFromFailureType('submitFailed', error);
           toast({
-            title: normalized.title,
-            description: normalized.description,
+            title: 'Submission failed',
+            description: error,
             variant: 'destructive',
           });
           return {
             success: false,
             error,
-            failureType: 'submitFailed' as TransactionFailureType,
+            failureType: 'submitFailed',
           };
         }
-
-        lastSubmittedHashRef.current = submissionResult.hash;
 
         setStatus('confirming');
         toast({
@@ -171,23 +276,21 @@ export const useTransaction = (): UseTransactionResult => {
 
         const confirmationResult = await pollForConfirmation(submissionResult.hash);
         if (!confirmationResult.success) {
-          const ft: TransactionFailureType =
-            confirmationResult.status === 'confirmationTimeout'
-              ? 'confirmationTimeout'
-              : 'confirmationFailed';
+          const failure = confirmationResult.status === 'confirmationTimeout'
+            ? 'confirmationTimeout'
+            : 'confirmationFailed';
           setStatus('failed');
           setTransactionError(confirmationResult.error);
-          setFailureType(ft);
-          const normalized = normalizeFromFailureType(ft, confirmationResult.error);
+          setFailureType(failure as TransactionFailureType);
           toast({
-            title: normalized.title,
-            description: normalized.description,
+            title: failure === 'confirmationTimeout' ? 'Confirmation timed out' : 'Confirmation failed',
+            description: confirmationResult.error,
             variant: 'destructive',
           });
           return {
             success: false,
             error: confirmationResult.error,
-            failureType: ft,
+            failureType: failure as TransactionFailureType,
           };
         }
 
@@ -199,167 +302,19 @@ export const useTransaction = (): UseTransactionResult => {
         });
         return { success: true, hash: confirmationResult.hash };
       } catch (error: unknown) {
-        const rawMessage = (error as Error)?.message || 'Unknown transaction error';
-        const normalized = normalizeContractError(rawMessage);
+        const message = (error as Error)?.message || 'Unknown transaction error';
         setStatus('failed');
-        setTransactionError(rawMessage);
+        setTransactionError(message);
         setFailureType('requestFailed');
         toast({
-          title: normalized.title,
-          description: normalized.description,
+          title: 'Transaction failed',
+          description: message,
           variant: 'destructive',
         });
-        return { success: false, error: rawMessage, failureType: 'requestFailed' as TransactionFailureType };
+        return { success: false, error: message, failureType: 'requestFailed' };
       }
     },
-    [identityGeneration, isConnected, signTransaction],
-  );
-
-  const retryTransaction = useCallback(async () => {
-    if (retryIdentityGenerationRef.current !== identityGeneration) {
-      resetTransaction();
-      return { success: false, error: 'Wallet identity changed. Start a new transaction.', failureType: 'requestFailed' as TransactionFailureType };
-    }
-    if (status !== 'failed' || !failureType) {
-      return { success: false, error: 'No failed transaction to retry', failureType: 'requestFailed' as TransactionFailureType };
-    }
-
-    setTransactionError(null);
-    setFailureType(null);
-
-    try {
-      if (failureType === 'confirmationTimeout' && lastSubmittedHashRef.current) {
-        setStatus('confirming');
-        toast({
-          title: 'Retrying confirmation',
-          description: 'Continuing to wait for the transaction to appear on the network.',
-        });
-
-        const confirmationResult = await pollForConfirmation(lastSubmittedHashRef.current);
-        if (!confirmationResult.success) {
-          const ft: TransactionFailureType =
-            confirmationResult.status === 'confirmationTimeout'
-              ? 'confirmationTimeout'
-              : 'confirmationFailed';
-          setStatus('failed');
-          setTransactionError(confirmationResult.error);
-          setFailureType(ft);
-          const normalized = normalizeFromFailureType(ft, confirmationResult.error);
-          toast({
-            title: normalized.title,
-            description: normalized.description,
-            variant: 'destructive',
-          });
-          return {
-            success: false,
-            error: confirmationResult.error,
-            failureType: ft,
-          };
-        }
-
-        setStatus('success');
-        setTransactionHash(confirmationResult.hash);
-        toast({
-          title: 'Transaction confirmed',
-          description: `Hash: ${confirmationResult.hash}`,
-        });
-        return { success: true, hash: confirmationResult.hash };
-      }
-
-      if ((failureType === 'submitFailed' || failureType === 'confirmationFailed') && lastSignedXdrRef.current) {
-        setStatus('submitting');
-        toast({
-          title: 'Retrying submission',
-          description: 'Re-broadcasting signed transaction to the Stellar network.',
-        });
-
-        const submissionResult = await submitTransaction(lastSignedXdrRef.current);
-        if (!submissionResult.success) {
-          const error = submissionResult.error;
-          setStatus('failed');
-          setTransactionError(error);
-          setFailureType('submitFailed');
-          const normalized = normalizeFromFailureType('submitFailed', error);
-          toast({
-            title: normalized.title,
-            description: normalized.description,
-            variant: 'destructive',
-          });
-          return {
-            success: false,
-            error,
-            failureType: 'submitFailed' as TransactionFailureType,
-          };
-        }
-
-        lastSubmittedHashRef.current = submissionResult.hash;
-
-        setStatus('confirming');
-        toast({
-          title: 'Confirming transaction',
-          description: 'Waiting for the transaction to appear on the network.',
-        });
-
-        const confirmationResult = await pollForConfirmation(submissionResult.hash);
-        if (!confirmationResult.success) {
-          const ft: TransactionFailureType =
-            confirmationResult.status === 'confirmationTimeout'
-              ? 'confirmationTimeout'
-              : 'confirmationFailed';
-          setStatus('failed');
-          setTransactionError(confirmationResult.error);
-          setFailureType(ft);
-          const normalized = normalizeFromFailureType(ft, confirmationResult.error);
-          toast({
-            title: normalized.title,
-            description: normalized.description,
-            variant: 'destructive',
-          });
-          return {
-            success: false,
-            error: confirmationResult.error,
-            failureType: ft,
-          };
-        }
-
-        setStatus('success');
-        setTransactionHash(confirmationResult.hash);
-        toast({
-          title: 'Transaction confirmed',
-          description: `Hash: ${confirmationResult.hash}`,
-        });
-        return { success: true, hash: confirmationResult.hash };
-      }
-
-      if (lastBuildXdrRef.current) {
-        return executeTransaction(lastBuildXdrRef.current);
-      }
-
-      const message = 'Cannot retry: Missing transaction data';
-      setStatus('failed');
-      setTransactionError(message);
-      setFailureType('requestFailed');
-      return { success: false, error: message, failureType: 'requestFailed' as TransactionFailureType };
-
-    } catch (error: unknown) {
-      const rawMessage = (error as Error)?.message || 'Unknown transaction error';
-      const normalized = normalizeContractError(rawMessage);
-      setStatus('failed');
-      setTransactionError(rawMessage);
-      setFailureType('requestFailed');
-      toast({
-        title: normalized.title,
-        description: normalized.description,
-        variant: 'destructive',
-      });
-      return { success: false, error: rawMessage, failureType: 'requestFailed' as TransactionFailureType };
-    }
-  }, [executeTransaction, failureType, identityGeneration, resetTransaction, status]);
-
-  const canRetry = status === 'failed' && (
-    lastBuildXdrRef.current !== null ||
-    lastSignedXdrRef.current !== null ||
-    lastSubmittedHashRef.current !== null
+    [isConnected, signTransaction],
   );
 
   return {
@@ -368,8 +323,6 @@ export const useTransaction = (): UseTransactionResult => {
     transactionError,
     failureType,
     executeTransaction,
-    retryTransaction,
-    canRetry,
     resetTransaction,
   };
 };

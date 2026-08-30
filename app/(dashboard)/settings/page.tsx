@@ -1,25 +1,16 @@
 "use client"
 
-import { type SyntheticEvent, useMemo, useState, useEffect } from "react"
-import Link from "next/link"
+import { type SyntheticEvent, useMemo, useState } from "react"
 import {
   Bell,
   Eye,
   LayoutGrid,
   ShieldCheck,
   Sparkles,
-  User,
   Wallet,
   Table2,
   LayoutList,
-  Pin,
-  ArrowUp,
-  ArrowDown,
-  AlertCircle,
 } from "lucide-react"
-import { getPinnedActions, savePinnedActions, ALL_AVAILABLE_ACTIONS } from "@/lib/command-palette/pins"
-import { DEFAULT_QUIET_HOURS, useQuietHours, type QuietHoursSettings } from "@/lib/quiet-hours"
-
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -37,9 +28,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { useDensity, densityTokens, type Density, type DensityTokens } from "@/hooks/useDensity"
+import { useDensity, densityTokens, type Density } from "@/hooks/useDensity"
 import { useSoundEnabled } from "@/hooks/useSoundEnabled"
-import { usePrivacy } from '@/context/PrivacyContext';
 import { cn } from "@/lib/utils"
 
 type TimeFormat = "local-12h" | "local-24h" | "utc"
@@ -85,7 +75,7 @@ const densityOptions: Array<{
   label: string
   description: string
   icon: React.ElementType
-  tokens: DensityTokens[keyof DensityTokens]
+  tokens: (typeof densityTokens)[Density]
 }> = [
   {
     value: "cozy",
@@ -111,8 +101,7 @@ const densityOptions: Array<{
 ]
 
 export default function SettingsPage() {
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle")
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<"idle" | "saved">("idle")
   
   // Density from global hook
   const { density, setDensity, tokens: densityTokensCurrent } = useDensity()
@@ -123,50 +112,15 @@ export default function SettingsPage() {
   const [reduceMotion, setReduceMotion] = useState(false)
   const [showNetPayouts, setShowNetPayouts] = useState(true)
   const [showWalletBadge, setShowWalletBadge] = useState(true)
+  const [publicActivity, setPublicActivity] = useState(false)
   const [disputeAlerts, setDisputeAlerts] = useState(true)
   const [oracleDelayAlerts, setOracleDelayAlerts] = useState(true)
   const [priceMovementAlerts, setPriceMovementAlerts] = useState(false)
   const [weeklyDigest, setWeeklyDigest] = useState(true)
   const { hideBalances, setHideBalances } = usePrivacy();
-  const { settings: storedQuietHours, active: quietHoursActive, saveSettings: saveQuietHoursSettings } = useQuietHours()
-  const [quietHours, setQuietHours] = useState<QuietHoursSettings>(DEFAULT_QUIET_HOURS)
-  const [quietHoursDirty, setQuietHoursDirty] = useState(false)
   const [walletAlias, setWalletAlias] = useState(true)
   const [copyWarning, setCopyWarning] = useState(true)
   const { soundEnabled, setSoundEnabled } = useSoundEnabled()
-  const [forceHighContrast, setHighContrast] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("force-high-contrast") === "true"
-    }
-    return false
-  })
-
-  useEffect(() => {
-    const root = window.document.documentElement
-    if (forceHighContrast) {
-      root.classList.add("high-contrast")
-    } else {
-      root.classList.remove("high-contrast")
-    }
-    localStorage.setItem("force-high-contrast", forceHighContrast.toString())
-  }, [forceHighContrast])
-
-  useEffect(() => {
-    if (!quietHoursDirty) {
-      setQuietHours(storedQuietHours)
-    }
-  }, [quietHoursDirty, storedQuietHours])
-
-  // Declare missing publicActivity state to resolve compilation reference error
-  const [publicActivity, setPublicActivity] = useState(false)
-
-  // Command palette pinned action configuration state
-  const [pinnedActionIds, setPinnedActionIds] = useState<string[]>([])
-
-  // Load pinned actions on mount
-  useEffect(() => {
-    setPinnedActionIds(getPinnedActions().map((p) => p.id))
-  }, [])
 
   const selectedDensity = useMemo(
     () => densityOptions.find((option) => option.value === density),
@@ -177,58 +131,16 @@ export default function SettingsPage() {
     [notificationPreset]
   )
 
-  const handleSave = async (event: SyntheticEvent) => {
+  const handleSave = (event: SyntheticEvent) => {
     event.preventDefault()
-    if (saveState === "saving") return
-
-    setSaveState("saving")
-    setSaveError(null)
-
-    let attempt = 0
-    const maxRetries = 3
-    let success = false
-
-    while (attempt < maxRetries && !success) {
-      try {
-        await new Promise((resolve, reject) => {
-          setTimeout(() => {
-            if (Math.random() < 0.1) {
-              reject(new Error("Network timeout"))
-            } else {
-              resolve(true)
-            }
-          }, 1000)
-        })
-
-        // Persist pinned actions configure
-        savePinnedActions(pinnedActionIds)
-        saveQuietHoursSettings(quietHours)
-        
-        success = true
-      } catch (err) {
-        attempt++
-        if (attempt >= maxRetries) {
-          setSaveError("Failed to save settings after multiple attempts. Please try again.")
-        } else {
-          await new Promise((r) => setTimeout(r, 1000 * attempt))
-        }
-      }
-    }
-
-    if (success) {
-      setQuietHoursDirty(false)
-      setSaveState("saved")
-      window.setTimeout(() => setSaveState("idle"), 2500)
-    } else {
-      setSaveState("idle")
-    }
+    setSaveState("saved")
+    window.setTimeout(() => setSaveState("idle"), 2500)
   }
-
 
   return (
     <form className="mx-auto flex w-full max-w-6xl flex-col gap-6" onSubmit={handleSave}>
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {saveState === "saved" ? "Settings saved" : saveState === "saving" ? "Saving settings..." : ""}
+        {saveState === "saved" ? "Settings saved" : ""}
       </div>
       <div aria-live="polite" aria-atomic="true" className="sr-only" key={String(soundEnabled)}>
         {soundEnabled ? "Sound effects on" : "Sound effects off"}
@@ -239,13 +151,6 @@ export default function SettingsPage() {
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="privacy">Privacy</TabsTrigger>
-          {/* Account tab links to the dedicated Settings → Account page */}
-          <TabsTrigger value="account" asChild>
-            <Link href="/settings/account" className="flex items-center gap-1">
-              <User className="h-4 w-4" aria-hidden="true" />
-              Account
-            </Link>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="preferences">
@@ -287,12 +192,6 @@ export default function SettingsPage() {
             <Alert className="border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
               <Sparkles className="h-4 w-4" />
               <AlertDescription>Your settings were saved. Safe defaults remain enabled for wallet privacy.</AlertDescription>
-            </Alert>
-          ) : null}
-          {saveError ? (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{saveError}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -408,114 +307,6 @@ export default function SettingsPage() {
                       checked={showWalletBadge}
                       onCheckedChange={setShowWalletBadge}
                     />
-                    <PreferenceSwitch
-                      id="force-high-contrast"
-                      label="Force high contrast"
-                      description="Overrides the current theme with a high-contrast palette for maximum readability. Recommended for visual impairments."
-                      checked={forceHighContrast}
-                      onCheckedChange={setHighContrast}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/70">
-                <CardHeader className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Pin className="h-4 w-4 text-muted-foreground" />
-                    <CardTitle className="text-xl">Command Palette Shortcuts</CardTitle>
-                  </div>
-                  <CardDescription>
-                    Configure and reorder the pinned actions displayed when opening the Command Palette (Cmd/Ctrl+K).
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Active Pinned Actions</Label>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Select which actions to pin, and use the arrows to define their display order.
-                    </p>
-                    
-                    <div className="space-y-2">
-                      {ALL_AVAILABLE_ACTIONS.map((action) => {
-                        const isPinned = pinnedActionIds.includes(action.id)
-                        const pinIndex = pinnedActionIds.indexOf(action.id)
-
-                        const handleToggle = (checked: boolean) => {
-                          if (checked) {
-                            setPinnedActionIds((prev) => [...prev, action.id])
-                          } else {
-                            setPinnedActionIds((prev) => prev.filter((id) => id !== action.id))
-                          }
-                        }
-
-                        const handleMoveUp = () => {
-                          if (pinIndex <= 0) return
-                          const updated = [...pinnedActionIds]
-                          const temp = updated[pinIndex]
-                          updated[pinIndex] = updated[pinIndex - 1]
-                          updated[pinIndex - 1] = temp
-                          setPinnedActionIds(updated)
-                        }
-
-                        const handleMoveDown = () => {
-                          if (pinIndex < 0 || pinIndex >= pinnedActionIds.length - 1) return
-                          const updated = [...pinnedActionIds]
-                          const temp = updated[pinIndex]
-                          updated[pinIndex] = updated[pinIndex + 1]
-                          updated[pinIndex + 1] = temp
-                          setPinnedActionIds(updated)
-                        }
-
-                        return (
-                          <div
-                            key={action.id}
-                            className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-muted/20 p-3 hover:bg-muted/30 transition duration-150"
-                          >
-                            <div className="flex items-center gap-3">
-                              <Switch
-                                id={`pin-${action.id}`}
-                                checked={isPinned}
-                                onCheckedChange={handleToggle}
-                              />
-                              <Label htmlFor={`pin-${action.id}`} className="text-sm font-medium cursor-pointer">
-                                {action.label}
-                                <span className="block text-xs font-normal text-muted-foreground">
-                                  Navigates to {action.url}
-                                </span>
-                              </Label>
-                            </div>
-                            
-                            {isPinned && (
-                              <div className="flex items-center gap-1.5">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  disabled={pinIndex === 0}
-                                  onClick={handleMoveUp}
-                                  aria-label={`Move ${action.label} up`}
-                                >
-                                  <ArrowUp className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  disabled={pinIndex === pinnedActionIds.length - 1}
-                                  onClick={handleMoveDown}
-                                  aria-label={`Move ${action.label} down`}
-                                >
-                                  <ArrowDown className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -531,64 +322,6 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">Quiet hours</Label>
-                        <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                          Suppresses non-critical toasts and pauses ambient motion between these local times. Wallet errors, claim failures, disputes, and actionable warnings still appear.
-                        </p>
-                      </div>
-                      <Badge variant={quietHoursActive ? "secondary" : "outline"}>
-                        {quietHoursActive ? "Active now" : "Inactive now"}
-                      </Badge>
-                    </div>
-
-                    <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_1.1fr]">
-                      <QuietHoursTimeField
-                        id="quiet-hours-start"
-                        label="Start"
-                        value={quietHours.start}
-                        onChange={(start) => {
-                          setQuietHoursDirty(true)
-                          setQuietHours((current) => ({ ...current, start }))
-                        }}
-                      />
-                      <QuietHoursTimeField
-                        id="quiet-hours-end"
-                        label="End"
-                        value={quietHours.end}
-                        onChange={(end) => {
-                          setQuietHoursDirty(true)
-                          setQuietHours((current) => ({ ...current, end }))
-                        }}
-                      />
-                      <div className="space-y-2">
-                        <Label htmlFor="quiet-hours-timezone">Timezone</Label>
-                        <Select
-                          value={quietHours.tz}
-                          onValueChange={(tz) => {
-                            setQuietHoursDirty(true)
-                            setQuietHours((current) => ({ ...current, tz }))
-                          }}
-                        >
-                          <SelectTrigger id="quiet-hours-timezone">
-                            <SelectValue placeholder="Choose timezone" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="auto">Auto from device</SelectItem>
-                            <SelectItem value="UTC">UTC</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs leading-relaxed text-muted-foreground">
-                          Stored as {`{ start: "${quietHours.start}", end: "${quietHours.end}", tz: "${quietHours.tz}" }`}.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
                   <div className="space-y-3">
                     <Label>Notification intensity</Label>
                     <div className="grid gap-3 md:grid-cols-3">
@@ -767,8 +500,8 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button type="submit" className="w-full sm:w-auto" disabled={saveState === "saving"}>
-                    {saveState === "saving" ? "Saving..." : "Save settings"}
+                  <Button type="submit" className="w-full sm:w-auto">
+                    Save settings
                   </Button>
                 </CardFooter>
               </Card>
@@ -869,31 +602,7 @@ function PreferenceSwitch({
   )
 }
 
-function QuietHoursTimeField({
-  id,
-  label,
-  value,
-  onChange,
-}: {
-  id: string
-  label: string
-  value: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <input
-        id={id}
-        type="time"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      />
-    </div>
-  )
-}
-
+import { usePrivacy } from '@/context/PrivacyContext';
 function PreferenceSelect({
   id,
   label,
