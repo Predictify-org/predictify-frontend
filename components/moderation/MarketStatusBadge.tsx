@@ -3,7 +3,7 @@
 import { Clock, AlertTriangle, ShieldAlert, Flag, XCircle, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Badge, badgeVariants } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { useAccessibility } from '@/context/AccessibilityContext';
 
 import type { ModerationState } from '@/types/moderation';
@@ -25,34 +25,42 @@ interface MarketStatusBadgeProps {
   showTooltip?: boolean;
 }
 
+type BadgeVariant = 'info' | 'warning' | 'danger' | 'success' | 'neutral';
+
+const VARIANT_MAP: Record<ModerationState, BadgeVariant> = {
+  under_review: 'info',
+  paused: 'warning',
+  restricted: 'danger',
+  flagged: 'danger',
+  removed: 'neutral',
+  resolving: 'info',
+};
+
+const FALLBACK_CONFIG = {
+  label: 'Unknown Status',
+  description: 'The status of this market is unrecognized.',
+  badgeClass: 'bg-neutral-100 text-neutral-700 border-neutral-300',
+};
+
 export function MarketStatusBadge({ state, className, showTooltip = true }: MarketStatusBadgeProps) {
-  const config = MODERATION_CONFIG[state];
-  const Icon = STATE_ICONS[state];
+  const isValidState = typeof state === 'string' && state in MODERATION_CONFIG;
+  const config = isValidState ? MODERATION_CONFIG[state] : FALLBACK_CONFIG;
+  const Icon = isValidState ? STATE_ICONS[state] : AlertTriangle;
+  const variant = isValidState ? VARIANT_MAP[state] : 'neutral';
   const isResolving = state === 'resolving';
-  
-  // Respect user's reduced-motion preference (Issue #XXX — Quality-2 High)
-  // When reduceMotion is true, the pulsing animation is suppressed so the
-  // "resolving" badge renders as a static indicator.
   const { reduceMotion } = useAccessibility();
 
-  const variantMap: Record<ModerationState, keyof typeof badgeVariants['variants']['variant']> = {
-    under_review: 'info',
-    paused: 'warning',
-    restricted: 'danger',
-    flagged: 'danger',
-    removed: 'neutral',
-    resolving: 'info',
-  };
   const badge = (
     <Badge
       role="status"
       aria-label={isResolving ? `Market status: ${config.label}. Resolving now.` : `Market status: ${config.label}`}
-      variant={variantMap[state]}
+      variant={variant}
       size="md"
+      tabIndex={showTooltip ? 0 : undefined}
       className={cn(
         config.badgeClass,
-        // Only apply the pulse animation when reduceMotion is false
         isResolving && !reduceMotion && 'animate-status-live-pulse',
+        showTooltip && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         className
       )}
     >

@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 /* NEW: Added lucide icons for row actions and compare */
-import { Edit, MoreHorizontal, Trash2, Users, Calendar, Trophy, Building2, CircleDollarSign, LineChart, TrendingUp, GitCompareArrows } from "lucide-react"
+import { Edit, MoreHorizontal, Trash2, Users, Calendar, Trophy, Building2, CircleDollarSign, LineChart, TrendingUp, GitCompareArrows, ShieldCheck, Clock, AlertTriangle } from "lucide-react"
 import { HoverTooltip } from "@/components/HoverTooltip"
 import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -94,8 +94,17 @@ function TimeRemainingProgress({ event }: { event: Event }) {
     return () => clearInterval(interval)
   }, [])
 
-  if (!event.timeRemainingMs) {
+  if (typeof event.timeRemainingMs !== "number" || !Number.isFinite(event.timeRemainingMs)) {
     return <span className="text-muted-foreground">-</span>
+  }
+
+  if (event.timeRemainingMs <= 0) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-body-sm font-medium text-muted-foreground">
+        <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+        Ended
+      </span>
+    )
   }
 
   const color = getTimeRemainingColor(event.timeRemainingMs)
@@ -106,19 +115,31 @@ function TimeRemainingProgress({ event }: { event: Event }) {
   const currentDays = event.timeRemainingMs / (24 * 60 * 60 * 1000)
   const progressValue = Math.max(0, Math.min(100, (currentDays / maxDays) * 100))
 
-  const urgencyLabel = { green: "Low urgency", orange: "Medium urgency", red: "High urgency" }[color]
+  const urgencyLabels: Record<string, string> = {
+    green: "Low urgency",
+    orange: "Medium urgency",
+    red: "High urgency",
+  }
+  const urgencyLabel = urgencyLabels[color] ?? "Unknown urgency"
+  const urgencyIcons: Record<string, React.ReactNode> = {
+    green: <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />,
+    orange: <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />,
+    red: <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />,
+  }
 
-  const progressColorClass = {
+  const progressColorClasses: Record<string, string> = {
     green: "bg-[#16DB30]",
     orange: "bg-[#FFBB00]",
     red: "bg-[#FF5858]",
-  }[color]
+  }
+  const progressColorClass = progressColorClasses[color] ?? "bg-gray-200"
 
-  const textColorClass = {
+  const textColorClasses: Record<string, string> = {
     green: "text-[#16DB30]",
     orange: "text-[#FFBB00]",
     red: "text-[#FF5858]",
-  }[color]
+  }
+  const textColorClass = textColorClasses[color] ?? "text-muted-foreground"
 
   const progressValueRounded = Math.round(progressValue)
 
@@ -126,7 +147,11 @@ function TimeRemainingProgress({ event }: { event: Event }) {
     <div className="space-y-2 min-w-[120px]">
       <div className={cn("text-body-sm font-medium", textColorClass)}>
         {timeString}
-        <span className="sr-only"> — {urgencyLabel}</span>
+        {/* Visible urgency icon and text keep status independent of color. */}
+        <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
+          {urgencyIcons[color]}
+          <span>{urgencyLabel}</span>
+        </span>
       </div>
       <div
         role="progressbar"
@@ -134,6 +159,7 @@ function TimeRemainingProgress({ event }: { event: Event }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`Time remaining: ${timeString} (${urgencyLabel})`}
+        aria-valuetext={`${timeString} (${urgencyLabel})`}
         className="w-full bg-gray-200 rounded-full h-2"
       >
         <div
@@ -253,7 +279,7 @@ function EventRow({
       {/* Participants */}
       <TableCell className="py-3 md:py-4 px-4 md:px-6 min-w-[120px] sm:min-w-0">
         <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
-          <Users className="h-4 w-4" />
+          <Users className="h-4 w-4" aria-hidden="true" />
           <span className="text-label text-foreground tabular-nums">{event.participants.toLocaleString()}</span>
         </div>
       </TableCell>
@@ -263,7 +289,7 @@ function EventRow({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
               <span className="sr-only">Open actions menu</span>
             </Button>
           </DropdownMenuTrigger>
@@ -272,7 +298,7 @@ function EventRow({
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href={`/events/${event.id}/edit`} className="flex items-center gap-2">
-                <Edit className="h-4 w-4" />
+                <Edit className="h-4 w-4" aria-hidden="true" />
                 Edit Event
               </Link>
             </DropdownMenuItem>
@@ -280,7 +306,7 @@ function EventRow({
               className="flex items-center gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
               onSelect={() => setDeleteTarget(event)}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
               Delete Event
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -410,34 +436,34 @@ export function EventsTable({ className }: EventsTableProps) {
       >
         {/* Rows become readable cards below lg without duplicating accessible content. */}
         <div className="overflow-visible xl:overflow-x-auto">
-          <Table className="block w-full xl:table xl:min-w-[980px]">
+          <Table aria-label="Events" className="block w-full xl:table xl:min-w-[980px]">
             <TableHeader className="sr-only xl:not-sr-only xl:table-header-group">
               <TableRow className="border-b border-border bg-muted text-foreground hover:bg-muted">
                 {/* Compare select column */}
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 w-10">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 w-10">
                   <span className="sr-only">Compare</span>
                 </TableHead>
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[200px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[200px] sm:min-w-0">
                   Event Title
                 </TableHead>
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[100px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[100px] sm:min-w-0">
                   Category
                 </TableHead>
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[80px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[80px] sm:min-w-0">
                   Odds
                 </TableHead>
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[180px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[180px] sm:min-w-0">
                   End Date
                 </TableHead>
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[160px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[160px] sm:min-w-0">
                   Time Remaining
                 </TableHead>
                 {/* NEW: Participants column header */}
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[120px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-left min-w-[120px] sm:min-w-0">
                   Participants
                 </TableHead>
                 {/* NEW: Actions column header */}
-                <TableHead className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-right min-w-[80px] sm:min-w-0">
+                <TableHead scope="col" className="text-label text-muted-foreground py-3 md:py-4 px-4 md:px-6 text-right min-w-[80px] sm:min-w-0">
                   Actions
                 </TableHead>
               </TableRow>
