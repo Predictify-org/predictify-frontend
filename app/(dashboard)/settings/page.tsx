@@ -16,9 +16,12 @@ import {
   ArrowUp,
   ArrowDown,
   AlertCircle,
+  RotateCcw,
 } from "lucide-react"
 import { getPinnedActions, savePinnedActions, ALL_AVAILABLE_ACTIONS } from "@/lib/command-palette/pins"
 import { DEFAULT_QUIET_HOURS, useQuietHours, type QuietHoursSettings } from "@/lib/quiet-hours"
+import { useNotificationPreferences } from "@/hooks/useNotificationPreferences"
+import type { NotificationCategoryKey, NotificationChannelKey, NotificationIntensity } from "@/types/notification-preferences"
 
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -117,16 +120,23 @@ export default function SettingsPage() {
   // Density from global hook
   const { density, setDensity, tokens: densityTokensCurrent } = useDensity()
   
+  // Notification preferences hook (isolated per wallet account)
+  const {
+    preferences: notifPrefs,
+    activeAccount,
+    isDefault: isDefaultNotifPrefs,
+    updatePreferences: updateNotifPrefs,
+    setCategoryEnabled,
+    setChannelEnabled,
+    setIntensity: setNotifIntensity,
+    resetPreferences: resetNotifPrefs,
+  } = useNotificationPreferences()
+
   const [timeFormat, setTimeFormat] = useState<TimeFormat>("local-24h")
   const [currencyDisplay, setCurrencyDisplay] = useState<CurrencyDisplay>("both")
-  const [notificationPreset, setNotificationPreset] = useState<NotificationIntensity>("important")
   const [reduceMotion, setReduceMotion] = useState(false)
   const [showNetPayouts, setShowNetPayouts] = useState(true)
   const [showWalletBadge, setShowWalletBadge] = useState(true)
-  const [disputeAlerts, setDisputeAlerts] = useState(true)
-  const [oracleDelayAlerts, setOracleDelayAlerts] = useState(true)
-  const [priceMovementAlerts, setPriceMovementAlerts] = useState(false)
-  const [weeklyDigest, setWeeklyDigest] = useState(true)
   const { hideBalances, setHideBalances } = usePrivacy();
   const { settings: storedQuietHours, active: quietHoursActive, saveSettings: saveQuietHoursSettings } = useQuietHours()
   const [quietHours, setQuietHours] = useState<QuietHoursSettings>(DEFAULT_QUIET_HOURS)
@@ -173,8 +183,8 @@ export default function SettingsPage() {
     [density]
   )
   const selectedPreset = useMemo(
-    () => notificationPresets.find((option) => option.value === notificationPreset),
-    [notificationPreset]
+    () => notificationPresets.find((option) => option.value === notifPrefs.intensity),
+    [notifPrefs.intensity]
   )
 
   const handleSave = async (event: SyntheticEvent) => {
@@ -593,12 +603,12 @@ export default function SettingsPage() {
                     <Label>Notification intensity</Label>
                     <div className="grid gap-3 md:grid-cols-3">
                       {notificationPresets.map((preset) => {
-                        const active = notificationPreset === preset.value
+                        const active = notifPrefs.intensity === preset.value
                         return (
                           <button
                             key={preset.value}
                             type="button"
-                            onClick={() => setNotificationPreset(preset.value)}
+                            onClick={() => setNotifIntensity(preset.value)}
                             className={cn(
                               "rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                               active
@@ -622,29 +632,29 @@ export default function SettingsPage() {
                       id="dispute-alerts"
                       label="Dispute and review alerts"
                       description="Receive updates when a market you follow enters dispute, voting, or final execution."
-                      checked={disputeAlerts}
-                      onCheckedChange={setDisputeAlerts}
+                      checked={notifPrefs.disputeAlerts}
+                      onCheckedChange={(val) => updateNotifPrefs({ disputeAlerts: val })}
                     />
                     <PreferenceSwitch
                       id="oracle-delay-alerts"
                       label="Oracle delay notifications"
                       description="Get notified when markets remain in resolving longer than expected after their close time."
-                      checked={oracleDelayAlerts}
-                      onCheckedChange={setOracleDelayAlerts}
+                      checked={notifPrefs.oracleDelayAlerts}
+                      onCheckedChange={(val) => updateNotifPrefs({ oracleDelayAlerts: val })}
                     />
                     <PreferenceSwitch
                       id="price-alerts"
                       label="Price movement nudges"
                       description="Optional. Sends updates when watched markets swing quickly or implied odds move significantly."
-                      checked={priceMovementAlerts}
-                      onCheckedChange={setPriceMovementAlerts}
+                      checked={notifPrefs.priceMovementAlerts}
+                      onCheckedChange={(val) => updateNotifPrefs({ priceMovementAlerts: val })}
                     />
                     <PreferenceSwitch
                       id="weekly-digest"
                       label="Weekly account digest"
                       description="A lightweight summary of payouts, activity, and markets that still need attention."
-                      checked={weeklyDigest}
-                      onCheckedChange={setWeeklyDigest}
+                      checked={notifPrefs.weeklyDigest}
+                      onCheckedChange={(val) => updateNotifPrefs({ weeklyDigest: val })}
                     />
                   </div>
                 </CardContent>
@@ -778,49 +788,116 @@ export default function SettingsPage() {
 
         <TabsContent value="notifications">
           <Card className="border-border/70">
-            <CardHeader>
-              <CardTitle>Notification settings</CardTitle>
-              <CardDescription>Manage your notification preferences.</CardDescription>
+            <CardHeader className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.2em]">
+                    Notification Settings
+                  </Badge>
+                  <Badge variant="outline" className="rounded-full">
+                    Account: {activeAccount === "anonymous" ? "Default (Anonymous)" : `${activeAccount.slice(0, 6)}...${activeAccount.slice(-4)}`}
+                  </Badge>
+                  {isDefaultNotifPrefs ? (
+                    <Badge variant="secondary" className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      Explicit defaults active
+                    </Badge>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={resetNotifPrefs}
+                  className="flex items-center gap-1.5"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset to defaults
+                </Button>
+              </div>
+              <CardTitle>Notification preferences</CardTitle>
+              <CardDescription>
+                Configure deterministic, account-isolated notification preferences for settlement, market, and wallet events.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5">
-              <Alert className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200">
-                <Wallet className="h-4 w-4" />
-                <AlertDescription>
-                  Safe default: activity sharing is off until you explicitly choose to make it visible.
-                </AlertDescription>
-              </Alert>
+            <CardContent className="space-y-6">
+              {/* Category Controls */}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Notification Categories</Label>
+                <div className="space-y-1">
+                  <PreferenceSwitch
+                    id="cat-settlement"
+                    label="Settlement and payout alerts"
+                    description="Notifications when your predictions settle, winnings are ready to claim, or oracle rulings finalize."
+                    checked={notifPrefs.categories.settlement}
+                    onCheckedChange={(val) => setCategoryEnabled("settlement", val)}
+                  />
+                  <PreferenceSwitch
+                    id="cat-market"
+                    label="Market and timeline updates"
+                    description="Reminders when watched markets are nearing close or new related markets open."
+                    checked={notifPrefs.categories.market}
+                    onCheckedChange={(val) => setCategoryEnabled("market", val)}
+                  />
+                  <PreferenceSwitch
+                    id="cat-wallet"
+                    label="Wallet and security alerts"
+                    description="Account security notifications, low-balance warnings, and network transaction confirmations."
+                    checked={notifPrefs.categories.wallet}
+                    onCheckedChange={(val) => setCategoryEnabled("wallet", val)}
+                  />
+                  <PreferenceSwitch
+                    id="cat-dispute"
+                    label="Dispute and governance voting"
+                    description="Alerts when a market enters dispute phase, community voting starts, or final resolution executes."
+                    checked={notifPrefs.categories.dispute}
+                    onCheckedChange={(val) => setCategoryEnabled("dispute", val)}
+                  />
+                  <PreferenceSwitch
+                    id="cat-system"
+                    label="Platform and system notices"
+                    description="Scheduled maintenance, platform upgrades, and service status updates."
+                    checked={notifPrefs.categories.system}
+                    onCheckedChange={(val) => setCategoryEnabled("system", val)}
+                  />
+                </div>
+              </div>
 
-              <div className="space-y-1">
-                <PreferenceSwitch
-                  id="hide-balances"
-                  label="Hide sensitive amounts"
-                  description="Mask balances and amounts throughout the app for privacy."
-                  checked={hideBalances}
-                  onCheckedChange={setHideBalances}
-                />
+              <Separator />
 
-                <PreferenceSwitch
-                  id="wallet-alias"
-                  label="Use wallet alias instead of full address"
-                  description="Shows a human-friendly label first, while keeping the full address available when needed."
-                  checked={walletAlias}
-                  onCheckedChange={setWalletAlias}
-                />
-                <PreferenceSwitch
-                  id="copy-warning"
-                  label="Warn before copying full wallet address"
-                  description="Adds a brief reminder that full addresses can link activity across apps and communities."
-                  checked={copyWarning}
-                  onCheckedChange={setCopyWarning}
-                />
+              {/* Delivery Channels */}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Delivery Channels</Label>
+                <div className="space-y-1">
+                  <PreferenceSwitch
+                    id="chan-inapp"
+                    label="In-App notification center"
+                    description="Show unread badge in top navbar and interactive toast notifications."
+                    checked={notifPrefs.channels.inApp}
+                    onCheckedChange={(val) => setChannelEnabled("inApp", val)}
+                  />
+                  <PreferenceSwitch
+                    id="chan-push"
+                    label="Web push notifications"
+                    description="Browser push alerts for critical settlements and urgent dispute deadlines."
+                    checked={notifPrefs.channels.push}
+                    onCheckedChange={(val) => setChannelEnabled("push", val)}
+                  />
+                  <PreferenceSwitch
+                    id="chan-email"
+                    label="Email digest"
+                    description="Periodic digest summaries sent to your linked verification email."
+                    checked={notifPrefs.channels.email}
+                    onCheckedChange={(val) => setChannelEnabled("email", val)}
+                  />
+                </div>
               </div>
 
               <div className="rounded-2xl border border-dashed border-border/80 bg-muted/40 p-4">
-                <p className="text-sm font-medium">Privacy guidance</p>
+                <p className="text-sm font-medium">Deterministic handling &amp; account isolation</p>
                 <ul className="mt-3 space-y-2 text-sm leading-relaxed text-muted-foreground">
-                  <li>Use a separate wallet if public market participation should stay distinct from your main identity.</li>
-                  <li>Keep profile activity off unless you want disputes, payouts, and voting behavior to be discoverable.</li>
-                  <li>Prefer aliases in shared screenshots so addresses are not accidentally exposed outside the product.</li>
+                  <li>Preferences are strictly scoped to the active wallet account ({activeAccount === "anonymous" ? "anonymous" : activeAccount}). Switching wallets automatically swaps preferences without cross-contamination.</li>
+                  <li>Offline changes are queued and reconciled deterministically with server state using Last-Write-Wins timestamps.</li>
+                  <li>Explicit defaults ensure predictable notifications for all new and reset accounts.</li>
                 </ul>
               </div>
             </CardContent>
