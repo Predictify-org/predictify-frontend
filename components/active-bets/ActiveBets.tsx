@@ -7,39 +7,24 @@ import { ActiveBetsProps } from '@/lib/types';
 import { ActiveBetCard } from './ActiveBetCard';
 import { Button } from '@/components/ui/button';
 
-// Skeleton loader component
-const ActiveBetCardSkeleton = () => (
-  <div className="flex-shrink-0 w-[280px] sm:w-[320px] bg-card/30 border border-border/30 rounded-xl p-4 animate-pulse">
-    <div className="relative mb-3">
-      <div className="w-full h-20 rounded-lg bg-muted/50" />
-      <div className="absolute top-2 left-2 w-16 h-6 bg-muted/50 rounded-md" />
-    </div>
-    <div className="h-4 bg-muted/50 rounded mb-3" />
-    <div className="space-y-1 mb-3">
-      <div className="h-3 bg-muted/50 rounded w-3/4" />
-      <div className="h-3 bg-muted/50 rounded w-2/3" />
-    </div>
-    <div className="space-y-2">
-      <div className="w-full h-1.5 bg-muted/50 rounded-full" />
-      <div className="h-3 bg-muted/50 rounded w-1/4 ml-auto" />
-    </div>
-  </div>
-);
-
 // Empty state component
 const EmptyState = ({ onAddBet }: { onAddBet?: () => void }) => (
-  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-    <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-      <Plus className="w-8 h-8 text-muted-foreground" />
+  <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-card/20 backdrop-blur-sm border border-border/50 rounded-2xl">
+    <div className="w-24 h-24 mb-6 relative">
+      <img
+        src="/assets/empty-states/dashboard/active-bets.svg"
+        alt="No active bets"
+        className="w-full h-full object-contain ml-auto mr-auto"
+      />
     </div>
-    <h3 className="text-lg font-semibold text-foreground mb-2">No Active Bets</h3>
-    <p className="text-muted-foreground mb-4 max-w-sm">
-      You don't have any active bets at the moment. Start by placing your first bet!
+    <h3 className="text-xl font-bold text-foreground mb-2">No Active Bets</h3>
+    <p className="text-muted-foreground mb-6 max-w-sm">
+      You haven't placed any bets yet. Explore live markets and start predicting today!
     </p>
     {onAddBet && (
-      <Button onClick={onAddBet} className="bg-primary hover:bg-primary/90">
+      <Button onClick={onAddBet} className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
         <Plus className="w-4 h-4 mr-2" />
-        Add Bet
+        Explore Markets
       </Button>
     )}
   </div>
@@ -96,31 +81,8 @@ export const ActiveBets: React.FC<ActiveBetsProps> = ({
     updateScrollState();
   }, [bets]);
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="w-full">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-foreground">Active Bets</h2>
-          <div className="flex gap-2">
-            <div className="w-20 h-9 bg-muted/50 rounded-md animate-pulse" />
-            <div className="w-24 h-9 bg-muted/50 rounded-md animate-pulse" />
-          </div>
-        </div>
-
-        {/* Skeleton Cards */}
-        <div className="flex gap-4 overflow-hidden">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <ActiveBetCardSkeleton key={index} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   // Show empty state
-  if (!bets || bets.length === 0) {
+  if (!isLoading && (!bets || bets.length === 0)) {
     return (
       <div className="w-full">
         <div className="flex items-center justify-between mb-6">
@@ -143,21 +105,32 @@ export const ActiveBets: React.FC<ActiveBetsProps> = ({
     );
   }
 
+  const cardsToRender = isLoading ? 3 : (bets?.length || 0);
+
   return (
     <div className="w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-foreground">Active Bets</h2>
         <div className="flex gap-2">
-          {onAddBet && (
-            <Button onClick={onAddBet} size="sm" className="bg-primary hover:bg-primary/90">
-              Add Bet
-            </Button>
-          )}
-          {onLearnMore && (
-            <Button onClick={onLearnMore} variant="outline" size="sm">
-              Learn more
-            </Button>
+          {isLoading ? (
+            <>
+              <div className="w-20 h-9 bg-muted/50 rounded-md animate-pulse" />
+              <div className="w-24 h-9 bg-muted/50 rounded-md animate-pulse" />
+            </>
+          ) : (
+            <>
+              {onAddBet && (
+                <Button onClick={onAddBet} size="sm" className="bg-primary hover:bg-primary/90">
+                  Add Bet
+                </Button>
+              )}
+              {onLearnMore && (
+                <Button onClick={onLearnMore} variant="outline" size="sm">
+                  Learn more
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -165,11 +138,15 @@ export const ActiveBets: React.FC<ActiveBetsProps> = ({
       {/* Scrollable Container */}
       <div className="relative group">
         {/* Left Arrow */}
-        {canScrollLeft && (
+        {canScrollLeft && !isLoading && (
           <Button
             variant="outline"
             size="icon"
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm border-border/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-background/90"
+            // Issue #7 Fix: Increase touch target size to 40px (w-10 h-10) on mobile
+            // for better accessibility, scale down to 32px (w-8 h-8) on sm+ where cursor
+            // precision is better. WCAG 2.1 AA requires minimum 44x44px, but 40px is acceptable
+            // given sufficient padding and this is an optional scroll control.
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-background/80 backdrop-blur-sm border-border/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-background/90"
             onClick={() => scroll('left')}
             aria-label="Scroll left"
           >
@@ -178,11 +155,14 @@ export const ActiveBets: React.FC<ActiveBetsProps> = ({
         )}
 
         {/* Right Arrow */}
-        {canScrollRight && (
+        {canScrollRight && !isLoading && (
           <Button
             variant="outline"
             size="icon"
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm border-border/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-background/90"
+            // Issue #7 Fix: Increase touch target size to 40px (w-10 h-10) on mobile
+            // for better accessibility, scale down to 32px (w-8 h-8) on sm+ where cursor
+            // precision is better.
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-background/80 backdrop-blur-sm border-border/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-background/90"
             onClick={() => scroll('right')}
             aria-label="Scroll right"
           >
@@ -207,11 +187,14 @@ export const ActiveBets: React.FC<ActiveBetsProps> = ({
           role="region"
           aria-label="Active bets carousel"
         >
-          {bets.map((bet) => (
-            <div key={bet.id} className="snap-start">
-              <ActiveBetCard bet={bet} />
-            </div>
-          ))}
+          {Array.from({ length: cardsToRender }).map((_, index) => {
+            const bet = isLoading ? undefined : bets?.[index];
+            return (
+              <div key={index} className="snap-start">
+                <ActiveBetCard bet={bet} isLoading={isLoading} />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

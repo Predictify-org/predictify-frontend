@@ -73,11 +73,11 @@ function MarketColumn({ event }: { event: Event }) {
 
       {/* Stats */}
       <dl className="grid grid-cols-1 gap-3 text-sm">
-        <Row icon={<TrendingUp className="h-4 w-4" />} label="Odds" value={`${event.odds}x`} />
+        <Row icon={<TrendingUp className="h-4 w-4" />} label="Odds" value={<span className="tabular-nums">{event.odds}x</span>} />
         <Row
           icon={<Users className="h-4 w-4" />}
           label="Participants"
-          value={event.participants.toLocaleString()}
+          value={<span className="tabular-nums">{event.participants.toLocaleString()}</span>}
         />
         <Row
           icon={<Calendar className="h-4 w-4" />}

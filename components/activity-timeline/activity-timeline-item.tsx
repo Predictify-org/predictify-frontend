@@ -97,7 +97,7 @@ export function ActivityTimelineItem({
                       )}
                     >
                       {event.eventType.includes("withdrawal") ? "−" : "+"}
-                      {event.amount.toLocaleString()} {event.currency}
+                      <span className="tabular-nums">{event.amount.toLocaleString()}</span> {event.currency}
                     </span>
                     {event.relatedEventId && (
                       <span className="text-xs text-gray-500">

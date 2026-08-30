@@ -117,12 +117,36 @@ This document outlines the standardized typography hierarchy for Predictify. All
 
 ### 4. Numeric/Stats Text
 
+> **🧮 Tabular numerals by default** — Every `text-stat-*` token is
+> bound to `font-variant-numeric: tabular-nums` in `styles/globals.css`.
+> Currency amounts, balances, percentages, addresses, and other
+> numeric content rendered with these tokens will *automatically* use
+> tabular numerals, so columns of figures stay perfectly aligned.
+> Issue #556 locked this contract.
+
+#### Where tabular-nums is applied
+
+| Location | Element | Mechanism |
+|---|---|---|
+| `components/cards/stat-card.tsx` | `.text-3xl … tabular-nums` | class + `data-numeric="true"` |
+| `app/(dashboard)/finances/page.tsx` | KPI value `<dd>` | `data-numeric="true"` |
+| `app/profile/[addr]/page.tsx` | Header counts | `tabular-nums` class |
+| `app/(auth)/login/page.tsx` | FWC26 campaign stats banner | class + `data-numeric="true"` |
+
+> **GrantFox FWC26 (Stellar Wave)** — `app/(auth)/login/page.tsx` surfaces
+> three campaign KPIs (Participants, Prize Pool, Markets Open) above the
+> login form so prospects see platform scale at a glance. Each `<dd>` carries
+> both the `tabular-nums` Tailwind class and the `data-numeric="true"` attribute.
+> This dual approach means the rule is applied even in contexts where Tailwind's
+> JIT output is not loaded (e.g. SSR, email). See `src/styles/typography.css`.
+
 **Stat Large (32px)**
 ```tsx
 <div className="text-stat-lg font-bold">$1,234</div>
 ```
 - Font Weight: 700 (bold)
 - Letter Spacing: -0.01em
+- Tabular numerals (auto, via the CSS base binding)
 - Use for: Large numbers in hero section, prominent stats
 
 **Stat Medium (24px)**
@@ -130,6 +154,7 @@ This document outlines the standardized typography hierarchy for Predictify. All
 <div className="text-stat-md font-bold">$1,234</div>
 ```
 - Font Weight: 700 (bold)
+- Tabular numerals (auto)
 - Use for: Dashboard numbers, price displays
 
 **Stat Small (18px)**
@@ -137,7 +162,13 @@ This document outlines the standardized typography hierarchy for Predictify. All
 <div className="text-stat-sm font-bold">100</div>
 ```
 - Font Weight: 700 (bold)
+- Tabular numerals (auto)
 - Use for: Small stat cards
+
+> **Heads up:** numeric spans that DON'T use a stat token (e.g. a
+> percentage rendered with `text-body-sm` or `text-body-md`) must opt
+> in with the explicit `tabular-nums` class. See
+> [MarketHero → Tabular numerals](docs/MARKET_HERO.md#tabular-numerals-issue-556).
 
 ### 5. Monospace (Code)
 

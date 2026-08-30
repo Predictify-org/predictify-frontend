@@ -1,9 +1,7 @@
 "use client";
 
 import React, { Component, ErrorInfo, ReactNode } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle } from "lucide-react";
+import { ErrorRecoveryScreen } from "@/components/error/ErrorRecoveryScreen";
 
 interface Props {
   children: ReactNode;
@@ -13,6 +11,7 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  incidentId: string | null;
 }
 
 /**
@@ -22,25 +21,30 @@ interface State {
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, incidentId: null };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    const incidentId = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
+    return { hasError: true, error, incidentId };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    const incidentId = this.state.incidentId;
     // Log error to error reporting service in production
     if (process.env.NODE_ENV === 'production') {
-      console.error('Error caught by boundary:', error, errorInfo);
-      // TODO: Send to error reporting service (e.g., Sentry)
+      console.error(`Error caught by boundary [Incident: ${incidentId}]:`, error, errorInfo);
+      // TODO: Send to error reporting service (e.g., Sentry) with incidentId
     } else {
-      console.error('Error caught by boundary:', error, errorInfo);
+      console.error(`Error caught by boundary [Incident: ${incidentId}]:`, error, errorInfo);
     }
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, incidentId: null });
   };
 
   render() {
@@ -50,39 +54,11 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="flex min-h-screen items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                <CardTitle>Something went wrong</CardTitle>
-              </div>
-              <CardDescription>
-                An unexpected error occurred. Please try again.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {process.env.NODE_ENV === 'development' && this.state.error && (
-                <div className="rounded-md bg-muted p-3">
-                  <p className="text-sm font-mono text-destructive">
-                    {this.state.error.message}
-                  </p>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Button onClick={this.handleReset} variant="default">
-                  Try Again
-                </Button>
-                <Button
-                  onClick={() => window.location.reload()}
-                  variant="outline"
-                >
-                  Reload Page
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <ErrorRecoveryScreen 
+          error={this.state.error!} 
+          incidentId={this.state.incidentId || "unknown"} 
+          resetErrorBoundary={this.handleReset} 
+        />
       );
     }
 

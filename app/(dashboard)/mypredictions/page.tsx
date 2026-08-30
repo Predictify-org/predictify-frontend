@@ -9,15 +9,17 @@ import {
   Clock,
   Activity,
 } from "lucide-react";
+import { PortfolioPie, STATUS_COLORS } from "@/components/PortfolioPie";
+import { EmptyState } from "@/components/EmptyState";
 
 // --- 1. Type Definitions ---
 
-type PredictionStatus = "active" | "pending" | "won" | "lost";
+export type PredictionStatus = "active" | "pending" | "won" | "lost";
 type FilterTab = "All" | "Active" | "Pending" | "Completed";
 type MainTab = "My Predictions" | "Transaction history";
 type Token = "XLM" | "USDC";
 
-interface Prediction {
+export interface Prediction {
   id: string;
   title: string;
   description: string;
@@ -46,7 +48,7 @@ const MOCK_STATS: Stat[] = [
   { title: "Net Profit", value: 30.2, color: "bg-white" },
 ];
 
-const MOCK_PREDICTIONS: Prediction[] = [
+export const MOCK_PREDICTIONS: Prediction[] = [
   {
     id: "1",
     title: "NBA Finals: Lakers vs Heat",
@@ -138,7 +140,7 @@ const StatBox: React.FC<{ stat: Stat }> = ({ stat }) => {
       </p>
       {/* Value text color */}
       <p
-        className={`text-[22px] font-bold mt-1 leading-none ${primaryTextColor}`}
+        className={`text-[22px] font-bold mt-1 leading-none tabular-nums ${primaryTextColor}`}
       >
         {stat.value.toFixed(2)}
       </p>
@@ -211,7 +213,6 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
           <h3 className="text-[17px] font-semibold text-[#111827] truncate">
             {title}
           </h3>
-          div
           <div>
             <p className="text-[#6B7280] text-[15px]">{description}</p>
           </div>
@@ -224,7 +225,7 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
         {/* Stake */}
         <div>
           <p className="text-[#6B7280] text-[15px]">Stake</p>
-          <p className="text-gray-900 font-medium text-[15px]">
+          <p className="text-gray-900 font-medium text-[15px] tabular-nums">
             {stakeAmount} {stakeToken}
           </p>
         </div>
@@ -232,7 +233,7 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
         {/* Odds */}
         <div>
           <p className="text-gray-600 text-[15px]">Odds</p>
-          <p className="text-gray-900 font-medium text-[15px]">
+          <p className="text-gray-900 font-medium text-[15px] tabular-nums">
             {odds.toFixed(1)}x
           </p>
         </div>
@@ -240,7 +241,7 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
         {/* Potential Winnings */}
         <div>
           <p className="text-[#6B7280] text-[15px]">Potential Winnings</p>
-          <p className="text-gray-900 font-medium text-[15px]">
+          <p className="text-gray-900 font-medium text-[15px] tabular-nums">
             {potentialWinnings} {winningsToken}
           </p>
         </div>
@@ -266,46 +267,93 @@ const PredictionCard: React.FC<{ prediction: Prediction }> = ({
 /**
  * PredictionsList component handles the internal filtering and rendering of cards.
  */
-const PredictionsList: React.FC = () => {
+interface PredictionsListProps {
+  predictions?: Prediction[];
+}
+
+const getPredictionsByTab = (
+  predictions: Prediction[],
+  activeTab: FilterTab
+) => {
+  if (activeTab === "All") {
+    return predictions;
+  }
+
+  if (activeTab === "Completed") {
+    return predictions.filter((p) => p.status === "won" || p.status === "lost");
+  }
+
+  const status: PredictionStatus = activeTab.toLowerCase() as PredictionStatus;
+  return predictions.filter((p) => p.status === status);
+};
+
+export const PredictionsList: React.FC<PredictionsListProps> = ({
+  predictions = MOCK_PREDICTIONS,
+}) => {
   const TABS: FilterTab[] = ["All", "Active", "Pending", "Completed"];
   const [activeTab, setActiveTab] = useState<FilterTab>("All");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredPredictions = useMemo(() => {
-    if (activeTab === "All") {
-      return MOCK_PREDICTIONS;
+    const tabbedPredictions = getPredictionsByTab(predictions, activeTab);
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return tabbedPredictions;
     }
 
-    if (activeTab === "Completed") {
-      return MOCK_PREDICTIONS.filter(
-        (p) => p.status === "won" || p.status === "lost"
-      );
-    }
+    return tabbedPredictions.filter((prediction) =>
+      [prediction.title, prediction.description]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [activeTab, predictions, searchQuery]);
 
-    const status: PredictionStatus =
-      activeTab.toLowerCase() as PredictionStatus;
-    return MOCK_PREDICTIONS.filter((p) => p.status === status);
-  }, [activeTab]);
+  const resetFilters = () => {
+    setActiveTab("All");
+    setSearchQuery("");
+  };
 
   return (
     <div className="space-y-6">
       {/* Tab Navigation for Status Filtering */}
-      <div className="flex space-x-2 pb-2">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`
-              px-4 py-2 text-sm font-medium rounded-lg transition duration-200
-              ${
-                activeTab === tab
-                  ? "bg-[#6C17B0] text-white border-b-4 border-white p-3 rounded-lg"
-                  : "text-[#6B7280] hover:bg-gray-700 hover:text-white active:bg-gray-600"
-              }
-            `}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap gap-2 pb-2 md:pb-0">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              aria-pressed={activeTab === tab}
+              className={`
+                rounded-lg px-4 py-2 text-sm font-medium transition duration-200
+                ${
+                  activeTab === tab
+                    ? "bg-[#6C17B0] text-white border-b-4 border-white"
+                    : "text-[#E9D5FF] hover:bg-gray-700 hover:text-white active:bg-gray-600"
+                }
+              `}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <label className="relative block w-full md:max-w-xs">
+          <span className="sr-only">Search predictions</span>
+          <Search
+            size={16}
+            aria-hidden="true"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]"
+          />
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search predictions"
+            className="w-full rounded-lg border border-white/20 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-white"
+          />
+        </label>
       </div>
 
       {/* Predictions Grid */}
@@ -315,9 +363,17 @@ const PredictionsList: React.FC = () => {
             <PredictionCard key={prediction.id} prediction={prediction} />
           ))
         ) : (
-          <p className="text-gray-400 text-center col-span-full py-10 text-lg">
-            No predictions found for the "{activeTab}" status.
-          </p>
+          <EmptyState
+            title="No predictions match your filters"
+            description={
+              searchQuery.trim().length > 0
+                ? `No predictions match "${searchQuery.trim()}". Reset filters to return to the full predictions list.`
+                : `No predictions match the ${activeTab} filter. Reset filters to return to the full predictions list.`
+            }
+            ctaText="Reset filters"
+            onCtaClick={resetFilters}
+            className="col-span-full border-white/20 bg-white/10"
+          />
         )}
       </div>
     </div>
@@ -331,6 +387,30 @@ const MyPredictionsAndHistoryPage: React.FC = () => {
   const MAIN_TABS: MainTab[] = ["My Predictions", "Transaction history"];
   const [activeMainTab, setActiveMainTab] = useState<MainTab>("My Predictions");
 
+  /**
+   * Derive portfolio slice data from MOCK_PREDICTIONS.
+   * Each slice aggregates stakeAmount for a given status.
+   * Replace MOCK_PREDICTIONS with real data when the API is ready.
+   */
+  const pieData = useMemo(() => {
+    const statusOrder: Array<Prediction["status"]> = ["active", "pending", "won", "lost"];
+    const labelMap: Record<Prediction["status"], string> = {
+      active: "Active",
+      pending: "Pending",
+      won: "Won",
+      lost: "Lost",
+    };
+
+    return statusOrder.map((status) => ({
+      label: labelMap[status],
+      value: MOCK_PREDICTIONS.filter((p) => p.status === status).reduce(
+        (sum, p) => sum + p.stakeAmount,
+        0
+      ),
+      color: STATUS_COLORS[labelMap[status]] ?? "#6B7280",
+    }));
+  }, []);
+
   const renderContent = () => {
     switch (activeMainTab) {
       case "My Predictions":
@@ -341,6 +421,9 @@ const MyPredictionsAndHistoryPage: React.FC = () => {
                 <StatBox key={index} stat={stat} />
               ))}
             </div>
+
+            {/* Portfolio distribution pie chart */}
+            <PortfolioPie data={pieData} token="XLM" />
 
             <PredictionsList />
           </div>

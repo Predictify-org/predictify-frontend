@@ -17,9 +17,11 @@ import { HowItWorks } from "./_sections/how-it-works";
 import { WalletsTokens } from "@/components/sections/wallets-token";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import Navbar from "./_components/navbar";
+import { LiveTicker } from "@/app/components/LiveTicker";
 import KpiStrip from "./_sections/kpi-strip";
 import { CTA } from "./_sections/cta";
 import { useParallax } from "@/hooks/use-parallax";
+import { TrendingRail } from "@/app/components/TrendingRail";
 
 export default function MarketingRoute() {
   const orbRef1 = useParallax({ depth: -20 });
@@ -34,7 +36,9 @@ export default function MarketingRoute() {
       </div>
       <AnimatedBackground />
       <Navbar />
+      <LiveTicker />
       <Hero />
+      <TrendingRail />
       <KpiStrip />
       <Features />
       <HowItWorks />

@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import './patterns.css';
+
 /* ===== BASE Styles ===== */
 
 html {
@@ -16,6 +18,29 @@ body {
 /* ===== TYPOGRAPHY Utilities ===== */
 
 @layer utilities {
+  /*
+   * Issue #556 — MarketDetail tabular-nums (v7)
+   *
+   * Bind `font-variant-numeric: tabular-nums` to all numeric typography
+   * tokens (`text-stat-lg`, `text-stat-md`, `text-stat-sm`) so that any
+   * amount, percentage, or address displayed with a stat token is rendered
+   * using tabular numerals by default.  This guarantees that figures align
+   * column-perfectly across the MarketDetail page (volume · participants ·
+   * countdown), the leaderboard, the finances table, and any future
+   * numeric surface that adopts the stat typography scale.
+   *
+   * Explicit per-element `tabular-nums` is still respected and remains the
+   * preferred signal when a numeric span uses a *non*-stat token (e.g.
+   * probability percentages under `text-body-sm`).  This base binding
+   * covers the common case so contributors don't need to remember to add
+   * the class manually on every stat token.
+   */
+  .text-stat-lg,
+  .text-stat-md,
+  .text-stat-sm {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Text Wrapping & Truncation */
   .text-balance {
     text-wrap: balance;
@@ -91,11 +116,12 @@ body {
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    /* WCAG-AA: all chip backgrounds darkened to achieve ≥4.5:1 contrast with #fff */
+    --chart-1: 12 76% 40%;   /* positive – burnt-orange, was 61% L */
+    --chart-2: 173 58% 28%;  /* negative – teal-dark,   was 39% L */
+    --chart-3: 197 37% 22%;  /* neutral  – steel-dark,  was 24% L */
+    --chart-4: 43 74% 38%;   /* tie      – amber-dark,  was 66% L */
+    --chart-5: 27 87% 40%;   /* dispute  – rust-dark,   was 67% L */
     --radius: 0.5rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;

@@ -21,7 +21,7 @@ export const getKit = (): StellarWalletsKit => {
   if (!kit) {
     const config = getClientConfig();
     const network = config.stellar.network === 'mainnet' 
-      ? WalletNetwork.MAINNET 
+      ? WalletNetwork.PUBLIC 
       : WalletNetwork.TESTNET;
     
     kit = new StellarWalletsKit({

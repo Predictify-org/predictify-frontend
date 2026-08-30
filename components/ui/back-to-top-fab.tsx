@@ -9,7 +9,7 @@ interface BackToTopFabProps {
   /**
    * Scroll container ref to monitor and scroll
    */
-  scrollContainerRef: React.RefObject<HTMLElement>
+  scrollContainerRef: React.RefObject<HTMLElement | null>
   /**
    * Threshold in viewport heights before showing button (default: 2)
    */

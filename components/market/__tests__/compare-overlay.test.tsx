@@ -4,6 +4,7 @@
  */
 import React from "react"
 import { render, screen, fireEvent, act } from "@testing-library/react"
+import { CompareMarketsModal } from "@/app/components/CompareMarketsModal"
 import { CompareOverlay } from "@/components/market/CompareOverlay"
 import { CompareSelectionChip } from "@/components/market/CompareSelectionChip"
 import { useCompareStore } from "@/lib/compare-store"
@@ -91,6 +92,20 @@ describe("CompareSelectionChip", () => {
     render(<CompareSelectionChip />)
     fireEvent.click(screen.getByRole("button", { name: /clear all/i }))
     expect(useCompareStore.getState().selectedIds).toHaveLength(0)
+  })
+})
+
+// ── CompareMarketsModal ─────────────────────────────────────────────────────
+describe("CompareMarketsModal", () => {
+  it("renders the compare modal header and content for two selected markets", () => {
+    act(() => useCompareStore.setState({ selectedIds: ["1", "2"], overlayOpen: true }))
+    render(<CompareMarketsModal />)
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(screen.getByText("Compare Markets")).toBeInTheDocument()
+    expect(screen.getByText(/Side-by-side comparison/i)).toBeInTheDocument()
+    expect(screen.getByText("Arsenal vs Liverpool")).toBeInTheDocument()
+    expect(screen.getByText("Bitcoin Price")).toBeInTheDocument()
   })
 })
 

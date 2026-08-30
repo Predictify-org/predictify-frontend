@@ -91,6 +91,16 @@ const config: Config = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
+  			},
+  			outcome: {
+  				yes: {
+  					DEFAULT: 'hsl(var(--outcome-yes))',
+  					foreground: 'hsl(var(--outcome-yes-foreground))'
+  				},
+  				no: {
+  					DEFAULT: 'hsl(var(--outcome-no))',
+  					foreground: 'hsl(var(--outcome-no-foreground))'
+  				}
   			}
   		},
   		borderRadius: {
@@ -114,14 +124,24 @@ const config: Config = {
   				to: {
   					height: '0'
   				}
+  			},
+  			'marquee': {
+  				from: { transform: 'translateX(0)' },
+  				to: { transform: 'translateX(-100%)' }
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'marquee': 'marquee 30s linear infinite'
   		}
   	}
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    function({ addVariant }: { addVariant: Function }) {
+      addVariant('high-contrast', '.high-contrast &')
+    }
+  ],
 };
 export default config;

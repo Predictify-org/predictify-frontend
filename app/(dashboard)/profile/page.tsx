@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,27 +11,65 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ProfileShareCard } from "@/components/profile/ProfileShareCard"
+import { useWalletContext } from "@/context/WalletContext"
 
 export default function ProfilePage() {
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { address, name } = useWalletContext()
 
-  const handleSave = (e) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Simulate API call
-    setTimeout(() => {
-      setSaveSuccess(true)
+    if (isSubmitting) return
 
-      // Clear success message after 3 seconds
+    setIsSubmitting(true)
+    setError(null)
+    setSaveSuccess(false)
+
+    let attempt = 0
+    const maxRetries = 3
+    let success = false
+
+    while (attempt < maxRetries && !success) {
+      try {
+        // Simulate API call with timeout and potential failure
+        await new Promise((resolve, reject) => {
+          setTimeout(() => {
+            if (Math.random() < 0.1) {
+              reject(new Error("Network timeout"))
+            } else {
+              resolve(true)
+            }
+          }, 1000)
+        })
+        success = true
+      } catch (err) {
+        attempt++
+        if (attempt >= maxRetries) {
+          setError("Failed to save profile after multiple attempts. Please try again.")
+        } else {
+          // exponential backoff
+          await new Promise((r) => setTimeout(r, 1000 * attempt))
+        }
+      }
+    }
+
+    if (success) {
+      setSaveSuccess(true)
       setTimeout(() => {
         setSaveSuccess(false)
       }, 3000)
-    }, 1000)
+    }
+    setIsSubmitting(false)
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Your Profile</h1>
+        <ProfileShareCard profile={shareProfile} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -42,6 +80,12 @@ export default function ProfilePage() {
               <CardDescription>Update your personal information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
               {saveSuccess && (
                 <Alert className="bg-green-500/15 text-green-500 border-green-500/50">
                   <AlertCircle className="h-4 w-4" />
@@ -51,7 +95,12 @@ export default function ProfilePage() {
 
               <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="/placeholder.svg?height=80&width=80" alt="Avatar" />
+                  <AvatarImage
+                    src="/placeholder.svg?height=80&width=80"
+                    srcSet="/placeholder.svg?height=40&width=40 40w, /placeholder.svg?height=80&width=80 80w, /placeholder.svg?height=160&width=160 160w"
+                    sizes="80px"
+                    alt="Avatar"
+                  />
                   <AvatarFallback>AD</AvatarFallback>
                 </Avatar>
                 <div>
@@ -83,7 +132,9 @@ export default function ProfilePage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </CardFooter>
           </form>
         </Card>

@@ -1,32 +1,37 @@
 "use client"
 import React, { useState, useMemo } from 'react';
-import PredictionCard from './PredictionCard';
+import PredictionCard, { PredictionCardSkeleton } from './PredictionCard';
 import { Prediction, FilterTab, PredictionStatus, Token } from '../types/predictions';
 
 // --- MOCK DATA to match the screenshot ---
 const MOCK_PREDICTIONS: Prediction[] = [
   {
     id: '1', title: 'NBA Finals: Lakers vs Heat', description: 'Lakers to win',
+    category: 'sports', outcome: 'Yes',
     stakeAmount: 10, stakeToken: 'XLM', odds: 1.8, potentialWinnings: 18, winningsToken: 'XLM',
     eventDate: '10/06/2023', status: 'active',
   },
   {
     id: '2', title: 'Presidential Election', description: 'Candidate A wins',
+    category: 'politics', outcome: 'No',
     stakeAmount: 5, stakeToken: 'USDC', odds: 2.2, potentialWinnings: 11, winningsToken: 'USDC',
     eventDate: '15/05/2023', status: 'pending',
   },
   {
     id: '3', title: 'Bitcoin Price June 2023', description: 'Above $30,000',
+    category: 'crypto', outcome: 'Yes',
     stakeAmount: 20, stakeToken: 'XLM', odds: 1.5, potentialWinnings: 30, winningsToken: 'XLM',
     eventDate: '20/04/2023', resolvedDate: '01/06/2023', status: 'won',
   },
   {
     id: '4', title: 'Ethereum Price May 2023', description: 'Above $2,000',
+    category: 'crypto', outcome: 'No',
     stakeAmount: 15, stakeToken: 'USDC', odds: 1.7, potentialWinnings: 25.5, winningsToken: 'USDC',
     eventDate: '10/04/2023', resolvedDate: '01/05/2023', status: 'lost',
   },
   {
     id: '5', title: 'Formula 1: Monaco Grand Prix', description: 'Verstappen to win',
+    category: 'sports', outcome: 'Yes',
     stakeAmount: 8, stakeToken: 'XLM', odds: 1.9, potentialWinnings: 15.2, winningsToken: 'XLM',
     eventDate: '25/05/2023', resolvedDate: '28/05/2023', status: 'won',
   },
@@ -35,7 +40,14 @@ const MOCK_PREDICTIONS: Prediction[] = [
 
 const TABS: FilterTab[] = ['All', 'Active', 'Pending', 'Completed'];
 
-const PredictionsList: React.FC = () => {
+interface PredictionsListProps {
+  /** When true, renders skeleton cards instead of content (async hydration) */
+  isLoading?: boolean;
+  /** Number of skeleton cards to display during loading. Default 4. */
+  skeletonCount?: number;
+}
+
+const PredictionsList: React.FC<PredictionsListProps> = ({ isLoading = false, skeletonCount = 4 }) => {
   const [activeTab, setActiveTab] = useState<FilterTab>('All');
 
   const filteredPredictions = useMemo(() => {
@@ -52,6 +64,13 @@ const PredictionsList: React.FC = () => {
     const status: PredictionStatus = activeTab.toLowerCase() as PredictionStatus;
     return MOCK_PREDICTIONS.filter(p => p.status === status);
   }, [activeTab]);
+
+  // Render skeleton cards during async hydration
+  const renderSkeletons = () => (
+    Array.from({ length: skeletonCount }).map((_, i) => (
+      <PredictionCardSkeleton key={`skeleton-${i}`} />
+    ))
+  );
 
   return (
     <div className="space-y-6">
@@ -76,7 +95,9 @@ const PredictionsList: React.FC = () => {
 
       {/* Predictions Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredPredictions.length > 0 ? (
+        {isLoading ? (
+          renderSkeletons()
+        ) : filteredPredictions.length > 0 ? (
           filteredPredictions.map((prediction) => (
             <PredictionCard key={prediction.id} prediction={prediction} />
           ))

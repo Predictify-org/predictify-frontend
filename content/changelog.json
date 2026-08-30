@@ -1,5 +1,18 @@
 [
   {
+    "id": "2026-07-24-recently-viewed",
+    "version": "2026.7.1",
+    "date": "2026-07-24",
+    "title": "Recently viewed markets rail on the dashboard",
+    "description": "A new horizontal scrolling rail on the dashboard shows markets you've visited recently, stored locally in your browser for quick access.",
+    "highlights": [
+      "Automatically tracks markets you visit",
+      "Persisted in localStorage (up to 10 markets)",
+      "Dismiss individual markets with the X button",
+      "Keyboard-navigable with arrow keys"
+    ]
+  },
+  {
     "id": "2026-06-20-a11y-pass",
     "version": "2026.6.3",
     "date": "2026-06-20",

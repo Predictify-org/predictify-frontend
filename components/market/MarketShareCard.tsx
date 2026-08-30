@@ -3,6 +3,16 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2, Timer } from "lucide-react";
+import { getThemedSticker } from "@/app/utils/sticker";
+
+const WALLET_ADDRESS_PATTERN = /\b0[xX][a-fA-F0-9]{40}\b/g;
+
+function redactWalletData(value: string): string {
+  return value.replace(
+    WALLET_ADDRESS_PATTERN,
+    (address) => `${address.slice(0, 6)}...${address.slice(-4)}`
+  );
+}
 
 export type MarketStatus = "active" | "resolved" | "tied" | "disputed";
 
@@ -15,6 +25,8 @@ interface MarketShareCardProps {
   timeLeft?: string;
   winner?: string;
   className?: string;
+  creatorName?: string;
+  creatorImage?: string;
 }
 
 const MarketShareCard: React.FC<MarketShareCardProps> = ({
@@ -26,7 +38,10 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
   timeLeft,
   winner,
   className,
+  creatorName,
+  creatorImage,
 }) => {
+  const displayCreatorName = creatorName ? redactWalletData(creatorName) : "Anonymous";
   return (
     <div
       className={cn(
@@ -61,8 +76,31 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col justify-center">
+          {(creatorName || creatorImage) && (
+            <div className="flex items-center gap-3 mb-6">
+              {creatorImage ? (
+                <img src={creatorImage} alt={displayCreatorName} className="w-12 h-12 rounded-full object-cover border-2 border-white/10" />
+              ) : (
+                <div 
+                  className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center border-2 border-white/10 text-xl font-bold shadow-lg", 
+                    getThemedSticker(creatorName || "").backgroundClass
+                  )}
+                  aria-label={`Avatar for ${displayCreatorName}`}
+                  title={displayCreatorName}
+                >
+                  {getThemedSticker(creatorName || "").emoji}
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-caption text-white/50 uppercase tracking-widest">Creator</span>
+                <span className="text-h5 font-semibold text-white/90">{displayCreatorName}</span>
+              </div>
+            </div>
+          )}
+
           <h1 className="text-[64px] leading-[1.1] font-bold text-white mb-12 max-w-[900px] text-balance">
-            {title}
+            {redactWalletData(title ?? "")}
           </h1>
 
           {status === "active" && (
@@ -72,11 +110,11 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
                   Current Odds
                 </span>
                 <div className="flex items-baseline gap-4">
-                  <span className="text-[96px] font-bold text-emerald-400 leading-none">
+                  <span className="text-[96px] font-bold text-emerald-400 leading-none tabular-nums">
                     {probability}%
                   </span>
                   <span className="text-h2 font-semibold text-white/80">
-                    {outcome}
+                    {outcome ? redactWalletData(outcome) : outcome}
                   </span>
                 </div>
               </div>
@@ -88,7 +126,7 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
                   <span className="text-caption text-white/40 uppercase tracking-widest block mb-1">
                     Volume
                   </span>
-                  <span className="text-stat-md text-white font-bold">{volume}</span>
+                  <span className="text-stat-md text-white font-bold tabular-nums">{volume}</span>
                 </div>
                 <div className="flex items-center gap-2 text-amber-400">
                   <Timer className="w-5 h-5" />
@@ -112,7 +150,7 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
                     Winning Outcome
                   </span>
                   <span className="text-[80px] font-bold text-white leading-tight">
-                    {winner}
+                    {winner ? redactWalletData(winner) : winner}
                   </span>
                 </div>
               </div>
@@ -122,7 +160,7 @@ const MarketShareCard: React.FC<MarketShareCardProps> = ({
                   <span className="text-caption text-white/40 uppercase tracking-widest block mb-1">
                     Total Volume
                   </span>
-                  <span className="text-stat-md text-white font-bold">{volume}</span>
+                  <span className="text-stat-md text-white font-bold tabular-nums">{volume}</span>
                 </div>
               )}
             </div>

@@ -1,165 +1,54 @@
-// import { ISupportedWallet } from "@creit.tech/stellar-wallets-kit";
-// import { kit } from "../constants/wallet-kit.constant";
-// import { useGlobalAuthenticationStore } from "@/core/store/data";
-// import { useRouter } from "next/navigation";
-
-// export const useWallet = () => {
-//   const router = useRouter();
-//   const { connectWalletStore, disconnectWalletStore } =
-//     useGlobalAuthenticationStore();
-
-//   const connectWallet = async () => {
-//     await kit.openModal({
-//       modalTitle: "Connect to your favorite wallet",
-//       onWalletSelected: async (option: ISupportedWallet) => {
-//         kit.setWallet(option.id);
-
-//         const { address } = await kit.getAddress();
-//         const { name } = option;
-
-//         connectWalletStore(address, name);
-//       },
-//     });
-//   };
-
-//   const disconnectWallet = async () => {
-//     await kit.disconnect();
-//     disconnectWalletStore();
-//     router.push("/");
-//   };
-
-//   const handleConnect = async () => {
-//     try {
-//       await connectWallet();
-//     } catch (error) {
-//       console.error("Error connecting wallet:", error);
-//     }
-//   };
-
-//   const handleDisconnect = async () => {
-//     try {
-//       if (disconnectWallet) {
-//         await disconnectWallet();
-//       }
-//     } catch (error) {
-//       console.error("Error disconnecting wallet:", error);
-//     }
-//   };
-
-//   return {
-//     connectWallet,
-//     disconnectWallet,
-//     handleConnect,
-//     handleDisconnect,
-//   };
-// };
-
 import { useWalletContext } from "@/context/WalletContext";
-import {
-  FREIGHTER_ID,
-  LOBSTR_ID,
-  XBULL_ID,
-  ALBEDO_ID,
-  RABET_ID,
-  WalletNetwork,
-} from "@creit.tech/stellar-wallets-kit";
+import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
 import { useState } from "react";
 import { getKit } from "../constants/wallet-kits.constant";
 import { getClientConfig } from "@/lib/config";
+import { normalizeContractError } from "@/lib/stellar/contract-error-normalizer";
 
 export const useWallet = () => {
   const walletState = useWalletContext();
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const connectWallet = async (walletId: string) => {
-    try {
-      setIsConnecting(true);
-      setError(null);
-
-      const kit = getKit();
-      kit.setWallet(walletId);
-
-      const { address } = await kit.getAddress();
-
-      const walletName =
-        walletId === FREIGHTER_ID
-          ? "Freighter"
-          : walletId === LOBSTR_ID
-          ? "LOBSTR"
-          : walletId === XBULL_ID
-          ? "XBull"
-          : walletId === ALBEDO_ID
-          ? "Albedo"
-          : walletId === RABET_ID
-          ? "Rabet"
-          : "Unknown Wallet";
-
-      walletState.connect(address, walletName);
-
-      return { success: true, address };
-    } catch (error: unknown) {
-      const errorMessage =
-        (error as Error)?.message || "Error connecting wallet";
-      setError(errorMessage);
-      console.error("Error connecting wallet:", error);
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const disconnectWallet = async () => {
-    try {
-      setError(null);
-      const kit = getKit();
-      await kit.disconnect();
-      walletState.disconnect();
-      return { success: true };
-    } catch (error: unknown) {
-      const errorMessage =
-        (error as Error)?.message || "Error disconnecting wallet";
-      setError(errorMessage);
-      console.error("Error disconnecting wallet:", error);
-      return { success: false, error: errorMessage };
-    }
-  };
+  const [signingError, setSigningError] = useState<string | null>(null);
 
   const signTransaction = async (xdr: string) => {
+    if (!walletState.address) return { success: false, error: "No wallet connected", errorKind: "validation" as const };
+    setSigningError(null);
+    const expectedAddress = walletState.address;
+    const expectedGeneration = walletState.identityGeneration;
     try {
-      setError(null);
-      if (!walletState.address) {
-        throw new Error("No wallet connected");
-      }
-
-      const kit = getKit();
       const clientConfig = getClientConfig();
-      const networkPassphrase =
-        clientConfig.stellar.network === 'mainnet'
-          ? WalletNetwork.MAINNET
-          : WalletNetwork.TESTNET;
-
-      const { signedTxXdr } = await kit.signTransaction(xdr, {
-        address: walletState.address,
-        networkPassphrase,
-      });
-
+      const networkPassphrase = clientConfig.stellar.network === "mainnet" ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
+      const { signedTxXdr } = await getKit().signTransaction(xdr, { address: expectedAddress, networkPassphrase });
+      if (!walletState.isIdentityCurrent(expectedAddress, expectedGeneration)) {
+        return { success: false, error: "The active wallet account changed. Review the transaction and try again.", errorKind: "identity_changed" as const };
+      }
       return { success: true, signedTxXdr };
     } catch (error: unknown) {
-      const errorMessage =
-        (error as Error)?.message || "Error signing transaction";
-      setError(errorMessage);
-      console.error("Error signing transaction:", error);
-      return { success: false, error: errorMessage };
+      const rawMessage = (error as Error)?.message || "Error signing transaction";
+      const normalized = normalizeContractError(rawMessage);
+      const userMessage = normalized.description;
+      setSigningError(userMessage);
+      return { success: false, error: userMessage, errorKind: "unknown" as const };
     }
+  };
+
+  const clearError = () => {
+    setSigningError(null);
+    walletState.clearOperationError();
   };
 
   return {
-    connectWallet,
-    disconnectWallet,
+    connectWallet: walletState.connectWallet,
+    disconnectWallet: walletState.disconnectWallet,
     signTransaction,
-    isConnecting,
-    error,
+    isConnecting: walletState.operationStatus === "connecting" || walletState.operationStatus === "reconciling",
+    isDisconnecting: walletState.operationStatus === "disconnecting",
+    isOperationPending: walletState.operationStatus !== "idle",
+    operationStatus: walletState.operationStatus,
+    activeOperationId: walletState.activeOperationId,
+    error: walletState.operationError?.error ?? signingError,
+    errorKind: walletState.operationError?.errorKind ?? null,
+    clearError,
+    identityGeneration: walletState.identityGeneration,
     isConnected: walletState.connected,
     walletAddress: walletState.address,
     walletName: walletState.name,

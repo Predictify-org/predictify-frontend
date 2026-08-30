@@ -1,7 +1,12 @@
 import type React from "react";
 import { Inter, Space_Grotesk } from "next/font/google";
-import "./globals.css";
+import "./globals.css"
+import "./styles/patterns.css"
+import "./styles/touch.css"
+import "./styles/themes/high-contrast.css"
+import "./styles/print.css"
 import { Providers } from "@/components/providers";
+import { SkipToContent } from "@/app/components/SkipToContent";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
@@ -34,6 +39,8 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body className={`${inter.variable} ${spaceGrotesk.variable} ${inter.className} bg-[#060e20] text-[#dee5ff] min-h-screen selection:bg-cyan-400/30`}>
+        {/* Skip-to-content: first focusable element in every page — WCAG 2.4.1 */}
+        <SkipToContent />
         <Providers>{children}</Providers>
       </body>
     </html>

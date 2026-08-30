@@ -2,9 +2,11 @@
  * MODIFIED: Added skeleton loading state for the events page.
  * Displays a shimmer skeleton matching the events table layout
  * while the page is loading via Next.js Suspense boundary.
+ * Updated to use the themed EventsGridSkeleton for the grid view.
  */
 import { Skeleton } from "@/components/ui/skeleton"
 import { EventsTableSkeleton } from "@/components/events/events-table-skeleton"
+import { EventsGridSkeleton } from "@/components/events/events-grid-skeleton"
 
 export default function Loading() {
   return (

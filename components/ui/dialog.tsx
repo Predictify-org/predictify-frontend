@@ -16,12 +16,15 @@ const DialogClose = DialogPrimitive.Close
 
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay> & { reducedMotion?: boolean }
+>(({ className, reducedMotion, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/80",
+      reducedMotion 
+        ? "" 
+        : "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -31,14 +34,17 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { reducedMotion?: boolean }
+>(({ className, children, reducedMotion, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay reducedMotion={reducedMotion} />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
+        reducedMotion
+          ? "duration-0 transition-none"
+          : "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
         className
       )}
       {...props}
@@ -67,13 +73,24 @@ const DialogHeader = ({
 )
 DialogHeader.displayName = "DialogHeader"
 
+/**
+ * Footer for `Dialog`. Stacks children vertically on small viewports
+ * (Cancel on top → primary at the bottom, thumb-friendly) and horizontally
+ * on `sm+` viewports (Cancel on the left → primary on the right, right-aligned).
+ *
+ * The DOM order matches both the visual and Tab orders, so keyboard
+ * navigation follows what the user sees (WCAG 2.4.3 Focus Order).
+ *
+ * Consumers MUST place the `Cancel`-equivalent element BEFORE the primary
+ * (potentially destructive) `Action` element. See `docs/BUTTON_ORDER.md`.
+ */
 const DialogFooter = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      "flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3",
       className
     )}
     {...props}
@@ -108,6 +125,86 @@ const DialogDescription = React.forwardRef<
 ))
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
+
+/**
+ * A wrapper around DialogContent that automatically restores focus
+ * to the trigger element when the dialog closes.
+ *
+ * Use this instead of DialogContent when you want focus restoration.
+ *
+ * @example
+ * ```tsx
+ * <Dialog>
+ *   <DialogTrigger asChild>
+ *     <Button>Open Modal</Button>
+ *   </DialogTrigger>
+ *   <DialogContentWithFocusReturn>
+ *     <DialogHeader>
+ *       <DialogTitle>Modal Title</DialogTitle>
+ *     </DialogHeader>
+ *     <DialogDescription>
+ *       Modal content goes here.
+ *     </DialogDescription>
+ *   </DialogContentWithFocusReturn>
+ * </Dialog>
+ * ```
+ */
+const DialogContentWithFocusReturn = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { reducedMotion?: boolean }
+>(({ className, children, onOpenAutoFocus, reducedMotion, ...props }, ref) => {
+  const triggerRef = React.useRef<HTMLElement | null>(null);
+
+  // Store the trigger element when the dialog opens
+  const handleOpenAutoFocus = (event: Event) => {
+    // Store the current active element before focus shifts to the dialog
+    const activeElement = document.activeElement as HTMLElement;
+    if (activeElement && activeElement !== document.body) {
+      triggerRef.current = activeElement;
+    }
+
+    // Call the original onOpenAutoFocus if provided
+    onOpenAutoFocus?.(event);
+  };
+
+  // Restore focus when the dialog closes
+  const restoreFocus = () => {
+    if (triggerRef.current && triggerRef.current.isConnected) {
+      triggerRef.current.focus();
+    }
+  };
+
+  return (
+    <DialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
+        reducedMotion
+          ? "duration-0 transition-none"
+          : "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
+        className
+      )}
+      onOpenAutoFocus={handleOpenAutoFocus}
+      onCloseAutoFocus={(event) => {
+        // Prevent the default Radix behavior if we have a stored trigger
+        if (triggerRef.current && triggerRef.current.isConnected) {
+          event.preventDefault();
+          restoreFocus();
+        }
+      }}
+      {...props}
+    >
+      {children}
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+        <X className="h-4 w-4" />
+        <span className="sr-only">Close</span>
+      </DialogPrimitive.Close>
+    </DialogPrimitive.Content>
+  );
+});
+DialogContentWithFocusReturn.displayName = "DialogContentWithFocusReturn";
+
+// Add to exports
 export {
   Dialog,
   DialogPortal,
@@ -115,8 +212,9 @@ export {
   DialogClose,
   DialogTrigger,
   DialogContent,
+  DialogContentWithFocusReturn,
   DialogHeader,
   DialogFooter,
   DialogTitle,
   DialogDescription,
-}
+};

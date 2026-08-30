@@ -331,7 +331,7 @@ export default function BetsPage() {
                   <TableCell>
                     {getCategoryBadge(event.category)}
                   </TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium tabular-nums">
                     {event.odds.toFixed(1)}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">

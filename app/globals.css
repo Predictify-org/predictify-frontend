@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Focus-visible layer (WCAG 2.1 AA keyboard navigation) ===== */
+@import "./styles/focus.css";
+
+/* ===== Typographic utilities (tabular-nums, etc.) ===== */
+@import "../src/styles/typography.css";
+
 /* ===== BASE Styles ===== */
 
 html {
@@ -16,6 +22,37 @@ body {
 /* ===== TYPOGRAPHY Utilities ===== */
 
 @layer utilities {
+  /**
+   * tabular-nums — numeric display utility
+   *
+   * Applies `font-variant-numeric: tabular-nums` so that digits occupy
+   * equal horizontal space. This prevents column widths from "jumping"
+   * as values update (e.g. balance tickers, leaderboard ranks).
+   *
+   * Usage:
+   *   <span className="tabular-nums">$4,325.49</span>
+   *
+   * Or via the data attribute — any element with data-numeric="true"
+   * inherits the same treatment automatically:
+   *   <span data-numeric="true">12,543</span>
+   *
+   * Tailwind already ships a `tabular-nums` utility class; this mirrors
+   * it inside @layer utilities so it is available project-wide and can
+   * be referenced directly in plain CSS/SCSS without @apply.
+   *
+   * Dark-mode & high-contrast: font-variant-numeric is purely a glyph
+   * layout property — it has no colour implications and requires no
+   * additional overrides.
+   */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Attribute-based selector: opt-in via data-numeric="true" */
+  [data-numeric="true"] {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Text Wrapping & Truncation */
   .text-balance {
     text-wrap: balance;
@@ -146,6 +183,10 @@ body {
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --outcome-yes: 164 100% 31%;
+    --outcome-yes-foreground: 0 0% 100%;
+    --outcome-no: 26 100% 42%;
+    --outcome-no-foreground: 0 0% 100%;
   }
   .dark {
     --background: 0 0% 3.9%;
@@ -180,6 +221,10 @@ body {
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --outcome-yes: 164 100% 40%;
+    --outcome-yes-foreground: 0 0% 100%;
+    --outcome-no: 26 100% 50%;
+    --outcome-no-foreground: 0 0% 100%;
   }
 }
 
@@ -270,78 +315,77 @@ body {
   }
 }
 
+/* Manual "Reduce motion" override – applied to <html> by Settings > Motion */
+html.motion-reduced,
+html.motion-reduced *,
+html.motion-reduced *::before,
+html.motion-reduced *::after {
+  animation: none !important;
+  transition-duration: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ===== HIGH CONTRAST MODE (Accessibility) ===== */
+
+/**
+ * Native Windows High Contrast Support (forced-colors: active)
+ * and manual override (html.high-contrast)
+ */
+@media (forced-colors: active) {
+  :root {
+    /* Respect system colors while ensuring borders are visible */
+    --border: CanvasText;
+    --input: CanvasText;
+    --ring: CanvasText;
+  }
+  
+  * {
+    /* Ensure all elements have visible borders in forced-colors mode */
+    forced-color-adjust: none;
+    border-color: CanvasText !important;
+  }
+
+  button, a.btn, .badge {
+    border: 2px solid CanvasText !important;
+  }
+
+  /* Status badges meaning without color */
+  .badge-success::before { content: "✓ "; }
+  .badge-warning::before { content: "⚠ "; }
+  .badge-error::before { content: "✕ "; }
+}
+
+/* Manual "Force high contrast" override — see app/styles/themes/high-contrast.css */
+
 /* ===== PRINT STYLES ===== */
+/* Receipt print rules have been extracted to app/styles/print.css,          */
+/* which is imported globally from app/layout.tsx.                           */
+
+/* ===== SENSITIVE WALLET DATA ===== */
+/* Sensitive wallet material (private keys, seed phrases, recovery codes)   */
+/* must never be selectable/copyable in normal views and must be excluded   */
+/* from print output. Components opt in with .sensitive-wallet-data or      */
+/* data-sensitive-wallet on the smallest container holding the value.       */
+[data-sensitive-wallet],
+.sensitive-wallet-data {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 
 @media print {
-  /* Force light mode variables for print to avoid white text on white paper */
-  :root, .dark {
-    --background: 0 0% 100% !important;
-    --foreground: 0 0% 3.9% !important;
-    --card: 0 0% 100% !important;
-    --card-foreground: 0 0% 3.9% !important;
-    --muted: 0 0% 96.1% !important;
-    --muted-foreground: 0 0% 45.1% !important;
-    --border: 0 0% 89.8% !important;
-    --primary: 0 0% 9% !important;
-    --primary-foreground: 0 0% 98% !important;
-  }
-
-  /* Hide UI chrome */
-  header, nav, footer, .sidebar, .navbar, .print-hide, button, a.btn {
+  [data-sensitive-wallet],
+  .sensitive-wallet-data {
     display: none !important;
   }
+}
 
-  /* Isolate receipt and hide other elements completely */
-  body {
-    background: white !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  
-  body * {
-    visibility: hidden;
-  }
-  
-  .receipt-wrapper, .receipt-wrapper * {
-    visibility: visible;
-  }
-  
-  .receipt-wrapper {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 40px 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-  }
-
-  /* The receipt card */
-  .receipt-container {
-    width: 100% !important;
-    max-width: 500px !important;
-    border: 1px solid #e5e7eb !important;
-    border-radius: 16px !important;
-    box-shadow: none !important;
-    background: white !important;
-    page-break-inside: avoid;
-    margin: 0 auto !important;
-  }
-
-  .print-hide-border {
-    border-bottom: 2px solid black !important;
-  }
-
-  /* Force exact colors so badges and accents print correctly */
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  @page {
-    size: auto;
-    margin: 20mm;
-  }
+.quiet-hours-active *,
+.quiet-hours-active *::before,
+.quiet-hours-active *::after {
+  animation-play-state: paused !important;
+  transition-duration: 0ms !important;
+  scroll-behavior: auto !important;
 }
