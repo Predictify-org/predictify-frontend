@@ -225,17 +225,14 @@ describe("LeaderboardPodium — reduced-motion implementation", () => {
     mockUseReducedMotion.mockReturnValue(true);
     const { unmount: unmountStatic } = render(<LeaderboardPodium topThree={[]} />);
     
-    // Should not crash and should render empty structure
-    const staticElement = screen.getByTestId("leaderboard-podium-static");
-    expect(staticElement).toBeInTheDocument();
+    expect(screen.getByText("No Rankings Yet")).toBeInTheDocument();
     
     unmountStatic();
 
     mockUseReducedMotion.mockReturnValue(false);
     render(<LeaderboardPodium topThree={[]} />);
     
-    const animatedElement = screen.getByTestId("leaderboard-podium-animated");
-    expect(animatedElement).toBeInTheDocument();
+    expect(screen.getByText("No Rankings Yet")).toBeInTheDocument();
   });
 
   it("handles partial data (missing users) gracefully", () => {
