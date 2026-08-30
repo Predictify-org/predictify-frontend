@@ -2,19 +2,43 @@
 
 import React, { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDownUp, ArrowUp, ArrowDown, ArrowUpCircle, Share2, Trophy } from "lucide-react";
+import { ArrowUpCircle, Share2, Trophy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { LeaderboardEmptyState, LeaderboardLoadingState, LeaderboardErrorState } from "./leaderboard-states";
 import { LeaderboardUser } from "@/lib/leaderboard-data";
 
-type SortKey = "rank" | "name" | "profit" | "winRate" | "predictions";
+type SortKey = "rank" | "profit" | "winRate" | "predictions";
+
+type SortDirection = "asc" | "desc";
 
 interface LeaderboardTableProps {
   users: LeaderboardUser[];
   onUserVisibilityChange?: (isVisible: boolean) => void;
   onShare?: () => void;
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+}
+
+const AVATAR_WIDTHS = [40, 48, 64];
+
+function getAvatarSource(user: LeaderboardUser): string | undefined {
+  return user.avatarUrl;
+}
+
+function getResponsiveImageSource(source: string, width: number): string {
+  return source;
+}
+
+function formatProfit(value: number): string {
+  const formatted = value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `+${formatted}`;
 }
 
 const sortLabels: Record<SortKey, string> = {
@@ -24,14 +48,22 @@ const sortLabels: Record<SortKey, string> = {
   predictions: "Predictions",
 };
 
-export function LeaderboardTable({ users, onUserVisibilityChange, onShare }: LeaderboardTableProps) {
+export function LeaderboardTable({
+  users,
+  onUserVisibilityChange,
+  onShare,
+  isLoading = false,
+  error = null,
+  onRetry,
+}: LeaderboardTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const [sortKey, setSortKey] = React.useState<SortKey>("profit");
-  const [sortDirection, setSortDirection] = React.useState<SortDirection>("desc");
+  const [sortKey, setSortKey] = useState<SortKey>("profit");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [isScrolled, setIsScrolled] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(false);
 
   const sortedUsers = useMemo(() => {
+    if (!users || users.length === 0) return [];
     return [...users].sort((left, right) => {
       const leftValue = left[sortKey];
       const rightValue = right[sortKey];
@@ -40,13 +72,13 @@ export function LeaderboardTable({ users, onUserVisibilityChange, onShare }: Lea
           ? leftValue.localeCompare(rightValue)
           : Number(leftValue) - Number(rightValue);
 
-      return sortDescending ? -comparison : comparison;
+      return sortDirection === "desc" ? -comparison : comparison;
     });
-  }, [sortKey, sortDescending, users]);
+  }, [sortKey, sortDirection, users]);
 
   const rowVirtualizer = useVirtualizer({
     count: sortedUsers.length,
-    getScrollElement: () => scrollParentRef.current,
+    getScrollElement: () => parentRef.current,
     estimateSize: () => 64,
     overscan: 5,
   });
@@ -54,7 +86,7 @@ export function LeaderboardTable({ users, onUserVisibilityChange, onShare }: Lea
   const currentUserIndex = sortedUsers.findIndex((user) => user.isCurrentUser);
   const virtualItems = rowVirtualizer.getVirtualItems();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (onUserVisibilityChange) {
       const isVisible = virtualItems.some((vi: { index: number }) => vi.index === currentUserIndex);
       onUserVisibilityChange(isVisible);
@@ -94,26 +126,37 @@ export function LeaderboardTable({ users, onUserVisibilityChange, onShare }: Lea
       return;
     }
 
-    setSortKey(nextSortKey);
-    setSortDescending(true);
+    setSortKey(nextKey);
+    setSortDirection("desc");
   };
 
-  const sortButton = (key: SortKey, label: string) => (
-    <button
-      type="button"
-      className="font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      aria-label={`Sort by ${label}`}
-      aria-pressed={sortKey === key}
-      onClick={() => handleSort(key)}
-    >
-      {label}
-      {sortKey === key && (
-        <span aria-hidden="true" className="ml-1">
-          {sortDescending ? "↓" : "↑"}
-        </span>
-      )}
-    </button>
-  );
+  const renderSortIcon = (key: SortKey) => {
+    if (sortKey !== key) return null;
+    return sortDirection === "desc" ? "↓" : "↑";
+  };
+
+  if (isLoading) {
+    return <LeaderboardLoadingState message="Loading rankings..." className="rounded-2xl border border-slate-800" />;
+  }
+
+  if (error) {
+    return (
+      <LeaderboardErrorState
+        error={error}
+        onRetry={onRetry}
+        className="rounded-2xl border border-slate-800"
+      />
+    );
+  }
+
+  if (users.length === 0) {
+    return (
+      <LeaderboardEmptyState
+        onRetry={onRetry}
+        className="rounded-2xl border border-slate-800"
+      />
+    );
+  }
 
   return (
     <div className="w-full bg-slate-950/50 rounded-2xl border border-slate-800 overflow-hidden relative">
@@ -204,8 +247,6 @@ export function LeaderboardTable({ users, onUserVisibilityChange, onShare }: Lea
                 <td className="px-4 py-3">{user.rank}</td>
                 <td className="flex items-center gap-3 px-4 py-3 font-medium">
                   {avatarSource && avatarSrcSet ? (
-                    // A native image is used so this explicit srcSet is passed through unchanged.
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={avatarSource}
                       srcSet={avatarSrcSet}

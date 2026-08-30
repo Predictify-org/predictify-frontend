@@ -13,6 +13,11 @@ import {
   getTopCategories,
   type RecommendedMarket,
 } from "@/lib/recommendations"
+import {
+  trackRecommendation,
+  trackRecommendationImpression,
+} from "@/lib/telemetry"
+import { useConsentStore } from "@/app/state/consent"
 import { mockActiveBets } from "@/lib/mock-data"
 import type { Bet, CategoryColor } from "@/lib/types"
 
@@ -28,10 +33,19 @@ interface RecommendationsStripProps {
  * category chip — this is a lower-commitment discovery surface, not a bet
  * the user is tracking.
  */
-function RecommendationCard({ market }: { market: RecommendedMarket }) {
+function RecommendationCard({
+  market,
+  position,
+  onSelect,
+}: {
+  market: RecommendedMarket
+  position: number
+  onSelect: (market: RecommendedMarket, position: number) => void
+}) {
   return (
     <Link
       href={market.href}
+      onClick={() => onSelect(market, position)}
       className={cn(
         "flex-shrink-0 snap-start rounded-xl border border-border/30 bg-card/20 p-4",
         "w-[calc(100vw-3rem)] max-w-[260px] sm:w-[260px]",
@@ -108,9 +122,32 @@ export function RecommendationsStrip({ bets = mockActiveBets, className }: Recom
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
+  const analyticsConsent = useConsentStore((s) => s.analyticsConsent)
 
   const categories = manualCategories ?? getTopCategories(bets)
   const markets = useMemo(() => getRecommendedMarkets(categories), [categories])
+
+  // Consent-gated impression telemetry: fires once per rendered market set.
+  // When consent is revoked, no further events are emitted.
+  useEffect(() => {
+    if (!analyticsConsent) return
+    markets.forEach((market, index) => {
+      trackRecommendationImpression({
+        marketId: market.id,
+        category: market.category,
+        position: index,
+      })
+    })
+  }, [markets, analyticsConsent])
+
+  const handleSelectMarket = (market: RecommendedMarket, position: number) => {
+    trackRecommendation({
+      type: "recommendation_click",
+      marketId: market.id,
+      category: market.category,
+      position,
+    })
+  }
 
   const updateScrollState = () => {
     const el = scrollContainerRef.current
@@ -184,8 +221,13 @@ export function RecommendationsStrip({ bets = mockActiveBets, className }: Recom
             role="region"
             aria-label="Markets you might like carousel"
           >
-            {markets.map((market) => (
-              <RecommendationCard key={market.id} market={market} />
+            {markets.map((market, index) => (
+              <RecommendationCard
+                key={market.id}
+                market={market}
+                position={index}
+                onSelect={handleSelectMarket}
+              />
             ))}
           </div>
         </div>

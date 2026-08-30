@@ -4,15 +4,59 @@ import React, { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { LeaderboardEmptyState } from "./leaderboard-states";
 import { LeaderboardUser } from "@/lib/leaderboard-data";
 
 interface LeaderboardCardsProps {
   users: LeaderboardUser[];
   onUserVisibilityChange?: (isVisible: boolean) => void;
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export function LeaderboardCards({ users, onUserVisibilityChange }: LeaderboardCardsProps) {
+export function LeaderboardCards({ users, onUserVisibilityChange, isLoading, error, onRetry }: LeaderboardCardsProps) {
   const parentRef = useRef<HTMLDivElement>(null);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40"
+          >
+            <div className="w-6 h-4 rounded bg-slate-800 animate-pulse" />
+            <div className="w-10 h-10 rounded-full bg-slate-800 animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-32 rounded bg-slate-800 animate-pulse" />
+              <div className="h-3 w-20 rounded bg-slate-800 animate-pulse" />
+            </div>
+            <div className="w-16 h-4 rounded bg-slate-800 animate-pulse hidden sm:block" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <LeaderboardErrorState
+        error={error}
+        onRetry={onRetry}
+        className="rounded-2xl border border-slate-800"
+      />
+    );
+  }
+
+  if (users.length === 0) {
+    return (
+      <LeaderboardEmptyState
+        onRetry={onRetry}
+        className="rounded-2xl border border-slate-800"
+      />
+    );
+  }
 
   const rowVirtualizer = useVirtualizer({
     count: users.length,
@@ -54,7 +98,7 @@ export function LeaderboardCards({ users, onUserVisibilityChange }: LeaderboardC
                   : "bg-slate-900/40 border-slate-800"
               )}
               style={{
-                height: `72px`, // slightly less than estimate to allow gap
+                height: `72px`,
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >

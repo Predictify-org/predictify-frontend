@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { useConsentStore } from "@/app/state/consent"
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -47,7 +48,8 @@ export default function AccountSettingsPage() {
   // Privacy controls
   const [publicProfile, setPublicProfile] = useState(true)
   const [showActivity, setShowActivity] = useState(true)
-  const [allowAnalytics, setAllowAnalytics] = useState(false)
+  const analyticsConsent = useConsentStore((s) => s.analyticsConsent)
+  const setAnalyticsConsent = useConsentStore((s) => s.setAnalyticsConsent)
   const [showLeaderboard, setShowLeaderboard] = useState(true)
 
   // Save state for live-region announcement
@@ -288,8 +290,8 @@ export default function AccountSettingsPage() {
                 id="allow-analytics"
                 label="Allow usage analytics"
                 description="Help improve Predictify by sharing anonymised interaction data. No wallet data is included."
-                checked={allowAnalytics}
-                onCheckedChange={setAllowAnalytics}
+                checked={analyticsConsent}
+                onCheckedChange={setAnalyticsConsent}
               />
             </CardContent>
           </Card>

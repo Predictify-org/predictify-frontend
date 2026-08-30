@@ -1,9 +1,10 @@
 'use client';
 
-import { Clock, AlertTriangle, ShieldAlert, Flag, Xcircle, Loader2 } from 'lucide-react';
+import { Clock, AlertTriangle, ShieldAlert, Flag, XCircle, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useAccessibility } from '@/context/AccessibilityContext';
 
 import type { ModerationState } from '@/types/moderation';
 import { MODERATION_CONFIG } from './moderation-config';
@@ -47,17 +48,18 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
   const Icon = isValidState ? STATE_ICONS[state] : AlertTriangle;
   const variant = isValidState ? VARIANT_MAP[state] : 'neutral';
   const isResolving = state === 'resolving';
+  const { reduceMotion } = useAccessibility();
 
   const badge = (
     <Badge
       role="status"
-      aria-label={@Market status: ${config.label}. ${config.description}}"
+      aria-label={isResolving ? `Market status: ${config.label}. Resolving now.` : `Market status: ${config.label}`}
       variant={variant}
       size="md"
       tabIndex={showTooltip ? 0 : undefined}
       className={cn(
         config.badgeClass,
-        isResolving && 'animate-status-live-pulse',
+        isResolving && !reduceMotion && 'animate-status-live-pulse',
         showTooltip && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         className
       )}

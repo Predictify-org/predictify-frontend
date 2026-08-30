@@ -101,6 +101,8 @@ export function WalletModal({
     isConnected,
     walletAddress,
     walletName,
+    isOperationPending,
+    isDisconnecting,
   } = useWallet();
 
   const [connectionError, setConnectionError]     = useState<string | null>(null);
@@ -280,7 +282,7 @@ export function WalletModal({
                 key={wallet.id}
                 variant="outline"
                 onClick={() => handleWalletConnect(wallet)}
-                disabled={!!connectingWalletId || isConnected}
+                disabled={!!connectingWalletId || isOperationPending || isConnected}
                 aria-label={
                   isLastUsed
                     ? `Connect ${wallet.name} (last used)`
@@ -347,10 +349,11 @@ export function WalletModal({
             <Button
               variant="outline"
               onClick={handleDisconnect}
+              disabled={isOperationPending}
               className="text-destructive cursor-pointer hover:text-destructive hover:bg-destructive/10"
             >
               <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
-              {disconnectButtonLabel}
+              {isDisconnecting ? "Disconnecting…" : disconnectButtonLabel}
             </Button>
           </DialogFooter>
         )}

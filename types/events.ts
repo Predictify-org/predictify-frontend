@@ -34,4 +34,8 @@ export interface PaginationState {
   page: number
   pageSize: number
   total: number
+  /** Cursor for the current position (optional, for cursor-based pagination) */
+  cursor?: string | null
+  /** Version of filters when cursor was set (used to detect filter changes) */
+  filterVersion?: number
 }

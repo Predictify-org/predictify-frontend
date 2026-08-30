@@ -123,8 +123,8 @@ const STATUS_PATTERN_STYLES: Record<MarketStatus, React.CSSProperties> = {
  * - Responsive design that works on small screens
  * - Dark mode support using Tailwind class-based strategy
  *
- * Accessibility (WCAG 2.1 BA):
- * - Uses aria-label to convey the status name clearly, without relying on color alone
+ * Accessibility (WCAG 2.1 AA):
+ * - Uses role="status" and aria-label to convey the status clearly, without relying on color alone
  * - Includes aria-describedby linking to the sr-only description
  * - SR-only text contains full tooltip description for accessibility
  * - Keyboard accessible via focus (Radix Tooltip handles this)
@@ -183,6 +183,7 @@ export function StatusBadge({
 
   const badge = (
     <Badge
+      role="status"
       aria-label={`${label} status`}
       aria-describedby={statusId}
       data-status={status}
@@ -194,7 +195,7 @@ export function StatusBadge({
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       <span>{label}</span>
-      /* SR-only description for screen readers */
+      {/* SR-only description for screen readers */}
       <span id={statusId} className="sr-only">
         {description}
       </span>

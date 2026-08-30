@@ -1,4 +1,9 @@
 import { config } from '@/lib/config';
+import {
+  normalizeContractError,
+  type HorizonResultCodes,
+  type NormalizedError,
+} from './contract-error-normalizer';
 
 export type StellarNetwork = 'testnet' | 'mainnet';
 
@@ -38,20 +43,70 @@ export function getHorizonUrl(): string {
   return HORIZON_BASE_URLS[getStellarNetwork()];
 }
 
-function normalizeErrorMessage(payload: any, fallback: string): string {
+/**
+ * Normalize a Horizon error payload into a user-safe description string.
+ *
+ * Routes through ContractErrorNormalizer so Soroban/contract-specific
+ * result codes are translated to actionable, user-facing copy.
+ *
+ * @internal Use normalizeTransactionError for structured output with code/isRetryable.
+ */
+function normalizeErrorMessage(
+  payload: { detail?: string; extras?: { result_codes?: HorizonResultCodes } } | null,
+  fallback: string,
+): string {
   if (!payload) {
     return fallback;
   }
 
-  if (typeof payload.detail === 'string' && payload.detail.length > 0) {
-    return payload.detail;
+  const resultCodes = payload?.extras?.result_codes;
+
+  // If result_codes are present, run through the full normalizer for
+  // actionable, user-safe copy.
+  if (resultCodes?.transaction || resultCodes?.operations?.length) {
+    const normalized = normalizeContractError(
+      resultCodes.transaction ?? undefined,
+      resultCodes,
+    );
+    return normalized.description;
   }
 
-  if (payload.extras?.result_codes?.transaction) {
-    return payload.extras.result_codes.transaction;
+  if (typeof payload.detail === 'string' && payload.detail.length > 0) {
+    // detail may contain internal info — run through normalizer
+    const normalized = normalizeContractError(payload.detail);
+    // Only use the normalizer result for known (non-unknown) error patterns
+    if (normalized.code !== 'UNKNOWN') {
+      return normalized.description;
+    }
+    // For unknown patterns in detail, return a safe generic message
+    return fallback;
   }
 
   return fallback;
+}
+
+/**
+ * Returns a structured NormalizedError for a Horizon payload.
+ * Prefer this over normalizeErrorMessage when callers need code/isRetryable.
+ *
+ * @param payload  Raw Horizon JSON error payload, or null.
+ * @param fallback  Fallback description when no recognized code is found.
+ */
+export function normalizeTransactionError(
+  payload: { detail?: string; extras?: { result_codes?: HorizonResultCodes } } | null,
+  fallback: string,
+): NormalizedError {
+  if (!payload) {
+    return normalizeContractError(undefined);
+  }
+  const resultCodes = payload?.extras?.result_codes;
+  if (resultCodes?.transaction || resultCodes?.operations?.length) {
+    return normalizeContractError(resultCodes.transaction ?? undefined, resultCodes);
+  }
+  if (typeof payload.detail === 'string' && payload.detail.length > 0) {
+    return normalizeContractError(payload.detail);
+  }
+  return normalizeContractError(fallback);
 }
 
 export async function submitTransaction(
@@ -88,10 +143,11 @@ export async function submitTransaction(
       ),
     };
   } catch (error: unknown) {
+    const rawMsg = (error as Error)?.message || 'Transaction submission failed';
     return {
       success: false,
       status: 'submitFailed',
-      error: (error as Error)?.message || 'Transaction submission failed',
+      error: normalizeContractError(rawMsg).description,
     };
   }
 }
@@ -133,10 +189,11 @@ export async function pollForConfirmation(
         ),
       };
     } catch (error: unknown) {
+      const rawMsg = (error as Error)?.message || 'Transaction confirmation failed';
       return {
         success: false,
         status: 'confirmationFailed',
-        error: (error as Error)?.message || 'Transaction confirmation failed',
+        error: normalizeContractError(rawMsg).description,
       };
     }
   }

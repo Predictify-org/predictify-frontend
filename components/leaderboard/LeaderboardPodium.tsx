@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { LeaderboardUser } from "@/lib/leaderboard-data";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { LeaderboardEmptyState } from "./leaderboard-states";
 
 interface LeaderboardPodiumProps {
   topThree: LeaderboardUser[];
@@ -24,6 +25,7 @@ interface LeaderboardPodiumProps {
  * - Responsive design with proper spacing and sizing
  * - Accessible: proper alt text, semantic structure
  * - Static fallback maintains visual hierarchy without motion
+ * - Gracefully handles empty or partial top-three data
  * 
  * WCAG 2.1 AA Compliance:
  * - Respects prefers-reduced-motion for users with vestibular disorders
@@ -38,6 +40,17 @@ export function LeaderboardPodium({
   const prefersReducedMotion = useReducedMotion();
   const reducedMotion = reducedMotionProp ?? prefersReducedMotion;
 
+  if (topThree.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <LeaderboardEmptyState
+          title="No Rankings Yet"
+          description="The leaderboard is empty. Be the first to start predicting and claim the top spot."
+        />
+      </div>
+    );
+  }
+
   // Static fallback component for reduced motion
   const StaticPodium = () => (
     <div 
@@ -47,24 +60,26 @@ export function LeaderboardPodium({
       aria-label="Leaderboard top 3 positions"
     >
       {/* 2nd Place */}
-      <div className="flex flex-col items-center">
-        <div className="relative mb-2">
-          <Avatar className="h-16 w-16 border-2 border-slate-300 ring-4 ring-slate-300/20">
-            <AvatarImage src={second?.avatarUrl} alt={second?.name} />
-            <AvatarFallback>{second?.name?.[0]}</AvatarFallback>
-          </Avatar>
-          <div 
-            className="absolute -top-2 -right-2 bg-slate-300 text-slate-900 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center"
-            aria-label="2nd place"
-          >
-            2
+      {second ? (
+        <div className="flex flex-col items-center">
+          <div className="relative mb-2">
+            <Avatar className="h-16 w-16 border-2 border-slate-300 ring-4 ring-slate-300/20">
+              <AvatarImage src={second.avatarUrl} alt={second.name} />
+              <AvatarFallback>{second.name?.[0]}</AvatarFallback>
+            </Avatar>
+            <div 
+              className="absolute -top-2 -right-2 bg-slate-300 text-slate-900 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center"
+              aria-label="2nd place"
+            >
+              2
+            </div>
+          </div>
+          <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-t-lg w-20 h-24 flex flex-col items-center justify-center p-2 text-center">
+            <span className="text-xs font-semibold text-white truncate w-full">{second.name}</span>
+            <span className="text-[10px] text-cyan-400 tabular-nums">+{second.profit}</span>
           </div>
         </div>
-        <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-t-lg w-20 h-24 flex flex-col items-center justify-center p-2 text-center">
-          <span className="text-xs font-semibold text-white truncate w-full">{second?.name}</span>
-          <span className="text-[10px] text-cyan-400 tabular-nums">+{second?.profit}</span>
-        </div>
-      </div>
+      ) : <div className="w-20 h-40" aria-hidden="true" />}
 
       {/* 1st Place */}
       <div className="flex flex-col items-center -mt-8">
@@ -91,24 +106,26 @@ export function LeaderboardPodium({
       </div>
 
       {/* 3rd Place */}
-      <div className="flex flex-col items-center">
-        <div className="relative mb-2">
-          <Avatar className="h-16 w-16 border-2 border-amber-600 ring-4 ring-amber-600/20">
-            <AvatarImage src={third?.avatarUrl} alt={third?.name} />
-            <AvatarFallback>{third?.name?.[0]}</AvatarFallback>
-          </Avatar>
-          <div 
-            className="absolute -top-2 -right-2 bg-amber-600 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center"
-            aria-label="3rd place"
-          >
-            3
+      {third ? (
+        <div className="flex flex-col items-center">
+          <div className="relative mb-2">
+            <Avatar className="h-16 w-16 border-2 border-amber-600 ring-4 ring-amber-600/20">
+              <AvatarImage src={third.avatarUrl} alt={third.name} />
+              <AvatarFallback>{third.name?.[0]}</AvatarFallback>
+            </Avatar>
+            <div 
+              className="absolute -top-2 -right-2 bg-amber-600 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center"
+              aria-label="3rd place"
+            >
+              3
+            </div>
+          </div>
+          <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-t-lg w-20 h-20 flex flex-col items-center justify-center p-2 text-center">
+            <span className="text-xs font-semibold text-white truncate w-full">{third.name}</span>
+            <span className="text-[10px] text-cyan-400 tabular-nums">+{third.profit}</span>
           </div>
         </div>
-        <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-t-lg w-20 h-20 flex flex-col items-center justify-center p-2 text-center">
-          <span className="text-xs font-semibold text-white truncate w-full">{third?.name}</span>
-          <span className="text-[10px] text-cyan-400 tabular-nums">+{third?.profit}</span>
-        </div>
-      </div>
+      ) : <div className="w-20 h-20" aria-hidden="true" />}
     </div>
   );
 
@@ -126,29 +143,31 @@ export function LeaderboardPodium({
       aria-label="Leaderboard top 3 positions"
     >
       {/* 2nd Place */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col items-center"
-      >
-        <div className="relative mb-2">
-          <Avatar className="h-16 w-16 border-2 border-slate-300 ring-4 ring-slate-300/20">
-            <AvatarImage src={second?.avatarUrl} alt={second?.name} />
-            <AvatarFallback>{second?.name?.[0]}</AvatarFallback>
-          </Avatar>
-          <div 
-            className="absolute -top-2 -right-2 bg-slate-300 text-slate-900 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center"
-            aria-label="2nd place"
-          >
-            2
+      {second ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
+          className="flex flex-col items-center"
+        >
+          <div className="relative mb-2">
+            <Avatar className="h-16 w-16 border-2 border-slate-300 ring-4 ring-slate-300/20">
+              <AvatarImage src={second.avatarUrl} alt={second.name} />
+              <AvatarFallback>{second.name?.[0]}</AvatarFallback>
+            </Avatar>
+            <div 
+              className="absolute -top-2 -right-2 bg-slate-300 text-slate-900 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center"
+              aria-label="2nd place"
+            >
+              2
+            </div>
           </div>
-        </div>
-        <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-t-lg w-20 h-24 flex flex-col items-center justify-center p-2 text-center">
-          <span className="text-xs font-semibold text-white truncate w-full">{second?.name}</span>
-          <span className="text-[10px] text-cyan-400 tabular-nums">+{second?.profit}</span>
-        </div>
-      </motion.div>
+          <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-t-lg w-20 h-24 flex flex-col items-center justify-center p-2 text-center">
+            <span className="text-xs font-semibold text-white truncate w-full">{second.name}</span>
+            <span className="text-[10px] text-cyan-400 tabular-nums">+{second.profit}</span>
+          </div>
+        </motion.div>
+      ) : <div className="w-20 h-40" aria-hidden="true" />}
 
       {/* 1st Place */}
       <motion.div
@@ -180,29 +199,31 @@ export function LeaderboardPodium({
       </motion.div>
 
       {/* 3rd Place */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col items-center"
-      >
-        <div className="relative mb-2">
-          <Avatar className="h-16 w-16 border-2 border-amber-600 ring-4 ring-amber-600/20">
-            <AvatarImage src={third?.avatarUrl} alt={third?.name} />
-            <AvatarFallback>{third?.name?.[0]}</AvatarFallback>
-          </Avatar>
-          <div 
-            className="absolute -top-2 -right-2 bg-amber-600 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center"
-            aria-label="3rd place"
-          >
-            3
+      {third ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.6, ease: "easeOut" }}
+          className="flex flex-col items-center"
+        >
+          <div className="relative mb-2">
+            <Avatar className="h-16 w-16 border-2 border-amber-600 ring-4 ring-amber-600/20">
+              <AvatarImage src={third.avatarUrl} alt={third.name} />
+              <AvatarFallback>{third.name?.[0]}</AvatarFallback>
+            </Avatar>
+            <div 
+              className="absolute -top-2 -right-2 bg-amber-600 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center"
+              aria-label="3rd place"
+            >
+              3
+            </div>
           </div>
-        </div>
-        <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-t-lg w-20 h-20 flex flex-col items-center justify-center p-2 text-center">
-          <span className="text-xs font-semibold text-white truncate w-full">{third?.name}</span>
-          <span className="text-[10px] text-cyan-400 tabular-nums">+{third?.profit}</span>
-        </div>
-      </motion.div>
+          <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-t-lg w-20 h-20 flex flex-col items-center justify-center p-2 text-center">
+            <span className="text-xs font-semibold text-white truncate w-full">{third.name}</span>
+            <span className="text-[10px] text-cyan-400 tabular-nums">+{third.profit}</span>
+          </div>
+        </motion.div>
+      ) : <div className="w-20 h-20" aria-hidden="true" />}
     </div>
   );
 }
