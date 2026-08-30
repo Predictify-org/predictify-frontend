@@ -67,10 +67,18 @@ export function LeaderboardTable({
     return [...users].sort((left, right) => {
       const leftValue = left[sortKey];
       const rightValue = right[sortKey];
-      const comparison =
-        typeof leftValue === "string" && typeof rightValue === "string"
-          ? leftValue.localeCompare(rightValue)
-          : Number(leftValue) - Number(rightValue);
+      
+      let comparison = 0;
+      if (typeof leftValue === "string" && typeof rightValue === "string") {
+        comparison = leftValue.localeCompare(rightValue);
+      } else {
+        comparison = Number(leftValue) - Number(rightValue);
+      }
+
+      if (comparison === 0) {
+        // Fallback to name to guarantee deterministic sorting for identical values
+        comparison = left.name.localeCompare(right.name);
+      }
 
       return sortDirection === "desc" ? -comparison : comparison;
     });

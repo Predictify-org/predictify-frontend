@@ -51,6 +51,7 @@ export function useLeaderboard({
 
   const retryCountRef = useRef(0);
   const mountedRef = useRef(true);
+  const fetchIdRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -60,12 +61,13 @@ export function useLeaderboard({
   }, []);
 
   const executeFetch = useCallback(async () => {
+    const currentFetchId = ++fetchIdRef.current;
     setState((prev) => ({ ...prev, status: "loading", error: null }));
 
     try {
       const data = await fetcher();
 
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || currentFetchId !== fetchIdRef.current) return;
 
       const now = Date.now();
       setState({
@@ -77,7 +79,7 @@ export function useLeaderboard({
       });
       retryCountRef.current = 0;
     } catch (err) {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || currentFetchId !== fetchIdRef.current) return;
 
       const message = err instanceof Error ? err.message : "Unknown error";
       setState((prev) => ({
