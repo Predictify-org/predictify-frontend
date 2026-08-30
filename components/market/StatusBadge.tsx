@@ -11,8 +11,8 @@ import { useStatusChangeAnnouncement } from '@/hooks/useStatusChangeAnnouncement
  * Market status values representing the lifecycle of a prediction market.
  *
  * Transitions:
- *   OPEN → CLOSING_SOON → CLOSED → RESOLVED
- *   Any status → CANCELLED (at any point)
+ *   OPEN 【 CSLOSING_SOON 【 CSLOSED 【 RESOLVED
+ *   Any status ← CANCELLED (at any point)
  */
 export type MarketStatus = 'open' | 'closing_soon' | 'closed' | 'resolved' | 'cancelled';
 
@@ -60,7 +60,7 @@ const STATUS_DESCRIPTIONS: Record<MarketStatus, string> = {
   closing_soon: 'Market closes in under 1 hour. Place or finalize your prediction now before predictions are locked.',
   closed: 'Predictions are locked. No new predictions or modifications are allowed. The market is awaiting resolution.',
   resolved: 'Market has been resolved with an outcome. All predictions have been settled and payouts have been distributed.',
-  cancelled: 'Market was cancelled. All stakes have been refunded to their original owners. No predictions were settled.',
+  cancelled: 'Market was cancelled. All stakes have been refunded to their original owners. No predictions were settled',
 };
 
 /**
@@ -87,6 +87,30 @@ const STATUS_PATTERN_CLASSES: Record<MarketStatus, string> = {
   cancelled: 'pattern-vertical',
 };
 
+const STATUS_PATTERN_STYLES: Record<MarketStatus, React.CSSProperties> = {
+  open: {
+    backgroundImage:
+      'repeating-linear-gradient(45deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 6px)',
+  },
+  closing_soon: {
+    backgroundImage:
+      'radial-gradient(circle, rgba(0,0,0,0.4) 1px, transparent 1px)',
+    backgroundSize: '8px 8px',
+  },
+  closed: {
+    backgroundImage:
+      'repeating-linear-gradient(0deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 1px, transparent 1px, transparent 4px), repeating-linear-gradient(90deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 1px, transparent 1px, transparent 4px)',
+  },
+  resolved: {
+    backgroundImage:
+      'repeating-linear-gradient(0deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 6px)',
+  },
+  cancelled: {
+    backgroundImage:
+      'repeating-linear-gradient(90deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 6px)',
+  },
+};
+
 /**
  * StatusBadge component for displaying market status transitions with live tooltips.
  *
@@ -100,7 +124,7 @@ const STATUS_PATTERN_CLASSES: Record<MarketStatus, string> = {
  * - Dark mode support using Tailwind class-based strategy
  *
  * Accessibility (WCAG 2.1 AA):
- * - Uses role="status" to display status to screen readers
+ * - Uses role="status" and aria-label to convey the status clearly, without relying on color alone
  * - Includes aria-describedby linking to the sr-only description
  * - SR-only text contains full tooltip description for accessibility
  * - Keyboard accessible via focus (Radix Tooltip handles this)
@@ -138,13 +162,14 @@ export function StatusBadge({
   marketId,
   marketTitle,
 }: StatusBadgeProps): JSX.Element {
-  const Icon = STATUS_ICONS[status];
-  const label = STATUS_LABELS[status];
-  const description = STATUS_DESCRIPTIONS[status];
-  const variant = STATUS_VARIANTS[status];
+  const Icon = STATUS_ICONS[status] ?? AlertCircle;
+  const label = STATUS_LABELS[status] ?? 'Unknown';
+  const description = STATUS_DESCRIPTIONS[status] ?? 'Unknown market status.';
+  const variant = STATUS_VARIANTS[status] ?? 'neutral';
   const patternClass = STATUS_PATTERN_CLASSES[status] ?? 'pattern-diagonal';
+  const patternStyle: React.CSSProperties = STATUS_PATTERN_STYLES[status] ?? {};
 
-  const statusId = `status-description-${status}-${Math.random().toString(36).substr(2, 9)}`;
+  const statusId = React.useId();
 
   // Announce status changes to assistive technology (WCAG 2.1 SC 4.1.3)
   const { announceMarketStatus } = useStatusChangeAnnouncement();
@@ -159,9 +184,13 @@ export function StatusBadge({
   const badge = (
     <Badge
       role="status"
+      aria-label={`${label} status`}
       aria-describedby={statusId}
+      data-status={status}
       variant={variant}
       size="md"
+      tabIndex={showTooltip ? 0 : undefined}
+      style={patternStyle}
       className={cn('relative gap-1.5 overflow-hidden', patternClass, className)}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
