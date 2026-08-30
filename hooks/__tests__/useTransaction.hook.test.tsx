@@ -3,11 +3,13 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const mockSignTransaction = jest.fn();
 const mockToast = jest.fn();
+let mockIdentityGeneration = 0;
 
 jest.mock('@/hooks/useWallet.hook', () => ({
   useWallet: () => ({
     signTransaction: mockSignTransaction,
     isConnected: true,
+    identityGeneration: mockIdentityGeneration,
   }),
 }));
 
@@ -25,6 +27,8 @@ function TestComponent({ buildXdr }: { buildXdr: () => Promise<string> | string 
     transactionError,
     failureType,
     executeTransaction,
+    retryTransaction,
+    canRetry,
   } = useTransaction();
 
   const latest = useRef({ status, transactionHash, transactionError, failureType });
@@ -37,10 +41,12 @@ function TestComponent({ buildXdr }: { buildXdr: () => Promise<string> | string 
   return (
     <div>
       <button onClick={() => void executeTransaction(buildXdr)}>submit</button>
+      <button onClick={() => void retryTransaction()}>retry</button>
       <div data-testid="status">{status}</div>
       <div data-testid="hash">{transactionHash ?? ''}</div>
       <div data-testid="error">{transactionError ?? ''}</div>
       <div data-testid="failureType">{failureType ?? ''}</div>
+      <div data-testid="canRetry">{String(canRetry)}</div>
     </div>
   );
 }
@@ -50,6 +56,7 @@ describe('useTransaction hook', () => {
     jest.restoreAllMocks();
     mockSignTransaction.mockReset();
     mockToast.mockReset();
+    mockIdentityGeneration = 0;
   });
 
   it('completes a transaction lifecycle successfully', async () => {
@@ -119,5 +126,18 @@ describe('useTransaction hook', () => {
     } else {
       delete (global as any).fetch;
     }
+  });
+
+  it('invalidates privileged retry material when the wallet identity changes', async () => {
+    mockSignTransaction.mockResolvedValue({ success: false, error: 'User rejected request' });
+    const { rerender } = render(<TestComponent buildXdr={() => 'sensitive-xdr'} />);
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+    await waitFor(() => expect(screen.getByTestId('canRetry')).toHaveTextContent('true'));
+
+    mockIdentityGeneration = 1;
+    rerender(<TestComponent buildXdr={() => 'sensitive-xdr'} />);
+
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('idle'));
+    expect(screen.getByTestId('canRetry')).toHaveTextContent('false');
   });
 });

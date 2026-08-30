@@ -55,6 +55,7 @@ export interface Transaction {
   amountColor: string;
   currency: 'XLM' | 'USDC';
   numericAmount: number;
+  hash: string;
 }
 
 export interface TransactionFilters {

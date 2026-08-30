@@ -1,6 +1,23 @@
 import { render, act, fireEvent } from "@testing-library/react";
 import { MarketingCursorFollower } from "../cursor-follower";
 
+// Prevent useCountdownTick rAF from causing infinite recursion
+jest.mock("@/hooks/use-countdown-tick", () => ({
+  useCountdownTick: () => Date.now(),
+}));
+
+// Override the global rAF to prevent infinite recursion from cursor-follower tick()
+const origRAF = global.requestAnimationFrame;
+beforeEach(() => {
+  // Replace with a version that schedules on next microtask instead of calling immediately
+  global.requestAnimationFrame = (cb: FrameRequestCallback) => {
+    return setTimeout(() => cb(Date.now()), 0) as unknown as number;
+  };
+});
+afterEach(() => {
+  global.requestAnimationFrame = origRAF;
+});
+
 function mockMatchMedia(matches: { reducedMotion?: boolean; coarsePointer?: boolean }) {
   const queries: Record<string, boolean> = {
     "(prefers-reduced-motion: reduce)": Boolean(matches.reducedMotion),

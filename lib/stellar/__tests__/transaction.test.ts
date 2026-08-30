@@ -43,12 +43,17 @@ describe('transaction module', () => {
 
     const result = await submitTransaction('signed-xdr');
 
-    expect(result).toEqual({
-      success: false,
-      status: 'submitFailed',
-      code: 'tx_bad_auth',
-      error: 'tx_bad_auth',
-    });
+    // Error messages are now normalized to user-safe descriptions (not raw codes).
+    // We verify the shape and that the description is actionable, not a raw code.
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.status).toBe('submitFailed');
+      expect(result.code).toBe('tx_bad_auth');
+      // The error is now a user-facing description, not the raw code string
+      expect(result.error).not.toBe('tx_bad_auth');
+      expect(result.error.length).toBeGreaterThan('tx_bad_auth'.length);
+      expect(result.error).toMatch(/\.$/); // ends with a period
+    }
     expect(fakeFetch).toHaveBeenCalledTimes(1);
 
     if (originalFetch !== undefined) {

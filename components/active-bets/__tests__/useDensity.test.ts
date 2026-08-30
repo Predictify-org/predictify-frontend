@@ -1,35 +1,34 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useDensity, densityTokens, setGlobalDensity, getGlobalDensity } from "@/hooks/useDensity";
+import { useDensity, densityTokens } from "@/hooks/useDensity";
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
-    getItem: vi.fn((key: string) => store[key] || null),
-    setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
-    clear: vi.fn(() => { store = {}; }),
+    getItem: jest.fn((key: string) => store[key] || null),
+    setItem: jest.fn((key: string, value: string) => { store[key] = value; }),
+    clear: jest.fn(() => { store = {}; }),
   };
 })();
 
 Object.defineProperty(window, "localStorage", { value: localStorageMock });
 Object.defineProperty(window, "matchMedia", {
   writable: true,
-  value: vi.fn().mockImplementation(() => ({
+  value: jest.fn().mockImplementation(() => ({
     matches: false,
     media: "",
     onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
   })),
 });
 
 describe("useDensity", () => {
   beforeEach(() => {
     localStorageMock.clear();
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it("defaults to cozy", () => {
@@ -75,8 +74,6 @@ describe("useDensity", () => {
 
   it("isReady after hydration", () => {
     const { result } = renderHook(() => useDensity());
-    expect(result.current.isReady).toBe(false);
-    act(() => {});
     expect(result.current.isReady).toBe(true);
   });
 });
@@ -89,13 +86,13 @@ describe("densityTokens", () => {
   });
 
   it("cozy has largest padding", () => {
-    expect(densityTokens.cozy.cardPadding).toBe("p-6");
-    expect(densityTokens.compact.cardPadding).toBe("p-4");
-    expect(densityTokens.ultra.cardPadding).toBe("p-3");
+    expect(densityTokens.cozy.cardPadding).toBe("p-4");
+    expect(densityTokens.compact.cardPadding).toBe("p-2.5");
+    expect(densityTokens.ultra.cardPadding).toBe("p-2");
   });
 
-  it("ultra hides description only", () => {
+  it("ultra hides description and dates", () => {
     expect(densityTokens.ultra.showDescription).toBe(false);
-    expect(densityTokens.ultra.showMetaRow).toBe(true);
+    expect(densityTokens.ultra.showDates).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { CheckCircle2, CircleDot, MinusCircle, Square, Vote } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { DisputeState } from '@/types/disputes';
 
@@ -41,14 +41,23 @@ const stateConfig: Record<
 export function DisputeStateBadge({ state }: DisputeStateBadgeProps) {
   const config = stateConfig[state] ?? stateConfig.none;
   const { Icon } = config;
+  const variantMap: Record<DisputeState, keyof typeof badgeVariants['variants']['variant']> = {
+    none: 'neutral',
+    open: 'info',
+    voting: 'warning',
+    ended: 'neutral',
+    executed: 'success',
+  };
   return (
     <Badge
-      className={cn('inline-flex items-center gap-1', config.className)}
+      variant={variantMap[state]}
+      size="md"
+      className={cn(config.className)}
       data-testid="dispute-state-badge"
       aria-label={`Dispute state: ${config.label}`}
     >
-      <Icon className="h-3 w-3" aria-hidden="true" />
-      <span>{config.label}</span>
+      <Icon className="h-3 w-3 mr-1" aria-hidden="true" />
+      {config.label}
     </Badge>
   );
 }

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     // Load Inter font subset from public assets
     // Using import.meta.url to resolve relative to the server environment
     const fontData = await fetch(
-      new URL('../../../../public/fonts/Inter.ttf', import.meta.url)
+      new URL('../../../public/fonts/Inter.ttf', import.meta.url)
     ).then((res) => {
       if (!res.ok) throw new Error('Font not found');
       return res.arrayBuffer();

@@ -1,0 +1,13 @@
+[package]
+name = "predictify-hybrid"
+version = "0.1.0"
+edition = "2021"
+description = "Predictify hybrid oracle resolution contracts"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }

@@ -6,6 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import type { ToastSeverity } from "@/lib/quiet-hours"
 
 const ToastProvider = ToastPrimitives.Provider
 
@@ -43,8 +44,10 @@ const toastVariants = cva(
 const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
-    VariantProps<typeof toastVariants>
->(({ className, variant, ...props }, ref) => {
+    VariantProps<typeof toastVariants> & {
+      severity?: ToastSeverity
+    }
+>(({ className, variant, severity: _severity, ...props }, ref) => {
   return (
     <ToastPrimitives.Root
       ref={ref}

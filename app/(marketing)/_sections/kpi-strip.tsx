@@ -5,11 +5,7 @@ import { kpis, KpiMetric } from "../../content/kpis-sample";
 import { useCountUp } from "@/lib/use-count-up";
 
 const AnimatedMetric: React.FC<{ metric: KpiMetric }> = ({ metric }) => {
-  const [ref, animatedValue] = useCountUp(
-    metric.value,
-    0,
-    2000 
-  );
+  const animatedValue = useCountUp(metric.value, 0, 2000);
 
   const formatNumber = (num: number) => {
     const fixedNum = num.toFixed(metric.decimals ?? 0);
@@ -23,10 +19,7 @@ const AnimatedMetric: React.FC<{ metric: KpiMetric }> = ({ metric }) => {
   const displayValue = formatNumber(animatedValue);
 
   return (
-    <div
-      ref={ref}
-      className="flex flex-col items-center justify-center rounded-xl p-4 md:p-6 text-center"
-    >
+    <div className="flex flex-col items-center justify-center rounded-xl p-4 md:p-6 text-center">
       <div
         className="w-[166px] h-[40px] flex items-center justify-center bg-gradient-to-br from-[#5B21B6] via-[#6B21A8] to-[#7C3AED] text-[30px] font-extrabold text-black mb-1"
         aria-live="off"

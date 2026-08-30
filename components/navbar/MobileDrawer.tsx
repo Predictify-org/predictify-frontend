@@ -1,6 +1,7 @@
 "use client"
 
-import { Wallet } from "lucide-react"
+import { useState, useCallback } from "react"
+import { Wallet, Bell } from "lucide-react"
 import Link from "next/link"
 import {
   Sheet,
@@ -10,8 +11,17 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { X } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import SwipeableRow from "@/components/ui/swipeable-row"
 
 type NavLink = { label: string; href: string }
+
+interface Notification {
+  id: string
+  title: string
+  body: string
+  read: boolean
+}
 
 interface MobileDrawerProps {
   open: boolean
@@ -21,7 +31,27 @@ interface MobileDrawerProps {
   transparent?: boolean
 }
 
+const DEFAULT_NOTIFICATIONS: Notification[] = [
+  { id: "n1", title: "Prediction settled", body: "Your prediction on BTC/USD was correct. +50 USDC credited.", read: false },
+  { id: "n2", title: "New event live", body: "ETH options trading is now available.", read: false },
+  { id: "n3", title: "Reward claimed", body: "You claimed 25 PRED tokens from the airdrop.", read: true },
+]
+
 export default function MobileDrawer({ open, onOpenChange, links, onConnectClick }: MobileDrawerProps) {
+  const [notifications, setNotifications] = useState<Notification[]>(DEFAULT_NOTIFICATIONS)
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
+  }, [])
+
+  const markRead = useCallback((id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    )
+  }, [])
+
+  const unreadCount = notifications.filter((n) => !n.read).length
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -39,6 +69,45 @@ export default function MobileDrawer({ open, onOpenChange, links, onConnectClick
             <X className="w-5 h-5 text-slate-800" aria-hidden="true" />
           </SheetClose>
         </SheetHeader>
+
+        {notifications.length > 0 && (
+          <section aria-labelledby="notifications-heading" className="border-b border-black/10">
+            <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+              <Bell className="w-4 h-4 text-slate-600" aria-hidden="true" />
+              <h2 id="notifications-heading" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="ml-2 text-orange-500 font-bold">({unreadCount} unread)</span>
+                )}
+              </h2>
+            </div>
+            <ScrollArea className="max-h-[40vh]" role="list" aria-label="Notification list">
+              {notifications.map((n) => (
+                <SwipeableRow
+                  key={n.id}
+                  onSwipeLeft={() => dismissNotification(n.id)}
+                  onSwipeRight={() => markRead(n.id)}
+                  ariaLabel={`${n.title}: ${n.body}`}
+                  className="border-b border-black/5 last:border-b-0"
+                >
+                  <div className="px-4 py-3 pr-12">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm ${n.read ? "text-slate-500" : "text-slate-800 font-medium"}`}>
+                          {n.title}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{n.body}</p>
+                      </div>
+                      {!n.read && (
+                        <span className="w-2 h-2 mt-1.5 rounded-full bg-orange-500 shrink-0" aria-label="Unread" />
+                      )}
+                    </div>
+                  </div>
+                </SwipeableRow>
+              ))}
+            </ScrollArea>
+          </section>
+        )}
 
         <nav aria-label="Mobile navigation links" className="p-4 space-y-2">
           {links.map((l) => (

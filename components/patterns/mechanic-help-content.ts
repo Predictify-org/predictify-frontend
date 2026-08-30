@@ -70,3 +70,27 @@ export const oracleDelayHelp: MechanicHelpContent = {
   ],
   note: "Pair this explanation with countdowns and status badges so users can connect the message to what they see on the market card.",
 };
+
+export const oddsHelp: MechanicHelpContent = {
+  title: "How odds work",
+  tooltip: "Odds show the potential multiplier for your bet if the outcome wins.",
+  summary:
+    "Odds reflect the implied probability of each outcome. They update as bets are placed and shift to keep the market balanced.",
+  learnMoreLabel: "Learn more",
+  sections: [
+    {
+      title: "What odds represent",
+      body: "A higher odds value means the outcome is less likely but pays more. Lower odds indicate a more popular or probable outcome.",
+    },
+    {
+      title: "How odds change",
+      body: "Odds shift dynamically as the pool grows. Early bettors may see different odds than late bettors.",
+      bullets: [
+        "Odds are not fixed — they reflect current pool distribution.",
+        "Potential payout equals your bet amount multiplied by the odds.",
+        "Final payout is calculated at market resolution.",
+      ],
+    },
+  ],
+  note: "Place this explanation near odds badges so users understand the numbers before committing.",
+};

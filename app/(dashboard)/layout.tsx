@@ -8,6 +8,7 @@ import { Breadcrumbs } from "@/components/navbar/Breadcrumbs";
 import { MobileBottomTabs } from "@/components/navbar/MobileBottomTabs";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { getBreadcrumbsForPath } from "@/lib/breadcrumbs";
+import { MobileBottomTabs } from "@/components/navbar/MobileBottomTabs";
 
 export default function DashboardLayout({
   children,
@@ -54,13 +55,17 @@ export default function DashboardLayout({
       <Navbar />
 
       {/* Main Content */}
-      <main className="flex-1 pb-24 md:pb-12 pt-20">
+      <main id="main-content" className="flex-1 pb-24 md:pb-12 pt-20">
         {breadcrumbItems.length > 0 && (
           <div className="px-6 pt-4">
             <Breadcrumbs items={breadcrumbItems} />
           </div>
         )}
-        <div className="">{children}</div>
+        <div className="">
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+        </div>
       </main>
     <MobileBottomTabs />
     </div>

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { SearchInput } from "./SearchInput";
 import { NetworkSwitcher } from "./NetworkSwitcher";
 import { WalletMenu } from "./WalletMenu";
+import { WalletBalance } from "./WalletBalance";
 import { ConnectWalletAction } from "./ConnectWalletAction";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { useWalletContext } from "@/context/WalletContext";
@@ -14,6 +15,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import { mockUser as user, mockNavbarState as navbarState } from "./navbar.mock";
 import { WhatsNewDrawer } from "@/components/changelog/WhatsNewDrawer";
+import { getNetworkTint } from "@/lib/network-tint";
+import { useEffect } from "react";
+import { useQuietHours } from "@/lib/quiet-hours";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 const NAV_ITEMS = [
   { name: "Markets", href: "/markets", icon: "trending_up" },
@@ -24,9 +29,22 @@ const NAV_ITEMS = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const [network, setNetwork] = useState(navbarState.networkName);
+  const [network, setNetwork] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("predictify_network") || navbarState.networkName;
+    }
+    return navbarState.networkName;
+  });
   const { theme, setTheme } = useTheme();
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const { active: quietHoursActive } = useQuietHours();
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    localStorage.setItem("predictify_network", network);
+  }, [network]);
+
+  const activeTint = getNetworkTint(network);
   const { connected, isLoading } = useWalletContext();
 
   const toggleTheme = () => {
@@ -49,11 +67,15 @@ export function Navbar() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`text-sm transition-all duration-300 font-medium ${
+                    className={`text-sm font-medium ${reducedMotion ? "" : "transition-all duration-300"} ${
                       isActive
-                        ? "text-cyan-400 border-b-2 border-cyan-400 pb-1"
+                        ? "pb-1"
                         : "text-slate-400 hover:text-slate-200"
                     }`}
+                    style={isActive ? { 
+                      color: activeTint.tint,
+                      borderBottom: `2px solid ${activeTint.tint}`
+                    } : {}}
                   >
                     {item.name}
                   </Link>
@@ -66,7 +88,7 @@ export function Navbar() {
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg" aria-hidden="true">search</span>
               <input
                 id="navbar-search"
-                className="bg-[#192540] border-none rounded-xl pl-10 pr-4 py-2 text-sm w-64 focus:ring-1 focus:ring-cyan-400 transition-all bg-opacity-40 text-white placeholder-slate-400"
+                className={`bg-[#192540] border-none rounded-xl pl-10 pr-4 py-2 text-sm w-64 focus:ring-1 focus:ring-cyan-400 bg-opacity-40 text-white placeholder-slate-400 ${reducedMotion ? "" : "transition-all"}`}
                 placeholder="Search markets..."
                 type="search"
                 aria-label="Search markets"
@@ -82,11 +104,14 @@ export function Navbar() {
                 Loading...
               </button>
             ) : connected ? (
-              <WalletMenu />
+              <div className="flex items-center gap-2">
+                <WalletBalance />
+                <WalletMenu network={network} />
+              </div>
             ) : (
               <button 
                 onClick={() => setIsWalletModalOpen(true)}
-                className="bg-gradient-to-br from-[#69daff] to-[#00cffc] text-[#004a5d] font-bold px-6 py-2.5 rounded-xl text-sm active:scale-95 duration-150 transition-all shadow-lg shadow-[#69daff]/10"
+                className={`bg-gradient-to-br from-[#69daff] to-[#00cffc] text-[#004a5d] font-bold px-6 py-2.5 rounded-xl text-sm shadow-lg shadow-[#69daff]/10 ${reducedMotion ? "" : "active:scale-95 duration-150 transition-all"}`}
               >
                 Connect Wallet
               </button>
@@ -94,10 +119,14 @@ export function Navbar() {
             
             <button
               onClick={toggleTheme}
-              className="text-slate-400 hover:text-white transition-colors flex items-center justify-center p-2 rounded-lg hover:bg-slate-800"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className={`relative text-slate-400 hover:text-white flex items-center justify-center p-2 rounded-lg hover:bg-slate-800 ${reducedMotion ? "" : "transition-colors"}`}
+              aria-label={`${theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}${quietHoursActive ? '. Quiet hours active' : ''}`}
             >
               <span className="material-symbols-outlined" aria-hidden="true">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+              {quietHoursActive ? (
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-cyan-300 ring-2 ring-slate-950" aria-hidden="true" />
+              ) : null}
+              <span className="sr-only">{quietHoursActive ? "Quiet hours active" : ""}</span>
             </button>
           </div>
         </div>
@@ -115,10 +144,13 @@ export function Navbar() {
               <span aria-hidden="true">...</span>
             </button>
           ) : connected ? (
-             <Avatar className="h-8 w-8 border border-slate-600">
-               <AvatarImage src={user?.avatarUrl} alt={user?.name} />
-               <AvatarFallback>{user?.name?.[0] || "U"}</AvatarFallback>
-             </Avatar>
+             <div className="flex items-center gap-2">
+               <WalletBalance className="hidden sm:flex" />
+               <Avatar className="h-8 w-8 border border-slate-600">
+                 <AvatarImage src={user?.avatarUrl} alt={user?.name} />
+                 <AvatarFallback>{user?.name?.[0] || "U"}</AvatarFallback>
+               </Avatar>
+             </div>
           ) : (
             <button
               onClick={() => setIsWalletModalOpen(true)}
@@ -142,9 +174,13 @@ export function Navbar() {
               aria-current={isActive ? "page" : undefined}
               className={
                 isActive
-                  ? "flex flex-col items-center justify-center bg-cyan-500/20 text-cyan-300 rounded-xl px-3 min-h-[44px] min-w-[44px] py-1 transition-all"
-                  : "flex flex-col items-center justify-center text-slate-500 hover:text-cyan-200 min-h-[44px] min-w-[44px] py-1 transition-all"
+                  ? "flex flex-col items-center justify-center rounded-xl px-3 min-h-[44px] min-w-[44px] py-1" + (reducedMotion ? "" : " transition-all")
+                  : "flex flex-col items-center justify-center text-slate-500 hover:text-cyan-200 min-h-[44px] min-w-[44px] py-1" + (reducedMotion ? "" : " transition-all")
               }
+              style={isActive ? {
+                backgroundColor: activeTint.bg,
+                color: activeTint.tint
+              } : {}}
             >
               <span
                 aria-hidden="true"

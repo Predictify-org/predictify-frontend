@@ -1,24 +1,44 @@
 # Dashboard section figma
 
+## Market detail status accessibility
+
+Market detail lifecycle badges now combine status color with subtle texture patterns so the state remains distinguishable for color-blind users without losing the existing visual language in light or dark mode.
+
+## GrantFox login polish
+
+The login experience now surfaces inline validation for empty or malformed fields, highlights the relevant input with accessible error states, and uses a clearer alert banner for failed sign-in attempts. This improves campaign feedback without changing the underlying auth flow.
+
+## GrantFox FWC26 market cards
+
+Market cards now include a compact 24-hour activity heat strip so users can scan recent engagement at a glance. The strip is labelled, keyboard/screen-reader accessible, and uses a consistent dark-mode palette aligned with the campaign visual system.
+
+Market cards also include a quick save-for-later action that lets users bookmark any market directly from the card. The control is keyboard accessible, persists locally in the browser, and exposes clear pressed/selected states for assistive technology.
+
+## ClaimFlow claim-action polish (buffer #4)
+
+Claim Winnings cards now have a working claim action with busy/disabled feedback, polite aria-live success announcements, reduced-motion-aware card hover treatment, and a ⌘↵ / Ctrl+Enter shortcut hint on the primary button (matching BetForm). Keyboard users can claim the next available payout without leaving the keyboard.
+
 this is the UI/UX design for the application
+
+## Route transition feedback
+
+Route changes now display a thin top-of-page progress indicator during navigation transitions to make page loads feel more responsive and predictable.
 
 https://www.figma.com/design/0WWKE7970cnVtuuTFv8lSI/Predictify?t=VtGum6YTIzVaWKEC-1
 
-
 # leaderboard section figma
-
 
 Here's my figma design
 
-"https://www.figma.com/design/0WWKE7970cnVtuuTFv8lSI/Predictify?node-id=373-3955&m=draw" 
- 
+"https://www.figma.com/design/0WWKE7970cnVtuuTFv8lSI/Predictify?node-id=373-3955&m=draw"
+
 for a leaderboard section to highlight top predictors. Include:
 
 Rankings by profit, win rate, and number of predictions.
 Time-based filters (weekly, monthly, all-time).
 User profile stats integration.
 
-also having 
+also having
 
 Leaderboard page showing top 10 (10/50) users
 
@@ -35,6 +55,7 @@ Track winnings and losses.
 Review transaction history (wallet inflows/outflows).
 
 https://www.figma.com/design/0WWKE7970cnVtuuTFv8lSI/Predictify?node-id=348-737&m=draw
+
 # User Profile & Account Settings Page #36
 
 I Create a dedicated profile page where users can:
@@ -45,7 +66,6 @@ Manage notification preferences.
 Manage connected wallets and security options.
 
 https://www.figma.com/design/0WWKE7970cnVtuuTFv8lSI/Predictify?node-id=430-1462&m=draw
-
 
 # KYC Verification Flow #37
 

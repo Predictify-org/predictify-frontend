@@ -1,8 +1,8 @@
 'use client';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { DisputeStateBadge } from '@/components/disputes/DisputeStateBadge';
+import { DisputePanelSkeleton } from '@/components/disputes/DisputePanelSkeleton';
 import { NoneState } from '@/components/disputes/states/NoneState';
 import { OpenState } from '@/components/disputes/states/OpenState';
 import { VotingState } from '@/components/disputes/states/VotingState';
@@ -18,20 +18,13 @@ interface DisputePanelProps {
 }
 
 export function DisputePanel({ data, onStateChange }: DisputePanelProps) {
+  // ─── Loading skeleton fallback ────────────────────────────────────────────
+  // When the parent route or hook has resolved but `data` is not yet
+  // available (e.g., wallet not connected, dispute still being fetched,
+  // or Suspense fallback), we surface a skeleton that preserves the final
+  // card shape exactly. See <DisputePanelSkeleton /> for the parity audit.
   if (!data) {
-    return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-24" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-10 w-32" />
-        </CardContent>
-      </Card>
-    );
+    return <DisputePanelSkeleton />;
   }
 
   const resolvedState: DisputeState = VALID_STATES.includes(data.state as DisputeState)

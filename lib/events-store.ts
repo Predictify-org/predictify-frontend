@@ -214,22 +214,35 @@ const mockEvents: Event[] = [
   },
 ]
 
+export type EventsFetcher = () => Promise<Event[]>
+export type EventsLoadErrorKind = "invalid" | "network" | "permission"
+
 interface EventsStore {
   // Data
   events: Event[]
   filteredEvents: Event[]
   loading: boolean
   error: string | null
+  loadErrorKind: EventsLoadErrorKind | null
+  canRetry: boolean
 
   // Filters and sorting
   filters: EventFilters
   sort: EventSort
   pagination: PaginationState
 
+  // Filter-cursor synchronization
+  /** Version counter for filters (incremented on any filter change) */
+  filterVersion: number
+  /** Last known filter version applied to current results */
+  appliedFilterVersion: number
+
   // Infinite scroll state
   hasNextPage: boolean
   isFetchingNextPage: boolean
   lastFetchTime: number | null
+  nextPageRequestId: number
+  loadRequestId: number
 
   // Actions
   setFilters: (filters: Partial<EventFilters>) => void
@@ -238,18 +251,88 @@ interface EventsStore {
   setSearch: (search: string) => void
   setDateRange: (from: Date | null, to: Date | null) => void
   setStatus: (status: "ongoing" | "upcoming" | "past") => void
-  applyFilters: () => void
-  loadEvents: () => Promise<void>
+  applyFilters: (anchorId?: string | null) => void
+  loadEvents: (fetcher?: EventsFetcher) => Promise<void>
+  retryLoadEvents: () => Promise<void>
+  /** Atomically reconcile a live snapshot while keeping the current page anchored. */
+  applyLiveEvents: (events: Event[]) => boolean
   /** NEW: Delete an event by its id */
   deleteEvent: (id: string) => void
   /** NEW: Load next page for infinite scroll */
   loadNextPage: () => Promise<void>
   /** NEW: Check if data is stale and needs refresh */
   isDataStale: () => boolean
+  /** NEW: Reset cursor when filters change (sync filters with pagination) */
+  syncFilterAndCursor: () => void
 }
 
 // Stale time threshold: 60 seconds
 const STALE_TIME_MS = 60 * 1000
+
+let lastEventsFetcher: EventsFetcher | null = null
+
+const getPageAnchor = (events: Event[], page: number, pageSize: number) =>
+  events[(page - 1) * pageSize]?.id ?? null
+
+const isValidEvent = (event: unknown): event is Event => {
+  if (!event || typeof event !== "object") return false
+
+  const candidate = event as Partial<Event>
+  return (
+    typeof candidate.id === "string" &&
+    candidate.id.trim().length > 0 &&
+    candidate.id === candidate.id.trim() &&
+    typeof candidate.title === "string" &&
+    candidate.title.trim().length > 0 &&
+    typeof candidate.txHash === "string" &&
+    ["Football", "Politics", "Crypto", "Stocks"].includes(candidate.category ?? "") &&
+    ["ongoing", "upcoming", "past"].includes(candidate.status ?? "") &&
+    typeof candidate.odds === "number" &&
+    Number.isFinite(candidate.odds) &&
+    typeof candidate.participants === "number" &&
+    Number.isInteger(candidate.participants) &&
+    candidate.participants >= 0 &&
+    typeof candidate.startDate === "string" &&
+    Number.isFinite(Date.parse(candidate.startDate)) &&
+    typeof candidate.endDate === "string" &&
+    Number.isFinite(Date.parse(candidate.endDate))
+  )
+}
+
+const validateSnapshot = (events: unknown): Event[] | null => {
+  if (!Array.isArray(events)) return null
+
+  const ids = new Set<string>()
+  for (const event of events) {
+    if (!isValidEvent(event) || ids.has(event.id)) return null
+    ids.add(event.id)
+  }
+
+  // Detach the store from caller-owned objects so later mutation cannot alter a
+  // committed snapshot without going through validation and reconciliation.
+  return events.map((event) => ({ ...event }))
+}
+
+const classifyLoadError = (error: unknown) => {
+  const status =
+    typeof error === "object" && error !== null && "status" in error
+      ? Number((error as { status?: unknown }).status)
+      : null
+
+  if (status === 401 || status === 403) {
+    return {
+      kind: "permission" as const,
+      message: "You do not have permission to refresh these markets.",
+      retryable: false,
+    }
+  }
+
+  return {
+    kind: "network" as const,
+    message: "Could not refresh markets. Showing the last available data.",
+    retryable: true,
+  }
+}
 
 export const useEventsStore = create<EventsStore>((set, get) => ({
   // Initial state
@@ -257,6 +340,8 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
   filteredEvents: mockEvents.filter((e) => e.status === "ongoing"),
   loading: false,
   error: null,
+  loadErrorKind: null,
+  canRetry: false,
 
   filters: {
     search: "",
@@ -278,19 +363,28 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
     page: 1,
     pageSize: 5, // Reduced page size to better show pagination
     total: 0,
+    cursor: null,
+    filterVersion: 0,
   },
+
+  // Filter-cursor synchronization tracking
+  filterVersion: 0,
+  appliedFilterVersion: 0,
 
   // Infinite scroll state
   hasNextPage: true,
   isFetchingNextPage: false,
   lastFetchTime: null,
+  nextPageRequestId: 0,
+  loadRequestId: 0,
 
   // Actions
   setFilters: (newFilters) => {
     set((state) => ({
       filters: { ...state.filters, ...newFilters },
+      filterVersion: state.filterVersion + 1,
     }))
-    get().applyFilters()
+    get().syncFilterAndCursor()
   },
 
   setSort: (sort) => {
@@ -299,16 +393,37 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
   },
 
   setPagination: (newPagination) => {
-    set((state) => ({
-      pagination: { ...state.pagination, ...newPagination },
-    }))
+    set((state) => {
+      const requestedPageSize = newPagination.pageSize ?? state.pagination.pageSize
+      const pageSize =
+        Number.isInteger(requestedPageSize) && requestedPageSize > 0
+          ? requestedPageSize
+          : state.pagination.pageSize
+      const totalPages = Math.max(1, Math.ceil(state.filteredEvents.length / pageSize))
+      const requestedPage = newPagination.page ?? state.pagination.page
+      const page = Math.min(
+        totalPages,
+        Math.max(1, Number.isInteger(requestedPage) ? requestedPage : state.pagination.page),
+      )
+
+      return {
+        pagination: {
+          ...state.pagination,
+          ...newPagination,
+          page,
+          pageSize,
+          total: state.filteredEvents.length,
+        },
+      }
+    })
   },
 
   setSearch: (search) => {
     set((state) => ({
       filters: { ...state.filters, search },
+      filterVersion: state.filterVersion + 1,
     }))
-    get().applyFilters()
+    get().syncFilterAndCursor()
   },
 
   setDateRange: (from, to) => {
@@ -317,19 +432,37 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
         ...state.filters,
         dateRange: { from, to },
       },
+      filterVersion: state.filterVersion + 1,
     }))
-    get().applyFilters()
+    get().syncFilterAndCursor()
   },
 
   setStatus: (status) => {
     set((state) => ({
       filters: { ...state.filters, status },
-      pagination: { ...state.pagination, page: 1 },
+      filterVersion: state.filterVersion + 1,
+    }))
+    get().syncFilterAndCursor()
+  },
+
+  syncFilterAndCursor: () => {
+    const { filterVersion } = get()
+
+    set((state) => ({
+      pagination: {
+        ...state.pagination,
+        page: 1,
+        cursor: null,
+        filterVersion,
+      },
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      nextPageRequestId: state.nextPageRequestId + 1,
     }))
     get().applyFilters()
   },
 
-  applyFilters: () => {
+  applyFilters: (anchorId = null) => {
     const { events, filters, sort } = get()
 
     // Filter events
@@ -379,48 +512,133 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
 
       if (aValue < bValue) return sort.direction === "asc" ? -1 : 1
       if (aValue > bValue) return sort.direction === "asc" ? 1 : -1
-      return 0
+
+      // A unique tie-breaker is required: live snapshots may arrive in any
+      // order, but equal sort values must never make rows jump between pages.
+      return a.id.localeCompare(b.id)
     })
 
-    set((state) => ({
-      filteredEvents: filtered,
-      pagination: {
-        ...state.pagination,
-        total: filtered.length,
-      },
-    }))
+    set((state) => {
+      const totalPages = Math.max(1, Math.ceil(filtered.length / state.pagination.pageSize))
+      const anchorIndex = anchorId ? filtered.findIndex((event) => event.id === anchorId) : -1
+      const page =
+        anchorIndex >= 0
+          ? Math.floor(anchorIndex / state.pagination.pageSize) + 1
+          : Math.min(Math.max(state.pagination.page, 1), totalPages)
+
+      return {
+        filteredEvents: filtered,
+        pagination: {
+          ...state.pagination,
+          page,
+          total: filtered.length,
+          filterVersion: state.filterVersion,
+        },
+        appliedFilterVersion: state.filterVersion,
+        hasNextPage: page * state.pagination.pageSize < filtered.length,
+      }
+    })
   },
 
-  loadEvents: async () => {
-    set({ loading: true, error: null })
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      set({ 
-        loading: false,
-        lastFetchTime: Date.now(),
+  applyLiveEvents: (events) => {
+    const snapshot = validateSnapshot(events)
+    if (!snapshot) {
+      console.warn("[events-store] Rejected invalid market snapshot")
+      set({
+        error: "Market refresh returned invalid data. Showing the last available data.",
+        loadErrorKind: "invalid",
+        canRetry: true,
       })
-      get().applyFilters()
-    } catch (error) {
-      set({ loading: false, error: "Failed to load events" })
+      return false
     }
+
+    const state = get()
+    const anchorId = getPageAnchor(
+      state.filteredEvents,
+      state.pagination.page,
+      state.pagination.pageSize,
+    )
+
+    // Validation happens before this single commit, so a malformed or duplicate
+    // snapshot can never partially replace the last known-good market list.
+    set({
+      events: snapshot,
+      error: null,
+      loadErrorKind: null,
+      canRetry: false,
+      loading: false,
+      lastFetchTime: Date.now(),
+      loadRequestId: state.loadRequestId + 1,
+    })
+    get().applyFilters(anchorId)
+    return true
+  },
+
+  loadEvents: async (fetcher) => {
+    if (fetcher) lastEventsFetcher = fetcher
+
+    const requestId = get().loadRequestId + 1
+    set({
+      loading: true,
+      error: null,
+      loadErrorKind: null,
+      canRetry: false,
+      loadRequestId: requestId,
+    })
+
+    try {
+      const snapshot = fetcher
+        ? await fetcher()
+        : await new Promise<Event[]>((resolve) =>
+            setTimeout(() => resolve(get().events), 1000),
+          )
+
+      // Only the newest refresh may commit. This prevents a slow retry from
+      // overwriting a newer live snapshot or clearing its error state.
+      if (get().loadRequestId !== requestId) return
+
+      const accepted = get().applyLiveEvents(snapshot)
+      if (!accepted && get().loadRequestId === requestId) set({ loading: false })
+    } catch (error) {
+      if (get().loadRequestId !== requestId) return
+
+      const failure = classifyLoadError(error)
+      console.warn("[events-store] Market refresh failed", { kind: failure.kind })
+      set({
+        loading: false,
+        error: failure.message,
+        loadErrorKind: failure.kind,
+        canRetry: failure.retryable,
+      })
+    }
+  },
+
+  retryLoadEvents: async () => {
+    await get().loadEvents(lastEventsFetcher ?? undefined)
   },
 
   /** NEW: Delete an event by id and re-apply filters */
   deleteEvent: (id: string) => {
+    const state = get()
+    const anchorId = getPageAnchor(
+      state.filteredEvents,
+      state.pagination.page,
+      state.pagination.pageSize,
+    )
     set((state) => ({
       events: state.events.filter((event) => event.id !== id),
     }))
-    get().applyFilters()
+    get().applyFilters(anchorId === id ? null : anchorId)
   },
 
   /** NEW: Load next page for infinite scroll */
   loadNextPage: async () => {
-    const { isFetchingNextPage, hasNextPage, pagination, filteredEvents } = get()
+    const { isFetchingNextPage, hasNextPage, pagination, filteredEvents, filterVersion } = get()
     
     if (isFetchingNextPage || !hasNextPage) return
 
-    set({ isFetchingNextPage: true, error: null })
+    const requestId = get().nextPageRequestId + 1
+    set({ isFetchingNextPage: true, error: null, nextPageRequestId: requestId })
     
     try {
       // Simulate API call for next page
@@ -429,6 +647,20 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
       const nextPage = pagination.page + 1
       const startIndex = (nextPage - 1) * pagination.pageSize
       const endIndex = startIndex + pagination.pageSize
+
+      // A filter change invalidates this request; never apply an old page.
+      const currentState = get()
+      if (
+        currentState.nextPageRequestId !== requestId ||
+        currentState.filterVersion !== filterVersion ||
+        currentState.pagination.page !== pagination.page ||
+        currentState.pagination.filterVersion !== filterVersion
+      ) {
+        if (currentState.nextPageRequestId === requestId) {
+          set({ isFetchingNextPage: false })
+        }
+        return
+      }
       
       // Check if we've reached the end
       const hasMore = endIndex < filteredEvents.length
@@ -437,16 +669,20 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
         pagination: {
           ...state.pagination,
           page: nextPage,
+          cursor: String(endIndex),
+          filterVersion,
         },
         hasNextPage: hasMore,
         isFetchingNextPage: false,
         lastFetchTime: Date.now(),
       }))
     } catch (error) {
-      set({ 
-        isFetchingNextPage: false, 
-        error: "Failed to load more events" 
-      })
+      if (get().nextPageRequestId === requestId) {
+        set({
+          isFetchingNextPage: false,
+          error: "Failed to load more events",
+        })
+      }
     }
   },
 

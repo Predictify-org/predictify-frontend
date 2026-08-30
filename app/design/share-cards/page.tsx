@@ -1,12 +1,27 @@
 import MarketShareCard from "@/components/market/MarketShareCard";
+import { ReceiptShare } from "@/app/components/ReceiptShare";
 
 export default function ShareCardsPreview() {
   return (
     <div className="min-h-screen bg-black p-12 space-y-24 flex flex-col items-center">
       <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold text-white">Market Share Cards</h1>
-        <p className="text-xl text-gray-400">Social preview layouts (1200x630)</p>
+        <h1 className="text-4xl font-bold text-white">Share Cards</h1>
+        <p className="text-xl text-gray-400">Social preview layouts and shareable prediction receipts (1200x630)</p>
       </div>
+
+      <section className="w-full max-w-4xl rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">
+        <h2 className="text-2xl font-semibold text-white/80 border-l-4 border-emerald-500 pl-4">Prediction Receipt Share Card</h2>
+        <div className="mt-8 flex justify-center">
+          <ReceiptShare
+            receiptId="RCP-GRANTFOX-001"
+            marketTitle="Will the GrantFox campaign hit 10k signups?"
+            outcome="Yes"
+            amount="12.50 XLM"
+            timestamp="2026-07-23T17:30:00.000Z"
+            campaign="GrantFox FWC26"
+          />
+        </div>
+      </section>
 
       <section className="space-y-8">
         <h2 className="text-2xl font-semibold text-white/80 border-l-4 border-primary pl-4">Active Market</h2>
@@ -18,6 +33,7 @@ export default function ShareCardsPreview() {
             outcome="YES"
             volume="$2.5M"
             timeLeft="45 days"
+            creatorName="Alice"
           />
         </div>
       </section>
@@ -30,6 +46,7 @@ export default function ShareCardsPreview() {
             title="Who will win the 2024 Presidential Election?"
             winner="Candidate X"
             volume="$12.4M"
+            creatorName="Bob"
           />
         </div>
       </section>
@@ -40,6 +57,7 @@ export default function ShareCardsPreview() {
           <MarketShareCard
             status="disputed"
             title="Will it rain in London on June 1st, 2024?"
+            creatorName="Charlie123"
           />
         </div>
       </section>
@@ -50,6 +68,7 @@ export default function ShareCardsPreview() {
           <MarketShareCard
             status="tied"
             title="Final Score: Team A vs Team B (Exhibition Match)"
+            creatorName="David"
           />
         </div>
       </section>
