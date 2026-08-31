@@ -127,7 +127,9 @@ export const isClaimNetworkMismatch = (
 ): boolean => {
   if (!REQUIRED_CLAIM_NETWORK) return false;
   if (!walletNetwork) return false;
-  return walletNetwork !== REQUIRED_CLAIM_NETWORK;
+  // Network IDs are normalized to lowercase because wallet providers may
+  // return different casing for the same network (e.g. "mainnet" vs "Mainnet").
+  return walletNetwork.toLowerCase() !== REQUIRED_CLAIM_NETWORK.toLowerCase();
 };
 
 // ── Mock Data ────────────────────────────────────────────────────────────────
@@ -552,12 +554,10 @@ const ClaimFlowPage: React.FC = () => {
   const [announcement, setAnnouncement] = useState("");
 
   const walletNetworkMismatch = Boolean(
-    address &&
-      walletNetwork?.toLowerCase() !== REQUIRED_CLAIM_NETWORK.toLowerCase()
+    address && isClaimNetworkMismatch(walletNetwork)
   );
   const canClaim = Boolean(
-    address &&
-      walletNetwork?.toLowerCase() === REQUIRED_CLAIM_NETWORK.toLowerCase()
+    address && walletNetwork && !walletNetworkMismatch
   );
 
   // Simulate data fetch on mount
@@ -580,15 +580,12 @@ const ClaimFlowPage: React.FC = () => {
     async (claim: Claim) => {
       if (claim.status !== "available" || claimingId) return;
 
-      const network = walletNetwork?.toLowerCase();
-      const requiredNetwork = REQUIRED_CLAIM_NETWORK.toLowerCase();
-
-      if (!address || !network) {
+      if (!address || !walletNetwork) {
         setAnnouncement("Connect your wallet to claim winnings.");
         return;
       }
 
-      if (network !== requiredNetwork) {
+      if (isClaimNetworkMismatch(walletNetwork)) {
         setAnnouncement(
           `Switch your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
         );
