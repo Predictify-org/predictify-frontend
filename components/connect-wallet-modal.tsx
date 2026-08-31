@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from("react";
-import { WalletModal, WalletModalProps } from"@2/src/legacy-pages/WalletModal";
+import { useEffect, useRef, useState } from "react";
+import { WalletModal, WalletModalProps } from "@/src/legacy-pages/WalletModal";
 
 const SUPPORTED_CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 1);
 
@@ -20,7 +20,7 @@ async function switchToSupportedChain(): Promise<void> {
   try {
     await (window as any).ethereum.request({
       method: "wallet_switchEthereumChain",
-      params: { chainId: `0x${SUPPORTED_CHAIN_ID.toString(16)}` },
+      params: [{ chainId: `0x${SUPPORTED_CHAIN_ID.toString(16)}` }],
     });
   } catch (error) {
     console.error("Failed to switch network:", error);
@@ -29,7 +29,7 @@ async function switchToSupportedChain(): Promise<void> {
 }
 
 export function ConnectWalletModal(props: WalletModalProps) {
-  const [chainId, setChainId] = useState<number | undefined>(GetCurrentChainId);
+  const [chainId, setChainId] = useState<number | undefined>(getCurrentChainId);
   const [isSwitching, setIsSwitching] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const mounted = useRef(true);
@@ -90,8 +90,7 @@ export function ConnectWalletModal(props: WalletModalProps) {
         <p>
           Your wallet is connected to network ID {chainId}. This application requires network ID {SUPPORTED_CHAIN_ID}.
         </p>
-        <button onClick={handleSwitchNetwork} disabled={isSwitching>}
-        >
+        <button onClick={handleSwitchNetwork} disabled={isSwitching}>
           {isSwitching ? "Switching..." : "Switch to supported network"}
         </button>
         {switchError && <p className="network-switch-error">{switchError}</p>}
