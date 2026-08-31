@@ -1,4 +1,4 @@
-"ruse client";
+"use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AlertTriangle, X, RefreshCw } from "lucide-react";
@@ -20,7 +20,7 @@ const HAS_CONNECTED_KEY = "predictify_has_connected";
 export interface WalletReconnectBannerProps {
   className?: string;
   onReconnect?: () => void;
-  supportedChainIds?: (number | string)][];
+  supportedChainIds?: (number | string)[];
 }
 
 export function WalletReconnectBanner({
@@ -34,17 +34,18 @@ export function WalletReconnectBanner({
   const wasConnectedRef = useRef(isConnected);
   const initialCheckDone = useRef(false);
   const previousChainIdRef = useRef(chainId);
-  const wasFromNoNmismatchRef = useRef(false);
+  const wasMismatchRef = useRef(false);
 
-  const isNetworkMismatch =
+  const isNetworkMismatch = Boolean(
     isConnected &&
     supportedChainIds&&
     chainId !== undefined&&
-    !supportedChainIds.some((id) => String(id) === String(chainId));
+    !supportedChainIds.some((id) => String(id) === String(chainId))
+  );
 
   useEffect(() => {
     const wasConnected = wasConnectedRef.current;
-    const wasMismatch = wasFromNoNmismatchRef.current;
+    const wasMismatch = wasMismatchRef.current;
 
     if (!initialCheckDone.current) {
       initialCheckDone.current = true;
@@ -72,7 +73,7 @@ export function WalletReconnectBanner({
       }
 
       wasConnectedRef.current = isConnected;
-      wasFromNoNmismatchRef.current = isNetworkMismatch;
+      wasismatchRef.current = isNetworkMismatch;
       previousChainIdRef.current = chainId;
       return;
     }
@@ -110,7 +111,7 @@ export function WalletReconnectBanner({
     }
 
     // Network mismatch appeared (e.g., supportedChainIds prop changed)
-    if (isConnected && isNetworkMismatch && !wasMismatch) {
+    if (isConnected && isNetworkMismatch && !wasismatch) {
       setShow(true);
       setDismissed(false);
     }
@@ -122,7 +123,7 @@ export function WalletReconnectBanner({
     }
 
     wasConnectedRef.current = isConnected;
-    wasFromNoNmismatchRef.current = isNetworkMismatch;
+    wasMismatchRef.current = isNetworkMismatch;
     previousChainIdRef.current = chainId;
   }, [isConnected, chainId, isNetworkMismatch]);
 
@@ -145,7 +146,7 @@ export function WalletReconnectBanner({
       <Alert
         role="alert"
         aria-live="polite"
-        className="border-amber-500/50 bg-amber-50 text-amber-900 dark:bg-amber-950/20 dark:text-amber-400 [&svg]>text-amber-500"
+        className="border-amber-500/50 bg-amber-50 text-amber-900 dark:bg-amber-950/20 dark:text-amber-400 [svg]:text-amber-500"
       >
         <AlertTriangle className="h-4 w-4" aria-hidden="true" />
         <AlertTitle>{isNetworkMismatch ? "Unsupported network" : reconnectBannerTitle}</AlertTitle>
