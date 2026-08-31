@@ -116,6 +116,20 @@ const STATUS_CONFIG: Record<
 export const REQUIRED_CLAIM_NETWORK =
   process.env.NEXT_PUBLIC_CLAIM_NETWORK ?? "testnet";
 
+/**
+ * Returns true when the connected wallet's network does not match the
+ * network required for claim settlements. A missing wallet network is not
+ * treated as a mismatch because the action is already disabled when the
+ * wallet is not connected.
+ */
+export const isClaimNetworkMismatch = (
+  walletNetwork?: string | null,
+): boolean => {
+  if (!REQUIRED_CLAIM_NETWORK) return false;
+  if (!walletNetwork) return false;
+  return walletNetwork !== REQUIRED_CLAIM_NETWORK;
+};
+
 // ── Mock Data ────────────────────────────────────────────────────────────────
 
 export const MOCK_CLAIMS: Claim[] = [
@@ -326,6 +340,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   } = claim;
 
   const isActionable = status === "available";
+  const { network: walletNetwork } = useWalletContext();
+  const isWrongNetwork = isClaimNetworkMismatch(walletNetwork);
 
   return (
     <Card
@@ -376,14 +392,20 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               <Button
                 size="sm"
                 className="w-full gap-1.5"
-                disabled={isClaiming || disabled}
+                disabled={isClaiming || disabled || isWrongNetwork}
                 aria-busy={isClaiming}
                 aria-label={
-                  isClaiming
-                    ? `Claiming ${winnings} ${winningsToken} for ${marketTitle}`
-                    : `Claim ${winnings} ${winningsToken} for ${marketTitle}`
+                  isWrongNetwork
+                    ? `Switch wallet to ${REQUIRED_CLAIM_NETWORK} to claim ${winnings} ${winningsToken} for ${marketTitle}`
+                    : isClaiming
+                      ? `Claiming ${winnings} ${winningsToken} for ${marketTitle}`
+                      : `Claim ${winnings} ${winningsToken} for ${marketTitle}`
                 }
-                onClick={() => onClaim?.(claim)}
+                title={isWrongNetwork ? `Switch wallet to ${REQUIRED_CLAIM_NETWORK} to claim` : undefined}
+                onClick={() => {
+                  if (isClaiming || disabled || isWrongNetwork) return;
+                  onClaim?.(claim);
+                }}
               >
                 {isClaiming ? (
                   <Loader2
