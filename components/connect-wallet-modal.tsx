@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { WalletModal, WalletModalProps } from "@/src/legacy-pages/WalletModal";
+import { useEffect, useRef, useState } from("react";
+import { WalletModal, WalletModalProps } from"@2/src/legacy-pages/WalletModal";
 
 const SUPPORTED_CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 1);
 
 function getCurrentChainId(): number | undefined {
   if (typeof window !== "undefined" && (window as any).ethereum) {
-    return Number((window as any).ethereum.chainId);
+    const chainId = Number((window as any).ethereum.chainId);
+    return Number.isFinite(chainId) ? chainId : undefined;
   }
   return undefined;
 }
@@ -19,7 +20,7 @@ async function switchToSupportedChain(): Promise<void> {
   try {
     await (window as any).ethereum.request({
       method: "wallet_switchEthereumChain",
-      params: { chainId: `0x${SUPPORTED_CHAIN_ID.toString(16)}`},
+      params: { chainId: `0x${SUPPORTED_CHAIN_ID.toString(16)}` },
     });
   } catch (error) {
     console.error("Failed to switch network:", error);
@@ -28,14 +29,26 @@ async function switchToSupportedChain(): Promise<void> {
 }
 
 export function ConnectWalletModal(props: WalletModalProps) {
-  const [chainId, setChainId] = useState<number | undefined>(getCurrentChainId);
-  const [networkError, setNetworkError] = useState(false);
+  const [chainId, setChainId] = useState<number | undefined>(GetCurrentChainId);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  const mounted = useRef(true);
 
-  useEffect(() : () => void | void {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined" || !(window as any).ethereum) return;
 
     const handleChainChanged = (hexChainId: string) => {
-      setChainId(Number(hexChainId));
+      const parsed = Number(hexChainId);
+      if (Number.isFinite(parsed)) {
+        setChainId(parsed);
+      }
     };
 
     (window as any).ethereum.on("chainChanged", handleChainChanged);
@@ -47,9 +60,28 @@ export function ConnectWalletModal(props: WalletModalProps) {
     };
   }, []);
 
-  useEffect(() => {
-    setNetworkError(chainId !== undefined && chainId !== SUPPORTED_CHAIN_ID);
-  }, [chainId]);
+  const networkError = chainId !== undefined && chainId !== SUPPORTED_CHAIN_ID;
+
+  const handleSwitchNetwork = async () => {
+    if (isSwitching) return;
+    setIsSwitching(true);
+    setSwitchError(null);
+    try {
+      await switchToSupportedChain();
+      if (!mounted.current) return;
+      // Optimistically update to supported chain. The chainChanged event will also fire.
+      setChainId(SUPPORTED_CHAIN_ID);
+    } catch (error) {
+      if (!mounted.current) return;
+      setSwitchError(
+        error instanceof Error ? error.message : "Failed to switch network. Please switch manually in your wallet."
+      );
+    } finally {
+      if (mounted.current) {
+        setIsSwitching(false);
+      }
+    }
+  };
 
   if (networkError) {
     return (
@@ -58,15 +90,11 @@ export function ConnectWalletModal(props: WalletModalProps) {
         <p>
           Your wallet is connected to network ID {chainId}. This application requires network ID {SUPPORTED_CHAIN_ID}.
         </p>
-        <button onClick={async () => {
-            try {
-              await switchToSupportedChain();
-            } catch (e) {
-              // Stay on error state; the user can retry.
-            }
-          }}>
-          Switch to supported network
+        <button onClick={handleSwitchNetwork} disabled={isSwitching>}
+        >
+          {isSwitching ? "Switching..." : "Switch to supported network"}
         </button>
+        {switchError && <p className="network-switch-error">{switchError}</p>}
       </div>
     );
   }
