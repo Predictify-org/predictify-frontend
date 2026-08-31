@@ -17,11 +17,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useWalletContext } from "@/context/WalletContext";
 import { cn } from "@/lib/utils";
+import { ClaimEligibilityStatus } from "@/components/claims/ClaimEligibilityStatus";
+import { ClaimEligibilityClientError } from "@/lib/claim-eligibility-client";
+import type { ClaimEvidence, ClaimStatus } from "@/types/claim-eligibility";
+
+// Re-export for backward compatibility with any callers importing ClaimStatus
+// from this page module. The canonical definition now lives in
+// types/claim-eligibility.ts alongside the rest of the claim data model.
+export type { ClaimStatus };
 
 // ── Type Definitions ────────────────────────────────────────────────────────
 
-export type ClaimStatus = "available" | "claimed" | "pending" | "disputed";
+// (ClaimStatus is imported from types/claim-eligibility.ts)
 
 export interface Claim {
   id: string;
@@ -99,6 +108,14 @@ const STATUS_CONFIG: Record<
   },
 };
 
+/**
+ * Network on which claim settlements are signed.
+ * Uses an env override so the same bundle can target testnet or mainnet.
+ * Exported for tests.
+ */
+export const REQUIRED_CLAIM_NETWORK =
+  process.env.NEXT_PUBLIC_CLAIM_NETWORK ?? "testnet";
+
 // ── Mock Data ────────────────────────────────────────────────────────────────
 
 export const MOCK_CLAIMS: Claim[] = [
@@ -162,6 +179,69 @@ export const MOCK_CLAIMS: Claim[] = [
 /** Simulated claim latency (ms). Exported for tests. */
 export const CLAIM_LATENCY_MS = 600;
 
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/**
+ * Mock authoritative-evidence fetcher for the claims demo.
+ *
+ * Stands in for the production `fetchClaimEligibility` client (which talks to
+ * /api/claim-eligibility). It derives a deterministic `ClaimEvidence` record
+ * from the locally-defined `MOCK_CLAIMS` so the full eligibility state machine
+ * is visible in the UI. When no account is connected it rejects with a
+ * permission error, mirroring the 401 the real endpoint returns for
+ * unauthorized callers. Swap this for `fetchClaimEligibility` once a
+ * settlement source is wired up — the rest of the UI is unchanged.
+ */
+export const mockClaimEligibilityFetcher = (
+  marketId: string,
+  options: { account?: string; signal?: AbortSignal },
+): Promise<ClaimEvidence> => {
+  if (!options.account || !options.account.trim()) {
+    return Promise.reject(
+      new ClaimEligibilityClientError(
+        "Connect your wallet to view claim eligibility.",
+        "permission",
+        false,
+      ),
+    );
+  }
+
+  const claim = MOCK_CLAIMS.find((c) => c.id === marketId);
+  if (!claim) {
+    return Promise.reject(
+      new ClaimEligibilityClientError(
+        "Claim eligibility is not available for this market.",
+        "not_found",
+        false,
+      ),
+    );
+  }
+
+  const now = Date.now();
+  const resolvedAt =
+    claim.status === "available"
+      ? marketId === "claim-5"
+        ? now - 2 * DAY_MS
+        : now - 2 * HOUR_MS
+      : now - 3 * DAY_MS;
+
+  const evidence: ClaimEvidence = {
+    marketId: claim.id,
+    outcome: claim.prediction,
+    userPrediction: claim.prediction,
+    resolvedAt,
+    source: "oracle",
+    claimed: claim.status === "claimed",
+    claimStatus: claim.status,
+    winnings: claim.winnings,
+    winningsToken: claim.winningsToken,
+    marketTitle: claim.marketTitle,
+  };
+
+  return Promise.resolve(evidence);
+};
+
 // ── Color-Blind Safe Status Badge ───────────────────────────────────────────
 
 /**
@@ -205,6 +285,15 @@ export interface ClaimCardProps {
   onClaim?: (claim: Claim) => void;
   isClaiming?: boolean;
   reducedMotion?: boolean;
+  /** Authoritative-evidence fetcher; when provided, renders live eligibility. */
+  eligibilityFetcher?: (
+    marketId: string,
+    options: { account?: string; signal?: AbortSignal },
+  ) => Promise<ClaimEvidence>;
+  /** Connected account used to scope eligibility (drives the permission state). */
+  account?: string;
+  /** Disables the claim action when the wallet is missing or on the wrong network. */
+  disabled?: boolean;
 }
 
 /**
@@ -221,6 +310,9 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   onClaim,
   isClaiming = false,
   reducedMotion = false,
+  eligibilityFetcher,
+  account,
+  disabled = false,
 }) => {
   const {
     marketTitle,
@@ -284,7 +376,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               <Button
                 size="sm"
                 className="w-full gap-1.5"
-                disabled={isClaiming}
+                disabled={isClaiming || disabled}
                 aria-busy={isClaiming}
                 aria-label={
                   isClaiming
@@ -316,6 +408,14 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             )}
           </div>
         </div>
+        {eligibilityFetcher && (
+          <ClaimEligibilityStatus
+            marketId={claim.id}
+            account={account}
+            fetcher={eligibilityFetcher}
+            reducedMotion={reducedMotion}
+          />
+        )}
       </CardContent>
     </Card>
   );
@@ -420,6 +520,7 @@ const ClaimFlowPage: React.FC = () => {
   type TabValue = (typeof TABS)[number];
 
   const reducedMotion = useReducedMotion();
+  const { address, network: walletNetwork } = useWalletContext();
   const [activeTab, setActiveTab] = useState<TabValue>("All");
   const [status, setStatus] = useState<"loading" | "success" | "empty" | "error">(
     "loading"
@@ -427,6 +528,15 @@ const ClaimFlowPage: React.FC = () => {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
+
+  const walletNetworkMismatch = Boolean(
+    address &&
+      walletNetwork?.toLowerCase() !== REQUIRED_CLAIM_NETWORK.toLowerCase()
+  );
+  const canClaim = Boolean(
+    address &&
+      walletNetwork?.toLowerCase() === REQUIRED_CLAIM_NETWORK.toLowerCase()
+  );
 
   // Simulate data fetch on mount
   useEffect(() => {
@@ -448,24 +558,46 @@ const ClaimFlowPage: React.FC = () => {
     async (claim: Claim) => {
       if (claim.status !== "available" || claimingId) return;
 
+      const network = walletNetwork?.toLowerCase();
+      const requiredNetwork = REQUIRED_CLAIM_NETWORK.toLowerCase();
+
+      if (!address || !network) {
+        setAnnouncement("Connect your wallet to claim winnings.");
+        return;
+      }
+
+      if (network !== requiredNetwork) {
+        setAnnouncement(
+          `Switch your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
+        );
+        return;
+      }
+
       setClaimingId(claim.id);
       setAnnouncement(
         `Claiming ${claim.winnings} ${claim.winningsToken} for ${claim.marketTitle}.`
       );
 
-      await new Promise((resolve) => setTimeout(resolve, CLAIM_LATENCY_MS));
+      try {
+        await new Promise((resolve) => setTimeout(resolve, CLAIM_LATENCY_MS));
 
-      setClaims((prev) =>
-        prev.map((c) =>
-          c.id === claim.id ? { ...c, status: "claimed" as const } : c
-        )
-      );
-      setClaimingId(null);
-      setAnnouncement(
-        `Successfully claimed ${claim.winnings} ${claim.winningsToken} for ${claim.marketTitle}.`
-      );
+        setClaims((prev) =>
+          prev.map((c) =>
+            c.id === claim.id ? { ...c, status: "claimed" as const } : c
+          )
+        );
+        setAnnouncement(
+          `Successfully claimed ${claim.winnings} ${claim.winningsToken} for ${claim.marketTitle}.`
+        );
+      } catch {
+        setAnnouncement(
+          `Failed to claim ${claim.winnings} ${claim.winningsToken} for ${claim.marketTitle}. Please try again.`
+        );
+      } finally {
+        setClaimingId(null);
+      }
     },
-    [claimingId]
+    [claimingId, address, walletNetwork]
   );
 
   // ⌘↵ / Ctrl+↵ claims the first available winnings (mirrors BetForm shortcut)
@@ -543,6 +675,9 @@ const ClaimFlowPage: React.FC = () => {
                 onClaim={handleClaim}
                 isClaiming={claimingId === claim.id}
                 reducedMotion={reducedMotion}
+                eligibilityFetcher={mockClaimEligibilityFetcher}
+                account={address ?? undefined}
+                disabled={!canClaim || claimingId !== null}
               />
             ))}
           </div>
@@ -587,6 +722,23 @@ const ClaimFlowPage: React.FC = () => {
           </Card>
         )}
       </div>
+
+      {status === "success" && totalAvailable > 0 && !canClaim && (
+        <Alert
+          variant={walletNetworkMismatch ? "destructive" : "default"}
+          className="mx-auto max-w-3xl"
+        >
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>
+            {walletNetworkMismatch ? "Wrong network" : "Wallet connection required"}
+          </AlertTitle>
+          <AlertDescription>
+            {walletNetworkMismatch
+              ? `Connect your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
+              : "Connect your wallet to claim winnings."}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Tabs for filtering */}
       <Tabs
