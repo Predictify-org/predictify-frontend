@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle,
   Clock,
@@ -553,6 +553,13 @@ const ClaimFlowPage: React.FC = () => {
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
 
+  const walletNetworkRef = useRef(walletNetwork);
+  const addressRef = useRef(address);
+  useEffect(() => {
+    walletNetworkRef.current = walletNetwork;
+    addressRef.current = address;
+  }, [address, walletNetwork]);
+
   const walletNetworkMismatch = Boolean(
     address && isClaimNetworkMismatch(walletNetwork)
   );
@@ -599,6 +606,20 @@ const ClaimFlowPage: React.FC = () => {
 
       try {
         await new Promise((resolve) => setTimeout(resolve, CLAIM_LATENCY_MS));
+
+        // Re-check the wallet network immediately before committing the claim.
+        // The network may have changed while the simulated signing was in
+        // flight; claiming on the wrong network would be unsafe.
+        if (!addressRef.current || !walletNetworkRef.current) {
+          setAnnouncement("Connect your wallet to claim winnings.");
+          return;
+        }
+        if (isClaimNetworkMismatch(walletNetworkRef.current)) {
+          setAnnouncement(
+            `Switch your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
+          );
+          return;
+        }
 
         setClaims((prev) =>
           prev.map((c) =>
@@ -753,7 +774,7 @@ const ClaimFlowPage: React.FC = () => {
           </AlertTitle>
           <AlertDescription>
             {walletNetworkMismatch
-              ? `Connect your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
+              ? `Switch your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
               : "Connect your wallet to claim winnings."}
           </AlertDescription>
         </Alert>
