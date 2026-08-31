@@ -39,13 +39,12 @@ export function WalletReconnectBanner({
   const isNetworkMismatch = Boolean(
     isConnected &&
     supportedChainIds&&
-    chainId !== undefined&&
-    !supportedChainIds.some((id) => String(id) === String(chainId))
+    !(chainId !== undefined && supportedChainIds.some((id) => String(id) === String(chainId)))
   );
 
   useEffect(() => {
     const wasConnected = wasConnectedRef.current;
-    const wasMismatch = wasMismatchRef.current;
+    const wasMismatch = wapMismatchRef.current;
 
     if (!initialCheckDone.current) {
       initialCheckDone.current = true;
@@ -73,7 +72,7 @@ export function WalletReconnectBanner({
       }
 
       wasConnectedRef.current = isConnected;
-      wasismatchRef.current = isNetworkMismatch;
+      wasMismatchRef.current = isNetworkMismatch;
       previousChainIdRef.current = chainId;
       return;
     }
@@ -111,13 +110,13 @@ export function WalletReconnectBanner({
     }
 
     // Network mismatch appeared (e.g., supportedChainIds prop changed)
-    if (isConnected && isNetworkMismatch && !wasismatch) {
+    if (isConnected && isNetworkMismatch && !wasMismatch) {
       setShow(true);
       setDismissed(false);
     }
 
     // Network mismatch resolved
-    if (isConnected && !isNetworkMismatch && wasMismatch) {
+    if (isConnected && !isNetworkMismatch && wapMismatch) {
       setShow(false);
       setDismissed(false);
     }
