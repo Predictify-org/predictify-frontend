@@ -5,13 +5,14 @@ import { Clock, TrendingUp, Lock, CheckCircle2, AlertCircle } from 'lucide-react
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useStatusChangeAnnouncement } from '@/hooks/useStatusChangeAnnouncement';
 
 /**
  * Market status values representing the lifecycle of a prediction market.
  *
  * Transitions:
- *   OPEN → CLOSING_SOON → CLOSED → RESOLVED
- *   Any status → CANCELLED (at any point)
+ *   OPEN 【 CSLOSING_SOON 【 CSLOSED 【 RESOLVED
+ *   Any status ← CANCELLED (at any point)
  */
 export type MarketStatus = 'open' | 'closing_soon' | 'closed' | 'resolved' | 'cancelled';
 
@@ -22,6 +23,10 @@ interface StatusBadgeProps {
   className?: string;
   /** Whether to show tooltip on hover (default: true) */
   showTooltip?: boolean;
+  /** Optional market ID for accessibility announcements */
+  marketId?: string;
+  /** Optional market title for accessibility announcements */
+  marketTitle?: string;
 }
 
 /**
@@ -55,7 +60,7 @@ const STATUS_DESCRIPTIONS: Record<MarketStatus, string> = {
   closing_soon: 'Market closes in under 1 hour. Place or finalize your prediction now before predictions are locked.',
   closed: 'Predictions are locked. No new predictions or modifications are allowed. The market is awaiting resolution.',
   resolved: 'Market has been resolved with an outcome. All predictions have been settled and payouts have been distributed.',
-  cancelled: 'Market was cancelled. All stakes have been refunded to their original owners. No predictions were settled.',
+  cancelled: 'Market was cancelled. All stakes have been refunded to their original owners. No predictions were settled',
 };
 
 /**
@@ -82,27 +87,66 @@ const STATUS_PATTERN_CLASSES: Record<MarketStatus, string> = {
   cancelled: 'pattern-vertical',
 };
 
+const STATUS_PATTERN_STYLES: Record<MarketStatus, React.CSSProperties> = {
+  open: {
+    backgroundImage:
+      'repeating-linear-gradient(45deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 6px)',
+  },
+  closing_soon: {
+    backgroundImage:
+      'radial-gradient(circle, rgba(0,0,0,0.4) 1px, transparent 1px)',
+    backgroundSize: '8px 8px',
+  },
+  closed: {
+    backgroundImage:
+      'repeating-linear-gradient(0deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 1px, transparent 1px, transparent 4px), repeating-linear-gradient(90deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 1px, transparent 1px, transparent 4px)',
+  },
+  resolved: {
+    backgroundImage:
+      'repeating-linear-gradient(0deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 6px)',
+  },
+  cancelled: {
+    backgroundImage:
+      'repeating-linear-gradient(90deg, rgba(0,0,0,0.4) 0, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 6px)',
+  },
+};
+
 /**
  * StatusBadge component for displaying market status transitions with live tooltips.
  *
  * Features:
  * - Displays current market status with appropriate icon and color
  * - Live tooltip showing status meaning and any transition information
+ * - Automatic screen reader announcements when status changes (Issue #906)
  * - Full screen reader support via sr-only text and ARIA attributes
  * - Keyboard accessible (visible on focus as well as hover)
  * - Responsive design that works on small screens
  * - Dark mode support using Tailwind class-based strategy
  *
  * Accessibility (WCAG 2.1 AA):
- * - Uses role="status" to announce status changes to screen readers
+ * - Uses role="status" and aria-label to convey the status clearly, without relying on color alone
  * - Includes aria-describedby linking to the sr-only description
  * - SR-only text contains full tooltip description for accessibility
  * - Keyboard accessible via focus (Radix Tooltip handles this)
+ * - Announces status changes via global live region when marketId provided
+ *
+ * Announcement Behavior (Issue #906):
+ * - Pass marketId and marketTitle to enable automatic status change announcements
+ * - Announcements are deduplicated (won't spam for rapid repeated calls)
+ * - Time-critical statuses (resolved, cancelled) use assertive priority
+ * - Other statuses use polite priority to avoid interrupting user
  *
  * @example
  * ```tsx
- * // Basic usage
+ * // Basic usage (no announcements)
  * <StatusBadge status="open" />
+ *
+ * // With announcements enabled
+ * <StatusBadge
+ *   status="closed"
+ *   marketId="market-123"
+ *   marketTitle="Will Bitcoin reach $100k?"
+ * />
  *
  * // With custom styling
  * <StatusBadge status="closing_soon" className="mr-2" />
@@ -115,21 +159,38 @@ export function StatusBadge({
   status,
   className,
   showTooltip = true,
+  marketId,
+  marketTitle,
 }: StatusBadgeProps): JSX.Element {
-  const Icon = STATUS_ICONS[status];
-  const label = STATUS_LABELS[status];
-  const description = STATUS_DESCRIPTIONS[status];
-  const variant = STATUS_VARIANTS[status];
+  const Icon = STATUS_ICONS[status] ?? AlertCircle;
+  const label = STATUS_LABELS[status] ?? 'Unknown';
+  const description = STATUS_DESCRIPTIONS[status] ?? 'Unknown market status.';
+  const variant = STATUS_VARIANTS[status] ?? 'neutral';
   const patternClass = STATUS_PATTERN_CLASSES[status] ?? 'pattern-diagonal';
+  const patternStyle: React.CSSProperties = STATUS_PATTERN_STYLES[status] ?? {};
 
-  const statusId = `status-description-${status}-${Math.random().toString(36).substr(2, 9)}`;
+  const statusId = React.useId();
+
+  // Announce status changes to assistive technology (WCAG 2.1 SC 4.1.3)
+  const { announceMarketStatus } = useStatusChangeAnnouncement();
+
+  React.useEffect(() => {
+    // Only announce if market ID is provided (opt-in to avoid spam)
+    if (marketId) {
+      announceMarketStatus(marketId, status, marketTitle);
+    }
+  }, [status, marketId, marketTitle, announceMarketStatus]);
 
   const badge = (
     <Badge
       role="status"
+      aria-label={`${label} status`}
       aria-describedby={statusId}
+      data-status={status}
       variant={variant}
       size="md"
+      tabIndex={showTooltip ? 0 : undefined}
+      style={patternStyle}
       className={cn('relative gap-1.5 overflow-hidden', patternClass, className)}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />

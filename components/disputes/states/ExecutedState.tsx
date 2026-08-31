@@ -1,8 +1,9 @@
+import { ExternalLink } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { TallyBar } from '@/components/disputes/shared/TallyBar';
 import { DetailsAccordion } from '@/components/disputes/shared/DetailsAccordion';
-import { OutcomeChip } from '@/components/ui/OutcomeChip';
 import type { DisputeData, DisputeState } from '@/types/disputes';
-import { ExternalLink } from '@/components/ExternalLink';
+import { normalizeDisputeEvidence } from '@/lib/dispute-evidence';
 
 interface ExecutedStateProps {
   data: DisputeData;
@@ -16,9 +17,9 @@ export function ExecutedState({ data }: ExecutedStateProps) {
       {data.outcome && (
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">Final outcome:</span>
-          <OutcomeChip variant="positive" className="text-sm px-3 py-1">
+          <Badge className="border-transparent bg-green-600 text-white text-sm px-3 py-1">
             {data.outcome}
-          </OutcomeChip>
+          </Badge>
         </div>
       )}
 
@@ -40,15 +41,17 @@ export function ExecutedState({ data }: ExecutedStateProps) {
             Audit references
           </p>
           <ul className="flex flex-col gap-1">
-            {data.auditRefs.map((ref) => (
-              <li key={ref.url}>
-                <ExternalLink
+            {normalizeDisputeEvidence(data.auditRefs).map((ref) => (
+              <li key={ref.id}>
+                <a
                   href={ref.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center gap-1 text-sm text-blue-500 hover:underline"
-                  iconClassName="h-3 w-3"
                 >
                   {ref.label}
-                </ExternalLink>
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                </a>
               </li>
             ))}
           </ul>

@@ -75,7 +75,7 @@ const financialData = {
 
 export default function FinancesPage() {
   const { hideBalances } = usePrivacy();
-  const [date, setDate] = useState<DateRange | undefined>({
+  const [date, setDate] = useState<DateRange>({
     from: new Date(2023, 3, 1),
     to: new Date(2023, 3, 30),
   })
@@ -108,7 +108,7 @@ export default function FinancesPage() {
                 mode="range"
                 defaultMonth={date?.from}
                 selected={date}
-                onSelect={(range) => setDate(range)}
+                onSelect={(range) => setDate(range ?? { from: new Date(2023, 3, 1), to: new Date(2023, 3, 30) })}
                 numberOfMonths={2}
               />
             </PopoverContent>
@@ -130,10 +130,10 @@ export default function FinancesPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div data-numeric="true" className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.totalFees) : financialData.totalFees.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{hideBalances ? maskAmount(financialData.totalFees) : financialData.totalFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <TrendingUp className="mr-1 h-3.5 w-3.5 text-green-500" />
-              <span className="text-green-500 tabular-nums">{financialData.feeGrowth}%</span>
+              <span className="text-green-500">{financialData.feeGrowth}%</span>
               <span className="ml-1">from last month</span>
             </div>
           </CardContent>
@@ -144,7 +144,7 @@ export default function FinancesPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div data-numeric="true" className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.monthlyFees) : financialData.monthlyFees.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{hideBalances ? maskAmount(financialData.monthlyFees) : financialData.monthlyFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <ArrowUpRight className="mr-1 h-3.5 w-3.5 text-green-500" />
               <span>April 2023</span>
@@ -157,10 +157,10 @@ export default function FinancesPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div data-numeric="true" className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.weeklyFees) : financialData.weeklyFees.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{hideBalances ? maskAmount(financialData.weeklyFees) : financialData.weeklyFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <ArrowDownRight className="mr-1 h-3.5 w-3.5 text-red-500" />
-              <span className="text-red-500 tabular-nums">3.2%</span>
+              <span className="text-red-500">3.2%</span>
               <span className="ml-1">from last week</span>
             </div>
           </CardContent>
@@ -171,10 +171,10 @@ export default function FinancesPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div data-numeric="true" className="text-2xl font-bold tabular-nums">{hideBalances ? maskAmount(financialData.dailyFees) : financialData.dailyFees.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{hideBalances ? maskAmount(financialData.dailyFees) : financialData.dailyFees.toLocaleString()}</div>
             <div className="flex items-center pt-1 text-xs text-muted-foreground">
               <TrendingUp className="mr-1 h-3.5 w-3.5 text-green-500" />
-              <span className="text-green-500 tabular-nums">8.4%</span>
+              <span className="text-green-500">8.4%</span>
               <span className="ml-1">from yesterday</span>
             </div>
           </CardContent>
@@ -235,7 +235,7 @@ export default function FinancesPage() {
                       <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
                       <TableCell className="font-medium">{transaction.eventTitle}</TableCell>
                       <TableCell>{transaction.type === "platform_fee" ? "Platform Fee" : transaction.type}</TableCell>
-                      <TableCell className="text-right tabular-nums">{hideBalances ? maskAmount(transaction.amount) : transaction.amount.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{hideBalances ? maskAmount(transaction.amount) : transaction.amount.toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -265,8 +265,8 @@ export default function FinancesPage() {
                   {financialData.feeDistribution.map((item) => (
                     <TableRow key={item.category}>
                       <TableCell className="font-medium">{item.category}</TableCell>
-                      <TableCell className="tabular-nums">{item.percentage}%</TableCell>
-                      <TableCell className="text-right tabular-nums">${item.amount.toLocaleString()}</TableCell>
+                      <TableCell>{item.percentage}%</TableCell>
+                      <TableCell className="text-right">${item.amount.toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

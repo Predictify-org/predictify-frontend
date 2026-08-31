@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Navbar } from "@/components/navbar/Navbar";
 import { Breadcrumbs } from "@/components/navbar/Breadcrumbs";
+import { MobileBottomTabs } from "@/components/navbar/MobileBottomTabs";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { getBreadcrumbsForPath } from "@/lib/breadcrumbs";
 import { MobileBottomTabs } from "@/components/navbar/MobileBottomTabs";

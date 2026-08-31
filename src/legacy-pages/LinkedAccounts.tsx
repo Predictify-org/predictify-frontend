@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Check,
+  AlertCircle,
   Copy,
   ExternalLink,
   Link2,
@@ -15,6 +16,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { LiveRegion } from "@/components/ui/live-region"
 import { useWalletContext } from "@/context/WalletContext"
 import { useWallet } from "@/hooks/useWallet.hook"
@@ -57,13 +59,14 @@ function getExplorerUrl(address: string, network: string): string {
  */
 export default function LinkedAccounts() {
   const { address, name, connected } = useWalletContext()
-  const { disconnectWallet, connectWallet, isConnecting } = useWallet()
+  const { disconnectWallet, connectWallet, isConnecting, isDisconnecting, isOperationPending } = useWallet()
   const { balance, isLoading: balanceLoading } = useStellarBalance(
     connected ? address : null,
   )
 
   const [scrolled, setScrolled] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [operationMessage, setOperationMessage] = useState<string | null>(null)
   const headerRef = useRef<HTMLDivElement>(null)
 
   const config = getClientConfig()
@@ -93,12 +96,16 @@ export default function LinkedAccounts() {
   }, [address])
 
   const handleDisconnect = useCallback(async () => {
-    await disconnectWallet()
+    setOperationMessage(null)
+    const result = await disconnectWallet()
+    if (!result.success) setOperationMessage(result.error)
   }, [disconnectWallet])
 
   const handleConnect = useCallback(
     async (walletId: string) => {
-      await connectWallet(walletId)
+      setOperationMessage(null)
+      const result = await connectWallet(walletId)
+      if (!result.success) setOperationMessage(result.error)
     },
     [connectWallet],
   )
@@ -141,6 +148,16 @@ export default function LinkedAccounts() {
             </p>
           </div>
         </div>
+
+        {operationMessage && (
+          <Alert variant="destructive" role="alert">
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <AlertTitle>Wallet action not completed</AlertTitle>
+            <AlertDescription>
+              {operationMessage} Review your wallet, then choose the action again to retry.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* ── Connected Wallet Card ───────────────────────────────────── */}
         {connected && address ? (
@@ -237,6 +254,7 @@ export default function LinkedAccounts() {
                   size="sm"
                   className="h-8 gap-1.5 px-3 text-xs text-destructive hover:text-destructive"
                   onClick={handleDisconnect}
+                  disabled={isOperationPending}
                   aria-label={`Disconnect ${name} wallet from card`}
                 >
                   <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
@@ -275,7 +293,7 @@ export default function LinkedAccounts() {
                 key={wallet.id}
                 type="button"
                 onClick={() => handleConnect(wallet.id)}
-                disabled={isConnecting}
+                disabled={isOperationPending}
                 className={cn(
                   "flex items-center gap-3 rounded-xl border border-border/60 bg-card/70 p-4 text-left transition-colors",
                   "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
@@ -294,7 +312,7 @@ export default function LinkedAccounts() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{wallet.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {isConnecting ? "Connecting..." : "Click to connect"}
+                    {isConnecting ? "Connecting..." : isDisconnecting ? "Disconnecting..." : "Click to connect"}
                   </p>
                 </div>
                 <Link2
@@ -376,6 +394,7 @@ export default function LinkedAccounts() {
                   size="sm"
                   className="h-8 gap-1 px-2 text-xs sm:px-3"
                   onClick={handleDisconnect}
+                  disabled={isOperationPending}
                   aria-label={`Disconnect ${name} wallet from toolbar`}
                 >
                   <LogOut className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -401,7 +420,7 @@ export default function LinkedAccounts() {
                   size="sm"
                   className="h-8 gap-1 px-2 text-xs sm:px-3"
                   onClick={() => handleConnect("freighter")}
-                  disabled={isConnecting}
+                  disabled={isOperationPending}
                   aria-label="Connect Freighter wallet from toolbar"
                 >
                   <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

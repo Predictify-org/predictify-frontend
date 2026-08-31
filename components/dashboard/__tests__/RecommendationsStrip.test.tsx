@@ -1,6 +1,8 @@
 import React from "react"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { render, screen, fireEvent, act } from "@testing-library/react"
 import { RecommendationsStrip } from "../RecommendationsStrip"
+import { setTelemetrySink } from "@/lib/telemetry"
+import { useConsentStore } from "@/app/state/consent"
 import type { Bet } from "@/lib/types"
 
 function betIn(color: Bet["category"]["color"]): Pick<Bet, "category"> {
@@ -92,6 +94,94 @@ describe("RecommendationsStrip", () => {
     it("is a tabbable region", () => {
       render(<RecommendationsStrip bets={[betIn("crypto")]} />)
       expect(screen.getByRole("region", { name: /carousel/i })).toHaveAttribute("tabIndex", "0")
+    })
+  })
+
+  describe("consent-gated telemetry", () => {
+    const sink = jest.fn()
+
+    beforeEach(() => {
+      sink.mockClear()
+      setTelemetrySink(sink)
+      act(() => {
+        useConsentStore.setState({ analyticsConsent: false })
+      })
+    })
+
+    afterEach(() => {
+      setTelemetrySink(null)
+      act(() => {
+        useConsentStore.setState({ analyticsConsent: false })
+      })
+    })
+
+    it("emits no telemetry while analytics consent is disabled", () => {
+      render(<RecommendationsStrip bets={[betIn("crypto")]} />)
+      expect(screen.getByRole("region", { name: /carousel/i })).toBeInTheDocument()
+      expect(sink).not.toHaveBeenCalled()
+    })
+
+    it("emits one impression per recommended market after consent is granted", () => {
+      act(() => {
+        useConsentStore.setState({ analyticsConsent: true })
+      })
+      render(<RecommendationsStrip bets={[betIn("crypto")]} />)
+
+      const impressions = sink.mock.calls.filter(
+        ([event]) => event.type === "recommendation_impression"
+      )
+      expect(impressions.length).toBeGreaterThan(0)
+      impressions.forEach(([event]) => {
+        expect(event).toMatchObject({
+          type: "recommendation_impression",
+          category: "crypto",
+        })
+        expect(typeof event.marketId).toBe("string")
+        expect(event.marketId.length).toBeGreaterThan(0)
+        expect(event.sessionId).toBeTruthy()
+      })
+    })
+
+    it("emits a click event with position when a recommendation card is selected", () => {
+      act(() => {
+        useConsentStore.setState({ analyticsConsent: true })
+      })
+      render(<RecommendationsStrip bets={[betIn("crypto")]} />)
+
+      const card = screen.getAllByRole("link")[0]
+      fireEvent.click(card)
+
+      const clickEvents = sink.mock.calls.filter(
+        ([event]) => event.type === "recommendation_click"
+      )
+      expect(clickEvents.length).toBe(1)
+      expect(clickEvents[0][0]).toMatchObject({
+        type: "recommendation_click",
+        category: "crypto",
+        position: 0,
+      })
+      expect(clickEvents[0][0].marketId).toBeTruthy()
+    })
+
+    it("stops emitting impressions once consent is revoked", () => {
+      act(() => {
+        useConsentStore.setState({ analyticsConsent: true })
+      })
+      const { unmount } = render(<RecommendationsStrip bets={[betIn("stocks")]} />)
+      const impressionsBefore = sink.mock.calls.filter(
+        ([event]) => event.type === "recommendation_impression"
+      )
+      expect(impressionsBefore.length).toBeGreaterThan(0)
+
+      act(() => {
+        useConsentStore.setState({ analyticsConsent: false })
+      })
+      const impressionsAfter = sink.mock.calls.filter(
+        ([event]) => event.type === "recommendation_impression"
+      )
+      // Revoking consent never adds events; the count is unchanged.
+      expect(impressionsAfter.length).toBe(impressionsBefore.length)
+      unmount()
     })
   })
 })

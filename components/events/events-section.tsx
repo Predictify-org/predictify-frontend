@@ -4,7 +4,7 @@ import * as React from "react"
 /* NEW: Added Link for navigation to create event page */
 import Link from "next/link"
 /* NEW: Added Plus icon for create event button */
-import { Plus, LayoutGrid, Table2 } from "lucide-react"
+import { AlertTriangle, Plus, LayoutGrid, Table2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -25,7 +25,16 @@ interface EventsSectionProps {
 }
 
 export function EventsSection({ className }: EventsSectionProps) {
-  const { events, filters, setStatus, loadEvents } = useEventsStore()
+  const {
+    events,
+    filteredEvents,
+    filters,
+    setStatus,
+    loadEvents,
+    retryLoadEvents,
+    error,
+    canRetry,
+  } = useEventsStore()
   const [viewMode, setViewMode] = React.useState<"table" | "grid">("table")
 
   // Get event counts for each tab
@@ -129,6 +138,36 @@ export function EventsSection({ className }: EventsSectionProps) {
           </TabsList>
         </Tabs>
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+            <p>
+              {error}
+              {filteredEvents.length > 0 && (
+                <span className="ml-1 text-muted-foreground">
+                  Your current page has been kept in place.
+                </span>
+              )}
+            </p>
+          </div>
+          {canRetry && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void retryLoadEvents()}
+              className="shrink-0"
+            >
+              Try again
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Tab Content */}
       <Tabs value={filters.status} onValueChange={handleTabChange} className="w-full">
