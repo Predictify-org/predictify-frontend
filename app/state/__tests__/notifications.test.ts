@@ -193,6 +193,8 @@ describe("useNotificationsStore", () => {
       makeNotification("second"),
     ]);
   });
+});
+
 const item = (overrides: Partial<NotificationItem> = {}): NotificationItem => ({
   id: "notification-1",
   userId: "current-user",
