@@ -29,7 +29,7 @@ export function WalletBalance({ className = "" }: { className?: string }) {
   if (isLoading && !balance) {
     return (
       <div
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 animate-pulse ${className} ${privacyClasses}`
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 animate-pulse ${className} ${privacyClasses}`}
         aria-label="Loading wallet balance"
       >
         <div className="h-3 w-16 bg-slate-700 rounded" />
