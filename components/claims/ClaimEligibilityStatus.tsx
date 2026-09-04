@@ -201,7 +201,7 @@ function ErrorAlert({
   }
 
   return (
-    <Alert variant="destructive">
+    <Alert className="border-destructive/40 bg-destructive/10">
       <AlertCircle className="h-4 w-4" aria-hidden={true} />
       <AlertTitle>Couldn&#39;t load eligibility</AlertTitle>
       <AlertDescription>{error.message}</AlertDescription>
