@@ -45,9 +45,14 @@ export function LeaderboardSection() {
     staleTime: 2 * 60 * 1000,
   });
 
+  const isFirstRender = React.useRef(true);
   React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     refetch();
-  }, [refetch]);
+  }, [activeTab, refetch]);
 
   const users = data.length > 0 ? data : mockLeaderboardData;
   const topThree = users.slice(0, 3);

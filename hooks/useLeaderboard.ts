@@ -95,16 +95,19 @@ export function useLeaderboard({
   }, [executeFetch]);
 
   const retry = useCallback(async () => {
+    retryCountRef.current += 1;
     if (retryCountRef.current >= maxRetries) {
       setState((prev) => ({
         ...prev,
+        status: "error",
         error: "Maximum retry attempts reached. Please try again later.",
       }));
       return;
     }
 
-    retryCountRef.current += 1;
-    await new Promise((resolve) => setTimeout(resolve, retryDelay));
+    if (retryDelay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+    }
     await executeFetch();
   }, [executeFetch, maxRetries, retryDelay]);
 
