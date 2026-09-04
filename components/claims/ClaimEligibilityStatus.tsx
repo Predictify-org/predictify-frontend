@@ -217,7 +217,7 @@ function ErrorAlert({
           <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden={true} />
           Retry
         </Button>
-      ))}
+      )}
     </Alert>
   );
 }
