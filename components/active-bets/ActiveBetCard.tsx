@@ -138,7 +138,7 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
             </div>
           )}
         </div>
-        <h3 className={cn("font-semibold text-foreground leading-tight mb-3", t.titleSize)_>
+        <h3 className={cn("font-semibold text-foreground leading-tight mb-3", t.titleSize)}>
           {title}
         </h3>
         {t.showDates && bet && (
@@ -171,7 +171,7 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
               'h-full rounded-full transition-all duration-300ms',
               categoryStyle.progress
             )}
-            style={{ width: `${progress}%``}}
+            style={{ width: `${progress}%` }}
             />
           </div>
           <div className="flex justify-end items-center gap-2">
