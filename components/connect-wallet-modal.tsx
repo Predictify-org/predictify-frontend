@@ -1,7 +1,7 @@
-"use client";
+use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { WalletModal, WalletModalProps } from "@/src/legacy-pages/WalletModal";
+import { WalletModal, WalletModalProps } from "/src/legacy-pages/WalletModal";
 
 const DEFAULT_CHAIN_ID = 1;
 const envChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID || DEFAULT_CHAIN_ID);
@@ -33,7 +33,7 @@ async function switchToSupportedChain(): Promise<void> {
   try {
     await provider.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: `0x${SUPPORTED_CHAIN_ID.toString(16)}` }],
+      params: [{ chainId: `0x${SUPPORTED_CHAIN_ID.toString(16)} }],
     });
   } catch (error) {
     console.error("Failed to switch network:", error);
@@ -44,7 +44,7 @@ async function switchToSupportedChain(): Promise<void> {
 export function ConnectWalletModal(props: WalletModalProps) {
   const [chainId, setChainId] = useState<number | undefined>(getCurrentChainId);
   const [hasProvider, setHasProvider] = useState<boolean>(
-    () => typeof window !== "undefined" && getEthereumProvider() !== null
+    Default to false
   );
   const [isSwitching, setIsSwitching] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
@@ -68,7 +68,7 @@ export function ConnectWalletModal(props: WalletModalProps) {
 
     if (mounted.current) setHasProvider(true);
 
-    const requestId = ++{chainIdRequestId.current};
+    const requestId = ++chainIdRequestId.current;
 
     try {
       const hexChainId = await provider.request({ method: "eth_chainId" });
@@ -104,7 +104,7 @@ export function ConnectWalletModal(props: WalletModalProps) {
     let isMounted = true;
 
     const handleChainChanged = (hexChainId: string) => {
-      chainIdRequestId.current++; // invalidate any in-flight detectChainId
+      chainIdRequestId.current++;
       const parsed = Number(hexChainId);
       if (isMounted && Number.isFinite(parsed)) {
         setChainId(parsed);
@@ -135,7 +135,7 @@ export function ConnectWalletModal(props: WalletModalProps) {
 
     return () => {
       isMounted = false;
-      chainIdRequestId.current++; // invalidate any in-flight requests
+      chainIdRequestId.current++; 
       if (activeProvider) {
         activeProvider.removeListener("chainChanged", handleChainChanged);
       }
@@ -143,12 +143,10 @@ export function ConnectWalletModal(props: WalletModalProps) {
     };
   }, [detectChainId]);
 
-  // If no wallet provider is detected, let the WalletModal handle installation/connection.
   if (!hasProvider) {
     return <WalletModal {...props} />;
   }
 
-  // If we couldn't determine the network, show an error with a retry option.
   if (loadError) {
     return (
       <div role="alert" className="network-load-error">
@@ -160,8 +158,6 @@ export function ConnectWalletModal(props: WalletModalProps) {
     );
   }
 
-  // If a provider is present but we haven't determined the network yet,
-  // block signing until the network is known.
   if (chainId === undefined) {
     return (
       <div role="status" className="network-loading">
@@ -178,9 +174,8 @@ export function ConnectWalletModal(props: WalletModalProps) {
     setSwitchError(null);
     try {
       await switchToSupportedChain();
-      chainIdRequestId.current++; // invalidate pending chain ID requests
+      chainIdRequestId.current++; 
       if (!mounted.current) return;
-      // Optimistically update to supported chain. The chainChanged event will also fire.
       setChainId(SUPPORTED_CHAIN_ID);
     } catch (error) {
       if (!mounted.current) return;
