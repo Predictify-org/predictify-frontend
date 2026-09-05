@@ -576,12 +576,12 @@ const ClaimFlowPage: React.FC = () => {
     async (claim: Claim) => {
       if (claim.status !== "available" || claimingId) return;
 
-      if (!address || !walletNetwork) {
+      if (!addressRef.current || !walletNetworkRef.current) {
         setAnnouncement("Connect your wallet to claim winnings.");
         return;
       }
 
-      if (isClaimNetworkMismatch(walletNetwork)) {
+      if (isClaimNetworkMismatch(walletNetworkRef.current)) {
         setAnnouncement(
           `Switch your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
         );
@@ -626,7 +626,7 @@ const ClaimFlowPage: React.FC = () => {
         setClaimingId(null);
       }
     },
-    [claimingId, address, walletNetwork]
+    [claimingId]
   );
 
   // ⌘↵ / Ctrl+↵ claims the first available winnings (mirrors BetForm shortcut)
