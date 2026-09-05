@@ -7,8 +7,8 @@ declare global {
   }
 }
 
-const DEFAULt_CHAIN_ID = Number(process.env.NEXT_PUBLIC_EXPECTED_CHAIN_ID || 1);
-const DEFAULt_CONTRACT_ADDRESS = process.env.NEX_PUBLIC_BET_CONTRACT_ADDRESS || '';
+const DEFAULT_CHAIN_ID = Number(process.env.NEXT_PUBLIC_EXPECTED_CHAIN_ID || 1);
+const DEFAULT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_BET_CONTRACT_ADDRESS || '';
 
 const BET_ABI = [
   {
@@ -52,7 +52,7 @@ async function defaultPlaceBet(outcome: string, amount: string): Promise<void> {
   if (typeof window === 'undefined' || !window.ethereum) {
     throw new Error('No Ethereum provider found. Please install MetaMask.');
   }
-  if (!DEFAULt_CONTRACT_ADDRESS) {
+  if (!DEFAULT_CONTRACT_ADDRESS) {
     throw new Error('Bet contract address is not configured.');
   }
   const provider = new ethers.providers.Web3Provider(window.ethereum);
