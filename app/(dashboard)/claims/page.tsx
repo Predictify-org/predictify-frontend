@@ -339,9 +339,11 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
     status,
   } = claim;
 
-  const isActionable = status === "available";
   const { network: walletNetwork } = useWalletContext();
   const isWrongNetwork = isClaimNetworkMismatch(walletNetwork);
+  // Handle wallet-network mismatch before signing/claiming: do not allow
+  // claiming unless the wallet is on the required claim settlement network.
+  const isActionable = status === "available" && !isWrongNetwork;
 
   return (
     <Card
