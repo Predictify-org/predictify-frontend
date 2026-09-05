@@ -33,7 +33,10 @@ function getResponsiveImageSource(source: string, width: number): string {
   return source;
 }
 
-function formatProfit(value: number): string {
+function formatProfit(value?: number): string {
+  if (value === undefined || value === null || isNaN(value)) {
+    return "+0.00";
+  }
   const formatted = value.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -67,10 +70,25 @@ export function LeaderboardTable({
     return [...users].sort((left, right) => {
       const leftValue = left[sortKey];
       const rightValue = right[sortKey];
-      const comparison =
-        typeof leftValue === "string" && typeof rightValue === "string"
-          ? leftValue.localeCompare(rightValue)
-          : Number(leftValue) - Number(rightValue);
+      
+      let comparison = 0;
+      if (typeof leftValue === "string" && typeof rightValue === "string") {
+        comparison = leftValue.localeCompare(rightValue);
+      } else {
+        const leftNum = Number(leftValue ?? 0);
+        const rightNum = Number(rightValue ?? 0);
+        comparison = (isNaN(leftNum) ? 0 : leftNum) - (isNaN(rightNum) ? 0 : rightNum);
+      }
+
+      if (comparison === 0) {
+        // Fallback to name to guarantee deterministic sorting for identical values
+        comparison = (left.name ?? "").localeCompare(right.name ?? "");
+      }
+
+      if (comparison === 0) {
+        // Fallback to rank as tiebreaker
+        comparison = (left.rank ?? 0) - (right.rank ?? 0);
+      }
 
       return sortDirection === "desc" ? -comparison : comparison;
     });
@@ -127,7 +145,7 @@ export function LeaderboardTable({
     }
 
     setSortKey(nextKey);
-    setSortDirection("desc");
+    setSortDirection(nextKey === "rank" ? "asc" : "desc");
   };
 
   const renderSortIcon = (key: SortKey) => {
@@ -262,8 +280,8 @@ export function LeaderboardTable({
                   <span>{user.name}</span>
                 </td>
                 <td className="px-4 py-3">{formatProfit(user.profit)}</td>
-                <td className="px-4 py-3">{user.winRate}%</td>
-                <td className="px-4 py-3">{user.predictions}</td>
+                <td className="px-4 py-3">{user.winRate !== undefined && user.winRate !== null ? `${user.winRate}%` : "—"}</td>
+                <td className="px-4 py-3">{user.predictions ?? 0}</td>
               </tr>
             );
           })}

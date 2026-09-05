@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { CheckCircle2, Printer, ArrowLeft } from 'lucide-react';
-import { ReceitShare } from '@/app/components/ReceiptShare';
+import { ReceiptShare } from '@/app/components/ReceiptShare';
 import { usePrivacy } from '@/context/PrivacyContext';
 import { maskAmount } from '@/utils/maskAmount';
 
@@ -41,8 +41,8 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
     <div className="receipt-wrapper flex flex-col items-center justify-center w-full min-h-[80vh] print:min-h-0 print:py-12">
       <div className="receipt-container relative w-full max-w-lg bg-card print:bg-white rounded-[24px] print:rounded-none overflow-hidden pb-8 print:pb-0 shadow-sm print:shadow-none border border-border/40 print:border-none">
         <div className="hidden print:flex flex-col items-center pt-8 pb-4 w-full text-center">
-          <h1 className="text-3 xl font-black tracking-tighter text-black">Predictify</h1>
-          <p className="text-xs text-gray-400 uppercase tracking-[5.3em] mt-2 Official Record</p>
+          <h1 className="text-3xl font-black tracking-tighter text-black">Predictify</h1>
+          <p className="text-xs text-gray-400 uppercase tracking-[0.3em] mt-2">Official Record</p>
         </div>
 
         <div className="flex flex-col items-center text-center pt-12 pb-8 px-8">
@@ -136,7 +136,7 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
           aria-label="Print this receipt"
           className="w-full flex items-center justify-center gap-2 bg-foreground text-background py-3.5 px-4 rounded-xl font-semibold hover:opacity-90 transition-opacity"
         >
-          <Printer className="w-4 h-4 aria-hidden="true" />
+          <Printer className="w-4 h-4" aria-hidden="true" />
           Print Receipt
         </button>
         <ReceiptShare
@@ -154,7 +154,7 @@ export function Receipt({ receiptId, amount, partyA, partyB, timestamp, type }: 
           onClick={() => window.history.back()}
           aria-label="Return to the previous page"
         >
-          <ArrowLeft className="w-4 h-4 aria-hidden="true" />
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           Back to Dashboard
         </button>
       </div>

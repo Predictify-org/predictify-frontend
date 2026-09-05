@@ -93,11 +93,11 @@ export function WalletMenu() {
             </div>
           </DropdownMenuItem>
           <DropdownMenuItem role="menuitem" onClick={() => setIsOpen(true)} className="cursor-pointer" aria-label="Switch wallet">
-            <RefreshCcw className="mr-2 h-4"w-4" />
+            <RefreshCcw className="mr-2 h-4 w-4" />
             Switch
           </DropdownMenuItem>
           <DropdownMenuItem role="menuitem" onClick={() => { void disconnectWallet(); }} className="cursor-pointer" aria-label="Disconnect wallet">
-            <LogOutIcon className="mr-2 h-4"w-4" />
+            <LogOutIcon className="mr-2 h-4 w-4" />
             Disconnect
           </DropdownMenuItem>
           <DropdownMenuItem asChild>

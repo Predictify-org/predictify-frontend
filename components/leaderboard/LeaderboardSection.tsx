@@ -19,20 +19,40 @@ export function LeaderboardSection() {
   const [activeTab, setActiveTab] = useState("all-time");
   const [isUserVisible, setIsUserVisible] = useState(true);
 
-  const { status, data, error, refetch, retry } = useLeaderboard({
-    fetcher: async () => {
-      const res = await fetch(`/api/leaderboard?period=${activeTab}`, {
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(body || `Failed to load leaderboard (${res.status})`);
+  const fetcher = React.useCallback(async () => {
+    const res = await fetch(`/api/leaderboard?period=${activeTab}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        throw new Error("You do not have permission to view this leaderboard.");
       }
-      return res.json();
-    },
+      let errorMessage = `Failed to load leaderboard (${res.status})`;
+      try {
+        const data = await res.json();
+        if (data && data.error) errorMessage = data.error;
+      } catch (e) {
+        // ignore JSON parse errors
+      }
+      throw new Error(errorMessage);
+    }
+    return res.json();
+  }, [activeTab]);
+
+  const { status, data, error, refetch, retry } = useLeaderboard({
+    fetcher,
     initialData: mockLeaderboardData,
     staleTime: 2 * 60 * 1000,
   });
+
+  const isFirstRender = React.useRef(true);
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    refetch();
+  }, [activeTab, refetch]);
 
   const users = data.length > 0 ? data : mockLeaderboardData;
   const topThree = users.slice(0, 3);
