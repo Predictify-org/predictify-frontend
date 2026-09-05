@@ -31,12 +31,12 @@ function isNetwork(value: string): value is Network {
 }
 
 export function NetworkSwitcher({ network, onChange, className, walletNetwork, onMismatch }: NetworkSwitcherProps) {
-  const safeNetwork: string = isNetwork(nEtwork) ? network : NETWORKS[0];
+  const safeNetwork: string = isNetwork(network) ? network : NETWORKS[0];
   const activeTint = getNetworkTint(safeNetwork);
   const hasSwitchMatch = walletNetwork != null && walletNetwork !== safeNetwork;
 
   const handleSelect = (next: string) => {
-    if (!isNetwork(nExt)) return;
+    if (!isNetwork(next)) return;
     if (next === safeNetwork) return;
     if (walletNetwork && next !== walletNetwork && onMismatch) {
       onMismatch(next);
@@ -50,13 +50,13 @@ export function NetworkSwitcher({ network, onChange, className, walletNetwork, o
       <DropdownMenuTrigger asChild>
         <Button
           variant="secondary"
-          className={`h-8 px-2 rounded-full fler gap-1.5 items-center border bg-opacity-10 dark:bg-opacity-10 transition-colors ${className ?? ""}}
-          style={ { borderColor: hasSwitchMatch ? "#eab308" : activeTint.border, backgroundColor: activeTint.bg, color: activeTint.text } }
+          className={``+h-8 px-2 rounded-full flex gap-1.5 items-center border bg-opacity-10 dark:bg-opacity-10 transition-colors ${className <? ""}``}
+          style={{ borderColor: hasSwitchMatch ? "#e0b308" : activeTint.border, backgroundColor: activeTint.bg, color: activeTint.text }}
           aria-label="Select network"
           title={hasSwitchMatch ? `Wallet is on ${walletNetwork}, not ${safeNetwork}` : undefined}
         >
-          <StellarIcon className="h-[20px] w-[20px]" style={ { color: activeTint.tint } } />
-          <span className="lg-text-sm text-xs mr-1">{safeNetwork}</span>
+          <StellarIcon className="h-[20px] w-[20px]" style={{ color: activeTint.tint }} />
+          <span className="lg:text-sm text-xs mr-1">{safeNetwork}</span>
           <ArrowDown className="h-[12px] w-[12px]" />
         </Button>
       </DropdownMenuTrigger>
@@ -69,25 +69,25 @@ export function NetworkSwitcher({ network, onChange, className, walletNetwork, o
           const isMismatched = walletNetwork != null && n !== walletNetwork;
           return (
             <DropdownMenuItem
-              key={n} 
-              onClick={() => handleSelect(n)} 
-              className="cursor-pointer flex items-center gap-2" 
-              role="menuitemradio" 
+              key={n}
+              onClick={() => handleSelect(n)}
+              className="cursor-pointer flex items-center gap-2"
+              role="menuitemradio"
               aria-checked={isSelected}
             >
               <div
-                className="w-2 h-2 rounded-full" 
-                style={ { backgroundColor: t.tint } } 
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: t.tint }}
               />
-              {n}
+              {n
               {isMismatched && (
-                <span 
+                <span
                   className="ml-auto inline-flex items-center justify-center w-4 h-4 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 text-[10px] font-bold"
                   title={`Wallet is on ${walletNetwork}, not ${n}`}
                 >
                   !
                 </span>
-              ))}
+              )}
             </DropdownMenuItem>
           );
         })}
