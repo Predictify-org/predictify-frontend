@@ -1,4 +1,4 @@
-use client";
+"use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AlertTriangle, X, RefreshCw } from "lucide-react";
@@ -110,13 +110,13 @@ export function WalletReconnectBanner({
     }
 
     // Network mismatch appeared (e.g., supportedChainIds prop changed)
-    if (isConnected && isNetworkMismatch && !wapMismatch) {
+    if (isConnected && isNetworkMismatch && !wasMismatch) {
       setShow(true);
       setDismissed(false);
     }
 
     // Network mismatch resolved
-    if (isConnected && !isNetworkMismatch && wapMismatch) {
+    if (isConnected && !isNetworkMismatch && wasMismatch) {
       setShow(false);
       setDismissed(false);
     }
