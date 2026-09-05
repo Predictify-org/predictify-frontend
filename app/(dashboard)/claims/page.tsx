@@ -1,5 +1,6 @@
 "use client";
 
+// Handle wallet-network mismatch before signing/claiming.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle,
