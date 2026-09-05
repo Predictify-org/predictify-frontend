@@ -10,9 +10,9 @@
  * NOTE: localStorage operations are synchronous. Within a single tab, calls are
  * serialized by the event loop. Across tabs, writes are atomic but last-writer-wins;
  * callers should read after write to observe the latest state.
- *
+ */
 
- const STORAGE_KEY = "predictify_wallet_prefs";
+const STORAGE_KEY = "predictify_wallet_prefs";
 
 export interface WalletPrefs {
   /** The wallet provider ID that was most recently used to connect. */
@@ -21,7 +21,7 @@ export interface WalletPrefs {
   lastUsedWalletNetwork: string | null;
 }
 
-const DEFAULt_PREFS: WalletPrefs = {
+const DEFAULT_PREFS: WalletPrefs = {
   lastUsedWalletId: null,
   lastUsedWalletNetwork: null,
 };
@@ -32,7 +32,7 @@ const DEFAULt_PREFS: WalletPrefs = {
  * If the stored entry is corrupted, logs a warning and returns defaults.
  */
 export function getWalletPrefs(): WalletPrefs {
-  if (typeof window === "undefined") return { ...DEFAULt_PREFS };
+  if (typeof window === "undefined") return { ...DEFAULT_PREFS };
 
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -179,7 +179,7 @@ export function hasWalletNetworkMismatch(expectedNetwork: string): boolean {
  * @param expectedNetwork - The network the signing operation expects (e.g. "Testnet").
  * @throws {TypeError} If expectedNetwork is not a non-empty string.
  * @throws {Error} If no wallet network has been recorded, or if the recorded
- *   network differs from `expectedNetwork `.
+ *   network differs from `expectedNetwork`.
  */
 export function ensureWalletNetworkMatches(expectedNetwork: string): void {
   if (typeof expectedNetwork !== "string" || expectedNetwork.length === 0) {
