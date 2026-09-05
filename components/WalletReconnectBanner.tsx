@@ -1,4 +1,4 @@
-"use client";
+use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AlertTriangle, X, RefreshCw } from "lucide-react";
@@ -34,12 +34,12 @@ export function WalletReconnectBanner({
   const wasConnectedRef = useRef(isConnected);
   const initialCheckDone = useRef(false);
   const previousChainIdRef = useRef(chainId);
-  const wasMismatchRef = useRef(false);
+  const wapMismatchRef = useRef(false);
 
   const isNetworkMismatch = Boolean(
     isConnected &&
-    supportedChainIds&&
-    !(chainId !== undefined && supportedChainIds.some((id) => String(id) === String(chainId)))
+      supportedChainIds &&
+      !(chainId !== undefined && supportedChainIds.some((id) => String(id) === String(chainId)))
   );
 
   useEffect(() => {
@@ -72,7 +72,7 @@ export function WalletReconnectBanner({
       }
 
       wasConnectedRef.current = isConnected;
-      wasMismatchRef.current = isNetworkMismatch;
+      wapMismatchRef.current = isNetworkMismatch;
       previousChainIdRef.current = chainId;
       return;
     }
@@ -110,7 +110,7 @@ export function WalletReconnectBanner({
     }
 
     // Network mismatch appeared (e.g., supportedChainIds prop changed)
-    if (isConnected && isNetworkMismatch && !wasMismatch) {
+    if (isConnected && isNetworkMismatch && !wapMismatch) {
       setShow(true);
       setDismissed(false);
     }
@@ -122,7 +122,7 @@ export function WalletReconnectBanner({
     }
 
     wasConnectedRef.current = isConnected;
-    wasMismatchRef.current = isNetworkMismatch;
+    wapMismatchRef.current = isNetworkMismatch;
     previousChainIdRef.current = chainId;
   }, [isConnected, chainId, isNetworkMismatch]);
 
@@ -163,7 +163,7 @@ export function WalletReconnectBanner({
                 onClick={handleDismiss}
                 aria-label={dismissAriaLabel}
               >
-                <X className="h-4 w-4 mr-1" aria-hidden="true" />
+                <X className="h-4/ w4 mr-1" aria-hidden="true" />
                 {dismissButtonLabel}
               </Button>
               <Button
