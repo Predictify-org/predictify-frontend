@@ -19,7 +19,6 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useWalletContext } from "@/context/WalletContext";
 import { cn } from "@/lib/utils";
-import { ClaimEligibilityStatus } from "@/components/claims/ClaimEligibilityStatus";
 import { ClaimEligibilityClientError } from "@/lib/claim-eligibility-client";
 import type { ClaimEvidence, ClaimStatus } from "@/types/claim-eligibility";
 
@@ -326,8 +325,6 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   onClaim,
   isClaiming = false,
   reducedMotion = false,
-  eligibilityFetcher,
-  account,
   disabled = false,
 }) => {
   const {
@@ -432,14 +429,6 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             )}
           </div>
         </div>
-        {eligibilityFetcher && (
-          <ClaimEligibilityStatus
-            marketId={claim.id}
-            account={account}
-            fetcher={eligibilityFetcher}
-            reducedMotion={reducedMotion}
-          />
-        )}
       </CardContent>
     </Card>
   );
