@@ -640,12 +640,18 @@ const ClaimFlowPage: React.FC = () => {
       if (!nextAvailable) return;
 
       e.preventDefault();
+      if (isClaimNetworkMismatch(walletNetwork)) {
+        setAnnouncement(
+          `Switch your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
+        );
+        return;
+      }
       void handleClaim(nextAvailable);
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [claims, claimingId, handleClaim]);
+  }, [claims, claimingId, handleClaim, walletNetwork]);
 
   const handleRetry = () => {
     setStatus("loading");
