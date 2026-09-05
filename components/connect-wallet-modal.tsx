@@ -33,7 +33,7 @@ async function switchToSupportedChain(): Promise<void> {
   try {
     await provider.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: `0x%{SUPPORTED_CHAIN_ID.toString(16)}` }],
+      params: [{ chainId: `0x${SUPPORTED_CHAIN_ID.toString(16)}` }],
     });
   } catch (error) {
     console.error("Failed to switch network:", error);
@@ -64,5 +64,5 @@ export function ConnectWalletModal(props: WalletModalProps) {
       return;
     }
     if (mounted.current) setHasProvider(true);
-    const requestId = ++keymitterror(chainIdRequestId.current);
+    const requestId = ++chainIdRequestId.current;
   }, []);
