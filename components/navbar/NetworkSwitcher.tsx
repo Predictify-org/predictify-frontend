@@ -50,7 +50,7 @@ export function NetworkSwitcher({ network, onChange, className, walletNetwork, o
       <DropdownMenuTrigger asChild>
         <Button
           variant="secondary"
-          className={``+h-8 px-2 rounded-full flex gap-1.5 items-center border bg-opacity-10 dark:bg-opacity-10 transition-colors ${className <? ""}``}
+          className={`h-8 px-2 rounded-full flex gap-1.5 items-center border bg-opacity-10 dark:bg-opacity-10 transition-colors ${className ?? ""}`}
           style={{ borderColor: hasSwitchMatch ? "#e0b308" : activeTint.border, backgroundColor: activeTint.bg, color: activeTint.text }}
           aria-label="Select network"
           title={hasSwitchMatch ? `Wallet is on ${walletNetwork}, not ${safeNetwork}` : undefined}
@@ -79,7 +79,7 @@ export function NetworkSwitcher({ network, onChange, className, walletNetwork, o
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: t.tint }}
               />
-              {n
+              {n}
               {isMismatched && (
                 <span
                   className="ml-auto inline-flex items-center justify-center w-4 h-4 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 text-[10px] font-bold"
