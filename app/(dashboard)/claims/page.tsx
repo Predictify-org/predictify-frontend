@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+// Handle wallet-network mismatch before signing/claiming.
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle,
   Clock,
@@ -19,7 +20,6 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useWalletContext } from "@/context/WalletContext";
 import { cn } from "@/lib/utils";
-import { ClaimEligibilityStatus } from "@/components/claims/ClaimEligibilityStatus";
 import { ClaimEligibilityClientError } from "@/lib/claim-eligibility-client";
 import type { ClaimEvidence, ClaimStatus } from "@/types/claim-eligibility";
 
@@ -106,6 +106,30 @@ const STATUS_CONFIG: Record<
     textClass: "text-destructive",
     patternClass: "pattern-vertical",
   },
+};
+
+/**
+ * Network on which claim settlements are signed.
+ * Uses an env override so the same bundle can target testnet or mainnet.
+ * Exported for tests.
+ */
+export const REQUIRED_CLAIM_NETWORK =
+  process.env.NEXT_PUBLIC_CLAIM_NETWORK ?? "testnet";
+
+/**
+ * Returns true when the connected wallet's network does not match the
+ * network required for claim settlements. A missing wallet network is not
+ * treated as a mismatch because the action is already disabled when the
+ * wallet is not connected.
+ */
+export const isClaimNetworkMismatch = (
+  walletNetwork?: string | null,
+): boolean => {
+  if (!REQUIRED_CLAIM_NETWORK) return false;
+  if (!walletNetwork) return false;
+  // Network IDs are normalized to lowercase because wallet providers may
+  // return different casing for the same network (e.g. "mainnet" vs "Mainnet").
+  return walletNetwork.toLowerCase() !== REQUIRED_CLAIM_NETWORK.toLowerCase();
 };
 
 // ── Mock Data ────────────────────────────────────────────────────────────────
@@ -284,6 +308,8 @@ export interface ClaimCardProps {
   ) => Promise<ClaimEvidence>;
   /** Connected account used to scope eligibility (drives the permission state). */
   account?: string;
+  /** Disables the claim action when the wallet is missing or on the wrong network. */
+  disabled?: boolean;
 }
 
 /**
@@ -300,8 +326,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   onClaim,
   isClaiming = false,
   reducedMotion = false,
-  eligibilityFetcher,
-  account,
+  disabled = false,
 }) => {
   const {
     marketTitle,
@@ -314,7 +339,11 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
     status,
   } = claim;
 
-  const isActionable = status === "available";
+  const { network: walletNetwork } = useWalletContext();
+  const isWrongNetwork = isClaimNetworkMismatch(walletNetwork);
+  // Handle wallet-network mismatch before signing/claiming: do not allow
+  // claiming unless the wallet is on the required claim settlement network.
+  const isActionable = status === "available" && !isWrongNetwork;
 
   return (
     <Card
@@ -365,14 +394,20 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               <Button
                 size="sm"
                 className="w-full gap-1.5"
-                disabled={isClaiming}
+                disabled={isClaiming || disabled || isWrongNetwork}
                 aria-busy={isClaiming}
                 aria-label={
-                  isClaiming
-                    ? `Claiming ${winnings} ${winningsToken} for ${marketTitle}`
-                    : `Claim ${winnings} ${winningsToken} for ${marketTitle}`
+                  isWrongNetwork
+                    ? `Switch wallet to ${REQUIRED_CLAIM_NETWORK} to claim ${winnings} ${winningsToken} for ${marketTitle}`
+                    : isClaiming
+                      ? `Claiming ${winnings} ${winningsToken} for ${marketTitle}`
+                      : `Claim ${winnings} ${winningsToken} for ${marketTitle}`
                 }
-                onClick={() => onClaim?.(claim)}
+                title={isWrongNetwork ? `Switch wallet to ${REQUIRED_CLAIM_NETWORK} to claim` : undefined}
+                onClick={() => {
+                  if (isClaiming || disabled || isWrongNetwork) return;
+                  onClaim?.(claim);
+                }}
               >
                 {isClaiming ? (
                   <Loader2
@@ -397,14 +432,6 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             )}
           </div>
         </div>
-        {eligibilityFetcher && (
-          <ClaimEligibilityStatus
-            marketId={claim.id}
-            account={account}
-            fetcher={eligibilityFetcher}
-            reducedMotion={reducedMotion}
-          />
-        )}
       </CardContent>
     </Card>
   );
@@ -509,7 +536,7 @@ const ClaimFlowPage: React.FC = () => {
   type TabValue = (typeof TABS)[number];
 
   const reducedMotion = useReducedMotion();
-  const { address } = useWalletContext();
+  const { address, network: walletNetwork } = useWalletContext();
   const [activeTab, setActiveTab] = useState<TabValue>("All");
   const [status, setStatus] = useState<"loading" | "success" | "empty" | "error">(
     "loading"
@@ -517,6 +544,20 @@ const ClaimFlowPage: React.FC = () => {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
+
+  const walletNetworkRef = useRef(walletNetwork);
+  const addressRef = useRef(address);
+  useEffect(() => {
+    walletNetworkRef.current = walletNetwork;
+    addressRef.current = address;
+  }, [address, walletNetwork]);
+
+  const walletNetworkMismatch = Boolean(
+    address && isClaimNetworkMismatch(walletNetwork)
+  );
+  const canClaim = Boolean(
+    address && walletNetwork && !walletNetworkMismatch
+  );
 
   // Simulate data fetch on mount
   useEffect(() => {
@@ -538,22 +579,55 @@ const ClaimFlowPage: React.FC = () => {
     async (claim: Claim) => {
       if (claim.status !== "available" || claimingId) return;
 
+      if (!addressRef.current || !walletNetworkRef.current) {
+        setAnnouncement("Connect your wallet to claim winnings.");
+        return;
+      }
+
+      if (isClaimNetworkMismatch(walletNetworkRef.current)) {
+        setAnnouncement(
+          `Switch your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
+        );
+        return;
+      }
+
       setClaimingId(claim.id);
       setAnnouncement(
         `Claiming ${claim.winnings} ${claim.winningsToken} for ${claim.marketTitle}.`
       );
 
-      await new Promise((resolve) => setTimeout(resolve, CLAIM_LATENCY_MS));
+      try {
+        await new Promise((resolve) => setTimeout(resolve, CLAIM_LATENCY_MS));
 
-      setClaims((prev) =>
-        prev.map((c) =>
-          c.id === claim.id ? { ...c, status: "claimed" as const } : c
-        )
-      );
-      setClaimingId(null);
-      setAnnouncement(
-        `Successfully claimed ${claim.winnings} ${claim.winningsToken} for ${claim.marketTitle}.`
-      );
+        // Re-check the wallet network immediately before committing the claim.
+        // The network may have changed while the simulated signing was in
+        // flight; claiming on the wrong network would be unsafe.
+        if (!addressRef.current || !walletNetworkRef.current) {
+          setAnnouncement("Connect your wallet to claim winnings.");
+          return;
+        }
+        if (isClaimNetworkMismatch(walletNetworkRef.current)) {
+          setAnnouncement(
+            `Switch your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
+          );
+          return;
+        }
+
+        setClaims((prev) =>
+          prev.map((c) =>
+            c.id === claim.id ? { ...c, status: "claimed" as const } : c
+          )
+        );
+        setAnnouncement(
+          `Successfully claimed ${claim.winnings} ${claim.winningsToken} for ${claim.marketTitle}.`
+        );
+      } catch {
+        setAnnouncement(
+          `Failed to claim ${claim.winnings} ${claim.winningsToken} for ${claim.marketTitle}. Please try again.`
+        );
+      } finally {
+        setClaimingId(null);
+      }
     },
     [claimingId]
   );
@@ -568,12 +642,18 @@ const ClaimFlowPage: React.FC = () => {
       if (!nextAvailable) return;
 
       e.preventDefault();
+      if (isClaimNetworkMismatch(walletNetwork)) {
+        setAnnouncement(
+          `Switch your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
+        );
+        return;
+      }
       void handleClaim(nextAvailable);
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [claims, claimingId, handleClaim]);
+  }, [claims, claimingId, handleClaim, walletNetwork]);
 
   const handleRetry = () => {
     setStatus("loading");
@@ -635,6 +715,7 @@ const ClaimFlowPage: React.FC = () => {
                 reducedMotion={reducedMotion}
                 eligibilityFetcher={mockClaimEligibilityFetcher}
                 account={address ?? undefined}
+                disabled={!canClaim || claimingId !== null}
               />
             ))}
           </div>
@@ -679,6 +760,23 @@ const ClaimFlowPage: React.FC = () => {
           </Card>
         )}
       </div>
+
+      {status === "success" && totalAvailable > 0 && !canClaim && (
+        <Alert
+          variant={walletNetworkMismatch ? "destructive" : "default"}
+          className="mx-auto max-w-3xl"
+        >
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>
+            {walletNetworkMismatch ? "Wrong network" : "Wallet connection required"}
+          </AlertTitle>
+          <AlertDescription>
+            {walletNetworkMismatch
+              ? `Switch your wallet to ${REQUIRED_CLAIM_NETWORK} to claim winnings.`
+              : "Connect your wallet to claim winnings."}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Tabs for filtering */}
       <Tabs
