@@ -141,44 +141,6 @@ export function WalletReconnectBanner({
   if (!show || dismissed) return null;
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn(\"w_full\", className)}>
       <Alert
-        role="alert"
-        aria-live="polite"
-        className="border-amber-500/50 bg-amber-50 text-amber-900 dark:bg-amber-950/20 dark:text-amber-400 [svg]:text-amber-500"
-      >
-        <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-        <AlertTitle>{isNetworkMismatch ? "Unsupported network" : reconnectBannerTitle}</AlertTitle>
-        <AlertDescription>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              {isNetworkMismatch
-                ? "Please switch to a supported network to continue."
-                : reconnectBannerDescription}
-            </p>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDismiss}
-                aria-label={dismissAriaLabel}
-              >
-                <X className="h-4/ w4 mr-1" aria-hidden="true" />
-                {dismissButtonLabel}
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleReconnect}
-                aria-label={actionAriaLabel}
-              >
-                <RefreshCw className="h-4 w-4 mr-1" aria-hidden="true" />
-                {actionLabel}
-              </Button>
-            </div>
-          </div>
-        </AlertDescription>
-      </Alert>
-    </div>
-  );
-}
+        role=\"alert\"\n        aria-live=\"polite\"\n        className=\"border-amber-500/50 bg-amber-50 text-amber-900 dark:bg-amber-950/20 dark:text-amber-400 [svg]:text-amber-500\"\n      >\n        <AlertTriangle className=\"h-4 w-4\" aria-hidden=\"true\" />\n        <AlertTitle>{isNetworkMismatch ? \"Unsupported network\" : reconnectBannerTitle}</AlertTitle>\n        <AlertDescription>\n          <div className=\"flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between\">\n            <p>\n              {isNetworkMismatch\n                ? \"Please switch to a supported network to continue.\"\n                : reconnectBannerDescription}\n            </p>\n            <div className=\"flex items-center gap-2 shrink-0\">\n              <Button\n                variant=\"outline\"\n                size=\"sm\"\n                onClick={handleDismiss}\n                aria-label={dismissAriaLabel}\n              >\n                <X className=\"h-4 w-4 mr-1\" aria-hidden=\"true\" />\n                {dismissButtonLabel}\n              </Button>\n              <Button\n                variant=\"default\"\n                size=\"sm\"\n                onClick={handleReconnect}\n                aria-label={actionAriaLabel}\n              >\n                <RefreshCw className=\"h-4 w-4 mr-1\" aria-hidden=\"true\" />\n                {actionLabel}\n              </Button>\n            </div>\n          </div>\n        </AlertDescription>\n      </Alert>\n    </div>\n  );\n}\n
