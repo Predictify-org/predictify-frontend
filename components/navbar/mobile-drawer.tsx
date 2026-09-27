@@ -34,7 +34,7 @@ export default function MobileDrawer({
       />
 
       {/* Drawer Panel */}
-      <div className="absolute right-0 top-0 h-full w-72 bg-[#060e20] border-l border-purple-900/40 flex flex-col shadow-2xl">
+      <div className="absolute right-0 top-0 h-full w-72 bg-background border-l border-purple-900/40 flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-purple-900/40">
           <span className="text-white font-semibold text-lg">Menu</span>

@@ -43,7 +43,7 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#060e20]">
+    <div className="flex min-h-screen flex-col bg-background">
       <ConnectWalletModal
         isOpen={isWalletModalOpen}
         onOpenChange={setIsWalletModalOpen}

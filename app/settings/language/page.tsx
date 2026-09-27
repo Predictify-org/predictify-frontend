@@ -23,7 +23,7 @@ export default function LanguageSettingsPage() {
   const { t } = useTranslation();
 
   return (
-    <main className="min-h-screen bg-[#060e20] text-[#dee5ff] px-4 py-10 sm:px-8">
+    <main className="min-h-screen bg-background text-foreground px-4 py-10 sm:px-8">
       <div className="mx-auto max-w-xl">
         {/* Page heading */}
         <h1 className="text-2xl font-semibold mb-1">
