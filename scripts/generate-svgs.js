@@ -8,8 +8,9 @@ const wallets = [
   { id: 'rabet', file: 'rabet.webp', type: 'image/webp' }
 ];
 
-const sourceDir = path.join(__dirname, 'public/images');
-const targetDir = path.join(__dirname, 'public/assets/wallets');
+const rootDir = path.resolve(__dirname, '..');
+const sourceDir = path.join(rootDir, 'public/images');
+const targetDir = path.join(rootDir, 'public/assets/wallets');
 
 if (!fs.existsSync(targetDir)) {
   fs.mkdirSync(targetDir, { recursive: true });

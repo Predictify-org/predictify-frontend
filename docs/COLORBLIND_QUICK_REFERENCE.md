@@ -225,17 +225,9 @@ npm run type-check
 
 ## Learn More
 
-- **Full Implementation Guide:** `COLORBLIND_OUTCOMES_IMPLEMENTATION.md`
-- **Issue Resolution:** `ISSUE_435_RESOLUTION_SUMMARY.md`
-- **Design System:** `app/design-system/tokens.md`
-- **Tests:** `components/ui/__tests__/OutcomeChip.test.tsx`
-
----
-
-**Quick Links:**
-- Issue: #435 ✅ Resolved
-- PR: [Link to PR]
-- Review: Required before merge
+- **Full Implementation Guide:** [COLORBLIND_OUTCOMES_IMPLEMENTATION.md](./COLORBLIND_OUTCOMES_IMPLEMENTATION.md)
+- **Design System:** [tokens.md](../app/design-system/tokens.md)
+- **Tests:** [OutcomeChip tests](../components/ui/__tests__/OutcomeChip.test.tsx)
 
 ---
 

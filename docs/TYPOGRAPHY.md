@@ -168,7 +168,7 @@ This document outlines the standardized typography hierarchy for Predictify. All
 > **Heads up:** numeric spans that DON'T use a stat token (e.g. a
 > percentage rendered with `text-body-sm` or `text-body-md`) must opt
 > in with the explicit `tabular-nums` class. See
-> [MarketHero → Tabular numerals](docs/MARKET_HERO.md#tabular-numerals-issue-556).
+> [MarketHero → Tabular numerals](./MARKET_HERO.md#tabular-numerals-issue-556).
 
 ### 5. Monospace (Code)
 
