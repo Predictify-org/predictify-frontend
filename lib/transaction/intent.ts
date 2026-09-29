@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export type IntentStatus =
   | 'built'
   | 'signed'
@@ -22,15 +24,68 @@ export interface IntentRecord {
 const STORAGE_KEY = 'predictify:intents:v1';
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+const INTENT_STATUSES = ['built', 'signed', 'submitted', 'confirming', 'success', 'failed'] as const;
+
+const intentRecordSchema = z.object({
+  key: z.string(),
+  walletAddress: z.string(),
+  xdrHash: z.string(),
+  status: z.enum(INTENT_STATUSES),
+  builtXdr: z.string().optional(),
+  signedXdr: z.string().optional(),
+  submissionHash: z.string().optional(),
+  error: z.string().optional(),
+  createdAt: z.number().finite(),
+  updatedAt: z.number().finite(),
+});
+
 function now() {
   return Date.now();
+}
+
+interface SanitizedStore {
+  map: Record<string, IntentRecord>;
+  changed: boolean;
+}
+
+// Validate every persisted record and drop malformed or expired entries so a
+// tampered localStorage payload can never reach consumers such as useTransaction.
+function sanitizeStore(value: unknown): SanitizedStore {
+  const map: Record<string, IntentRecord> = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { map, changed: true };
+  }
+  let changed = false;
+  const current = now();
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    const parsed = intentRecordSchema.safeParse(entry);
+    if (!parsed.success) {
+      changed = true;
+      continue;
+    }
+    const record = parsed.data;
+    if (current - record.updatedAt > DEFAULT_TTL_MS) {
+      changed = true;
+      continue;
+    }
+    // A signed envelope must not outlive the submission it belongs to.
+    if (record.submissionHash && record.signedXdr !== undefined) {
+      delete record.signedXdr;
+      changed = true;
+    }
+    map[key] = record;
+  }
+  return { map, changed };
 }
 
 function safeGetStorage(): Record<string, IntentRecord> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
-    return JSON.parse(raw) as Record<string, IntentRecord>;
+    const parsed = JSON.parse(raw);
+    const { map, changed } = sanitizeStore(parsed);
+    if (changed) safeSetStorage(map);
+    return map;
   } catch (err) {
     console.debug('intent: failed to read storage', err);
     return {};
@@ -64,40 +119,40 @@ export async function computeXdrHash(xdr: string): Promise<string> {
 
 export function getIntent(key: string): IntentRecord | undefined {
   const map = safeGetStorage();
-  const item = map[key];
-  if (!item) return undefined;
-  // expire stale entries
-  if (now() - item.updatedAt > DEFAULT_TTL_MS) {
-    removeIntent(key);
-    return undefined;
-  }
-  return item;
+  return map[key];
 }
 
 export function listIntents(): IntentRecord[] {
   const map = safeGetStorage();
-  return Object.values(map).filter((i) => now() - i.updatedAt <= DEFAULT_TTL_MS);
+  return Object.values(map);
 }
 
 export function upsertIntent(partial: Partial<IntentRecord> & { key: string; walletAddress?: string; xdrHash?: string; }) {
   const map = safeGetStorage();
   const existing = map[partial.key];
   const time = now();
+  const submissionHash = partial.submissionHash ?? existing?.submissionHash;
   const merged: IntentRecord = {
     key: partial.key,
     walletAddress: partial.walletAddress ?? existing?.walletAddress ?? '',
     xdrHash: partial.xdrHash ?? existing?.xdrHash ?? '',
-    status: (partial as any).status ?? existing?.status ?? 'built',
+    status: partial.status ?? existing?.status ?? 'built',
     builtXdr: partial.builtXdr ?? existing?.builtXdr,
-    signedXdr: partial.signedXdr ?? existing?.signedXdr,
-    submissionHash: partial.submissionHash ?? existing?.submissionHash,
+    // Once a submission hash exists the signed envelope is no longer required.
+    signedXdr: submissionHash ? undefined : (partial.signedXdr ?? existing?.signedXdr),
+    submissionHash,
     error: partial.error ?? existing?.error,
     createdAt: existing?.createdAt ?? time,
     updatedAt: time,
   };
-  map[partial.key] = merged;
+  const parsed = intentRecordSchema.safeParse(merged);
+  if (!parsed.success) {
+    console.debug('intent: refused to persist an invalid record', parsed.error.issues);
+    return existing ?? merged;
+  }
+  map[partial.key] = parsed.data;
   safeSetStorage(map);
-  return merged;
+  return parsed.data;
 }
 
 export function removeIntent(key: string) {
@@ -106,6 +161,19 @@ export function removeIntent(key: string) {
     delete map[key];
     safeSetStorage(map);
   }
+}
+
+export function clearIntentsForWallet(walletAddress: string) {
+  if (!walletAddress) return;
+  const map = safeGetStorage();
+  let changed = false;
+  for (const key of Object.keys(map)) {
+    if (map[key].walletAddress === walletAddress) {
+      delete map[key];
+      changed = true;
+    }
+  }
+  if (changed) safeSetStorage(map);
 }
 
 export function clearAllIntents() {

@@ -1,6 +1,7 @@
 import React from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { WalletProvider, useWalletContext, walletStateValidation } from "@/context/WalletContext";
+import { upsertIntent, listIntents } from "@/lib/transaction/intent";
 
 jest.mock("@creit.tech/stellar-wallets-kit", () => ({
   ALBEDO_ID: "albedo",
@@ -78,6 +79,44 @@ describe("WalletProvider operation coordinator", () => {
     expect(mockDisconnect).toHaveBeenCalledTimes(1);
     expect(hook.result.current.connected).toBe(false);
     expect(hook.result.current.identityGeneration).toBeGreaterThan(connectedGeneration);
+  });
+
+  it("purges persisted intents for the wallet on disconnect", async () => {
+    mockGetAddress.mockResolvedValue({ address: ADDRESS_A });
+    mockDisconnect.mockResolvedValue(undefined);
+    const hook = await renderWallet();
+    await act(async () => { await hook.result.current.connectWallet("freighter"); });
+    upsertIntent({ key: `${ADDRESS_A}:h`, walletAddress: ADDRESS_A, xdrHash: "h", status: "signed", signedXdr: "signed-envelope" });
+    expect(listIntents()).toHaveLength(1);
+
+    await act(async () => { await hook.result.current.disconnectWallet(); });
+
+    expect(listIntents()).toHaveLength(0);
+    expect(localStorage.getItem("predictify:intents:v1") ?? "").not.toContain(ADDRESS_A);
+  });
+
+  it("purges the previous wallet intents when the active identity changes", async () => {
+    mockGetAddress.mockResolvedValueOnce({ address: ADDRESS_A });
+    const hook = await renderWallet();
+    await act(async () => { await hook.result.current.connectWallet("freighter"); });
+    upsertIntent({ key: `${ADDRESS_A}:h`, walletAddress: ADDRESS_A, xdrHash: "h", status: "signed", signedXdr: "s" });
+
+    mockGetAddress.mockResolvedValueOnce({ address: ADDRESS_B });
+    await act(async () => { await hook.result.current.connectWallet("lobstr"); });
+
+    expect(hook.result.current.address).toBe(ADDRESS_B);
+    expect(listIntents().some((i) => i.walletAddress === ADDRESS_A)).toBe(false);
+  });
+
+  it("purges intents for a persisted wallet that fails reconciliation", async () => {
+    localStorage.setItem("predictify_wallet_state", JSON.stringify({ address: ADDRESS_A, name: "Freighter", connected: true }));
+    upsertIntent({ key: `${ADDRESS_A}:h`, walletAddress: ADDRESS_A, xdrHash: "h", status: "signed", signedXdr: "s" });
+    mockGetAddress.mockResolvedValue({ address: ADDRESS_B });
+
+    const hook = await renderWallet();
+
+    expect(hook.result.current.operationError?.errorKind).toBe("identity_changed");
+    expect(listIntents().some((i) => i.walletAddress === ADDRESS_A)).toBe(false);
   });
 
   it("classifies a rejected provider request without logging the raw error", async () => {

@@ -3,6 +3,7 @@
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ALBEDO_ID, FREIGHTER_ID, LOBSTR_ID, RABET_ID, XBULL_ID } from "@creit.tech/stellar-wallets-kit";
 import { getKit } from "@/constants/wallet-kits.constant";
+import { clearIntentsForWallet } from "@/lib/transaction/intent";
 
 export type WalletErrorKind = "unauthenticated" | "forbidden" | "user_rejected" | "wallet_locked" | "identity_changed" | "validation" | "network" | "conflict" | "unknown";
 export type WalletOperationKind = "connect" | "disconnect" | "reconcile";
@@ -94,8 +95,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const identityRef = useRef({ address: null as string | null, generation: 0 });
 
   const updateIdentity = useCallback((nextAddress: string | null, nextName: string | null) => {
+    const previousAddress = identityRef.current.address;
     const nextGeneration = identityRef.current.generation + 1;
     identityRef.current = { address: nextAddress, generation: nextGeneration };
+    // Leaving an identity behind (disconnect or account switch) invalidates any
+    // signed intents persisted for that address.
+    if (previousAddress && previousAddress !== nextAddress) clearIntentsForWallet(previousAddress);
     setAddress(nextAddress);
     setName(nextName);
     setConnected(Boolean(nextAddress && nextName));
@@ -161,7 +166,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       await getKit().disconnect();
       if (!isOperationCurrent(operation)) return conflictFailure(operation.id);
+      const disconnectedAddress = identityRef.current.address;
       updateIdentity(null, null);
+      if (disconnectedAddress) clearIntentsForWallet(disconnectedAddress);
       return { success: true, operationId: operation.id };
     } catch (error: unknown) {
       if (!isOperationCurrent(operation)) return conflictFailure(operation.id);
@@ -195,6 +202,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const result = await kit.getAddress();
         if (!mounted || !isOperationCurrent(operation)) return;
         if (result.address !== persisted.address || !isValidStellarAddress(result.address)) {
+          clearIntentsForWallet(persisted.address);
           localStorage.removeItem(WALLET_STORAGE_KEY);
           setOperationError({ success: false, error: "The active wallet account changed. Connect it again to continue.", errorKind: "identity_changed", operationId: operation.id });
           return;
