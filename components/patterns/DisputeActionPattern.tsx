@@ -87,7 +87,7 @@ export function DisputeActionPattern() {
           <DisputeForm />
         </div>
         
-        <DrawerFooter className="pt-4 border-t border-[#40485d]/50 bg-[#060e20] flex-col gap-3">
+        <DrawerFooter className="pt-4 border-t border-[#40485d]/50 bg-background flex-col gap-3">
           {/* Cancel is rendered BEFORE the destructive primary action so
               DOM, visual, and Tab order match (WCAG 2.4.3). The destructive
               `Submit Evidence` button keeps its red variant for visual

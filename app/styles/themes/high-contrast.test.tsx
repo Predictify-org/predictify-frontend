@@ -1,6 +1,8 @@
 import React from "react"
 import { render, screen } from "@testing-library/react"
 import { ThemeProvider } from "@/components/theme-provider"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -29,6 +31,24 @@ describe("High-Contrast Theme", () => {
   beforeEach(() => {
     // Reset HTML classes between tests (next-themes mutates documentElement)
     document.documentElement.className = ""
+  })
+
+  it.each([
+    ["light", "0 0% 100%", "0 0% 3.9%"],
+    ["dark", "222 68% 7.45%", "227 100% 93.53%"],
+    ["high-contrast", "0 0% 0%", "0 0% 100%"],
+  ])("body uses theme background and foreground tokens in %s mode", (theme, background, foreground) => {
+    renderWithTheme(theme, <div data-testid="themed-body" className="bg-background text-foreground" />)
+
+    const body = screen.getByTestId("themed-body")
+    expect(body).toHaveClass("bg-background", "text-foreground")
+    expect(document.documentElement).toHaveClass(theme)
+
+    const globals = readFileSync(join(process.cwd(), "app/globals.css"), "utf8")
+    const highContrast = readFileSync(join(process.cwd(), "app/styles/themes/high-contrast.css"), "utf8")
+    const palette = theme === "high-contrast" ? highContrast : globals
+    expect(palette).toContain(`--background: ${background}`)
+    expect(palette).toContain(`--foreground: ${foreground}`)
   })
 
   // ---- Provider support --------------------------------------------------

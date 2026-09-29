@@ -63,7 +63,7 @@ export const MobileBottomTabs: React.FC = () => {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 flex justify-around items-center bg-[#060e20]/90 backdrop-blur-md border-t border-gray-700 md:hidden min-h-[44px] pb-[env(safe-area-inset-bottom)]"
+      className="fixed bottom-0 inset-x-0 flex justify-around items-center bg-background/90 backdrop-blur-md border-t border-gray-700 md:hidden min-h-[44px] pb-[env(safe-area-inset-bottom)]"
       aria-label="Mobile bottom navigation"
     >
       {tabs.map((tab) => {

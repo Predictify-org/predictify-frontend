@@ -189,8 +189,9 @@ body {
     --outcome-no-foreground: 0 0% 100%;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
+    /* Preserve the existing application navy surface and pale text. */
+    --background: 222 68% 7.45%;
+    --foreground: 227 100% 93.53%;
     --card: 0 0% 3.9%;
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 3.9%;
