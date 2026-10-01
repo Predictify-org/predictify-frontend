@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Search, Filter, Trophy, CircleDollarSign, Building2, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NoMatchEmptyState } from "@/components/events/NoMatchEmptyState";
+import { useGlobalLiveRegion } from "@/hooks/use-global-live-region";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -104,6 +106,16 @@ const STATUS_LABELS: Record<MarketStatus, string> = {
   closed: "Closed",
 };
 
+const CATEGORIES = ["Football", "Crypto", "Politics", "Other"] as const;
+const ALL_CATEGORIES = "all";
+
+/** One URL write per pause in typing, not one per keystroke. */
+const SEARCH_DEBOUNCE_MS = 300;
+
+function isKnownCategory(value: string): value is MarketCategory {
+  return (CATEGORIES as readonly string[]).includes(value);
+}
+
 // ── Market card ────────────────────────────────────────────────────────────
 
 function MarketCard({ market }: { market: Market }) {
@@ -156,26 +168,115 @@ function MarketCard({ market }: { market: Market }) {
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
-const CATEGORIES = ["Football", "Crypto", "Politics", "Other"] as const;
+function MarketsPageFallback() {
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold text-[#540D8D]">Markets</h1>
+        <p className="text-sm text-muted-foreground">
+          Browse and predict on live markets — FWC26 campaign and more.
+        </p>
+      </div>
+    </div>
+  );
+}
 
+/**
+ * `useSearchParams()` opts this route into client-side rendering, so the
+ * filters live behind a Suspense boundary and the shell can still prerender.
+ */
 export default function MarketsPage() {
-  const [search, setSearch] = React.useState("");
-  const [category, setCategory] = React.useState("all");
+  return (
+    <React.Suspense fallback={<MarketsPageFallback />}>
+      <MarketsPageContent />
+    </React.Suspense>
+  );
+}
+
+function MarketsPageContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { announce } = useGlobalLiveRegion();
+
+  // Hydrate both controls from the URL so /markets?q=argentina&category=Football
+  // is shareable, bookmarkable and restores the filtered view on reload. An
+  // unknown category value falls back to "all" instead of filtering to nothing.
+  const urlSearch = searchParams.get("q") ?? "";
+  const urlCategoryParam = searchParams.get("category") ?? ALL_CATEGORIES;
+  const urlCategory = isKnownCategory(urlCategoryParam) ? urlCategoryParam : ALL_CATEGORIES;
+
+  const [search, setSearch] = React.useState(urlSearch);
+  const [category, setCategory] = React.useState(urlCategory);
+  const [debouncedSearch, setDebouncedSearch] = React.useState(urlSearch);
+
+  React.useEffect(() => {
+    const handle = window.setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(handle);
+  }, [search]);
+
+  const buildUrl = React.useCallback(
+    (nextSearch: string, nextCategory: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      const trimmed = nextSearch.trim();
+      if (trimmed) params.set("q", trimmed);
+      else params.delete("q");
+      if (nextCategory !== ALL_CATEGORIES) params.set("category", nextCategory);
+      else params.delete("category");
+      const query = params.toString();
+      return query ? `${pathname}?${query}` : pathname;
+    },
+    [pathname, searchParams],
+  );
+
+  const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+
+  // `router.replace` (not `push`) keeps the whole filter session on a single
+  // history entry: Back returns to whatever preceded the markets page instead
+  // of replaying each keystroke.
+  React.useEffect(() => {
+    const next = buildUrl(debouncedSearch, category);
+    if (next !== currentUrl) router.replace(next, { scroll: false });
+  }, [buildUrl, category, currentUrl, debouncedSearch, router]);
 
   const filtered = React.useMemo(() => {
+    const needle = search.trim().toLowerCase();
     return MARKETS.filter((m) => {
-      const matchesSearch = m.title.toLowerCase().includes(search.trim().toLowerCase());
-      const matchesCategory = category === "all" || m.category === category;
+      const matchesSearch = m.title.toLowerCase().includes(needle);
+      const matchesCategory = category === ALL_CATEGORIES || m.category === category;
       return matchesSearch && matchesCategory;
     });
   }, [search, category]);
 
+  const lastAnnouncedCount = React.useRef<number | null>(null);
+
+  // WCAG 4.1.3: tell screen-reader users how many markets match after each
+  // change. Deduplicated on the count itself, so typing that does not change
+  // the result set stays silent and never spams the live region.
+  React.useEffect(() => {
+    const count = filtered.length;
+    if (lastAnnouncedCount.current === null) {
+      // The initial render is not a change; leave the live region quiet.
+      lastAnnouncedCount.current = count;
+      return;
+    }
+    if (lastAnnouncedCount.current === count) return;
+    lastAnnouncedCount.current = count;
+    announce({
+      message: `${count} ${count === 1 ? "market" : "markets"} found`,
+      priority: "polite",
+    });
+  }, [filtered.length, announce]);
+
   const hasSearch = search.trim().length > 0;
-  const hasCategory = category !== "all";
+  const hasCategory = category !== ALL_CATEGORIES;
 
   const resetFilters = () => {
     setSearch("");
-    setCategory("all");
+    setCategory(ALL_CATEGORIES);
+    setDebouncedSearch("");
+    // Clear the query string immediately rather than waiting out the debounce.
+    if (searchParams.toString()) router.replace(pathname, { scroll: false });
   };
 
   return (
@@ -207,7 +308,7 @@ export default function MarketsPage() {
             <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
+            <SelectItem value={ALL_CATEGORIES}>All categories</SelectItem>
             {CATEGORIES.map((c) => (
               <SelectItem key={c} value={c}>{c}</SelectItem>
             ))}
