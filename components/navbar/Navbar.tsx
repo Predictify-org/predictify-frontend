@@ -19,12 +19,13 @@ import { getNetworkTint } from "@/lib/network-tint";
 import { useEffect } from "react";
 import { useQuietHours } from "@/lib/quiet-hours";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { Search, Sun, Moon, TrendingUp, PieChart, BarChart, Shield } from "lucide-react";
 
 const NAV_ITEMS = [
-  { name: "Markets", href: "/markets", icon: "trending_up" },
-  { name: "Portfolio", href: "/portfolio", icon: "pie_chart" },
-  { name: "Analytics", href: "/analytics", icon: "bar_chart" },
-  { name: "Admin", href: "/admin", icon: "admin_panel_settings" },
+  { name: "Markets", href: "/markets", icon: TrendingUp },
+  { name: "Portfolio", href: "/portfolio", icon: PieChart },
+  { name: "Analytics", href: "/analytics", icon: BarChart },
+  { name: "Admin", href: "/admin", icon: Shield },
 ];
 
 export function Navbar() {
@@ -85,7 +86,7 @@ export function Navbar() {
           </div>
           <div className="flex items-center gap-4">
             <div className="relative group hidden lg:block">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg" aria-hidden="true">search</span>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} aria-hidden="true" />
               <input
                 id="navbar-search"
                 className={`bg-[#192540] border-none rounded-xl pl-10 pr-4 py-2 text-sm w-64 focus:ring-1 focus:ring-cyan-400 bg-opacity-40 text-white placeholder-slate-400 ${reducedMotion ? "" : "transition-all"}`}
@@ -122,7 +123,7 @@ export function Navbar() {
               className={`relative text-slate-400 hover:text-white flex items-center justify-center p-2 rounded-lg hover:bg-slate-800 ${reducedMotion ? "" : "transition-colors"}`}
               aria-label={`${theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}${quietHoursActive ? '. Quiet hours active' : ''}`}
             >
-              <span className="material-symbols-outlined" aria-hidden="true">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+              {theme === 'dark' ? <Sun size={24} aria-hidden="true" /> : <Moon size={24} aria-hidden="true" />}
               {quietHoursActive ? (
                 <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-cyan-300 ring-2 ring-slate-950" aria-hidden="true" />
               ) : null}
@@ -182,13 +183,11 @@ export function Navbar() {
                 color: activeTint.tint
               } : {}}
             >
-              <span
+              <item.icon
                 aria-hidden="true"
-                className="material-symbols-outlined text-[20px]"
-                style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-              >
-                {item.icon}
-              </span>
+                size={20}
+                className={isActive ? "fill-current" : ""}
+              />
               <span className="text-[10px] font-medium font-body mt-0.5">
                 {item.name}
               </span>

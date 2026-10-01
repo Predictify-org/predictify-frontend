@@ -13,6 +13,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { useWhatsNew, type ChangelogEntry } from "@/hooks/use-whats-new"
+import { Megaphone } from "lucide-react"
 
 interface WhatsNewDrawerProps {
   className?: string
@@ -66,9 +67,7 @@ export function WhatsNewDrawer({ className }: WhatsNewDrawerProps) {
         )}
         aria-label={hasUnseen ? "What's new: new updates available" : "What's new"}
       >
-        <span className="material-symbols-outlined" aria-hidden="true">
-          campaign
-        </span>
+        <Megaphone className="h-6 w-6" aria-hidden="true" />
         {hasUnseen && (
           <span
             aria-hidden="true"

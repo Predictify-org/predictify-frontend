@@ -36,7 +36,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body className={`${inter.variable} ${spaceGrotesk.variable} ${inter.className} bg-background text-foreground min-h-screen selection:bg-cyan-400/30`}>
         {/* Skip-to-content: first focusable element in every page — WCAG 2.4.1 */}
