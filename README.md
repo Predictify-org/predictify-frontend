@@ -2,7 +2,7 @@
 
 > Decentralized prediction markets on Stellar / Soroban.
 
-**Live demo:** _pending Vercel deploy (see Deployment)_ | **Docs:** `/docs` route and [docs/](docs/) | [Contracts repo](https://github.com/Predictify-org/predictify-contracts)
+**Live demo:** https://predictify-frontend-livid.vercel.app | **Docs:** `/docs` route and [docs/](docs/) | [Contracts repo](https://github.com/Predictify-org/predictify-contracts)
 
 [![CI](https://github.com/Predictify-org/predictify-frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/Predictify-org/predictify-frontend/actions/workflows/ci.yml)
 
