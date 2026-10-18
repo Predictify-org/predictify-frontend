@@ -2,7 +2,7 @@
 
 > Decentralized prediction markets on Stellar / Soroban.
 
-**Live demo: https://predictify-frontend-live.vercel.app** | **Docs: [/docs](https://predictify-frontend-live.vercel.app/docs)** | [Contracts repo](https://github.com/Predictify-org/predictify-contracts)
+**Live demo:** _pending Vercel deploy (see Deployment)_ | **Docs:** `/docs` route and [docs/](docs/) | [Contracts repo](https://github.com/Predictify-org/predictify-contracts)
 
 [![CI](https://github.com/Predictify-org/predictify-frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/Predictify-org/predictify-frontend/actions/workflows/ci.yml)
 
@@ -27,7 +27,7 @@ Next.js 15 App Router (`app/`), shared UI in `components/` (Radix + Tailwind), s
 
 ## Deployment
 
-Deployed on Vercel; no secrets are required (all `NEXT_PUBLIC_*` variables have defaults).
+Deploy with `vercel --prod` (Vercel project `predictify-frontend-live` is linked). No secrets are required (all `NEXT_PUBLIC_*` variables have defaults).
 
 ## About
 
