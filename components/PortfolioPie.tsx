@@ -148,7 +148,7 @@ const renderActiveShape = (props: PieSectorDataItem) => {
 
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: Array<{ payload: PortfolioSlice; value: number; payload: PortfolioSlice }>;
+  payload?: Array<{ payload: PortfolioSlice; value: number }>;
   token: string;
 }
 
@@ -369,7 +369,7 @@ export const PortfolioPie: React.FC<PortfolioPieProps> = ({
                   outerRadius="70%"
                   paddingAngle={3}
                   activeIndex={activeIndex}
-                  activeShape={renderActiveShape as Parameters<typeof Pie>[0]["activeShape"]}
+                  activeShape={renderActiveShape as any}
                   onMouseEnter={onPieEnter}
                   onMouseLeave={onPieLeave}
                   stroke="none"

@@ -100,7 +100,7 @@ export const useTransaction = (): UseTransactionResult => {
         locks.set(intentKey, true);
 
         // Record built intent
-        upsertIntent({ key: intentKey, walletAddress, xdrHash, status: 'built', builtXdr: xdr });
+        upsertIntent({ key: intentKey, walletAddress: walletAddress ?? undefined, xdrHash, status: 'built', builtXdr: xdr });
 
         // Inspect existing intent state to avoid duplicate work
         const existing = getIntent(intentKey);
@@ -108,7 +108,8 @@ export const useTransaction = (): UseTransactionResult => {
           // Already submitted; poll for confirmation rather than resubmitting
           setStatus('confirming');
           toast({ title: 'Confirming transaction', description: 'Waiting for existing transaction to confirm.' });
-          const confirmationResult = await pollForConfirmation(existing.submissionHash);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const confirmationResult: any = await pollForConfirmation(existing.submissionHash);
           if (confirmationResult.success) {
             setStatus('success');
             setTransactionHash(confirmationResult.hash);
@@ -154,7 +155,7 @@ export const useTransaction = (): UseTransactionResult => {
         }
 
         // Persist the signed XDR to help retries avoid re-signing
-        upsertIntent({ key: intentKey, status: 'signed', signedXdr: signResult.signedTxXdr, walletAddress, xdrHash });
+        upsertIntent({ key: intentKey, status: 'signed', signedXdr: signResult.signedTxXdr, walletAddress: walletAddress ?? undefined, xdrHash });
 
         // Submit
         setStatus('submitting');
@@ -178,7 +179,8 @@ export const useTransaction = (): UseTransactionResult => {
         setStatus('confirming');
         toast({ title: 'Confirming transaction', description: 'Waiting for the transaction to appear on the network.' });
 
-        const confirmationResult = await pollForConfirmation(submissionResult.hash);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const confirmationResult: any = await pollForConfirmation(submissionResult.hash);
         if (!confirmationResult.success) {
           const failure = confirmationResult.status === 'confirmationTimeout' ? 'confirmationTimeout' : 'confirmationFailed';
           setStatus('failed');
@@ -250,7 +252,8 @@ export const useTransaction = (): UseTransactionResult => {
           description: 'Broadcasting signed transaction to the Stellar network.',
         });
 
-        const submissionResult = await submitTransaction(signResult.signedTxXdr);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const submissionResult: any = await submitTransaction(signResult.signedTxXdr as string);
         if (!submissionResult.success) {
           const error = submissionResult.error;
           setStatus('failed');
@@ -274,7 +277,8 @@ export const useTransaction = (): UseTransactionResult => {
           description: 'Waiting for the transaction to appear on the network.',
         });
 
-        const confirmationResult = await pollForConfirmation(submissionResult.hash);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const confirmationResult: any = await pollForConfirmation(submissionResult.hash);
         if (!confirmationResult.success) {
           const failure = confirmationResult.status === 'confirmationTimeout'
             ? 'confirmationTimeout'
@@ -322,7 +326,7 @@ export const useTransaction = (): UseTransactionResult => {
     transactionHash,
     transactionError,
     failureType,
-    executeTransaction,
+    executeTransaction: executeTransaction as UseTransactionResult['executeTransaction'],
     resetTransaction,
   };
 };

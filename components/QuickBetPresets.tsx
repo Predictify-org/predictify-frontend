@@ -25,9 +25,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 /** Preset amounts in XLM */
 export const QUICK_BET_PRESETS = [1, 5, 10] as const;
 
-/** Preset amounts in XLM */
-export const QUICK_BET_PRESETS = [1, 5, 10] as const;
-
 export interface QuickBetPresetsProps {
   selectedAmount: number | null;
   onSelect: (amount: number) => void | Promise<void>;
@@ -39,7 +36,7 @@ const QuickBetPresets: React.FC<QuickBetPresetsProps> = ({ selectedAmount, onSel
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSelectRef = useRef(onSelect);
-  useEffect(() { onSelectRef.current = onSelect; }, [onSelect]);
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
 
   const handleSelect = useCallback(
     async (amount: number) => {
@@ -48,7 +45,7 @@ const QuickBetPresets: React.FC<QuickBetPresetsProps> = ({ selectedAmount, onSel
       setIsSubmitting(true);
       try {
         await onSelectRef.current(amount);
-      } catch () {
+      } catch {
         console.error("QuickBetPresets: failed to complete action");
       } finally {
         submittingRef.current = false;
@@ -90,7 +87,7 @@ const QuickBetPresets: React.FC<QuickBetPresetsProps> = ({ selectedAmount, onSel
                 : "bg-background text-foreground border-border hover:bg-muted",
             ].join(" ")}
           >
-            <span className="tabular-nums">{amount</span> XLM
+            <span className="tabular-nums">{amount}</span> XLM
           </button>
         );
       })}

@@ -191,7 +191,7 @@ export const ActiveBets: React.FC<ActiveBetsProps> = ({
             const bet = isLoading ? undefined : bets?.[index];
             return (
               <div key={index} className="snap-start">
-                <ActiveBetCard bet={bet} isLoading={isLoading} />
+                <ActiveBetCard bet={bet as any} isLoading={isLoading} />
               </div>
             );
           })}

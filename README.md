@@ -1,6 +1,33 @@
 # Predictify
 
-A decentralized prediction market platform built on the Stellar blockchain. Predictify enables users to create and participate in prediction markets on virtually any verifiable future event, from sports to politics to financial outcomes. All predictions and outcomes are transparently recorded on-chain with instant, automated payouts through smart contracts.
+> Decentralized prediction markets on Stellar / Soroban.
+
+**Live demo: https://predictify-frontend-live.vercel.app** | **Docs: [/docs](https://predictify-frontend-live.vercel.app/docs)** | [Contracts repo](https://github.com/Predictify-org/predictify-contracts)
+
+[![CI](https://github.com/Predictify-org/predictify-frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/Predictify-org/predictify-frontend/actions/workflows/ci.yml)
+
+## What you can do
+
+Browse prediction markets, place bets, track active positions, dispute outcomes, claim winnings and connect a Stellar wallet (Freighter, LOBSTR, xBull, Albedo, Rabet). Key routes: `/` landing, `/markets`, `/bets`, `/claims`, `/dashboard`, `/predictions`, `/leaderboard`, `/disputes`, `/help`, `/docs`.
+
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start dev server |
+| `pnpm build` / `pnpm start` | Production build / serve |
+| `pnpm type-check` | TypeScript check (excludes test files) |
+| `pnpm test` | Jest unit tests |
+
+CI (`.github/workflows/ci.yml`) runs install, type-check, tests and build on every push and PR.
+
+## Architecture
+
+Next.js 15 App Router (`app/`), shared UI in `components/` (Radix + Tailwind), state in Zustand stores (`app/state`) and React context (`context/`), Stellar/Soroban helpers in `lib/stellar`. More in [docs/](docs/) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Deployment
+
+Deployed on Vercel; no secrets are required (all `NEXT_PUBLIC_*` variables have defaults).
 
 ## About
 

@@ -10,7 +10,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
-import KbdHint from "@/components/KbdHint";
+import { KbdHint } from "@/components/KbdHint";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

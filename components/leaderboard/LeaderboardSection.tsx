@@ -97,7 +97,7 @@ export function LeaderboardSection() {
           error={error || undefined}
           onRetry={async () => {
             await retry();
-            if (status === "empty") {
+            if (isEmpty) {
               await refetch();
             }
           }}

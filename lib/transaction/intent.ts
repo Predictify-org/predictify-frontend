@@ -104,7 +104,7 @@ export async function computeXdrHash(xdr: string): Promise<string> {
   try {
     const enc = new TextEncoder();
     const data = enc.encode(xdr);
-    const digest = await (globalThis.crypto?.subtle?.digest?.('SHA-256', data) as ArrayBuffer);
+    const digest = await (globalThis.crypto?.subtle?.digest?.('SHA-256', data) as unknown as Promise<ArrayBuffer>);
     const b = new Uint8Array(digest);
     return Array.from(b).map((x) => x.toString(16).padStart(2, '0')).join('');
   } catch (err) {

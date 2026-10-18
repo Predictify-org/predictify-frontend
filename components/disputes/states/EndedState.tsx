@@ -1,6 +1,7 @@
 import { TallyBar } from '@/components/disputes/shared/TallyBar';
 import { OutcomeChip } from '@/components/ui/OutcomeChip';
 import type { DisputeData, DisputeState } from '@/types/disputes';
+import { DisputeOutcomeExplainer } from '@/components/disputes/DisputeOutcomeExplainer';
 import { OutcomeIcon } from '@/components/icons/OutcomeIcons';
 
 interface EndedStateProps {
@@ -9,6 +10,7 @@ interface EndedStateProps {
 }
 
 export function EndedState({ data }: EndedStateProps) {
+  const eligibleForAppeal = false;
   const leadingOutcome =
     data.outcome ??
     (data.tally && data.tally[0].percentage >= data.tally[1].percentage

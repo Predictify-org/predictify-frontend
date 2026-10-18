@@ -109,7 +109,7 @@ export function ShareSheet({
   const [shareError, setShareError] = React.useState<string | null>(null)
   const { toast } = useToast()
 
-  const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>()
+  const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   React.useEffect(() => {
     return () => {

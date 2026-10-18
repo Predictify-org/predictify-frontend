@@ -12,6 +12,8 @@ import { useFollowsStore } from "@/app/state/follows"
 import { useUserLimitsStore } from "@/app/state/userLimits"
 import Sparkline from "@/components/Sparkline"
 import { HeatStrip } from "@/app/components/HeatStrip"
+import { Tooltip } from "@/app/components/Tooltip"
+import { SaveForLater } from "@/app/components/SaveForLater"
 import { BookmarkButton } from "@/app/components/BookmarkButton"
 
 // ---------------------------------------------------------------------------

@@ -125,7 +125,7 @@ export const useStatusAnnouncementStore = create<StatusAnnouncementState>((set, 
     const now = Date.now();
 
     // Check if this is a valid transition
-    if (currentStatus && !isValidMarketTransition(currentStatus, newStatus)) {
+    if (currentStatus && !isValidMarketTransition(currentStatus as MarketStatus, newStatus)) {
       const error = `Invalid market status transition: ${currentStatus} → ${newStatus}`;
       console.error(`[StatusAnnouncement] Market ${marketId}: ${error}`);
       return {
@@ -178,7 +178,7 @@ export const useStatusAnnouncementStore = create<StatusAnnouncementState>((set, 
     const now = Date.now();
 
     // Check if this is a valid transition
-    if (currentStatus && !isValidBetTransition(currentStatus, newStatus)) {
+    if (currentStatus && !isValidBetTransition(currentStatus as BetStatus, newStatus)) {
       const error = `Invalid bet status transition: ${currentStatus} → ${newStatus}`;
       console.error(`[StatusAnnouncement] Bet ${betId}: ${error}`);
       return {
@@ -226,11 +226,11 @@ export const useStatusAnnouncementStore = create<StatusAnnouncementState>((set, 
   },
 
   getMarketStatus: (marketId: string) => {
-    return get().marketStatuses.get(marketId)?.status;
+    return get().marketStatuses.get(marketId)?.status as MarketStatus | undefined;
   },
 
   getBetStatus: (betId: string) => {
-    return get().betStatuses.get(betId)?.status;
+    return get().betStatuses.get(betId)?.status as BetStatus | undefined;
   },
 
   reset: () => {

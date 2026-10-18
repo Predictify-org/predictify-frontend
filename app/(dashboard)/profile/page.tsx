@@ -19,6 +19,15 @@ export default function ProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { address, name } = useWalletContext()
+  const shareProfile = {
+    displayName: name || "Predictor",
+    handle: address ? `${address.slice(0, 4)}${address.slice(-4)}` : "guest",
+    avatarUrl: "",
+    winRate: 0,
+    totalPredictions: 0,
+    topCategory: "Crypto",
+    publicProfileUrl: address ? `/profile/${address}` : "/profile",
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()

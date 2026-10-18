@@ -65,8 +65,8 @@ export function LeaderboardTable({
   const sortedUsers = useMemo(() => {
     if (!users || users.length === 0) return [];
     return [...users].sort((left, right) => {
-      const leftValue = left[sortKey];
-      const rightValue = right[sortKey];
+      const leftValue: unknown = left[sortKey];
+      const rightValue: unknown = right[sortKey];
       const comparison =
         typeof leftValue === "string" && typeof rightValue === "string"
           ? leftValue.localeCompare(rightValue)

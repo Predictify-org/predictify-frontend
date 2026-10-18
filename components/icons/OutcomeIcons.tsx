@@ -84,13 +84,14 @@ function normalizeVariant(variant: OutcomeVariant): NormalizedVariant {
 
 interface OutcomeIconProps extends Omit<React.SVGProps<SVGSVGElement>, 'variant'> {
   variant: OutcomeVariant;
+  title?: string;
 }
 
 export function OutcomeIcon({
   variant,
   className,
   ...props
-}: OutcomeIconProps): JSX.Element {
+}: OutcomeIconProps): React.JSX.Element {
   const {
     title,
     'aria-label': ariaLabel,
@@ -121,7 +122,7 @@ export function OutcomeIcon({
   const titleNode = titleText && !ariaLabel && !ariaLabelledBy ? <title>{titleText}</title> : null;
 
   const normalized = normalizeVariant(variant);
-  let shape: JS.Element;
+  let shape: React.JSX.Element;
 
   switch (normalized) {
     case 'positive':
@@ -152,3 +153,13 @@ export function OutcomeIcon({
     </svg>
   );
 }
+export const OUTCOME_COLOR_CLASS: Record<'positive' | 'negative' | 'neutral', string> = {
+  positive: 'text-emerald-500',
+  negative: 'text-rose-500',
+  neutral: 'text-amber-500',
+};
+
+type ShapeProps = Omit<OutcomeIconProps, 'variant'>;
+export const TriangleUpIcon = (props: ShapeProps) => <OutcomeIcon variant="positive" {...props} />;
+export const TriangleDownIcon = (props: ShapeProps) => <OutcomeIcon variant="negative" {...props} />;
+export const DiamondIcon = (props: ShapeProps) => <OutcomeIcon variant="neutral" {...props} />;

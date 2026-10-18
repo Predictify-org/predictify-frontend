@@ -161,7 +161,7 @@ export function StatusBadge({
   showTooltip = true,
   marketId,
   marketTitle,
-}: StatusBadgeProps): JSX.Element {
+}: StatusBadgeProps): React.JSX.Element {
   const Icon = STATUS_ICONS[status] ?? AlertCircle;
   const label = STATUS_LABELS[status] ?? 'Unknown';
   const description = STATUS_DESCRIPTIONS[status] ?? 'Unknown market status.';

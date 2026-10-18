@@ -251,7 +251,7 @@ export default function DisputesPage() {
                     <TableCell className="text-right">
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button variant="outline" onClick={() => setSelectedDispute(dispute)}>
+                          <Button variant="outline" onClick={() => setSelectedDispute(dispute as PendingDispute)}>
                             Review
                           </Button>
                         </DialogTrigger>

@@ -41,7 +41,7 @@ const stateConfig: Record<
 export function DisputeStateBadge({ state }: DisputeStateBadgeProps) {
   const config = stateConfig[state] ?? stateConfig.none;
   const { Icon } = config;
-  const variantMap: Record<DisputeState, keyof typeof badgeVariants['variants']['variant']> = {
+  const variantMap: Record<DisputeState, 'neutral' | 'info' | 'warning' | 'success'> = {
     none: 'neutral',
     open: 'info',
     voting: 'warning',

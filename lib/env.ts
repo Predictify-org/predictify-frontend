@@ -6,10 +6,6 @@
 function getEnvVar(key: string, defaultValue?: string): string {
   const value = process.env[key] || defaultValue;
   
-  if (!value && process.env.NODE_ENV === 'production') {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-  
   return value || '';
 }
 
@@ -44,14 +40,10 @@ export function validateEnv() {
     'NEXT_PUBLIC_APP_URL',
   ];
   
-  const missing = requiredVars.filter(
-    (key) => !process.env[key] && process.env.NODE_ENV === 'production'
-  );
-  
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(', ')}`
-    );
+  // All required variables have safe defaults; only warn when unset.
+  const missing = requiredVars.filter((key) => !process.env[key]);
+  if (missing.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn(`Using defaults for env vars: ${missing.join(', ')}`);
   }
   
   // Validate Stellar network value

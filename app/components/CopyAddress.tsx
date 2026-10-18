@@ -108,7 +108,7 @@ export function CopyAddress({
 }: CopyAddressProps) {
   const [copied, setCopied] = React.useState(false);
   const { toast } = useToast();
-  const timeoutRef = React.useRef><ReturnType of setTimeout>>();
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Clear any pending timeout on unmount to prevent state updates after the
   // component has been removed from the tree.
@@ -195,7 +195,7 @@ export function CopyAddress({
       {/* Render text only when a label is present (non-empty string). */}
       {displayLabel.trim().length > 0 && (
         <span>{copied ? "Copied" : displayLabel}</span>
-      ))}
+      )}
 
       {/* Hidden live region for screen-reader announcement. */}
       <span className="sr-only" aria-live="polite">

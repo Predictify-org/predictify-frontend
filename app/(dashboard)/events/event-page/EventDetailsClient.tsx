@@ -24,6 +24,7 @@ import { formatDistanceToNowStrict, parseISO, isValid } from "date-fns";
 import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
 import { MarketTimeline } from "@/components/market/MarketTimeline";
 import { ShareSheet } from "@/app/components/ShareSheet";
+import { ResolutionPreview } from "@/components/market/ResolutionPreview";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import {

@@ -32,7 +32,6 @@ export function getWalletPrefs(): WalletPrefs {
 
     const parsed = JSON.parse(raw) as Partial<WalletPrefs> & Record<string, unknown>;
     return {
-      lastUsedWalletId: parsed.lastUsedWalletId ?? null,
       // Preserve unknown future fields so setWalletPrefs round-trips safely
       ...parsed,
       lastUsedWalletId: parsed.lastUsedWalletId ?? null,

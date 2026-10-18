@@ -4,7 +4,7 @@ import { Clock, AlertTriangle, ShieldAlert, Flag, XCircle, Loader2 } from 'lucid
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { useAccessibility } from '@/context/AccessibilityContext';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 import type { ModerationState } from '@/types/moderation';
 import { MODERATION_CONFIG } from './moderation-config';
@@ -48,7 +48,7 @@ export function MarketStatusBadge({ state, className, showTooltip = true }: Mark
   const Icon = isValidState ? STATE_ICONS[state] : AlertTriangle;
   const variant = isValidState ? VARIANT_MAP[state] : 'neutral';
   const isResolving = state === 'resolving';
-  const { reduceMotion } = useAccessibility();
+  const reduceMotion = useReducedMotion();
 
   const badge = (
     <Badge

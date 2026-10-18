@@ -74,11 +74,11 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
     <div
       className={cn("relative overflow-hidden rounded-xl", t.cardWidth)}
       data-state={isLoading ? "loading" : "loaded"}
-      aria-busy={isLoading }
+      aria-busy={isLoading}
     >
       <div
         className={cn(
-          "absolute inset-0 transition-opacity duration-300ms ease-in-out z-10 pointer-events-none bg-background",
+          "absolute inset-0 transition-opacity duration-300 ease-in-out z-10 pointer-events-none bg-background",
           isLoading ? "opacity-100" : "opacity-0"
         )}
         aria-hidden="true"
@@ -88,12 +88,12 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
 
       <div
         className={cn(
-          'flex-shrink-0 bg-card/50 backdrop-blur sm border border-border/50 rounded-xl cursor-pointer group',
+          'flex-shrink-0 bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl cursor-pointer group',
           'hover:bg-card/70 hover:border-border/70 hover:shadow-lg',
           'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50',
-          'transition-all duration-300ms ease-out',
+          'transition-all duration-300 ease-out',
           reducedMotion ? "" : "transform",
-          isLoading ? "opacity-0 translate-y1 pointer-events-none" : "opacity-100 translate-y0",
+          isLoading ? "opacity-0 -translate-y-1 pointer-events-none" : "opacity-100 translate-y-0",
           t.cardPadding,
           t.cardWidth,
           className
@@ -116,17 +116,17 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
                 src={thumbnail}
                 alt={title}
                 fill
-                className="object-cover group-hover:scale-105 transition-transform duration-300ms"
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
                 sizes="(max-width: 640px) 280px, 320px"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-bfrom black/60 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent" />
           </div>
           
           {bet?.category?.name && (
             <div
               className={cn(
-                'absolute top-2 left-2 rounded-md font-medium border backdrop-blur sm',
+                'absolute top-2 left-2 rounded-md font-medium border backdrop-blur-sm',
                 categoryStyle.bg,
                 categoryStyle.text,
                 categoryStyle.border,
@@ -138,7 +138,7 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
             </div>
           )}
         </div>
-        <h3 className={cn("font-semibold text-foreground leading-tight mb-3", t.titleSize)_>
+        <h3 className={cn("font-semibold text-foreground leading-tight mb-3", t.titleSize)}>
           {title}
         </h3>
         {t.showDates && bet && (
@@ -168,10 +168,10 @@ export const ActiveBetCard: React.FC<ActiveBetCardProps & { isLoading?: boolean 
             aria-label={`Active bet progress: ${progress}%`}
           >
             <div className={cn(
-              'h-full rounded-full transition-all duration-300ms',
+              'h-full rounded-full transition-all duration-300',
               categoryStyle.progress
             )}
-            style={{ width: `${progress}%``}}
+            style={{ width: `${progress}%` }}
             />
           </div>
           <div className="flex justify-end items-center gap-2">

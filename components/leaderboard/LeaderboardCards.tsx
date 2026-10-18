@@ -4,7 +4,7 @@ import React, { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { LeaderboardEmptyState } from "./leaderboard-states";
+import { LeaderboardEmptyState, LeaderboardErrorState } from "./leaderboard-states";
 import { LeaderboardUser } from "@/lib/leaderboard-data";
 
 interface LeaderboardCardsProps {
