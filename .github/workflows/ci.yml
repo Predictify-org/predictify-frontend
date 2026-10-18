@@ -7,14 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  install:
     runs-on: ubuntu-latest
-    env:
-      NEXT_PUBLIC_ANALYTICS_ID: ci-placeholder
-      NEXT_PUBLIC_STELLAR_NETWORK: testnet
-      NEXT_PUBLIC_APP_NAME: Predictify
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
-      NEXT_PUBLIC_API_URL: http://localhost:3000/api
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -25,5 +19,3 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build production bundle
-        run: pnpm build

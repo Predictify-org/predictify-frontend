@@ -8,7 +8,6 @@ import { Breadcrumbs } from "@/components/navbar/Breadcrumbs";
 import { MobileBottomTabs } from "@/components/navbar/MobileBottomTabs";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 import { getBreadcrumbsForPath } from "@/lib/breadcrumbs";
-import { MobileBottomTabs } from "@/components/navbar/MobileBottomTabs";
 
 export default function DashboardLayout({
   children,
