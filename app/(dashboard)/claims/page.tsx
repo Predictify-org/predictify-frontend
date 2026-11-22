@@ -15,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useWalletContext } from "@/context/WalletContext";
 import { cn } from "@/lib/utils";
@@ -110,7 +110,7 @@ const STATUS_CONFIG: Record<
 
 // ── Mock Data ────────────────────────────────────────────────────────────────
 
-export const MOCK_CLAIMS: Claim[] = [
+const MOCK_CLAIMS: Claim[] = [
   {
     id: "claim-1",
     marketTitle: "NBA Finals: Lakers vs Heat",
@@ -169,7 +169,7 @@ export const MOCK_CLAIMS: Claim[] = [
 ];
 
 /** Simulated claim latency (ms). Exported for tests. */
-export const CLAIM_LATENCY_MS = 600;
+const CLAIM_LATENCY_MS = 600;
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -185,7 +185,7 @@ const DAY_MS = 24 * HOUR_MS;
  * unauthorized callers. Swap this for `fetchClaimEligibility` once a
  * settlement source is wired up — the rest of the UI is unchanged.
  */
-export const mockClaimEligibilityFetcher = (
+const mockClaimEligibilityFetcher = (
   marketId: string,
   options: { account?: string; signal?: AbortSignal },
 ): Promise<ClaimEvidence> => {
@@ -295,7 +295,7 @@ export interface ClaimCardProps {
  *  - Reduced-motion aware hover/transition treatment
  *  - focus-visible ring on the claim control (WCAG 2.1 SC 2.4.7)
  */
-export const ClaimCard: React.FC<ClaimCardProps> = ({
+const ClaimCard: React.FC<ClaimCardProps> = ({
   claim,
   onClaim,
   isClaiming = false,
@@ -328,9 +328,9 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1 space-y-1">
-            <h3 className="truncate text-base font-semibold text-foreground">
+            <h2 className="truncate text-base font-semibold text-foreground">
               {marketTitle}
-            </h3>
+            </h2>
             <p className="text-sm text-muted-foreground">{prediction}</p>
           </div>
           <StatusBadge status={status} />
@@ -412,7 +412,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
 
 // ── Filtered Claims Empty State ─────────────────────────────────────────────
 
-const FilteredClaimsEmptyState: React.FC<{
+export const FilteredClaimsEmptyState: React.FC<{
   activeTab: string;
   onReset: () => void;
 }> = ({ activeTab, onReset }) => (
@@ -469,7 +469,9 @@ const ClaimCardSkeleton: React.FC = () => (
 const ClaimFlowError: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
   <Alert variant="destructive" className="mx-auto max-w-lg">
     <AlertCircle className="h-4 w-4" />
-    <AlertTitle>Failed to load claims</AlertTitle>
+    <h2 className="mb-1 font-medium leading-none tracking-tight">
+      Failed to load claims
+    </h2>
     <AlertDescription>
       An error occurred while fetching your claims. Please try again.
     </AlertDescription>

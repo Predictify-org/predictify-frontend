@@ -114,4 +114,22 @@ describe("MarketDetailTabs", () => {
     expect(timelineTab).toHaveAttribute("data-state", "active")
     expect(screen.getByText("Timeline Content")).toBeInTheDocument()
   })
+
+  it("renders optional odds tab when odds prop is provided and syncs ?tab=odds", () => {
+    ;(useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams("tab=odds")
+    )
+    render(
+      <MarketDetailTabs
+        overview={<div>Overview Content</div>}
+        odds={<div>Odds Chart Content</div>}
+        activity={<div>Activity Content</div>}
+        resolution={<div>Resolution Content</div>}
+        timeline={<div>Timeline Content</div>}
+      />
+    )
+    const oddsTab = screen.getByRole("tab", { name: /odds/i })
+    expect(oddsTab).toHaveAttribute("data-state", "active")
+    expect(screen.getByText("Odds Chart Content")).toBeInTheDocument()
+  })
 })

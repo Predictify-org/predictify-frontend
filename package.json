@@ -19,7 +19,9 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "clean": "rm -rf .next node_modules/.cache",
-    "validate": "pnpm type-check && pnpm lint && pnpm test"
+    "contracts:generate": "node scripts/generate-contract-bindings.mjs",
+    "contracts:check": "node scripts/check-contract-bindings.mjs",
+    "validate": "pnpm contracts:check && pnpm type-check && pnpm lint && pnpm test"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^1.7.3",
@@ -87,6 +89,7 @@
     "@testing-library/user-event": "^14.5.1",
     "@types/canvas-confetti": "^1.6.4",
     "@types/jest": "^29.5.8",
+    "@types/jest-axe": "^3.5.9",
     "@types/node": "^22",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
@@ -94,6 +97,7 @@
     "eslint": "^8.57.1",
     "eslint-config-next": "15.5.28",
     "jest": "^29.7.0",
+    "jest-axe": "^11.0.0",
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",

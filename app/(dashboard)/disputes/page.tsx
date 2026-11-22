@@ -203,11 +203,12 @@ export default function DisputesPage() {
         <TabsContent value="pending" className="space-y-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 type="search"
                 placeholder="Search disputes..."
                 className="pl-8"
+                aria-label="Search disputes"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -215,8 +216,8 @@ export default function DisputesPage() {
             <div className="flex gap-2">
               <div className="flex items-center gap-2">
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="w-[130px]">
-                    <Filter className="mr-2 h-4 w-4" />
+                  <SelectTrigger className="w-[130px]" aria-label="Filter by priority">
+                    <Filter className="mr-2 h-4 w-4" aria-hidden="true" />
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
                   <SelectContent>
@@ -272,17 +273,17 @@ export default function DisputesPage() {
                               </div>
 
                               <div className="space-y-2">
-                                <Label>Dispute Reason</Label>
+                                <h3 className="text-sm font-medium">Dispute Reason</h3>
                                 <div className="rounded-md bg-muted p-3 text-sm">{selectedDispute.reason}</div>
                               </div>
 
                               <div className="space-y-2">
-                                <Label>Evidence</Label>
+                                <h3 className="text-sm font-medium">Evidence</h3>
                                 <DisputeEvidencePreview evidence={selectedDispute.evidence} />
                               </div>
 
                               <div className="space-y-2">
-                                <Label>Resolution</Label>
+                                <h3 className="text-sm font-medium">Resolution</h3>
                                 <RadioGroup value={resolution} onValueChange={setResolution}>
                                   <div className="flex items-center space-x-2">
                                     <RadioGroupItem value="upheld" id="upheld" />

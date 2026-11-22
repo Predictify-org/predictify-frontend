@@ -180,7 +180,9 @@ function ErrorAlert({
     return (
       <Alert className="border-amber-500/40 bg-amber-500/10">
         <Lock className="h-4 w-4" aria-hidden={true} />
-        <AlertTitle>Authorization required</AlertTitle>
+        <h2 className="mb-1 font-medium leading-none tracking-tight">
+          Authorization required
+        </h2>
         <AlertDescription>
           Connect your wallet to view claim eligibility for this market.
         </AlertDescription>

@@ -105,8 +105,14 @@ docs(readme): update setup instructions
 
 - Write tests for new features
 - Ensure all tests pass: `pnpm test`
+- Test files (`__tests__` and `*.test.ts(x)`) are type-checked by `pnpm type-check` (and enforced during `pnpm build`)
 - Aim for good test coverage
 - Test both success and error cases
+- For a new or changed priority route, add representative rendered states to
+  `app/__tests__/a11y-routes.test.tsx` and run axe with
+  `expectNoA11yViolations` from `test-utils/axe.ts`. Include loading/empty states
+  and open dialogs or menus where applicable, and update
+  `app/data/a11y-manifest.json` plus `docs/a11y-status.md` with the evidence.
 
 ## Pull Request Process
 

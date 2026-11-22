@@ -20,6 +20,7 @@ import {
   Sector,
 } from "recharts";
 import type { PieSectorDataItem } from "recharts/types/polar/Pie";
+import { maskAmount } from "@/utils/maskAmount";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,14 @@ export interface PortfolioPieProps {
    * Currency / token label appended to tooltip values (default: "XLM").
    */
   token?: string;
+  /**
+   * Optional card heading (default: "Portfolio Distribution").
+   */
+  title?: string;
+  /**
+   * When true, masks numeric amounts using maskAmount for privacy mode.
+   */
+  hideValues?: boolean;
 }
 
 // ─── Colour palette ──────────────────────────────────────────────────────────
@@ -150,12 +159,14 @@ interface CustomTooltipProps {
   active?: boolean;
   payload?: Array<{ payload: PortfolioSlice; value: number }>;
   token: string;
+  hideValues?: boolean;
 }
 
 const CustomTooltip: React.FC<CustomTooltipProps> = ({
   active,
   payload,
   token,
+  hideValues = false,
 }) => {
   if (!active || !payload?.length) return null;
   const slice = payload[0].payload as PortfolioSlice;
@@ -179,7 +190,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
         {slice.label}
       </span>
       <div className="mt-1 text-gray-600 dark:text-gray-300">
-        {slice.value} {token} &nbsp;·&nbsp; {pct}%
+        {hideValues ? maskAmount(slice.value) : `${slice.value} ${token}`} &nbsp;·&nbsp; {pct}%
       </div>
     </div>
   );
@@ -191,6 +202,7 @@ interface SRTableProps {
   data: PortfolioSlice[];
   total: number;
   token: string;
+  hideValues?: boolean;
 }
 
 /**
@@ -198,7 +210,7 @@ interface SRTableProps {
  * The containing chart SVG is aria-hidden; this table carries the semantic
  * meaning (WCAG 2.1 AA — SC 1.1.1 Non-text Content).
  */
-const SRTable: React.FC<SRTableProps> = ({ data, total, token }) => (
+const SRTable: React.FC<SRTableProps> = ({ data, total, token, hideValues = false }) => (
   <table
     data-testid="portfolio-pie-sr-table"
     className="sr-only"
@@ -218,7 +230,7 @@ const SRTable: React.FC<SRTableProps> = ({ data, total, token }) => (
         return (
           <tr key={slice.label}>
             <td>{slice.label}</td>
-            <td>{slice.value}</td>
+            <td>{hideValues ? maskAmount(slice.value) : slice.value}</td>
             <td>{pct}%</td>
           </tr>
         );
@@ -227,7 +239,7 @@ const SRTable: React.FC<SRTableProps> = ({ data, total, token }) => (
     <tfoot>
       <tr>
         <th scope="row">Total</th>
-        <td>{total}</td>
+        <td>{hideValues ? maskAmount(total) : total}</td>
         <td>100%</td>
       </tr>
     </tfoot>
@@ -236,11 +248,12 @@ const SRTable: React.FC<SRTableProps> = ({ data, total, token }) => (
 
 // ─── Legend ───────────────────────────────────────────────────────────────────
 
-const Legend: React.FC<{ data: PortfolioSlice[]; total: number; token: string }> = ({
-  data,
-  total,
-  token,
-}) => (
+const Legend: React.FC<{
+  data: PortfolioSlice[];
+  total: number;
+  token: string;
+  hideValues?: boolean;
+}> = ({ data, total, token, hideValues = false }) => (
   <ul
     aria-label="Portfolio legend"
     className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-2"
@@ -258,10 +271,16 @@ const Legend: React.FC<{ data: PortfolioSlice[]; total: number; token: string }>
             {slice.label}
           </span>
           <span className="ml-auto flex-shrink-0 font-semibold text-sm text-gray-900 dark:text-white tabular-nums">
-            {slice.value}
-            <span className="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">
-              {token}
-            </span>
+            {hideValues ? (
+              maskAmount(slice.value)
+            ) : (
+              <>
+                {slice.value}
+                <span className="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">
+                  {token}
+                </span>
+              </>
+            )}
           </span>
           <span className="flex-shrink-0 text-xs text-gray-400 dark:text-gray-500 tabular-nums w-10 text-right">
             {pct}%
@@ -318,6 +337,8 @@ const ZeroState: React.FC = () => (
 export const PortfolioPie: React.FC<PortfolioPieProps> = ({
   data,
   token = "XLM",
+  title = "Portfolio Distribution",
+  hideValues = false,
 }) => {
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
 
@@ -341,17 +362,17 @@ export const PortfolioPie: React.FC<PortfolioPieProps> = ({
     >
       <header className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-          Portfolio Distribution
+          {title}
         </h2>
         {hasData && (
           <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
-            Total staked: {total} {token}
+            Total staked: {hideValues ? maskAmount(total) : `${total} ${token}`}
           </span>
         )}
       </header>
 
       {/* SR-only data table — aria-hidden on the chart below */}
-      <SRTable data={data} total={total} token={token} />
+      <SRTable data={data} total={total} token={token} hideValues={hideValues} />
 
       {hasData ? (
         <>
@@ -388,14 +409,14 @@ export const PortfolioPie: React.FC<PortfolioPieProps> = ({
                   ))}
                 </Pie>
                 <Tooltip
-                  content={<CustomTooltip token={token} />}
+                  content={<CustomTooltip token={token} hideValues={hideValues} />}
                   wrapperStyle={{ outline: "none" }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <Legend data={data} total={total} token={token} />
+          <Legend data={data} total={total} token={token} hideValues={hideValues} />
         </>
       ) : (
         <ZeroState />

@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom'
+import 'jest-axe/extend-expect'
 
 // Mock IntersectionObserver
 if (typeof global !== 'undefined') {
@@ -69,6 +70,26 @@ if (typeof HTMLElement !== 'undefined') {
     writable: true
   })
 }
+
+// jsdom does not implement pointer capture or scrolling used by Radix Select.
+Object.defineProperties(HTMLElement.prototype, {
+  hasPointerCapture: {
+    value: jest.fn(() => false),
+    writable: true,
+  },
+  setPointerCapture: {
+    value: jest.fn(),
+    writable: true,
+  },
+  releasePointerCapture: {
+    value: jest.fn(),
+    writable: true,
+  },
+  scrollIntoView: {
+    value: jest.fn(),
+    writable: true,
+  },
+})
 
 // Suppress console.error for known React warnings in tests
 const originalError = console.error;

@@ -15,18 +15,28 @@
  *  - Render <ReportMarketDialog> to allow reporting the market.
  */
 
-import React, { useCallback } from "react";
-import { MarketKbdHints } from "./MarketKbdHints";
+import React, { Suspense, useCallback } from "react";
+import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
+import { OddsHistoryChart } from "@/components/market/OddsHistoryChart";
 import { ReportMarketDialog } from "@/components/moderation/ReportMarketDialog";
+import { MarketKbdHints } from "./MarketKbdHints";
 
 interface MarketDetailClientProps {
   marketTitle: string;
   marketId: string;
+  overview?: React.ReactNode;
+  activity?: React.ReactNode;
+  resolution?: React.ReactNode;
+  timeline?: React.ReactNode;
 }
 
 export function MarketDetailClient({
   marketTitle,
   marketId,
+  overview,
+  activity,
+  resolution,
+  timeline,
 }: MarketDetailClientProps) {
   const handleShare = useCallback(async () => {
     const url = `${window.location.origin}/markets/${marketId}`;
@@ -56,14 +66,61 @@ export function MarketDetailClient({
   }, []);
 
   return (
-    <div className="flex flex-col gap-4 mt-6">
-      <div className="flex items-center justify-end">
+    <>
+      <div className="flex items-center justify-end mt-4">
         <ReportMarketDialog
           marketId={marketId}
           marketTitle={marketTitle}
         />
       </div>
+      <section aria-label="Market detail sections" className="mt-6 sm:mt-8">
+        <Suspense fallback={null}>
+          <MarketDetailTabs
+            overview={
+              overview ?? (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Market overview, probability breakdown, and resolution
+                    criteria will be displayed here.
+                  </p>
+                </div>
+              )
+            }
+            odds={<OddsHistoryChart marketId={marketId} />}
+            activity={
+              activity ?? (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Recent bets and participant activity for this market will
+                    appear here.
+                  </p>
+                </div>
+              )
+            }
+            resolution={
+              resolution ?? (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Resolution criteria, oracle sources, and outcome
+                    verification details will be displayed here.
+                  </p>
+                </div>
+              )
+            }
+            timeline={
+              timeline ?? (
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    The full market lifecycle timeline — from creation through
+                    resolution — will be shown here.
+                  </p>
+                </div>
+              )
+            }
+          />
+        </Suspense>
+      </section>
       <MarketKbdHints onShare={handleShare} onPlaceBet={handlePlaceBet} />
-    </div>
+    </>
   );
 }

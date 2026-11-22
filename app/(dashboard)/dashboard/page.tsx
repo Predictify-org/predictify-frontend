@@ -50,7 +50,14 @@ import { useNotificationsStore } from "@/app/state/notifications";
 import { NotificationItem } from "@/types/notifications";
 import { Kbd } from "@/components/ui/kbd";
 import { useEffect, useMemo, useCallback, useState } from "react";
+import type { ReactNode } from "react";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { CustomizeLayoutPanel } from "@/components/dashboard/CustomizeLayoutPanel";
+import {
+  DASHBOARD_SECTIONS,
+  type DashboardSectionId,
+} from "@/lib/dashboard-layout";
+import { useDashboardLayoutStore } from "@/app/state/dashboardLayout";
 import "@/src/styles/patterns.css";
 
 // TODO: replace with the authenticated user's id once auth context exposes it.
@@ -125,6 +132,12 @@ export default function DashboardPage() {
 
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
+  const layout = useDashboardLayoutStore((state) => state.layout);
+  const resetLayout = useDashboardLayoutStore((state) => state.reset);
+
+  useEffect(() => {
+    void useDashboardLayoutStore.persist.rehydrate();
+  }, []);
 
   useEffect(() => {
     const nextMessage =
@@ -515,6 +528,62 @@ export default function DashboardPage() {
     }
   };
 
+  const dashboardSectionContent: Record<DashboardSectionId, ReactNode> = {
+    notifications: (
+      <NotifDigest
+        notifications={userNotifications}
+        onMarkAsRead={handleMarkAsRead}
+        onMarkAllAsRead={handleMarkAllAsRead}
+      />
+    ),
+    metrics: renderCards(),
+    "recently-viewed": <RecentlyViewedRail />,
+    "active-bets": (
+      <ActiveBets
+        bets={status === "empty" ? [] : []}
+        isLoading={status === "loading"}
+        onAddBet={() => console.log("Add bet")}
+      />
+    ),
+    recommendations: (
+      <div className="space-y-4">
+        {renderRecommendationStrip()}
+        <RecommendationsStrip />
+      </div>
+    ),
+    activity: (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
+          <CardHeader>
+            <CardTitle>Platform Activity</CardTitle>
+            <CardDescription>
+              User activity and predictions over time
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pl-2">
+            <div className="h-[150px] sm:h-[200px] w-full bg-muted/25 rounded-md flex items-center justify-center text-muted-foreground">
+              Activity Chart Placeholder
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Your latest actions on Predictify</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ActivityTimeline
+              activities={status === "empty" ? [] : []}
+              isLoading={status === "loading"}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    ),
+  };
+
+  const visibleSections = layout.filter((section) => section.visible);
+
   return (
     <div className="flex flex-col gap-4">
       <div
@@ -555,15 +624,8 @@ export default function DashboardPage() {
           data-testid="dashboard-header-actions"
           className="flex flex-wrap items-center justify-end gap-2"
         >
-          <NotifDigest
-            notifications={userNotifications}
-            onMarkAsRead={handleMarkAsRead}
-            onMarkAllAsRead={handleMarkAllAsRead}
-          />
-          <RefreshIndicator
-            lastRefreshedAt={lastRefreshedAt}
-            onRefresh={retry}
-          />
+          <CustomizeLayoutPanel />
+          <RefreshIndicator lastRefreshedAt={lastRefreshedAt} onRefresh={retry} />
           <div className="flex items-center gap-2">
             <Button asChild>
               <Link href="/events/new">Create New Event</Link>
@@ -584,48 +646,39 @@ export default function DashboardPage() {
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
-          {renderCards()}
-          <RecentlyViewedRail />
-          <ActiveBets
-            bets={status === "empty" ? [] : []}
-            isLoading={status === "loading"}
-            onAddBet={() => console.log("Add bet")}
-          />
-          {renderRecommendationStrip()}
-          <RecommendationsStrip />
-          {/* Issue #5 Fix: Change to grid-cols-1 lg:grid-cols-7 to stack on mobile/tablet
-              and only use 7-column layout at desktop where there's enough space
-              Also add responsive chart height: smaller on mobile (h-[150px]), 
-              standard on larger screens (sm:h-[200px]) */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
-            <Card className="lg:col-span-4">
-              <CardHeader>
-                <CardTitle>Platform Activity</CardTitle>
-                <CardDescription>
-                  User activity and predictions over time
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[150px] sm:h-[200px] w-full bg-muted/25 rounded-md flex items-center justify-center text-muted-foreground">
-                  Activity Chart Placeholder
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="lg:col-span-3">
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>
-                  Your latest actions on Predictify
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ActivityTimeline
-                  activities={status === "empty" ? [] : []}
-                  isLoading={status === "loading"}
-                />
-              </CardContent>
-            </Card>
-          </div>
+          {visibleSections.length > 0 ? (
+            visibleSections.map((section) => {
+              const definition = DASHBOARD_SECTIONS.find(
+                (item) => item.id === section.id,
+              );
+              return (
+                <section
+                  key={section.id}
+                  data-testid={`dashboard-section-${section.id}`}
+                  aria-label={definition?.label}
+                >
+                  {dashboardSectionContent[section.id]}
+                </section>
+              );
+            })
+          ) : (
+            <div
+              role="status"
+              className="rounded-lg border border-dashed p-6 text-center"
+            >
+              <p className="text-sm text-muted-foreground">
+                No dashboard sections are visible.
+              </p>
+              <Button
+                type="button"
+                variant="link"
+                className="mt-2"
+                onClick={resetLayout}
+              >
+                Reset to default
+              </Button>
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="analytics" className="space-y-4">
           {renderAnalyticsPanel()}

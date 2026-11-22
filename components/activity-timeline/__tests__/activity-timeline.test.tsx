@@ -139,7 +139,7 @@ describe("ActivityTimeline Component", () => {
         ...generateMockActivities(5).map((a, i) => ({
           ...a,
           id: `dup-${i}`,
-          eventType: "prediction_placed",
+          eventType: "prediction_placed" as const,
         })),
       ];
 
@@ -184,7 +184,7 @@ describe("ActivityTimeline Component", () => {
       const activities: ActivityEvent[] = [
         {
           id: "1",
-          eventType: "prediction_placed",
+          eventType: "prediction_placed" as const,
           groupType: "predictions",
           timestamp: oneHourAgo,
           title: "Test Event",
@@ -352,7 +352,7 @@ describe("ActivityTimeline Component", () => {
       const activities: ActivityEvent[] = [
         {
           id: "1",
-          eventType: "prediction_placed",
+          eventType: "prediction_placed" as const,
           groupType: "predictions",
           timestamp: new Date(),
           title: "Event without description",
@@ -371,7 +371,7 @@ describe("ActivityTimeline Component", () => {
       const activities: ActivityEvent[] = [
         {
           id: "1",
-          eventType: "prediction_placed",
+          eventType: "prediction_placed" as const,
           groupType: "predictions",
           timestamp: new Date(),
           title: "Event without metadata",

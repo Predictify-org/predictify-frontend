@@ -280,8 +280,8 @@ describe("Dropdown Component", () => {
           <button>Open Dropdown</button>
         </DropdownTrigger>
         <DropdownContent>
-          <DropdownCheckboxItem checked={false}>Option 1</DropdownCheckboxItem>
-          <DropdownCheckboxItem checked={true}>Option 2</DropdownCheckboxItem>
+          <DropdownCheckboxItem checked={false} onCheckedChange={jest.fn()}>Option 1</DropdownCheckboxItem>
+          <DropdownCheckboxItem checked={true} onCheckedChange={jest.fn()}>Option 2</DropdownCheckboxItem>
         </DropdownContent>
       </Dropdown>
     );
@@ -300,7 +300,7 @@ describe("Dropdown Component", () => {
           <button>Open Dropdown</button>
         </DropdownTrigger>
         <DropdownContent>
-          <DropdownRadioGroup>
+          <DropdownRadioGroup value="a" onValueChange={jest.fn()}>
             <DropdownRadioItem value="a">Option A</DropdownRadioItem>
             <DropdownRadioItem value="b">Option B</DropdownRadioItem>
           </DropdownRadioGroup>

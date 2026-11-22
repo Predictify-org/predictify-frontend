@@ -32,26 +32,32 @@ jest.mock("framer-motion", () => {
 const mockTopThree = [
   {
     id: "1",
+    rank: 1,
     name: "Alice Predictor",
     avatarUrl: "https://example.com/alice.jpg",
-    profit: "1,234.56",
+    profit: 1234.56,
     winRate: 85,
+    predictions: 120,
     position: 1,
   },
   {
-    id: "2", 
+    id: "2",
+    rank: 2,
     name: "Bob Trader",
     avatarUrl: "https://example.com/bob.jpg",
-    profit: "987.65",
+    profit: 987.65,
     winRate: 78,
+    predictions: 95,
     position: 2,
   },
   {
     id: "3",
+    rank: 3,
     name: "Carol Market",
-    avatarUrl: "https://example.com/carol.jpg", 
-    profit: "654.32",
+    avatarUrl: "https://example.com/carol.jpg",
+    profit: 654.32,
     winRate: 72,
+    predictions: 80,
     position: 3,
   },
 ];
@@ -99,7 +105,7 @@ describe("LeaderboardPodium — reduced-motion implementation", () => {
     expect(screen.getByText("Carol Market")).toBeInTheDocument();
 
     // Verify all profit amounts are shown
-    expect(screen.getByText("+1,234.56 XLM")).toBeInTheDocument();
+    expect(screen.getByText("+1234.56 XLM")).toBeInTheDocument();
     expect(screen.getByText("+987.65")).toBeInTheDocument();
     expect(screen.getByText("+654.32")).toBeInTheDocument();
 
