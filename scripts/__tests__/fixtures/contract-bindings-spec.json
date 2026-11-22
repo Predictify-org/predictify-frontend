@@ -1,0 +1,46 @@
+{
+  "types": [
+    {
+      "name": "ComplexValue",
+      "kind": "struct",
+      "fields": [
+        { "name": "account", "type": "Address" },
+        { "name": "amount", "type": "i128" },
+        { "name": "sequence", "type": "u64" },
+        { "name": "label", "type": "Symbol" },
+        { "name": "items", "type": "Vec<Option<Map<Address, Vec<u64>>>>" }
+      ]
+    },
+    {
+      "name": "TupleValue",
+      "kind": "struct",
+      "fields": ["Address", "i128"]
+    },
+    {
+      "name": "Outcome",
+      "kind": "enum",
+      "variants": [
+        { "name": "None" },
+        { "name": "Value", "fields": [{ "name": "amount", "type": "u64" }] },
+        { "name": "Pair", "fields": ["Address", "i128"] }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "name": "FixtureError",
+      "variants": [
+        { "name": "Missing", "code": 1 },
+        { "name": "Rejected", "code": 4 }
+      ]
+    }
+  ],
+  "functions": [
+    { "name": "ping", "inputs": [], "output": "void" },
+    {
+      "name": "submit",
+      "inputs": [{ "name": "values", "type": "Vec<Option<ComplexValue>>" }],
+      "output": "void"
+    }
+  ]
+}
