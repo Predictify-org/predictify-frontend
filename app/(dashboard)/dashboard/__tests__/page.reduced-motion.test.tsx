@@ -1,6 +1,11 @@
 import React from "react"
-import { render, screen, act } from "@testing-library/react"
+import { render, screen, act, fireEvent } from "@testing-library/react"
 import DashboardPage from "../page"
+import {
+  DASHBOARD_LAYOUT_STORAGE_KEY,
+  useDashboardLayoutStore,
+} from "@/app/state/dashboardLayout"
+import { DEFAULT_LAYOUT, normalizeLayout } from "@/lib/dashboard-layout"
 
 // ---------------------------------------------------------------------------
 // Mocks — keep the surface of the page under test focused.
@@ -33,6 +38,9 @@ jest.mock("@/app/dashboard/RefreshIndicator", () => ({
 }))
 jest.mock("@/components/dashboard/RecommendationsStrip", () => ({
   RecommendationsStrip: () => <div data-testid="recommendations-strip" />,
+}))
+jest.mock("@/components/dashboard/CustomizeLayoutPanel", () => ({
+  CustomizeLayoutPanel: () => <div data-testid="customize-layout-panel" />,
 }))
 jest.mock("@/components/active-bets/ActiveBets", () => ({
   ActiveBets: () => <div data-testid="active-bets" />,
@@ -223,3 +231,65 @@ describe("DashboardPage — reduced-motion fallback (#547)", () => {
     ).toBeTruthy()
   })
 })
+
+describe("DashboardPage — customizable sections", () => {
+  beforeEach(() => {
+    localStorage.clear()
+    useDashboardLayoutStore.setState({
+      layout: DEFAULT_LAYOUT.map((item) => ({ ...item })),
+      hasHydrated: false,
+    })
+    localStorage.removeItem(DASHBOARD_LAYOUT_STORAGE_KEY)
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it("renders the default section order on the initial render", () => {
+    render(<DashboardPage />);
+
+    expect(
+      screen.getAllByTestId(/^dashboard-section-/).map((section) => section.dataset.testid),
+    ).toEqual(DEFAULT_LAYOUT.map((section) => `dashboard-section-${section.id}`));
+  });
+
+  it("renders visible sections in the persisted order", () => {
+    const customizedLayout = normalizeLayout([
+      { id: "activity", visible: true },
+      { id: "notifications", visible: false },
+      ...DEFAULT_LAYOUT.filter(
+        (item) => item.id !== "activity" && item.id !== "notifications",
+      ),
+    ]);
+    useDashboardLayoutStore.setState({ layout: customizedLayout });
+
+    render(<DashboardPage />);
+
+    expect(
+      screen.getAllByTestId(/^dashboard-section-/).map((section) => section.dataset.testid),
+    ).toEqual([
+      "dashboard-section-activity",
+      "dashboard-section-metrics",
+      "dashboard-section-recently-viewed",
+      "dashboard-section-active-bets",
+      "dashboard-section-recommendations",
+    ]);
+  });
+
+  it("provides a reset action if no sections are visible", () => {
+    useDashboardLayoutStore.setState({
+      layout: DEFAULT_LAYOUT.map((item) => ({ ...item, visible: false })),
+    });
+
+    render(<DashboardPage />);
+    expect(screen.getByText("No dashboard sections are visible.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset to default" }));
+
+    expect(useDashboardLayoutStore.getState().layout).toEqual(DEFAULT_LAYOUT);
+    expect(screen.getAllByTestId(/^dashboard-section-/)).toHaveLength(
+      DEFAULT_LAYOUT.length,
+    );
+  });
+});
