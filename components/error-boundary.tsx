@@ -2,6 +2,7 @@
 
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { ErrorRecoveryScreen } from "@/components/error/ErrorRecoveryScreen";
+import { reportError } from "@/lib/error-reporting";
 
 interface Props {
   children: ReactNode;
@@ -19,6 +20,8 @@ interface State {
  * Provides a user-friendly error UI instead of a blank screen
  */
 export class ErrorBoundary extends Component<Props, State> {
+  private lastReportedIncidentId: string | null = null;
+
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null, incidentId: null };
@@ -33,17 +36,25 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    const incidentId = this.state.incidentId;
-    // Log error to error reporting service in production
-    if (process.env.NODE_ENV === 'production') {
-      console.error(`Error caught by boundary [Incident: ${incidentId}]:`, error, errorInfo);
-      // TODO: Send to error reporting service (e.g., Sentry) with incidentId
-    } else {
-      console.error(`Error caught by boundary [Incident: ${incidentId}]:`, error, errorInfo);
+    const incidentId = this.state.incidentId || "unknown";
+    if (this.lastReportedIncidentId === incidentId) {
+      return;
     }
+    this.lastReportedIncidentId = incidentId;
+
+    const route =
+      typeof window !== "undefined" ? window.location.pathname : undefined;
+
+    reportError({
+      error,
+      componentStack: errorInfo.componentStack,
+      incidentId,
+      route,
+    });
   }
 
   handleReset = () => {
+    this.lastReportedIncidentId = null;
     this.setState({ hasError: false, error: null, incidentId: null });
   };
 
