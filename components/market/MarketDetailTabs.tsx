@@ -3,11 +3,18 @@
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
-const TAB_VALUES = ["overview", "activity", "resolution", "timeline"] as const;
-type TabValue = (typeof TAB_VALUES)[number];
+export const TAB_VALUES = [
+  "overview",
+  "odds",
+  "activity",
+  "resolution",
+  "timeline",
+] as const;
+export type TabValue = (typeof TAB_VALUES)[number];
 
 interface MarketDetailTabsProps {
   overview: React.ReactNode;
+  odds?: React.ReactNode;
   activity: React.ReactNode;
   resolution: React.ReactNode;
   timeline: React.ReactNode;
@@ -16,6 +23,7 @@ interface MarketDetailTabsProps {
 
 export function MarketDetailTabs({
   overview,
+  odds,
   activity,
   resolution,
   timeline,
@@ -25,8 +33,13 @@ export function MarketDetailTabs({
   const router = useRouter();
   const pathname = usePathname();
 
+  const hasOdds = odds !== undefined;
+  const availableTabs: readonly TabValue[] = hasOdds
+    ? TAB_VALUES
+    : TAB_VALUES.filter((tab) => tab !== "odds");
+
   const rawTab = searchParams.get("tab");
-  const activeTab = TAB_VALUES.includes(rawTab as TabValue)
+  const activeTab = availableTabs.includes(rawTab as TabValue)
     ? (rawTab as TabValue)
     : defaultValue;
 
@@ -39,7 +52,7 @@ export function MarketDetailTabs({
   return (
     <Tabs value={activeTab} onValueChange={onTabChange}>
       {/*
-       * Mobile scroll: on narrow viewports the four tab triggers can overflow
+       * Mobile scroll: on narrow viewports the tab triggers can overflow
        * the container. `overflow-x-auto` + `scrollbar-hide` lets the strip
        * scroll horizontally without showing an ugly scrollbar, while keeping
        * all tabs reachable via touch/keyboard.
@@ -48,6 +61,7 @@ export function MarketDetailTabs({
       <div className="overflow-x-auto scrollbar-hide">
         <TabsList className="min-w-max w-full justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          {hasOdds && <TabsTrigger value="odds">Odds</TabsTrigger>}
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="resolution">Resolution</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
@@ -55,6 +69,7 @@ export function MarketDetailTabs({
       </div>
 
       <TabsContent value="overview">{overview}</TabsContent>
+      {hasOdds && <TabsContent value="odds">{odds}</TabsContent>}
       <TabsContent value="activity">{activity}</TabsContent>
       <TabsContent value="resolution">{resolution}</TabsContent>
       <TabsContent value="timeline">{timeline}</TabsContent>
