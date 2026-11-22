@@ -1,4 +1,5 @@
 import type React from "react";
+import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css"
 import "./styles/patterns.css"
@@ -7,11 +8,13 @@ import "./styles/themes/high-contrast.css"
 import "./styles/print.css"
 import { Providers } from "@/components/providers";
 import { SkipToContent } from "@/app/components/SkipToContent";
+import { getBaseUrl } from "@/lib/seo";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
-export const metadata = {
+export const metadata: Metadata = {
+  metadataBase: new URL(getBaseUrl()),
   title: "Predictify - Prediction Platform",
   description: "Join thousands of predictors worldwide and start earning from your knowledge and intuition today.",
   generator: "v0.dev",

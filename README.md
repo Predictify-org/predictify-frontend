@@ -27,7 +27,13 @@ Next.js 15 App Router (`app/`), shared UI in `components/` (Radix + Tailwind), s
 
 ## Deployment
 
-Deploy with `vercel --prod` (Vercel project `predictify-frontend-live` is linked). No secrets are required (all `NEXT_PUBLIC_*` variables have defaults).
+Deploy with `vercel --prod` (Vercel project `predictify-frontend-live` is linked).
+
+### Required Production Environment Variables
+
+- **`NEXT_PUBLIC_APP_URL`** *(required in production)*: The canonical public origin of the deployed app (for example, `https://predictify-frontend-livid.vercel.app`). Used to generate `/sitemap.xml`, `/robots.txt`, `metadataBase`, per-market canonical URLs, Open Graph URLs, and schema.org JSON-LD. Defaults to `http://localhost:3000` in local development.
+
+All other `NEXT_PUBLIC_*` variables have safe defaults.
 
 ## About
 
