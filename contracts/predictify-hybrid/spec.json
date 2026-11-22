@@ -1,0 +1,74 @@
+{
+  "contract": "predictify-hybrid",
+  "types": [
+    {
+      "name": "BalanceMutation",
+      "kind": "struct",
+      "fields": [
+        { "name": "market_id", "type": "u64" },
+        { "name": "participant", "type": "Address" },
+        { "name": "before", "type": "i128" },
+        { "name": "after", "type": "i128" }
+      ]
+    },
+    {
+      "name": "RecoveryEvent",
+      "kind": "struct",
+      "fields": [
+        { "name": "market_id", "type": "u64" },
+        { "name": "total_recovered", "type": "i128" },
+        { "name": "num_participants", "type": "u32" }
+      ]
+    },
+    {
+      "name": "RecoveryPlan",
+      "kind": "struct",
+      "fields": [
+        { "name": "markets_recovered", "type": "Vec<u64>" },
+        { "name": "balances_mutated", "type": "Vec<BalanceMutation>" },
+        { "name": "events_summary", "type": "Vec<RecoveryEvent>" },
+        { "name": "total_tokens_recovered", "type": "i128" }
+      ]
+    },
+    {
+      "name": "MarketStatus",
+      "kind": "enum",
+      "variants": [
+        { "name": "Active" },
+        { "name": "Expired" }
+      ]
+    },
+    {
+      "name": "Market",
+      "kind": "struct",
+      "fields": [
+        { "name": "status", "type": "MarketStatus" },
+        { "name": "expiration_ledger", "type": "u32" }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "name": "ContractError",
+      "variants": [
+        { "name": "NotInitialized" },
+        { "name": "TooManyMarkets" },
+        { "name": "PlanTooLarge" },
+        { "name": "Overflow" },
+        { "name": "MarketNotFound" }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "name": "recover_dry_run",
+      "inputs": [{ "name": "market_ids", "type": "Vec<u64>" }],
+      "output": "RecoveryPlan"
+    },
+    {
+      "name": "recover",
+      "inputs": [{ "name": "market_ids", "type": "Vec<u64>" }],
+      "output": "RecoveryPlan"
+    }
+  ]
+}

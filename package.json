@@ -19,7 +19,9 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "clean": "rm -rf .next node_modules/.cache",
-    "validate": "pnpm type-check && pnpm lint && pnpm test"
+    "contracts:generate": "node scripts/generate-contract-bindings.mjs",
+    "contracts:check": "node scripts/check-contract-bindings.mjs",
+    "validate": "pnpm contracts:check && pnpm type-check && pnpm lint && pnpm test"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^1.7.3",
