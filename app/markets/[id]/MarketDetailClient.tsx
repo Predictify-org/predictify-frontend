@@ -4,18 +4,21 @@
  * MarketDetailClient
  *
  * Thin client shell that wires up interactive handlers (share, place-bet)
- * and passes them to MarketKbdHints.  Kept as a separate file so the main
- * page.tsx stays a Server Component (no "use client" boundary there).
+ * and passes them to MarketKbdHints, and renders the ReportMarketDialog trigger.
+ * Kept as a separate file so the main page.tsx stays a Server Component
+ * (no "use client" boundary there).
  *
  * Responsibilities:
  *  - Provide the `onShare` callback (navigator.share / fallback copy).
  *  - Provide the `onPlaceBet` callback (scrolls/focuses bet input).
  *  - Render <MarketKbdHints> with both callbacks.
+ *  - Render <ReportMarketDialog> to allow reporting the market.
  */
 
 import React, { Suspense, useCallback } from "react";
 import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
 import { OddsHistoryChart } from "@/components/market/OddsHistoryChart";
+import { ReportMarketDialog } from "@/components/moderation/ReportMarketDialog";
 import { MarketKbdHints } from "./MarketKbdHints";
 
 interface MarketDetailClientProps {
@@ -64,6 +67,12 @@ export function MarketDetailClient({
 
   return (
     <>
+      <div className="flex items-center justify-end mt-4">
+        <ReportMarketDialog
+          marketId={marketId}
+          marketTitle={marketTitle}
+        />
+      </div>
       <section aria-label="Market detail sections" className="mt-6 sm:mt-8">
         <Suspense fallback={null}>
           <MarketDetailTabs

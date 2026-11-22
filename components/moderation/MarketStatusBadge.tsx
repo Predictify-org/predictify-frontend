@@ -16,9 +16,10 @@ const STATE_ICONS: Record<ModerationState, React.ElementType> = {
   flagged: Flag,
   removed: XCircle,
   resolving: Loader2,
+  reported: AlertTriangle,
 };
 
-interface MarketStatusBadgeProps {
+export interface MarketStatusBadgeProps {
   state: ModerationState;
   className?: string;
   /** Show tooltip with short description on hover */
@@ -34,6 +35,7 @@ const VARIANT_MAP: Record<ModerationState, BadgeVariant> = {
   flagged: 'danger',
   removed: 'neutral',
   resolving: 'info',
+  reported: 'warning',
 };
 
 const FALLBACK_CONFIG = {

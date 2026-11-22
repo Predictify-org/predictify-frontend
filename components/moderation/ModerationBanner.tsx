@@ -13,18 +13,42 @@ const STATE_ICONS: Record<ModerationState, React.ElementType> = {
   flagged: Flag,
   removed: XCircle,
   resolving: Loader2,
+  reported: AlertTriangle,
 };
 
-interface ModerationBannerProps {
-  state: ModerationState;
+export interface ModerationBannerProps {
+  state?: ModerationState;
   className?: string;
   /** Override the default "learn more" href */
   learnMoreHref?: string;
+  /** When true, renders the 'reported' moderation state */
+  reportThresholdReached?: boolean;
+  reportThreshold?: boolean;
+  reportThresholdMet?: boolean;
+  isReportThresholdReached?: boolean;
+  isReportThresholdMet?: boolean;
 }
 
-export function ModerationBanner({ state, className, learnMoreHref }: ModerationBannerProps) {
-  const config = MODERATION_CONFIG[state];
-  const Icon = STATE_ICONS[state];
+export function ModerationBanner({
+  state = 'under_review',
+  className,
+  learnMoreHref,
+  reportThresholdReached,
+  reportThreshold,
+  reportThresholdMet,
+  isReportThresholdReached,
+  isReportThresholdMet,
+}: ModerationBannerProps) {
+  const isReportThreshold = Boolean(
+    reportThresholdReached ||
+    reportThreshold ||
+    reportThresholdMet ||
+    isReportThresholdReached ||
+    isReportThresholdMet
+  );
+  const effectiveState: ModerationState = isReportThreshold ? 'reported' : state;
+  const config = MODERATION_CONFIG[effectiveState] ?? MODERATION_CONFIG.under_review;
+  const Icon = STATE_ICONS[effectiveState] ?? STATE_ICONS.under_review;
   const href = learnMoreHref ?? config.learnMoreHref;
 
   return (
