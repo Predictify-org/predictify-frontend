@@ -105,6 +105,7 @@ docs(readme): update setup instructions
 
 - Write tests for new features
 - Ensure all tests pass: `pnpm test`
+- Test files (`__tests__` and `*.test.ts(x)`) are type-checked by `pnpm type-check` (and enforced during `pnpm build`)
 - Aim for good test coverage
 - Test both success and error cases
 

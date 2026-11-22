@@ -110,7 +110,7 @@ const STATUS_CONFIG: Record<
 
 // ── Mock Data ────────────────────────────────────────────────────────────────
 
-export const MOCK_CLAIMS: Claim[] = [
+const MOCK_CLAIMS: Claim[] = [
   {
     id: "claim-1",
     marketTitle: "NBA Finals: Lakers vs Heat",
@@ -169,7 +169,7 @@ export const MOCK_CLAIMS: Claim[] = [
 ];
 
 /** Simulated claim latency (ms). Exported for tests. */
-export const CLAIM_LATENCY_MS = 600;
+const CLAIM_LATENCY_MS = 600;
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -185,7 +185,7 @@ const DAY_MS = 24 * HOUR_MS;
  * unauthorized callers. Swap this for `fetchClaimEligibility` once a
  * settlement source is wired up — the rest of the UI is unchanged.
  */
-export const mockClaimEligibilityFetcher = (
+const mockClaimEligibilityFetcher = (
   marketId: string,
   options: { account?: string; signal?: AbortSignal },
 ): Promise<ClaimEvidence> => {
@@ -295,7 +295,7 @@ export interface ClaimCardProps {
  *  - Reduced-motion aware hover/transition treatment
  *  - focus-visible ring on the claim control (WCAG 2.1 SC 2.4.7)
  */
-export const ClaimCard: React.FC<ClaimCardProps> = ({
+const ClaimCard: React.FC<ClaimCardProps> = ({
   claim,
   onClaim,
   isClaiming = false,

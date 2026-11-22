@@ -6,7 +6,6 @@
  * match — see `docs/BUTTON_ORDER.md`.
  */
 import * as React from "react";
-import { describe, expect, it } from "@jest/globals";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Button } from "@/components/ui/button";

@@ -49,7 +49,7 @@ describe("useLongPress", () => {
     });
 
     act(() => {
-      result.current.onMouseUp();
+      result.current.onMouseUp({} as React.MouseEvent);
     });
 
     expect(onLongPress).not.toHaveBeenCalled();

@@ -163,7 +163,7 @@ describe("defaultMessages (English catalog)", () => {
   it("every value is a non-empty string", () => {
     for (const [key, value] of Object.entries(defaultMessages)) {
       expect(typeof value).toBe("string");
-      expect(value.length).toBeGreaterThan(0, `Key "${key}" has an empty value`);
+      expect(value.length).toBeGreaterThan(0);
     }
   });
 
@@ -203,7 +203,7 @@ describe("defaultMessages (English catalog)", () => {
     for (const [key, value] of Object.entries(defaultMessages)) {
       const matches = value.match(placeholderRe) ?? [];
       for (const match of matches) {
-        expect(match).toMatch(identifierRe, `Invalid placeholder "${match}" in key "${key}"`);
+        expect(match).toMatch(identifierRe);
       }
     }
   });

@@ -27,7 +27,7 @@ Element.prototype.animate = jest.fn(() => ({
   ready: Promise.resolve({} as Animation),
   onfinish: null,
   oncancel: null,
-}));
+}) as unknown as Animation);
 
 // Ensure elements have a default style.transform to prevent vaul's getTranslate crash
 const origGetComputedStyle = window.getComputedStyle;

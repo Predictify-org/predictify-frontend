@@ -174,6 +174,7 @@ DropdownMenuShortcut.displayName = "DropdownMenuShortcut";
 interface DropdownProps {
   children: React.ReactNode;
   open?: boolean;
+  defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   modal?: boolean;
 }
