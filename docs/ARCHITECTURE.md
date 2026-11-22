@@ -163,6 +163,41 @@ Convention: primitives in `components/ui` are presentational and own appearance;
 domain folders (`events`, `disputes`, `navbar`) compose those primitives and read
 from the state layer.
 
+## Client error reporting
+
+[`components/error-boundary.tsx`](../components/error-boundary.tsx) forwards caught
+render errors to [`lib/error-reporting.ts`](../lib/error-reporting.ts) via
+`reportError({ error, componentStack, incidentId, route })`, sharing the same
+`incidentId` displayed in
+[`components/error/ErrorRecoveryScreen.tsx`](../components/error/ErrorRecoveryScreen.tsx).
+
+- **Redaction & bounds:** `redactSensitive()` masks Stellar public keys
+  (`G[A-Z2-7]{55}`) and secret keys (`S[A-Z2-7]{55}`), and truncates `message`,
+  `stack`, `componentStack`, and `route` to fixed limits.
+- **Payload shape:** `{ incidentId, name, message, stack?, componentStack?, route?, timestamp }`.
+- **Default transport:** In production, `createBeaconErrorReporter()` POSTs JSON
+  to [`app/api/client-errors/route.ts`](../app/api/client-errors/route.ts) using
+  `navigator.sendBeacon` with a `fetch(..., { keepalive: true })` fallback. The
+  route enforces `application/json` (`415`), an 8 KB body limit (`413`),
+  in-memory per-IP rate limiting (`429`), Zod validation (`400`), server-side
+  redaction, and logs a single structured line before returning `204`.
+- **Plugging in a vendor reporter:** Swap the active reporter at app startup
+  with `setErrorReporter`:
+
+```ts
+import { setErrorReporter } from "@/lib/error-reporting"
+
+setErrorReporter({
+  captureError(payload) {
+    // Forward to Sentry, Datadog, etc.
+    Sentry.captureMessage(payload.message, {
+      tags: { incidentId: payload.incidentId, route: payload.route },
+      extra: { stack: payload.stack, componentStack: payload.componentStack },
+    })
+  },
+})
+```
+
 ## Where to read next
 
 - [API.md](./API.md) for environment configuration, the events/transactions data
