@@ -1,4 +1,5 @@
 import { Bet, Transaction } from './types';
+import type { Position } from './portfolio-analytics';
 
 export const mockActiveBets: Bet[] = [
   {
@@ -239,3 +240,126 @@ export const categoryColors = {
             hash: '0x9I0j1K2l3M4n5O6p7Q8r9S0t1U2v3W4x5Y6z7A8b'
         }
     ];
+
+function parseMockTransactionDate(dateStr: string): string {
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00.000Z`;
+  }
+  const parsed = new Date(dateStr);
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : new Date(0).toISOString();
+}
+
+function inferTransactionCategory(description: string): string {
+  const lower = description.toLowerCase();
+  if (lower.includes('lakers') || lower.includes('formula 1') || lower.includes('grand prix')) {
+    return 'Sports';
+  }
+  if (lower.includes('ethereum') || lower.includes('bitcoin') || lower.includes('crypto')) {
+    return 'Crypto';
+  }
+  if (lower.includes('tesla') || lower.includes('stock')) {
+    return 'Stocks';
+  }
+  if (lower.includes('election') || lower.includes('trump') || lower.includes('kamala')) {
+    return 'Politics';
+  }
+  return 'General';
+}
+
+/**
+ * Maps existing mock bets and transactions into Position[] for portfolio analytics.
+ * Deposits and withdrawals are excluded as non-position wallet transfers.
+ */
+export function mapMockDataToPositions(
+  bets: readonly Bet[],
+  transactions: readonly Transaction[]
+): Position[] {
+  const betPositions: Position[] = bets.map((bet) => {
+    const stake = bet.amount ?? 0;
+    const status =
+      bet.status === 'cancelled'
+        ? 'void'
+        : bet.status === 'completed'
+          ? 'won'
+          : 'open';
+
+    // Estimate mark-to-market current value for open positions using odds & progress
+    const currentValue =
+      status === 'open' && bet.odds !== undefined
+        ? Number((stake * (1 + ((bet.odds - 1) * (bet.progress / 100) * 0.25))).toFixed(2))
+        : undefined;
+
+    return {
+      marketId: `bet-${bet.id}`,
+      title: bet.title,
+      category: bet.category.name,
+      side: 'yes',
+      stake,
+      currentValue,
+      payout: status === 'won' && bet.odds ? Number((stake * bet.odds).toFixed(2)) : undefined,
+      status,
+      openedAt: bet.startDate.toISOString(),
+      closedAt: status === 'open' ? undefined : bet.endDate.toISOString(),
+    };
+  });
+
+  const txPositions: Position[] = [];
+  transactions.forEach((tx, index) => {
+    if (tx.type === 'deposit' || tx.type === 'withdraw') {
+      return;
+    }
+
+    const isoDate = parseMockTransactionDate(tx.date);
+    const category = inferTransactionCategory(tx.description);
+    const absAmount = Math.abs(tx.numericAmount);
+
+    if (tx.type === 'win') {
+      // Historical win transaction: infer a conservative original stake from payout
+      const inferredStake = Number((absAmount / 1.8).toFixed(2));
+      txPositions.push({
+        marketId: `tx-${index}-${tx.hash.slice(0, 8)}`,
+        title: tx.description,
+        category,
+        side: 'yes',
+        stake: inferredStake,
+        payout: absAmount,
+        status: 'won',
+        openedAt: isoDate,
+        closedAt: isoDate,
+      });
+    } else if (tx.type === 'refund') {
+      txPositions.push({
+        marketId: `tx-${index}-${tx.hash.slice(0, 8)}`,
+        title: tx.description,
+        category,
+        side: 'yes',
+        stake: absAmount,
+        payout: absAmount,
+        status: 'void',
+        openedAt: isoDate,
+        closedAt: isoDate,
+      });
+    } else if (tx.type === 'bet') {
+      txPositions.push({
+        marketId: `tx-${index}-${tx.hash.slice(0, 8)}`,
+        title: tx.description,
+        category,
+        side: 'yes',
+        stake: absAmount,
+        payout: 0,
+        status: 'lost',
+        openedAt: isoDate,
+        closedAt: isoDate,
+      });
+    }
+  });
+
+  return [...txPositions, ...betPositions];
+}
+
+export const mockPortfolioPositions: Position[] = mapMockDataToPositions(
+  mockActiveBets,
+  allTransactions
+);
