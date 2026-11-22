@@ -3,10 +3,17 @@
 import { ModerationBanner } from '@/components/moderation/ModerationBanner';
 import { MarketStatusBadge } from '@/components/moderation/MarketStatusBadge';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import type { ModerationState } from '@/types/moderation';
 
-const STATES: ModerationState[] = ['under_review', 'paused', 'restricted', 'flagged', 'removed', 'resolving'];
+const STATES: ModerationState[] = [
+  'under_review',
+  'paused',
+  'restricted',
+  'flagged',
+  'removed',
+  'resolving',
+  'reported',
+];
 
 // Simulated market list card
 function MockMarketCard({ title, category, state }: { title: string; category: string; state?: ModerationState }) {
@@ -56,6 +63,13 @@ export default function ModerationDemoPage() {
           {STATES.map((state) => (
             <ModerationBanner key={state} state={state} />
           ))}
+          {/* Also demonstrate threshold flag override */}
+          <div className="pt-2">
+            <p className="text-xs text-muted-foreground mb-2 font-mono">
+              Demo: &lt;ModerationBanner reportThresholdReached=&#123;true&#125; /&gt;
+            </p>
+            <ModerationBanner reportThresholdReached={true} />
+          </div>
         </div>
       </section>
 
@@ -81,6 +95,7 @@ export default function ModerationDemoPage() {
           <MockMarketCard title="US Election 2026 Senate Majority" category="Politics" state="paused" />
           <MockMarketCard title="AAPL Q2 Earnings Beat?" category="Stocks" state="restricted" />
           <MockMarketCard title="Will the Fed cut rates in Q3?" category="Economics" state="resolving" />
+          <MockMarketCard title="Solana TPS benchmark record in Q4?" category="Crypto" state="reported" />
         </div>
       </section>
     </div>

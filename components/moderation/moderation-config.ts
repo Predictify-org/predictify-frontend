@@ -61,4 +61,14 @@ export const MODERATION_CONFIG: Record<ModerationState, ModerationConfig> = {
       'border-blue-400/50 bg-blue-50 text-blue-900 dark:bg-blue-950/20 dark:text-blue-300 [&>svg]:text-blue-500',
     badgeClass: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300',
   },
+  reported: {
+    label: 'Under Community Report',
+    title: 'This market is under community report.',
+    description: 'Community members have reported concerns about this market. It is being reviewed by moderators.',
+    allowedActions: 'Trading remains available with caution advised.',
+    learnMoreHref: '/help/moderation#reported',
+    bannerClass:
+      'border-amber-500/50 bg-amber-50 text-amber-900 dark:bg-amber-950/25 dark:text-amber-200 [&>svg]:text-amber-600',
+    badgeClass: 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/35 dark:text-amber-200',
+  },
 };
