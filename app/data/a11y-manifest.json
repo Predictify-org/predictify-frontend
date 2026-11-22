@@ -3,7 +3,7 @@
   "campaign": "GrantFox",
   "lastUpdated": "2026-07-25",
   "summary": {
-    "verified": 8,
+    "verified": 14,
     "partial": 1,
     "followUpRequired": 0
   },
@@ -178,6 +178,58 @@
         "app/components/__tests__/AboutMarketModal.test.tsx"
       ],
       "notes": "Modal implements DialogContentWithFocusReturn for focus management, includes descriptive screen reader text, and uses context-safe Tailwind colors."
+    },
+    {
+      "id": "markets-route",
+      "name": "Markets route",
+      "status": "verified",
+      "area": "Markets browsing",
+      "auditScope": ["default market list", "keyboard category filter", "no-results state"],
+      "evidence": ["app/markets/page.tsx", "app/__tests__/a11y-routes.test.tsx", "test-utils/axe.ts"],
+      "notes": "The open Radix Select listbox is keyboard-checked; its body-level portal is excluded from axe's region rule because it renders outside the route landmark."
+    },
+    {
+      "id": "market-detail-route",
+      "name": "Market detail route",
+      "status": "verified",
+      "area": "Market details",
+      "auditScope": ["market detail content", "inactive tab panels"],
+      "evidence": ["app/markets/[id]/page.tsx", "app/__tests__/a11y-routes.test.tsx", "test-utils/axe.ts"],
+      "notes": "Axe runs on the rendered market detail page before and after activating the Activity tab."
+    },
+    {
+      "id": "claims-route",
+      "name": "Claims route",
+      "status": "verified",
+      "area": "Claims",
+      "auditScope": ["loading state", "populated claim list", "filtered empty state"],
+      "evidence": ["app/(dashboard)/claims/page.tsx", "app/__tests__/a11y-routes.test.tsx", "test-utils/axe.ts"],
+      "notes": "Axe coverage includes the loading and populated route states, and the filtered empty-state component."
+    },
+    {
+      "id": "disputes-route",
+      "name": "Disputes route",
+      "status": "verified",
+      "area": "Disputes",
+      "auditScope": ["default dispute list", "filtered empty state", "open review dialog"],
+      "evidence": ["app/(dashboard)/disputes/page.tsx", "app/__tests__/a11y-routes.test.tsx", "test-utils/axe.ts"],
+      "notes": "Axe coverage exercises the list, no-results state, and open review dialog."
+    },
+    {
+      "id": "settings-routes",
+      "name": "Settings routes",
+      "status": "verified",
+      "area": "Settings",
+      "auditScope": ["account settings", "inactive account tab", "language settings", "motion settings", "privacy settings"],
+      "evidence": [
+        "app/settings/account/page.tsx",
+        "app/settings/language/page.tsx",
+        "app/settings/motion/page.tsx",
+        "app/settings/privacy/page.tsx",
+        "app/__tests__/a11y-routes.test.tsx",
+        "test-utils/axe.ts"
+      ],
+      "notes": "Each settings page is rendered and audited; the inactive Privacy tab is also activated and checked."
     }
   ]
 }
