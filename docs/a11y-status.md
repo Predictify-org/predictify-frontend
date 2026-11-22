@@ -26,6 +26,11 @@ components and interaction flows.
 | `MobileBottomTabs badge` | Verified | Custom red badge shows unread counts visually while aria-labels announce unread status | `components/navbar/MobileBottomTabs.tsx`, `components/navbar/__tests__/MobileBottomTabs.test.tsx` |
 | `AboutMarketModal` | Verified | Focus restoration via DialogContentWithFocusReturn, screen-reader text, and Tailwind color-contrast consistency | `app/components/AboutMarketModal.tsx`, `app/components/__tests__/AboutMarketModal.test.tsx` |
 | `RouteDocumentTitle (#457)` | Verified | Per-route document.title updates, missing route coverage (/claims, /markets, /a11y-audit, /settings/privacy), ARIA live region announcement for SR on SPA navigation | `app/hooks/useDocumentTitle.ts`, `app/hooks/__tests__/useDocumentTitle.test.tsx`, `docs/DOCUMENT_TITLES.md` |
+| Markets route | Verified | Default list, keyboard category filter, and no-results state | `app/markets/page.tsx`, `app/__tests__/a11y-routes.test.tsx`, `test-utils/axe.ts` |
+| Market detail route | Verified | Market detail content and inactive tab panels | `app/markets/[id]/page.tsx`, `app/__tests__/a11y-routes.test.tsx`, `test-utils/axe.ts` |
+| Claims route | Verified | Loading, populated list, and filtered empty state | `app/(dashboard)/claims/page.tsx`, `app/__tests__/a11y-routes.test.tsx`, `test-utils/axe.ts` |
+| Disputes route | Verified | Default list, filtered empty state, and open review dialog | `app/(dashboard)/disputes/page.tsx`, `app/__tests__/a11y-routes.test.tsx`, `test-utils/axe.ts` |
+| Settings routes | Verified | Account, inactive account tab, language, motion, and privacy settings | `app/settings/account/page.tsx`, `app/settings/language/page.tsx`, `app/settings/motion/page.tsx`, `app/settings/privacy/page.tsx`, `app/__tests__/a11y-routes.test.tsx`, `test-utils/axe.ts` |
 
 ## Notes
 
@@ -33,6 +38,10 @@ components and interaction flows.
 
 These components now have explicit audit evidence in either focused test coverage,
 implementation notes, or design-token documentation that supports WCAG 2.1 AA review.
+The priority route suite uses `jest-axe`; jsdom color contrast is excluded because
+it cannot calculate rendered color contrast. The open Radix Select menu is checked
+for keyboard access and its option name, but its body-level portal is excluded from
+axe's landmark-region assertion because it renders outside the route landmark.
 
 ### Partial
 

@@ -107,6 +107,11 @@ docs(readme): update setup instructions
 - Ensure all tests pass: `pnpm test`
 - Aim for good test coverage
 - Test both success and error cases
+- For a new or changed priority route, add representative rendered states to
+  `app/__tests__/a11y-routes.test.tsx` and run axe with
+  `expectNoA11yViolations` from `test-utils/axe.ts`. Include loading/empty states
+  and open dialogs or menus where applicable, and update
+  `app/data/a11y-manifest.json` plus `docs/a11y-status.md` with the evidence.
 
 ## Pull Request Process
 
