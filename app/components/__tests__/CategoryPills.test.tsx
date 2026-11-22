@@ -111,7 +111,7 @@ describe("CategoryPills", () => {
 
     it("shows right fade when content overflows and scrolled to start", () => {
       const { container } = render(<CategoryPills categories={categories} selected={[]} onToggle={jest.fn()} />)
-      const scrollEl = container.querySelector('[role="group"]')!
+      const scrollEl = container.querySelector<HTMLElement>('[role="group"]')!
       mockOverflow(scrollEl, { scrollLeft: 0 })
       fireEvent.scroll(scrollEl)
       const fades = container.querySelectorAll('[aria-hidden="true"]')
@@ -120,7 +120,7 @@ describe("CategoryPills", () => {
 
     it("shows left and right fades when scrolled to middle", () => {
       const { container } = render(<CategoryPills categories={categories} selected={[]} onToggle={jest.fn()} />)
-      const scrollEl = container.querySelector('[role="group"]')!
+      const scrollEl = container.querySelector<HTMLElement>('[role="group"]')!
       mockOverflow(scrollEl, { scrollLeft: 100 })
       fireEvent.scroll(scrollEl)
       const fades = container.querySelectorAll('[aria-hidden="true"]')
@@ -129,7 +129,7 @@ describe("CategoryPills", () => {
 
     it("shows left fade when scrolled to end", () => {
       const { container } = render(<CategoryPills categories={categories} selected={[]} onToggle={jest.fn()} />)
-      const scrollEl = container.querySelector('[role="group"]')!
+      const scrollEl = container.querySelector<HTMLElement>('[role="group"]')!
       mockOverflow(scrollEl, { scrollLeft: 1500 })
       fireEvent.scroll(scrollEl)
       const fades = container.querySelectorAll('[aria-hidden="true"]')
@@ -138,7 +138,7 @@ describe("CategoryPills", () => {
 
     it("hides fades when content does not overflow", () => {
       const { container } = render(<CategoryPills categories={categories} selected={[]} onToggle={jest.fn()} />)
-      const scrollEl = container.querySelector('[role="group"]')!
+      const scrollEl = container.querySelector<HTMLElement>('[role="group"]')!
       mockOverflow(scrollEl, { scrollLeft: 0, scrollWidth: 500, clientWidth: 500 })
       fireEvent.scroll(scrollEl)
       const fades = container.querySelectorAll('[aria-hidden="true"]')

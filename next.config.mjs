@@ -15,12 +15,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  typescript: {
-    // The legacy test and design-system trees are not part of the production
-    // bundle and currently have API drift. Keep the production bundle buildable
-    // while those checks are migrated.
-    ignoreBuildErrors: true,
-  },
   images: {
     // Enable image optimization in production
     unoptimized: false,
