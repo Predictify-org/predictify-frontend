@@ -17,13 +17,21 @@ describe("CountdownChip", () => {
   });
 
   it("calculates time remaining accurately", () => {
-    const future = new Date(Date.now() + (2 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000 + 15 * 60 * 1000 + 45 * 1000));
-    const rem = calculateTimeRemaining(future);
-    expect(rem.days).toBe(2);
-    expect(rem.hours).toBe(3);
-    expect(rem.minutes).toBe(15);
-    expect(rem.seconds).toBe(45);
-    expect(rem.isExpired).toBe(false);
+    // Fix the clock so the target and Date.now() cannot drift by a millisecond
+    // between constructing the date and evaluating it.
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    try {
+      const future = new Date("2026-01-03T03:15:45.000Z");
+      const rem = calculateTimeRemaining(future);
+      expect(rem.days).toBe(2);
+      expect(rem.hours).toBe(3);
+      expect(rem.minutes).toBe(15);
+      expect(rem.seconds).toBe(45);
+      expect(rem.isExpired).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("renders live countdown with targetDate", () => {
