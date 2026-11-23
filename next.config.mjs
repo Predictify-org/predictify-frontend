@@ -10,6 +10,9 @@ const isProduction = process.env.NODE_ENV === 'production';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  env: {
+    NEXT_PUBLIC_USE_MOCKS: process.env.NEXT_PUBLIC_USE_MOCKS || 'false',
+  },
   // Only ignore build errors in development for faster iteration
   // In production, we want to catch all errors
   eslint: {

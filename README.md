@@ -109,11 +109,15 @@ NEXT_PUBLIC_STELLAR_NETWORK=testnet
 
 # API Configuration (if applicable)
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
+# Use the local event fixtures instead of the API in development
+NEXT_PUBLIC_USE_MOCKS=true
 
 # Application Configuration
 NEXT_PUBLIC_APP_NAME=Predictify
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+Events use the configured `NEXT_PUBLIC_API_URL` by default. Tests automatically use fixtures; set `NEXT_PUBLIC_USE_MOCKS=true` to use local event fixtures during development without a backend.
 
 ### 4. Run the Development Server
 
