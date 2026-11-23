@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSavedMarketsStore } from "@/app/state/saved-markets";
 import { BookmarkCheck, BookmarkPlus } from "lucide-react";
-
-const STORAGE_KEY = "predictify-saved-markets";
 
 interface SaveForLaterProps {
   marketId: string;
@@ -11,44 +9,10 @@ interface SaveForLaterProps {
 }
 
 export function SaveForLater({ marketId, marketTitle }: SaveForLaterProps) {
-  const [isSaved, setIsSaved] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        return;
-      }
-
-      const savedIds = JSON.parse(raw) as string[];
-      setIsSaved(savedIds.includes(marketId));
-    } catch {
-      // Ignore malformed storage payloads and fall back to the default state.
-    }
-  }, [marketId]);
+  const isSaved = useSavedMarketsStore((state) => state.isSaved(marketId));
 
   const handleToggle = () => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      const savedIds = raw ? (JSON.parse(raw) as string[]) : [];
-
-      const nextSavedIds = isSaved
-        ? savedIds.filter((id) => id !== marketId)
-        : [...new Set([...savedIds, marketId])];
-
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSavedIds));
-      setIsSaved(!isSaved);
-    } catch {
-      // Fail closed: keep the UI responsive even if storage is unavailable.
-    }
+    useSavedMarketsStore.getState().toggle(marketId);
   };
 
   return (

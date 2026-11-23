@@ -59,16 +59,24 @@ export const useFollowsStore = create<FollowsState>()(
       // Zustand persist doesn't serialise Set natively — convert to/from array.
       storage: {
         getItem: (key) => {
-          const raw = localStorage.getItem(key);
-          if (!raw) return null;
-          const parsed = JSON.parse(raw);
-          return {
-            ...parsed,
-            state: {
-              ...parsed.state,
-              followedIds: new Set<string>(parsed.state.followedIds ?? []),
-            },
-          };
+          if (typeof window === "undefined") return null;
+          try {
+            const raw = window.localStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const ids = Array.isArray(parsed?.state?.followedIds)
+              ? parsed.state.followedIds
+              : [];
+            return {
+              ...parsed,
+              state: {
+                ...parsed.state,
+                followedIds: new Set<string>(ids),
+              },
+            };
+          } catch {
+            return null;
+          }
         },
         setItem: (key, value) => {
           const serialisable = {

@@ -3,7 +3,7 @@ import type { Event, EventFilters, EventSort, PaginationState } from "@/types/ev
 
 // Mock data matching the designs
 // MODIFIED: Added `participants` field to each event
-const mockEvents: Event[] = [
+export const mockEvents: Event[] = [
   {
     id: "1",
     title: "Arsenal vs Liverpool",
