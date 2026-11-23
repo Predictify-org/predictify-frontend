@@ -1,226 +1,17 @@
 import { create } from "zustand"
 import type { Event, EventFilters, EventSort, PaginationState } from "@/types/events"
+import { EventsApiError, getEventsAdapter } from "@/lib/events-api"
+import type { EventsAdapter, EventsPage, FetchEventsOptions } from "@/lib/events-api"
 
-// Mock data matching the designs
-// MODIFIED: Added `participants` field to each event
+export type EventsFetcher = EventsAdapter["fetchEvents"]
+export type EventsLoadErrorKind = EventsApiError["kind"]
 export const mockEvents: Event[] = [
-  {
-    id: "1",
-    title: "Arsenal vs Liverpool",
-    txHash: "TXN12345",
-    category: "Football",
-    odds: 7.0,
-    startDate: "2025-04-12T14:00:00Z",
-    endDate: "2025-12-12T16:00:00Z",
-    status: "ongoing",
-    timeRemaining: "90:09:32:55",
-    timeRemainingMs: 90 * 24 * 60 * 60 * 1000 + 9 * 60 * 60 * 1000 + 32 * 60 * 1000 + 55 * 1000,
-    participants: 1245,
-  },
-  {
-    id: "2",
-    title: "Trump vs Kamala",
-    txHash: "TXN12345",
-    category: "Politics",
-    odds: 7.0,
-    startDate: "2025-04-12T14:00:00Z",
-    endDate: "2025-12-12T16:00:00Z",
-    status: "ongoing",
-    timeRemaining: "29:09:32:55",
-    timeRemainingMs: 29 * 24 * 60 * 60 * 1000 + 9 * 60 * 60 * 1000 + 32 * 60 * 1000 + 55 * 1000,
-    participants: 5432,
-  },
-  {
-    id: "3",
-    title: "Bitcoin Price",
-    txHash: "TXN12345",
-    category: "Crypto",
-    odds: 7.0,
-    startDate: "2025-04-12T14:00:00Z",
-    endDate: "2025-12-12T16:00:00Z",
-    status: "ongoing",
-    timeRemaining: "00:01:32:55",
-    timeRemainingMs: 1 * 60 * 60 * 1000 + 32 * 60 * 1000 + 55 * 1000,
-    participants: 876,
-  },
-  {
-    id: "4",
-    title: "Tesla Stocks",
-    txHash: "TXN12345",
-    category: "Stocks",
-    odds: 7.0,
-    startDate: "2025-04-12T14:00:00Z",
-    endDate: "2025-12-12T16:00:00Z",
-    status: "ongoing",
-    timeRemaining: "00:00:32:55",
-    timeRemainingMs: 32 * 60 * 1000 + 55 * 1000,
-    participants: 654,
-  },
-  {
-    id: "5",
-    title: "Manchester United vs Chelsea",
-    txHash: "TXN12346",
-    category: "Football",
-    odds: 5.5,
-    startDate: "2025-04-15T15:00:00Z",
-    endDate: "2025-12-15T17:00:00Z",
-    status: "ongoing",
-    timeRemaining: "45:12:15:30",
-    timeRemainingMs: 45 * 24 * 60 * 60 * 1000 + 12 * 60 * 60 * 1000 + 15 * 60 * 1000 + 30 * 1000,
-    participants: 2341,
-  },
-  {
-    id: "6",
-    title: "Ethereum Price Prediction",
-    txHash: "TXN12347",
-    category: "Crypto",
-    odds: 8.2,
-    startDate: "2025-04-20T10:00:00Z",
-    endDate: "2025-12-20T10:00:00Z",
-    status: "ongoing",
-    timeRemaining: "60:05:45:20",
-    timeRemainingMs: 60 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000 + 45 * 60 * 1000 + 20 * 1000,
-    participants: 1102,
-  },
-  {
-    id: "7",
-    title: "Apple Stock Performance",
-    txHash: "TXN12348",
-    category: "Stocks",
-    odds: 6.8,
-    startDate: "2025-04-25T09:30:00Z",
-    endDate: "2025-12-25T16:00:00Z",
-    status: "ongoing",
-    timeRemaining: "75:06:30:45",
-    timeRemainingMs: 75 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000 + 30 * 60 * 1000 + 45 * 1000,
-    participants: 789,
-  },
-  {
-    id: "8",
-    title: "Biden vs DeSantis",
-    txHash: "TXN12349",
-    category: "Politics",
-    odds: 4.5,
-    startDate: "2025-05-01T12:00:00Z",
-    endDate: "2025-12-31T23:59:00Z",
-    status: "ongoing",
-    timeRemaining: "120:11:59:15",
-    timeRemainingMs: 120 * 24 * 60 * 60 * 1000 + 11 * 60 * 60 * 1000 + 59 * 60 * 1000 + 15 * 1000,
-    participants: 3210,
-  },
-  {
-    id: "9",
-    title: "Real Madrid vs Barcelona",
-    txHash: "TXN12350",
-    category: "Football",
-    odds: 9.1,
-    startDate: "2025-05-05T20:00:00Z",
-    endDate: "2025-12-05T22:00:00Z",
-    status: "ongoing",
-    timeRemaining: "35:02:00:00",
-    timeRemainingMs: 35 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000,
-    participants: 4567,
-  },
-  {
-    id: "10",
-    title: "Dogecoin Price Target",
-    txHash: "TXN12351",
-    category: "Crypto",
-    odds: 3.7,
-    startDate: "2025-05-10T08:00:00Z",
-    endDate: "2025-12-10T08:00:00Z",
-    status: "ongoing",
-    timeRemaining: "15:00:00:00",
-    timeRemainingMs: 15 * 24 * 60 * 60 * 1000,
-    participants: 543,
-  },
-  {
-    id: "11",
-    title: "Google Stock Split",
-    txHash: "TXN12352",
-    category: "Stocks",
-    odds: 7.3,
-    startDate: "2025-05-15T10:00:00Z",
-    endDate: "2025-12-15T16:00:00Z",
-    status: "ongoing",
-    timeRemaining: "25:06:00:00",
-    timeRemainingMs: 25 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000,
-    participants: 918,
-  },
-  {
-    id: "12",
-    title: "Climate Change Summit",
-    txHash: "TXN12353",
-    category: "Politics",
-    odds: 5.9,
-    startDate: "2025-05-20T14:00:00Z",
-    endDate: "2025-12-20T18:00:00Z",
-    status: "ongoing",
-    timeRemaining: "55:04:00:00",
-    timeRemainingMs: 55 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000,
-    participants: 1678,
-  },
-  {
-    id: "13",
-    title: "World Cup Final",
-    txHash: "TXN12354",
-    category: "Football",
-    odds: 8.5,
-    startDate: "2025-06-01T19:00:00Z",
-    endDate: "2026-01-01T21:00:00Z",
-    status: "upcoming",
-    timeRemaining: "180:19:00:00",
-    timeRemainingMs: 180 * 24 * 60 * 60 * 1000 + 19 * 60 * 60 * 1000,
-    participants: 312,
-  },
-  {
-    id: "14",
-    title: "Presidential Election",
-    txHash: "TXN12355",
-    category: "Politics",
-    odds: 6.2,
-    startDate: "2025-06-15T08:00:00Z",
-    endDate: "2026-01-15T20:00:00Z",
-    status: "upcoming",
-    timeRemaining: "200:12:00:00",
-    timeRemainingMs: 200 * 24 * 60 * 60 * 1000 + 12 * 60 * 60 * 1000,
-    participants: 456,
-  },
-  {
-    id: "15",
-    title: "Super Bowl 2024",
-    txHash: "TXN12356",
-    category: "Football",
-    odds: 4.8,
-    startDate: "2024-02-11T18:30:00Z",
-    endDate: "2024-02-11T22:00:00Z",
-    status: "past",
-    timeRemaining: "00:00:00:00",
-    timeRemainingMs: 0,
-    participants: 8901,
-  },
-  {
-    id: "16",
-    title: "Bitcoin Halving 2024",
-    txHash: "TXN12357",
-    category: "Crypto",
-    odds: 9.5,
-    startDate: "2024-04-20T00:00:00Z",
-    endDate: "2024-04-20T23:59:00Z",
-    status: "past",
-    timeRemaining: "00:00:00:00",
-    timeRemainingMs: 0,
-    participants: 6743,
-  },
-]
-
-export type EventsFetcher = () => Promise<Event[]>
-export type EventsLoadErrorKind = "invalid" | "network" | "permission"
 
 interface EventsStore {
   // Data
   events: Event[]
   filteredEvents: Event[]
+  nextCursor: string | null
   loading: boolean
   error: string | null
   loadErrorKind: EventsLoadErrorKind | null
@@ -243,6 +34,7 @@ interface EventsStore {
   lastFetchTime: number | null
   nextPageRequestId: number
   loadRequestId: number
+  eventsFetcher: EventsFetcher | null
 
   // Actions
   setFilters: (filters: Partial<EventFilters>) => void
@@ -255,7 +47,7 @@ interface EventsStore {
   loadEvents: (fetcher?: EventsFetcher) => Promise<void>
   retryLoadEvents: () => Promise<void>
   /** Atomically reconcile a live snapshot while keeping the current page anchored. */
-  applyLiveEvents: (events: Event[]) => boolean
+  applyLiveEvents: (events: Event[], nextCursor?: string | null) => boolean
   /** NEW: Delete an event by its id */
   deleteEvent: (id: string) => void
   /** NEW: Load next page for infinite scroll */
@@ -269,7 +61,8 @@ interface EventsStore {
 // Stale time threshold: 60 seconds
 const STALE_TIME_MS = 60 * 1000
 
-let lastEventsFetcher: EventsFetcher | null = null
+let activeLoadController: AbortController | null = null
+let activeNextPageController: AbortController | null = null
 
 const getPageAnchor = (events: Event[], page: number, pageSize: number) =>
   events[(page - 1) * pageSize]?.id ?? null
@@ -295,7 +88,10 @@ const isValidEvent = (event: unknown): event is Event => {
     typeof candidate.startDate === "string" &&
     Number.isFinite(Date.parse(candidate.startDate)) &&
     typeof candidate.endDate === "string" &&
-    Number.isFinite(Date.parse(candidate.endDate))
+    Number.isFinite(Date.parse(candidate.endDate)) &&
+    (candidate.resolutionDate === undefined ||
+      (typeof candidate.resolutionDate === "string" &&
+        Number.isFinite(Date.parse(candidate.resolutionDate))))
   )
 }
 
@@ -314,6 +110,19 @@ const validateSnapshot = (events: unknown): Event[] | null => {
 }
 
 const classifyLoadError = (error: unknown) => {
+  if (error instanceof EventsApiError) {
+    return {
+      kind: error.kind,
+      message:
+        error.kind === "permission"
+          ? "You do not have permission to refresh these markets."
+          : error.kind === "invalid"
+            ? "Market refresh returned invalid data. Showing the last available data."
+            : "Could not refresh markets. Showing the last available data.",
+      retryable: error.kind !== "permission",
+    }
+  }
+
   const status =
     typeof error === "object" && error !== null && "status" in error
       ? Number((error as { status?: unknown }).status)
@@ -336,8 +145,9 @@ const classifyLoadError = (error: unknown) => {
 
 export const useEventsStore = create<EventsStore>((set, get) => ({
   // Initial state
-  events: mockEvents,
-  filteredEvents: mockEvents.filter((e) => e.status === "ongoing"),
+  events: [],
+  filteredEvents: [],
+  nextCursor: null,
   loading: false,
   error: null,
   loadErrorKind: null,
@@ -377,6 +187,7 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
   lastFetchTime: null,
   nextPageRequestId: 0,
   loadRequestId: 0,
+  eventsFetcher: null,
 
   // Actions
   setFilters: (newFilters) => {
@@ -448,6 +259,7 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
   syncFilterAndCursor: () => {
     const { filterVersion } = get()
 
+    activeNextPageController?.abort()
     set((state) => ({
       pagination: {
         ...state.pagination,
@@ -457,9 +269,11 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
       },
       hasNextPage: true,
       isFetchingNextPage: false,
+      nextCursor: null,
       nextPageRequestId: state.nextPageRequestId + 1,
     }))
     get().applyFilters()
+    void get().loadEvents()
   },
 
   applyFilters: (anchorId = null) => {
@@ -535,12 +349,12 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
           filterVersion: state.filterVersion,
         },
         appliedFilterVersion: state.filterVersion,
-        hasNextPage: page * state.pagination.pageSize < filtered.length,
+        hasNextPage: state.nextCursor !== null,
       }
     })
   },
 
-  applyLiveEvents: (events) => {
+  applyLiveEvents: (events, nextCursor = null) => {
     const snapshot = validateSnapshot(events)
     if (!snapshot) {
       console.warn("[events-store] Rejected invalid market snapshot")
@@ -563,6 +377,12 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
     // snapshot can never partially replace the last known-good market list.
     set({
       events: snapshot,
+      nextCursor,
+      hasNextPage: nextCursor !== null,
+      pagination: {
+        ...state.pagination,
+        cursor: nextCursor,
+      },
       error: null,
       loadErrorKind: null,
       canRetry: false,
@@ -575,32 +395,53 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
   },
 
   loadEvents: async (fetcher) => {
-    if (fetcher) lastEventsFetcher = fetcher
+    if (fetcher) set({ eventsFetcher: fetcher })
 
     const requestId = get().loadRequestId + 1
+    activeLoadController?.abort()
+    activeNextPageController?.abort()
+    const controller = new AbortController()
+    activeLoadController = controller
     set({
       loading: true,
       error: null,
       loadErrorKind: null,
       canRetry: false,
       loadRequestId: requestId,
+      isFetchingNextPage: false,
+      nextPageRequestId: get().nextPageRequestId + 1,
+      hasNextPage: true,
+      nextCursor: null,
+      pagination: {
+        ...get().pagination,
+        cursor: null,
+      },
     })
 
     try {
-      const snapshot = fetcher
-        ? await fetcher()
-        : await new Promise<Event[]>((resolve) =>
-            setTimeout(() => resolve(get().events), 1000),
-          )
+      const { filters, pagination } = get()
+      const options: FetchEventsOptions = {
+        status: filters.status,
+        category: filters.category,
+        search: filters.search,
+        cursor: null,
+        limit: pagination.pageSize,
+        signal: controller.signal,
+      }
+      const activeFetcher = get().eventsFetcher
+      const page: EventsPage = activeFetcher
+        ? await activeFetcher(options)
+        : await (await getEventsAdapter()).fetchEvents(options)
 
       // Only the newest refresh may commit. This prevents a slow retry from
       // overwriting a newer live snapshot or clearing its error state.
       if (get().loadRequestId !== requestId) return
 
-      const accepted = get().applyLiveEvents(snapshot)
+      const accepted = get().applyLiveEvents(page.events, page.nextCursor)
       if (!accepted && get().loadRequestId === requestId) set({ loading: false })
     } catch (error) {
       if (get().loadRequestId !== requestId) return
+      if (error instanceof Error && error.name === "AbortError") return
 
       const failure = classifyLoadError(error)
       console.warn("[events-store] Market refresh failed", { kind: failure.kind })
@@ -614,7 +455,7 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
   },
 
   retryLoadEvents: async () => {
-    await get().loadEvents(lastEventsFetcher ?? undefined)
+    await get().loadEvents()
   },
 
   /** NEW: Delete an event by id and re-apply filters */
@@ -633,20 +474,36 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
 
   /** NEW: Load next page for infinite scroll */
   loadNextPage: async () => {
-    const { isFetchingNextPage, hasNextPage, pagination, filteredEvents, filterVersion } = get()
-    
-    if (isFetchingNextPage || !hasNextPage) return
+    const { isFetchingNextPage, hasNextPage, nextCursor, pagination, filterVersion } = get()
+
+    if (isFetchingNextPage || !hasNextPage || nextCursor === null) return
 
     const requestId = get().nextPageRequestId + 1
-    set({ isFetchingNextPage: true, error: null, nextPageRequestId: requestId })
-    
+    activeNextPageController?.abort()
+    const controller = new AbortController()
+    activeNextPageController = controller
+    set({
+      isFetchingNextPage: true,
+      error: null,
+      loadErrorKind: null,
+      canRetry: false,
+      nextPageRequestId: requestId,
+    })
+
     try {
-      // Simulate API call for next page
-      await new Promise((resolve) => setTimeout(resolve, 800))
-      
-      const nextPage = pagination.page + 1
-      const startIndex = (nextPage - 1) * pagination.pageSize
-      const endIndex = startIndex + pagination.pageSize
+      const { filters } = get()
+      const options: FetchEventsOptions = {
+        status: filters.status,
+        category: filters.category,
+        search: filters.search,
+        cursor: nextCursor,
+        limit: pagination.pageSize,
+        signal: controller.signal,
+      }
+      const fetcher = get().eventsFetcher
+      const page = fetcher
+        ? await fetcher(options)
+        : await (await getEventsAdapter()).fetchEvents(options)
 
       // A filter change invalidates this request; never apply an old page.
       const currentState = get()
@@ -661,26 +518,50 @@ export const useEventsStore = create<EventsStore>((set, get) => ({
         }
         return
       }
-      
-      // Check if we've reached the end
-      const hasMore = endIndex < filteredEvents.length
-      
+
+      const existingIds = new Set(currentState.events.map(({ id }) => id))
+      const combined = [...currentState.events]
+      for (const event of page.events) {
+        if (!existingIds.has(event.id)) {
+          existingIds.add(event.id)
+          combined.push(event)
+        }
+      }
+      const snapshot = validateSnapshot(combined)
+      if (!snapshot) {
+        set({
+          isFetchingNextPage: false,
+          error: "Market refresh returned invalid data. Showing the last available data.",
+          loadErrorKind: "invalid",
+          canRetry: true,
+        })
+        return
+      }
+
+      const nextPage = pagination.page + 1
       set((state) => ({
+        events: snapshot,
+        nextCursor: page.nextCursor,
         pagination: {
           ...state.pagination,
           page: nextPage,
-          cursor: String(endIndex),
+          cursor: page.nextCursor,
+          total: snapshot.length,
           filterVersion,
         },
-        hasNextPage: hasMore,
+        hasNextPage: page.nextCursor !== null,
         isFetchingNextPage: false,
         lastFetchTime: Date.now(),
       }))
+      get().applyFilters()
     } catch (error) {
-      if (get().nextPageRequestId === requestId) {
+      if (get().nextPageRequestId === requestId && !(error instanceof Error && error.name === "AbortError")) {
+        const failure = classifyLoadError(error)
         set({
           isFetchingNextPage: false,
-          error: "Failed to load more events",
+          error: failure.message,
+          loadErrorKind: failure.kind,
+          canRetry: failure.retryable,
         })
       }
     }

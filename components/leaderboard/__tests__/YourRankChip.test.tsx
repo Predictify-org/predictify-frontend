@@ -83,6 +83,13 @@ describe("YourRankChip", () => {
     expect(screen.getByText("Your Rank")).toBeInTheDocument();
   });
 
+  it("renders the initials fallback and no image when the user has no avatar URL", () => {
+    const { container } = render(<YourRankChip user={mockUser} isVisible={false} />);
+
+    expect(screen.getByText("Y")).toBeInTheDocument();
+    expect(container.querySelector("img")).toBeNull();
+  });
+
   it("has proper accessibility labels", () => {
     render(<YourRankChip user={mockUser} isVisible={false} />);
 

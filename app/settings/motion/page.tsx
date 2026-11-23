@@ -26,12 +26,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "@/app/i18n"
 
 type SaveState = "idle" | "saving" | "saved" | "error"
 
 const MOTION_STORAGE_KEY = "predictify-motion"
 
 export default function MotionSettingsPage() {
+  const { t } = useTranslation()
   const [motionReduced, setMotionReduced] = useState(false)
   const [ready, setReady] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>("idle")
@@ -94,53 +96,51 @@ export default function MotionSettingsPage() {
           id="motion-settings-heading"
           className="text-3xl font-semibold tracking-tight"
         >
-          Motion
+          {t("settings.motion.heading")}
         </h1>
         <p className="text-muted-foreground text-sm">
-          Control animations and transitions across the platform.
+          {t("settings.motion.description")}
         </p>
       </div>
 
       {/* Live region for screen reader announcements */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {saveState === "saved" ? "Motion preference saved." : ""}
-        {saveState === "error" ? "Failed to save. Please try again." : ""}
+        {saveState === "saved" ? t("settings.motion.saved") : ""}
+        {saveState === "error" ? t("settings.account.save_failed") : ""}
       </div>
 
       {/* Saved feedback */}
       {saveState === "saved" && (
         <Alert className="border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
           <Sparkles className="h-4 w-4" aria-hidden="true" />
-          <AlertDescription>Motion preference saved.</AlertDescription>
+          <AlertDescription>{t("settings.motion.saved")}</AlertDescription>
         </Alert>
       )}
       {saveState === "error" && (
         <Alert className="border-destructive/50 bg-destructive/10 text-destructive">
           <AlertCircle className="h-4 w-4" aria-hidden="true" />
-          <AlertDescription>Something went wrong. Please try again.</AlertDescription>
+          <AlertDescription>{t("settings.account.error")}</AlertDescription>
         </Alert>
       )}
 
       <Card className="border-border/70">
         <CardHeader>
-          <CardTitle>Reduced motion</CardTitle>
+          <CardTitle>{t("settings.motion.reduced_motion")}</CardTitle>
           <CardDescription>
-            Turn off animations and transitions for a calmer experience.
+            {t("settings.motion.reduced_motion_description")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-start justify-between gap-4 rounded-2xl py-2">
             <div className="space-y-1">
               <Label htmlFor="motion-reduced-toggle" className="text-sm font-medium">
-                Reduce motion globally
+                {t("settings.motion.reduce_globally")}
               </Label>
               <p
                 id="motion-reduced-description"
                 className="text-muted-foreground text-xs leading-relaxed"
               >
-                Disables CSS animations, transitions, and smooth scrolling across
-                the entire platform. This helps reduce visual fatigue and improves
-                readability for users who are sensitive to motion.
+                {t("settings.motion.reduce_description")}
               </p>
             </div>
             <Switch
@@ -153,7 +153,7 @@ export default function MotionSettingsPage() {
 
           {/* Preview of affected elements */}
           <div className="space-y-3">
-            <p className="text-sm font-medium">Current state</p>
+            <p className="text-sm font-medium">{t("settings.motion.current_state")}</p>
             <div className="flex flex-wrap gap-3">
               <span
                 className={cn(
@@ -163,10 +163,10 @@ export default function MotionSettingsPage() {
                     : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                 )}
               >
-                {motionReduced ? "Motion reduced" : "Animations enabled"}
+                {motionReduced ? t("settings.motion.reduced") : t("settings.motion.animations_enabled")}
               </span>
               <span className="text-xs text-muted-foreground">
-                {ready ? "Preference active" : "Loading…"}
+                {ready ? t("settings.motion.preference_active") : t("settings.motion.loading")}
               </span>
             </div>
           </div>

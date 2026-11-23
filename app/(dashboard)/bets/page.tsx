@@ -26,6 +26,33 @@ import { toast } from 'sonner';
 import { customToast } from '@/components/ui/custom-toast';
 import { useClaimShare } from '@/context/ClaimShareContext';
 import { Trophy } from 'lucide-react';
+import { ExportMenu } from '@/components/export/ExportMenu';
+import type { ExportColumn } from '@/lib/export/csv';
+import { usePrivacy } from '@/context/PrivacyContext';
+
+interface BetExportRow {
+  id: string;
+  title: string;
+  category: string;
+  startDate: Date;
+  endDate: Date;
+  odds: number | null;
+  amount: number | null;
+  currency: string;
+  status: string;
+}
+
+const betExportColumns: ExportColumn<BetExportRow>[] = [
+  { key: 'id', label: 'ID' },
+  { key: 'title', label: 'Market' },
+  { key: 'category', label: 'Category' },
+  { key: 'startDate', label: 'Start date' },
+  { key: 'endDate', label: 'End date' },
+  { key: 'odds', label: 'Odds' },
+  { key: 'amount', label: 'Amount' },
+  { key: 'currency', label: 'Currency' },
+  { key: 'status', label: 'Status' },
+];
 
 // Mock data for events table (matching the image layout)
 const eventsData = [
@@ -134,6 +161,7 @@ const TimeRemainingBar = ({ timeRemaining }: { timeRemaining: string }) => {
 };
 
 export default function BetsPage() {
+  const { hideBalances } = usePrivacy();
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -188,8 +216,29 @@ export default function BetsPage() {
     return matchesSearch && matchesCategory;
   });
 
+  const exportRows: BetExportRow[] = mockActiveBets.map((bet) => ({
+    id: bet.id,
+    title: bet.title,
+    category: bet.category.name,
+    startDate: bet.startDate,
+    endDate: bet.endDate,
+    odds: bet.odds ?? null,
+    amount: bet.amount ?? null,
+    currency: bet.currency ?? '',
+    status: bet.status,
+  }));
+
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex justify-end">
+        <ExportMenu
+          rows={exportRows}
+          columns={betExportColumns}
+          filename="predictify-positions"
+          hideBalances={hideBalances}
+          sensitiveColumns={['amount']}
+        />
+      </div>
       {/* Active Bets Section */}
       <ActiveBets
         bets={mockActiveBets}

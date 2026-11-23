@@ -4,20 +4,21 @@ import { Home, TrendingUp, Lightbulb, Wallet, MoreHorizontal, Bookmark, LucideIc
 import { cn } from '@/lib/utils';
 import { useNotificationsStore } from '@/app/state/notifications';
 import { NotificationItem } from '@/types/notifications';
+import { useTranslation } from '@/app/i18n';
 
 interface TabItem {
-  label: string;
+  labelKey: string;
   href: string;
   Icon: LucideIcon;
 }
 
 const tabs: TabItem[] = [
-  { label: 'Home', href: '/', Icon: Home },
-  { label: 'Markets', href: '/markets', Icon: TrendingUp },
+  { labelKey: 'nav.home', href: '/', Icon: Home },
+  { labelKey: 'nav.markets', href: '/markets', Icon: TrendingUp },
+  { labelKey: 'nav.predictions_short', href: '/mypredictions', Icon: Lightbulb },
+  { labelKey: 'nav.wallet_short', href: '/wallet', Icon: Wallet },
+  { labelKey: 'nav.more', href: '/more', Icon: MoreHorizontal },
   { label: 'Watchlist', href: '/watchlist', Icon: Bookmark },
-  { label: 'Predictions', href: '/mypredictions', Icon: Lightbulb },
-  { label: 'Wallet', href: '/wallet', Icon: Wallet },
-  { label: 'More', href: '/more', Icon: MoreHorizontal },
 ];
 
 /**
@@ -55,6 +56,7 @@ export const MobileBottomTabs: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const { notifications } = useNotificationsStore();
+  const { t } = useTranslation();
 
   const handleClick = (href: string) => {
     if (href !== pathname) {
@@ -65,14 +67,18 @@ export const MobileBottomTabs: React.FC = () => {
   return (
     <nav
       className="fixed bottom-0 inset-x-0 flex justify-around items-center bg-background/90 backdrop-blur-md border-t border-gray-700 md:hidden min-h-[44px] pb-[env(safe-area-inset-bottom)]"
-      aria-label="Mobile bottom navigation"
+      aria-label={t("nav.mobile")}
     >
       {tabs.map((tab) => {
         const isActive = pathname === tab.href;
         const unreadCount = getUnreadCountForTab(tab.href, notifications);
         
         // Build accessible announcement for screen-readers (WCAG 2.1 AA)
-        const ariaLabel = `${tab.label}${isActive ? ' (current page)' : ''}${unreadCount > 0 ? `, ${unreadCount} unread item${unreadCount === 1 ? '' : 's'}` : ''}`;
+        const label = t(tab.labelKey);
+        const unreadLabel = unreadCount === 1
+          ? t("nav.unread_item", { count: unreadCount })
+          : t("nav.unread_items", { count: unreadCount });
+        const ariaLabel = `${label}${isActive ? ` (${t("nav.current_page")})` : ''}${unreadCount > 0 ? `, ${unreadLabel}` : ''}`;
 
         return (
           <button
@@ -120,7 +126,7 @@ export const MobileBottomTabs: React.FC = () => {
                 isActive ? 'text-purple-400' : 'text-gray-500'
               )}
             >
-              {tab.label}
+              {label}
             </span>
           </button>
         );

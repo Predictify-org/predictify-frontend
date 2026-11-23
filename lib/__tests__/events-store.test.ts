@@ -1,8 +1,11 @@
 import { useEventsStore } from "../events-store"
 import type { Event } from "@/types/events"
+import type { EventsPage, FetchEventsOptions } from "../events-api"
+import { mockEvents } from "../fixtures/events"
 
-const initialState = useEventsStore.getState()
 let warnSpy: jest.SpyInstance
+let loadRequestId = 0
+let nextPageRequestId = 0
 
 const event = (id: string, title = `Market ${id}`): Event => ({
   id,
@@ -17,6 +20,9 @@ const event = (id: string, title = `Market ${id}`): Event => ({
 })
 
 beforeEach(() => {
+  const state = useEventsStore.getState()
+  loadRequestId = Math.max(loadRequestId, state.loadRequestId) + 1
+  nextPageRequestId = Math.max(nextPageRequestId, state.nextPageRequestId) + 1
   warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined)
   useEventsStore.setState({
     filters: {
@@ -37,14 +43,16 @@ beforeEach(() => {
     },
     hasNextPage: true,
     isFetchingNextPage: false,
-    nextPageRequestId: 0,
-    loadRequestId: 0,
+    nextPageRequestId,
+    loadRequestId,
+    eventsFetcher: null,
+    nextCursor: null,
     loading: false,
     error: null,
     loadErrorKind: null,
     canRetry: false,
-    events: initialState.events,
-    filteredEvents: initialState.events,
+    events: mockEvents,
+    filteredEvents: mockEvents,
   })
   useEventsStore.getState().applyFilters()
 })
@@ -70,20 +78,31 @@ describe("events filter and cursor synchronization", () => {
   })
 
   it("does not allow an in-flight page to commit after a filter change", async () => {
-    jest.useFakeTimers()
+    let resolvePage: (page: EventsPage) => void = () => undefined
+    const fetcher = jest.fn((options: FetchEventsOptions) =>
+      options.cursor
+        ? new Promise<EventsPage>((resolve) => { resolvePage = resolve })
+        : Promise.resolve({ events: [event("bitcoin", "Bitcoin")], nextCursor: null }),
+    )
+    useEventsStore.setState({
+      eventsFetcher: fetcher,
+      nextCursor: "5",
+      hasNextPage: true,
+    })
     const pageRequest = useEventsStore.getState().loadNextPage()
 
     expect(useEventsStore.getState().isFetchingNextPage).toBe(true)
     useEventsStore.getState().setSearch("Bitcoin")
-    jest.advanceTimersByTime(800)
+    await Promise.resolve()
+    await Promise.resolve()
+    resolvePage({ events: [event("stale", "Stale result")], nextCursor: null })
     await pageRequest
 
     const state = useEventsStore.getState()
     expect(state.pagination.page).toBe(1)
     expect(state.pagination.cursor).toBeNull()
     expect(state.isFetchingNextPage).toBe(false)
-    expect(state.filteredEvents.every((event) => event.title.includes("Bitcoin"))).toBe(true)
-    jest.useRealTimers()
+    expect(state.filteredEvents.map(({ id }) => id)).toEqual(["bitcoin"])
   })
 
   it("keeps duplicate filter values deterministic", () => {
@@ -91,7 +110,7 @@ describe("events filter and cursor synchronization", () => {
 
     expect(useEventsStore.getState().filters.category).toEqual(["Crypto", "Crypto"])
     expect(useEventsStore.getState().filteredEvents).toHaveLength(
-      initialState.events.filter((item) => item.status === "ongoing" && item.category === "Crypto").length,
+      mockEvents.filter((item) => item.status === "ongoing" && item.category === "Crypto").length,
     )
   })
 })
@@ -170,10 +189,36 @@ describe("stable pagination under live updates", () => {
   })
 })
 
+describe("adapter-backed event loading", () => {
+  it("loads and appends cursor pages from the selected adapter", async () => {
+    useEventsStore.setState({
+      events: [],
+      filteredEvents: [],
+      nextCursor: null,
+      hasNextPage: true,
+      pagination: { page: 1, pageSize: 5, total: 0, cursor: null, filterVersion: 0 },
+    })
+
+    await useEventsStore.getState().loadEvents()
+    expect(useEventsStore.getState().events).toHaveLength(5)
+    expect(useEventsStore.getState().nextCursor).toBe("5")
+
+    await useEventsStore.getState().loadNextPage()
+    expect(useEventsStore.getState().events).toHaveLength(10)
+    expect(useEventsStore.getState().pagination.page).toBe(2)
+    expect(useEventsStore.getState().nextCursor).toBe("10")
+
+    await useEventsStore.getState().loadNextPage()
+    expect(useEventsStore.getState().events).toHaveLength(12)
+    expect(useEventsStore.getState().nextCursor).toBeNull()
+    expect(useEventsStore.getState().hasNextPage).toBe(false)
+  })
+})
+
 describe("market refresh failure and concurrency", () => {
   it("allows only the newest concurrent refresh to commit", async () => {
-    let resolveOld: (events: Event[]) => void = () => undefined
-    let resolveNew: (events: Event[]) => void = () => undefined
+    let resolveOld: (page: EventsPage) => void = () => undefined
+    let resolveNew: (page: EventsPage) => void = () => undefined
     const oldRequest = useEventsStore
       .getState()
       .loadEvents(() => new Promise((resolve) => { resolveOld = resolve }))
@@ -181,9 +226,9 @@ describe("market refresh failure and concurrency", () => {
       .getState()
       .loadEvents(() => new Promise((resolve) => { resolveNew = resolve }))
 
-    resolveNew([event("new")])
+    resolveNew({ events: [event("new")], nextCursor: null })
     await newRequest
-    resolveOld([event("old")])
+    resolveOld({ events: [event("old")], nextCursor: null })
     await oldRequest
 
     expect(useEventsStore.getState().events.map(({ id }) => id)).toEqual(["new"])
@@ -191,13 +236,13 @@ describe("market refresh failure and concurrency", () => {
   })
 
   it("does not let an older refresh overwrite a newer live snapshot", async () => {
-    let resolveRefresh: (events: Event[]) => void = () => undefined
+    let resolveRefresh: (page: EventsPage) => void = () => undefined
     const refresh = useEventsStore
       .getState()
       .loadEvents(() => new Promise((resolve) => { resolveRefresh = resolve }))
 
     useEventsStore.getState().applyLiveEvents([event("live")])
-    resolveRefresh([event("stale")])
+    resolveRefresh({ events: [event("stale")], nextCursor: null })
     await refresh
 
     expect(useEventsStore.getState().events.map(({ id }) => id)).toEqual(["live"])
@@ -208,9 +253,9 @@ describe("market refresh failure and concurrency", () => {
     const original = [event("cached")]
     useEventsStore.getState().applyLiveEvents(original)
     const fetcher = jest
-      .fn<Promise<Event[]>, []>()
+      .fn<Promise<EventsPage>, [FetchEventsOptions]>()
       .mockRejectedValueOnce(new Error("private network details"))
-      .mockResolvedValueOnce([event("fresh")])
+      .mockResolvedValueOnce({ events: [event("fresh")], nextCursor: null })
 
     await useEventsStore.getState().loadEvents(fetcher)
     expect(useEventsStore.getState().events).toEqual(original)
