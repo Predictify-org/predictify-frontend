@@ -6,7 +6,7 @@ import {
   type ErrorReportPayload,
 } from "@/lib/error-reporting"
 
-function ThrowingChild({ message = "Render crash" }: { message?: string }) {
+function ThrowingChild({ message = "Render crash" }: { message?: string }): never {
   throw new Error(message)
 }
 
