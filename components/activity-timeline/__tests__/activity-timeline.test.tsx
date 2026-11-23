@@ -39,12 +39,34 @@ jest.mock("@/components/ui/skeleton", () => ({
   ),
 }));
 
+// Mock Avatar to avoid Radix UI composeRefs infinite loop in React 19 + jsdom
+jest.mock("@/components/ui/avatar", () => ({
+  Avatar: ({ children, className, ...props }: { children?: React.ReactNode; className?: string; [key: string]: unknown }) => (
+    <span className={className} {...props}>{children}</span>
+  ),
+  AvatarImage: ({ src, alt, ...props }: { src?: string; alt?: string; [key: string]: unknown }) => (
+    <img src={src} alt={alt ?? ""} {...props} />
+  ),
+  AvatarFallback: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+    <span {...props}>{children}</span>
+  ),
+}));
+
+// Mock Tooltip to avoid Radix UI composeRefs infinite loop in React 19 + jsdom
+jest.mock("@/components/ui/tooltip", () => ({
+  TooltipProvider: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  Tooltip: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => <span {...props}>{children}</span>,
+  TooltipContent: ({ children }: { children?: React.ReactNode }) => <span role="tooltip">{children}</span>,
+}));
+
 describe("ActivityTimeline Component", () => {
   describe("Rendering", () => {
-    it.skip("should render with default mock data", () => {
-      // SKIPPED: Radix UI composeRefs causes infinite re-render in React 19 + jsdom.
-      // The component works correctly in the browser.
+    it("should render with default mock data", () => {
       render(<ActivityTimeline />);
+      // The component generates its own mock data when no activities prop is supplied.
+      // Verify it renders without crashing and shows some content.
+      expect(screen.getByRole("list") ?? screen.getByRole("region") ?? document.body.firstChild).toBeTruthy();
     });
 
     it("should render with provided activities", () => {
@@ -244,10 +266,12 @@ describe("ActivityTimeline Component", () => {
   });
 
   describe("Pagination / Load More", () => {
-    it.skip("should render load more button when there are more items", () => {
-      // SKIPPED: Radix UI composeRefs causes infinite re-render in React 19 + jsdom.
+    it("should render load more button when there are more items", () => {
+      // 24 activities with pageSize=6 means hasMore=true after the first page.
       const activities = generateMockActivities(24);
       render(<ActivityTimeline activities={activities} pageSize={6} />);
+      const loadMoreButton = screen.getByRole("button", { name: /load older activities/i });
+      expect(loadMoreButton).toBeInTheDocument();
     });
 
     it("should not render load more button when all items are shown", () => {
@@ -260,11 +284,13 @@ describe("ActivityTimeline Component", () => {
       expect(loadMoreButton).not.toBeInTheDocument();
     });
 
-    it.skip("should call onLoadMore callback when load more is clicked", async () => {
-      // SKIPPED: Radix UI composeRefs causes infinite re-render in React 19 + jsdom.
+    it("should call onLoadMore callback when load more is clicked", async () => {
       const activities = generateMockActivities(24);
       const onLoadMore = jest.fn();
       render(<ActivityTimeline activities={activities} pageSize={6} onLoadMore={onLoadMore} />);
+      const loadMoreButton = screen.getByRole("button", { name: /load older activities/i });
+      fireEvent.click(loadMoreButton);
+      expect(onLoadMore).toHaveBeenCalledTimes(1);
     });
   });
 

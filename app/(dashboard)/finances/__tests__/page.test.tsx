@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import FinancesPage, { FinancesView } from "../page";
+import FinancesPage from "../page";
+import { FinancesView } from "../FinancesView";
 import { PrivacyProvider } from "@/context/PrivacyContext";
 import type { Position } from "@/lib/portfolio-analytics";
 
