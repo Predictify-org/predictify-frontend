@@ -1,6 +1,6 @@
 import React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Home, TrendingUp, Lightbulb, Wallet, MoreHorizontal, LucideIcon } from 'lucide-react';
+import { Home, TrendingUp, Lightbulb, Wallet, MoreHorizontal, Bookmark, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotificationsStore } from '@/app/state/notifications';
 import { NotificationItem } from '@/types/notifications';
@@ -18,6 +18,7 @@ const tabs: TabItem[] = [
   { labelKey: 'nav.predictions_short', href: '/mypredictions', Icon: Lightbulb },
   { labelKey: 'nav.wallet_short', href: '/wallet', Icon: Wallet },
   { labelKey: 'nav.more', href: '/more', Icon: MoreHorizontal },
+  { label: 'Watchlist', href: '/watchlist', Icon: Bookmark },
 ];
 
 /**

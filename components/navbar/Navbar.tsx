@@ -21,8 +21,10 @@ import { useQuietHours } from "@/lib/quiet-hours";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { Search, Sun, Moon, TrendingUp, PieChart, BarChart, Shield, BookOpen, Store } from "lucide-react";
 import { useTranslation } from "@/app/i18n";
+import { Search, Sun, Moon, TrendingUp, PieChart, BarChart, Shield, BookOpen, Bookmark } from "lucide-react";
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
+  { name: "Watchlist", href: "/watchlist", icon: Bookmark },
   { key: "nav.markets", href: "/markets", icon: TrendingUp },
   { key: "nav.my_bets", href: "/bets", icon: PieChart },
   { key: "nav.claims", href: "/claims", icon: Shield },

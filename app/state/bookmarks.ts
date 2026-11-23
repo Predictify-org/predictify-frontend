@@ -60,16 +60,24 @@ export const useBookmarksStore = create<BookmarksState>()(
       // Zustand persist doesn't serialise Set natively — convert to/from array.
       storage: {
         getItem: (key) => {
-          const raw = localStorage.getItem(key);
-          if (!raw) return null;
-          const parsed = JSON.parse(raw);
-          return {
-            ...parsed,
-            state: {
-              ...parsed.state,
-              bookmarkedIds: new Set<string>(parsed.state.bookmarkedIds ?? []),
-            },
-          };
+          if (typeof window === "undefined") return null;
+          try {
+            const raw = window.localStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const ids = Array.isArray(parsed?.state?.bookmarkedIds)
+              ? parsed.state.bookmarkedIds
+              : [];
+            return {
+              ...parsed,
+              state: {
+                ...parsed.state,
+                bookmarkedIds: new Set<string>(ids),
+              },
+            };
+          } catch {
+            return null;
+          }
         },
         setItem: (key, value) => {
           const serialisable = {

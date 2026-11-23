@@ -5,6 +5,7 @@ import type { EventsAdapter, EventsPage, FetchEventsOptions } from "@/lib/events
 
 export type EventsFetcher = EventsAdapter["fetchEvents"]
 export type EventsLoadErrorKind = EventsApiError["kind"]
+export const mockEvents: Event[] = [
 
 interface EventsStore {
   // Data
