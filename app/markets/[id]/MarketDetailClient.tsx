@@ -18,6 +18,7 @@
 import React, { Suspense, useCallback } from "react";
 import { MarketDetailTabs } from "@/components/market/MarketDetailTabs";
 import { OddsHistoryChart } from "@/components/market/OddsHistoryChart";
+import { MarketActivityFeed } from "@/components/market/MarketActivityFeed";
 import { ReportMarketDialog } from "@/components/moderation/ReportMarketDialog";
 import { MarketKbdHints } from "./MarketKbdHints";
 
@@ -88,14 +89,7 @@ export function MarketDetailClient({
             }
             odds={<OddsHistoryChart marketId={marketId} />}
             activity={
-              activity ?? (
-                <div className="text-sm text-muted-foreground">
-                  <p>
-                    Recent bets and participant activity for this market will
-                    appear here.
-                  </p>
-                </div>
-              )
+              activity ?? <MarketActivityFeed marketId={marketId} />
             }
             resolution={
               resolution ?? (
