@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { NoMatchEmptyState } from "@/components/events/NoMatchEmptyState";
 import { useGlobalLiveRegion } from "@/hooks/use-global-live-region";
+import { formatNumber, useTranslation } from "@/app/i18n";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -27,10 +28,10 @@ interface Market {
   title: string;
   category: MarketCategory;
   probability: number;
-  volume: string;
+  volume: number;
   participants: number;
   status: MarketStatus;
-  timeLeft: string;
+  daysLeft: number;
 }
 
 // ── Mock data — replace with real API call ────────────────────────────────
@@ -41,40 +42,40 @@ const MARKETS: Market[] = [
     title: "Will Argentina win the 2026 FIFA World Cup?",
     category: "Football",
     probability: 62,
-    volume: "42,000 USDC",
+    volume: 42000,
     participants: 3840,
     status: "open",
-    timeLeft: "18 days",
+    daysLeft: 18,
   },
   {
     id: "fwc26-bra",
     title: "Will Brazil reach the 2026 World Cup final?",
     category: "Football",
     probability: 48,
-    volume: "28,500 USDC",
+    volume: 28500,
     participants: 2210,
     status: "open",
-    timeLeft: "18 days",
+    daysLeft: 18,
   },
   {
     id: "btc-100k",
     title: "Will Bitcoin exceed $150k by end of 2026?",
     category: "Crypto",
     probability: 34,
-    volume: "91,200 USDC",
+    volume: 91200,
     participants: 7640,
     status: "closing_soon",
-    timeLeft: "2 days",
+    daysLeft: 2,
   },
   {
     id: "us-election",
     title: "Who wins the 2026 US midterm Senate majority?",
     category: "Politics",
     probability: 51,
-    volume: "55,000 USDC",
+    volume: 55000,
     participants: 4420,
     status: "open",
-    timeLeft: "30 days",
+    daysLeft: 30,
   },
 ];
 
@@ -100,13 +101,19 @@ const STATUS_STYLES: Record<MarketStatus, string> = {
   closed: "bg-gray-100 text-gray-500",
 };
 
-const STATUS_LABELS: Record<MarketStatus, string> = {
-  open: "Open",
-  closing_soon: "Closing soon",
-  closed: "Closed",
+const STATUS_KEYS: Record<MarketStatus, string> = {
+  open: "markets.status.open",
+  closing_soon: "markets.status.closing_soon",
+  closed: "markets.status.closed",
 };
 
 const CATEGORIES = ["Football", "Crypto", "Politics", "Other"] as const;
+const CATEGORY_KEYS: Record<MarketCategory, string> = {
+  Football: "markets.category.football",
+  Crypto: "markets.category.crypto",
+  Politics: "markets.category.politics",
+  Other: "markets.category.other",
+};
 const ALL_CATEGORIES = "all";
 
 /** One URL write per pause in typing, not one per keystroke. */
@@ -118,7 +125,15 @@ function isKnownCategory(value: string): value is MarketCategory {
 
 // ── Market card ────────────────────────────────────────────────────────────
 
-function MarketCard({ market }: { market: Market }) {
+function MarketCard({
+  market,
+  t,
+  locale,
+}: {
+  market: Market;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+  locale: string;
+}) {
   return (
     <Link
       href={`/markets/${market.id}`}
@@ -129,23 +144,31 @@ function MarketCard({ market }: { market: Market }) {
           {market.title}
         </p>
         <Badge className={`shrink-0 text-xs ${STATUS_STYLES[market.status]}`}>
-          {STATUS_LABELS[market.status]}
+          {t(STATUS_KEYS[market.status])}
         </Badge>
       </div>
 
       <div className="flex items-center gap-2">
         <Badge className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 ${CATEGORY_STYLES[market.category]}`}>
           {CATEGORY_ICONS[market.category]}
-          {market.category}
+          {t(CATEGORY_KEYS[market.category])}
         </Badge>
-        <span className="text-xs text-muted-foreground">{market.timeLeft} left</span>
+        <span className="text-xs text-muted-foreground">
+          {t(market.daysLeft === 1 ? "markets.day_left" : "markets.days_left", {
+            count: formatNumber(market.daysLeft, locale),
+          })}
+        </span>
       </div>
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          <span className="font-semibold tabular-nums text-foreground">{market.probability}%</span> probability
+          <span className="font-semibold tabular-nums text-foreground">{formatNumber(market.probability, locale)}%</span>{" "}
+          {t("markets.probability")}
         </span>
-        <span>{market.volume} volume · {market.participants.toLocaleString()} participants</span>
+        <span>
+          {formatNumber(market.volume, locale)} USDC {t("markets.volume")} ·{" "}
+          {formatNumber(market.participants, locale)} {t("markets.participants")}
+        </span>
       </div>
 
       {/* Probability bar */}
@@ -154,7 +177,7 @@ function MarketCard({ market }: { market: Market }) {
         aria-valuenow={market.probability}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`${market.probability}% probability`}
+        aria-label={`${formatNumber(market.probability, locale)}% ${t("markets.probability")}`}
         className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
       >
         <div
@@ -169,13 +192,15 @@ function MarketCard({ market }: { market: Market }) {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 function MarketsPageFallback() {
+  const { t } = useTranslation();
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-[#540D8D]">Markets</h1>
+        <h1 className="text-2xl font-bold text-[#540D8D]">{t("markets.title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Browse and predict on live markets — FWC26 campaign and more.
+          {t("markets.description")}
         </p>
         </div>
         <Button asChild variant="outline" className="shrink-0">
@@ -206,6 +231,7 @@ function MarketsPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { announce } = useGlobalLiveRegion();
+  const { t, locale } = useTranslation();
 
   // Hydrate both controls from the URL so /markets?q=argentina&category=Football
   // is shareable, bookmarkable and restores the filtered view on reload. An
@@ -271,10 +297,12 @@ function MarketsPageContent() {
     if (lastAnnouncedCount.current === count) return;
     lastAnnouncedCount.current = count;
     announce({
-      message: `${count} ${count === 1 ? "market" : "markets"} found`,
+      message: t(count === 1 ? "markets.found_one" : "markets.found_many", {
+        count: formatNumber(count, locale),
+      }),
       priority: "polite",
     });
-  }, [filtered.length, announce]);
+  }, [filtered.length, announce, locale, t]);
 
   const hasSearch = search.trim().length > 0;
   const hasCategory = category !== ALL_CATEGORIES;
@@ -290,9 +318,9 @@ function MarketsPageContent() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-[#540D8D]">Markets</h1>
+        <h1 className="text-2xl font-bold text-[#540D8D]">{t("markets.title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Browse and predict on live markets — FWC26 campaign and more.
+          {t("markets.description")}
         </p>
       </div>
 
@@ -302,23 +330,23 @@ function MarketsPageContent() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
             type="search"
-            placeholder="Search markets…"
+            placeholder={t("label.search_markets_placeholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
-            aria-label="Search markets"
+            aria-label={t("label.search_markets")}
           />
         </div>
 
         <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="w-[160px]" aria-label="Filter by category">
+          <SelectTrigger className="w-[160px]" aria-label={t("label.filter_category")}>
             <Filter className="mr-2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <SelectValue placeholder="Category" />
+            <SelectValue placeholder={t("markets.category")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL_CATEGORIES}>All categories</SelectItem>
+            <SelectItem value={ALL_CATEGORIES}>{t("markets.all_categories")}</SelectItem>
             {CATEGORIES.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
+              <SelectItem key={c} value={c}>{t(CATEGORY_KEYS[c])}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -328,7 +356,7 @@ function MarketsPageContent() {
       {filtered.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {filtered.map((market) => (
-            <MarketCard key={market.id} market={market} />
+            <MarketCard key={market.id} market={market} t={t} locale={locale} />
           ))}
         </div>
       ) : (
