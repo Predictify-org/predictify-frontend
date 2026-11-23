@@ -1,0 +1,47 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Proposed addition to .github/workflows/ci.yml
+#
+# Add this job after the existing `verify` job. It runs on pull requests,
+# installs Chromium, runs the Playwright suite, and uploads the HTML report
+# and traces as an artifact on failure so engineers can inspect them without
+# a local rerun.
+# ─────────────────────────────────────────────────────────────────────────────
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright end-to-end tests
+        run: pnpm test:e2e
+        env:
+          CI: true
+          # Activates the mock-wallet seam; also set by playwright.config.ts
+          # webServer.env, but we set it here too so it is available at build time.
+          NEXT_PUBLIC_E2E_MOCK_WALLET: "1"
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
