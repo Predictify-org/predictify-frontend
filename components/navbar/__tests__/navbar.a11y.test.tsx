@@ -124,6 +124,10 @@ describe("Navbar — accessibility", () => {
     })
     expect(screen.getAllByRole("link", { name: "Mis apuestas" })).toHaveLength(2)
   })
+
+  it("includes the creator dashboard in navigation", () => {
+    expect(screen.getAllByRole("link", { name: "Creator" })).toHaveLength(2)
+  })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
