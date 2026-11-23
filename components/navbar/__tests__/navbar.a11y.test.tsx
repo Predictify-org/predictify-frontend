@@ -68,6 +68,11 @@ jest.mock("@radix-ui/react-dialog", () => {
 // Navbar tests
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Navbar — accessibility", () => {
+  beforeEach(() => {
+    localStorage.clear()
+    localStorage.setItem("predictify-language", "en")
+  })
+
   it("renders the desktop search input with an accessible label", () => {
     render(<Navbar />)
     const searchInput = screen.getByRole("searchbox", { name: /search markets/i })
@@ -109,6 +114,15 @@ describe("Navbar — accessibility", () => {
     render(<Navbar />)
     const mobileNav = screen.getByRole("navigation", { name: /mobile navigation/i })
     expect(mobileNav).toBeInTheDocument()
+  })
+
+  it("renders translated navigation labels for Spanish", async () => {
+    localStorage.setItem("predictify-language", "es")
+    render(<Navbar />)
+    await waitFor(() => {
+      expect(screen.getAllByRole("link", { name: "Mercados" })).toHaveLength(2)
+    })
+    expect(screen.getAllByRole("link", { name: "Mis apuestas" })).toHaveLength(2)
   })
 })
 
