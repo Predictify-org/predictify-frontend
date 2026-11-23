@@ -20,17 +20,19 @@ import { useEffect } from "react";
 import { useQuietHours } from "@/lib/quiet-hours";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { Search, Sun, Moon, TrendingUp, PieChart, BarChart, Shield, BookOpen, Store } from "lucide-react";
+import { useTranslation } from "@/app/i18n";
 
 const NAV_ITEMS = [
-  { name: "Markets", href: "/markets", icon: TrendingUp },
-  { name: "My Bets", href: "/bets", icon: PieChart },
-  { name: "Claims", href: "/claims", icon: Shield },
-  { name: "Leaderboard", href: "/leaderboard", icon: BarChart },
-  { name: "Docs", href: "/docs", icon: BookOpen },
+  { key: "nav.markets", href: "/markets", icon: TrendingUp },
+  { key: "nav.my_bets", href: "/bets", icon: PieChart },
+  { key: "nav.claims", href: "/claims", icon: Shield },
+  { key: "nav.leaderboard", href: "/leaderboard", icon: BarChart },
+  { key: "nav.docs", href: "/docs", icon: BookOpen },
   { name: "Creator", href: "/creator", icon: Store },
 ];
 
 export function Navbar() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const [network, setNetwork] = useState(() => {
     if (typeof window !== "undefined") {
@@ -80,7 +82,7 @@ export function Navbar() {
                       borderBottom: `2px solid ${activeTint.tint}`
                     } : {}}
                   >
-                    {item.name}
+                    {t(item.key)}
                   </Link>
                 );
               })}
@@ -92,9 +94,9 @@ export function Navbar() {
               <input
                 id="navbar-search"
                 className={`bg-[#192540] border-none rounded-xl pl-10 pr-4 py-2 text-sm w-64 focus:ring-1 focus:ring-cyan-400 bg-opacity-40 text-white placeholder-slate-400 ${reducedMotion ? "" : "transition-all"}`}
-                placeholder="Search markets..."
+                placeholder={t("label.search_markets_placeholder")}
                 type="search"
-                aria-label="Search markets"
+                aria-label={t("label.search_markets")}
               />
             </div>
             
@@ -103,8 +105,8 @@ export function Navbar() {
             <WhatsNewDrawer />
 
             {isLoading ? (
-              <button disabled aria-busy="true" aria-label="Connecting wallet, please wait" className="bg-[#69daff]/50 text-[#004a5d] px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-[#69daff]/10">
-                Loading...
+              <button disabled aria-busy="true" aria-label={t("nav.connecting_wallet")} className="bg-[#69daff]/50 text-[#004a5d] px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-[#69daff]/10">
+                {t("label.loading")}
               </button>
             ) : connected ? (
               <div className="flex items-center gap-2">
@@ -116,20 +118,20 @@ export function Navbar() {
                 onClick={() => setIsWalletModalOpen(true)}
                 className={`bg-gradient-to-br from-[#69daff] to-[#00cffc] text-[#004a5d] font-bold px-6 py-2.5 rounded-xl text-sm shadow-lg shadow-[#69daff]/10 ${reducedMotion ? "" : "active:scale-95 duration-150 transition-all"}`}
               >
-                Connect Wallet
+                {t("action.connect_wallet")}
               </button>
             )}
             
             <button
               onClick={toggleTheme}
               className={`relative text-slate-400 hover:text-white flex items-center justify-center p-2 rounded-lg hover:bg-slate-800 ${reducedMotion ? "" : "transition-colors"}`}
-              aria-label={`${theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}${quietHoursActive ? '. Quiet hours active' : ''}`}
+              aria-label={`${t(theme === "dark" ? "nav.switch_to_light" : "nav.switch_to_dark")}${quietHoursActive ? `. ${t("nav.quiet_hours_active")}` : ""}`}
             >
               {theme === 'dark' ? <Sun size={24} aria-hidden="true" /> : <Moon size={24} aria-hidden="true" />}
               {quietHoursActive ? (
                 <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-cyan-300 ring-2 ring-slate-950" aria-hidden="true" />
               ) : null}
-              <span className="sr-only">{quietHoursActive ? "Quiet hours active" : ""}</span>
+              <span className="sr-only">{quietHoursActive ? t("nav.quiet_hours_active") : ""}</span>
             </button>
           </div>
         </div>
@@ -143,7 +145,7 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           <WhatsNewDrawer />
           {isLoading ? (
-            <button disabled aria-busy="true" aria-label="Connecting wallet, please wait" className="bg-[#69daff]/50 text-[#004a5d] px-4 py-2 rounded-md text-xs font-bold">
+            <button disabled aria-busy="true" aria-label={t("nav.connecting_wallet")} className="bg-[#69daff]/50 text-[#004a5d] px-4 py-2 rounded-md text-xs font-bold">
               <span aria-hidden="true">...</span>
             </button>
           ) : connected ? (
@@ -157,10 +159,10 @@ export function Navbar() {
           ) : (
             <button
               onClick={() => setIsWalletModalOpen(true)}
-              aria-label="Connect wallet"
+              aria-label={t("action.connect_wallet")}
               className="bg-gradient-to-br from-[#69daff] to-[#00cffc] text-[#004a5d] px-4 py-2 rounded-md font-bold text-xs"
             >
-              Connect
+              {t("nav.connect_short")}
             </button>
           )}
         </div>
@@ -191,7 +193,7 @@ export function Navbar() {
                 className={isActive ? "fill-current" : ""}
               />
               <span className="text-[10px] font-medium font-body mt-0.5">
-                {item.name}
+                {t(item.key)}
               </span>
             </Link>
           );

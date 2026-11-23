@@ -5,20 +5,22 @@
  * English base if the requested locale has no catalog yet.
  *
  * Adding a new locale:
- *  1. Create `app/i18n/messages/<code>.ts` exporting a `Messages` object.
- *  2. Import it here and add an entry to `CATALOGS`.
- *  3. Ensure the locale code is listed in `SUPPORTED_LANGUAGES` in
- *     `app/i18n/index.ts`.
+ *  1. Translate every key in `en.ts` in `app/i18n/messages/<code>.ts`.
+ *  2. Register the catalog in `CATALOGS` here and add its language label to
+ *     `SUPPORTED_LANGUAGES` in `app/i18n/index.ts`.
+ *  3. Run `pnpm test -- app/i18n` to check key and placeholder parity.
  */
 
 import type { Messages } from "../types";
 import en from "./en";
+import es from "./es";
+import fr from "./fr";
 
 /** Map of every compiled locale catalog, keyed by BCP-47 code. */
 const CATALOGS: Record<string, Messages> = {
   en,
-  // Add further locales as they become available:
-  // es: () => import('./es').then(m => m.default),
+  es,
+  fr,
 };
 
 /**

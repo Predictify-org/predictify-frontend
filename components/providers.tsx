@@ -11,7 +11,10 @@ import { ClaimShareProvider } from "@/context/ClaimShareContext";
 import { GlobalLiveRegion } from "@/app/components/GlobalLiveRegion";
 import { RouteDocumentTitle } from "@/app/hooks/useDocumentTitle";
 import { LangAttribute } from "@/app/i18n/LangAttribute";
+import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
+import { OfflineBanner } from "@/components/pwa/OfflineBanner";
 import { NotificationStreamConnector } from "@/components/notification-stream-connector";
+import { useAlertEvaluator } from "@/app/hooks/useAlertEvaluator";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -38,6 +41,7 @@ export function Providers({ children }: ProvidersProps) {
           <PrivacyShortcut />
           <WalletProvider>
             <NotificationStreamConnector />
+            <AlertEvaluator />
             <ClaimShareProvider>
               {children}
             </ClaimShareProvider>
@@ -45,14 +49,20 @@ export function Providers({ children }: ProvidersProps) {
         </PrivacyProvider>
         <GlobalLiveRegion />
         <Toaster />
+        <ServiceWorkerRegistration />
+        <OfflineBanner />
       </ThemeProvider>
     </ErrorBoundary>
   );
+}
+
+function AlertEvaluator() {
+  useAlertEvaluator();
+  return null;
 }
 
 function PrivacyShortcut() {
   useHideBalancesShortcut();
   return null;
 }
-
 

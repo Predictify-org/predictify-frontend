@@ -33,7 +33,9 @@ Deploy with `vercel --prod` (Vercel project `predictify-frontend-live` is linked
 
 - **`NEXT_PUBLIC_APP_URL`** *(required in production)*: The canonical public origin of the deployed app (for example, `https://predictify-frontend-livid.vercel.app`). Used to generate `/sitemap.xml`, `/robots.txt`, `metadataBase`, per-market canonical URLs, Open Graph URLs, and schema.org JSON-LD. Defaults to `http://localhost:3000` in local development.
 
-All other `NEXT_PUBLIC_*` variables have safe defaults.
+All other `NEXT_PUBLIC_*` variables have safe defaults. See
+[`.env.example`](./.env.example) for the complete, commented list of supported
+variables.
 
 ## About
 
@@ -94,26 +96,19 @@ pnpm install
 
 ### 3. Environment Setup
 
-Create a `.env.local` file in the root directory:
+Copy the documented example file and adjust anything you need:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Configure the following environment variables:
+Every variable, its purpose, allowed values and default is documented in
+[`.env.example`](./.env.example) — see [Configuration](#configuration) for the
+table below. All values are optional locally; the defaults build and run.
+# Use the local event fixtures instead of the API in development
+NEXT_PUBLIC_USE_MOCKS=true
 
-```env
-# Stellar Network Configuration
-NEXT_PUBLIC_STELLAR_NETWORK=testnet
-# Options: 'testnet' or 'mainnet'
-
-# API Configuration (if applicable)
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
-
-# Application Configuration
-NEXT_PUBLIC_APP_NAME=Predictify
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
+Events use the configured `NEXT_PUBLIC_API_URL` by default. Tests automatically use fixtures; set `NEXT_PUBLIC_USE_MOCKS=true` to use local event fixtures during development without a backend.
 
 ### 4. Run the Development Server
 
@@ -129,6 +124,32 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the a
 pnpm build
 pnpm start
 ```
+
+## Configuration
+
+The app is configured entirely through environment variables. The committed
+[`.env.example`](./.env.example) is the source of truth: it contains a comment
+above every entry describing its purpose, allowed values and default. Copy it
+before running the app:
+
+```bash
+cp .env.example .env.local
+```
+
+`.env.local` is git-ignored and must never be committed. Variables prefixed with
+`NEXT_PUBLIC_` are embedded in the client bundle, so they must only hold public
+values. `NODE_ENV` is managed by Next.js and should not be set in `.env.local`.
+
+| Variable | Scope | Default | Purpose |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_STELLAR_NETWORK` | Public | `testnet` | Active Stellar network (`testnet` or `mainnet`); invalid values fail validation. |
+| `NEXT_PUBLIC_API_URL` | Public | `http://localhost:3000/api` | Base URL of the backend API (`config.api.url`). |
+| `NEXT_PUBLIC_APP_NAME` | Public | `Predictify` | Product name used in metadata and UI copy. |
+| `NEXT_PUBLIC_APP_URL` | Public | `http://localhost:3000` | Canonical app origin for sitemap, robots, canonical and Open Graph URLs; required in production. |
+| `NEXT_PUBLIC_ANALYTICS_ID` | Public | empty (disabled) | Optional analytics provider id. |
+| `NEXT_PUBLIC_STELLAR_HORIZON_URL` | Public | empty (network default) | Optional Horizon REST base URL override for `/api/ledger-time`. |
+| `NEXT_PUBLIC_NOTIFICATION_STREAM_URL` | Public | empty (disabled) | Optional SSE endpoint for live notifications; empty keeps the mock fallback. |
+| `STELLAR_HORIZON_URL` | Server | empty (network default) | Server-only Horizon override for `/api/ledger-time`; takes precedence over the public override. |
 
 ## Testing
 

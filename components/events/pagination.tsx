@@ -10,7 +10,7 @@ interface PaginationProps {
 }
 
 export function EventsPagination({ className }: PaginationProps) {
-  const { pagination, setPagination, filteredEvents } = useEventsStore()
+  const { pagination, setPagination, filteredEvents, hasNextPage, loadNextPage } = useEventsStore()
 
   const totalPages = Math.ceil(filteredEvents.length / pagination.pageSize)
 
@@ -64,10 +64,14 @@ export function EventsPagination({ className }: PaginationProps) {
   }
 
   const handleNext = () => {
-    handlePageChange(pagination.page + 1)
+    if (pagination.page < totalPages) {
+      handlePageChange(pagination.page + 1)
+    } else if (hasNextPage) {
+      void loadNextPage()
+    }
   }
 
-  if (filteredEvents.length === 0) {
+  if (filteredEvents.length === 0 && !hasNextPage) {
     return null
   }
 
@@ -126,7 +130,7 @@ export function EventsPagination({ className }: PaginationProps) {
         variant="ghost"
         size="sm"
         onClick={handleNext}
-        disabled={pagination.page === totalPages}
+        disabled={pagination.page >= totalPages && !hasNextPage}
         className="gap-1 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="Go to next page"
       >

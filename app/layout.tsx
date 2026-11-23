@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   title: "Predictify - Prediction Platform",
   description: "Join thousands of predictors worldwide and start earning from your knowledge and intuition today.",
   generator: "v0.dev",
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
@@ -29,6 +30,7 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#0f172a',
 };
 
 export default function RootLayout({

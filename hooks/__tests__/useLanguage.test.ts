@@ -65,6 +65,17 @@ describe("getStoredLanguage", () => {
     });
     expect(getStoredLanguage()).toBe("es");
   });
+
+  it.each([
+    ["es-MX", "es"],
+    ["fr-CA", "fr"],
+  ])("maps browser locale %s to supported base locale %s", (browserLocale, expected) => {
+    Object.defineProperty(navigator, "language", {
+      value: browserLocale,
+      configurable: true,
+    });
+    expect(getStoredLanguage()).toBe(expected);
+  });
 });
 
 // ─── saveLanguage ──────────────────────────────────────────────────────────────
@@ -108,5 +119,11 @@ describe("SUPPORTED_LANGUAGES", () => {
       expect(lang.label).toBeTruthy();
       expect(lang.nativeLabel).toBeTruthy();
     }
+  });
+
+  it("offers Spanish and French", () => {
+    expect(SUPPORTED_LANGUAGES.map((language) => language.code)).toEqual(
+      expect.arrayContaining(["es", "fr"])
+    );
   });
 });
