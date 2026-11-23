@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { PredictionsList, type Prediction } from "../page";
+import { PredictionsList } from "../PredictionsList";
+import type { Prediction } from "../types";
 
 const activePrediction: Prediction = {
   id: "active-1",
