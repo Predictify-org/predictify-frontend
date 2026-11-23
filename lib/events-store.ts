@@ -295,7 +295,10 @@ const isValidEvent = (event: unknown): event is Event => {
     typeof candidate.startDate === "string" &&
     Number.isFinite(Date.parse(candidate.startDate)) &&
     typeof candidate.endDate === "string" &&
-    Number.isFinite(Date.parse(candidate.endDate))
+    Number.isFinite(Date.parse(candidate.endDate)) &&
+    (candidate.resolutionDate === undefined ||
+      (typeof candidate.resolutionDate === "string" &&
+        Number.isFinite(Date.parse(candidate.resolutionDate))))
   )
 }
 
