@@ -6,7 +6,6 @@ import {
   Clock,
   Gift,
   Loader2,
-  TrendingUp,
   AlertCircle,
 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
@@ -20,6 +19,7 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useWalletContext } from "@/context/WalletContext";
 import { cn } from "@/lib/utils";
 import { ClaimEligibilityStatus } from "@/components/claims/ClaimEligibilityStatus";
+import { FilteredClaimsEmptyState } from "@/components/claims/FilteredClaimsEmptyState";
 import { ClaimEligibilityClientError } from "@/lib/claim-eligibility-client";
 import type { ClaimEvidence, ClaimStatus } from "@/types/claim-eligibility";
 
@@ -409,38 +409,6 @@ const ClaimCard: React.FC<ClaimCardProps> = ({
     </Card>
   );
 };
-
-// ── Filtered Claims Empty State ─────────────────────────────────────────────
-
-export const FilteredClaimsEmptyState: React.FC<{
-  activeTab: string;
-  onReset: () => void;
-}> = ({ activeTab, onReset }) => (
-  <section
-    role="status"
-    aria-live="polite"
-    className="col-span-full rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-12 text-center backdrop-blur-sm"
-  >
-    <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-muted/50 text-muted-foreground">
-      <TrendingUp size={26} aria-hidden="true" />
-    </div>
-    <h2 className="text-xl font-semibold text-foreground">
-      No claims match this filter
-    </h2>
-    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-      There are no claims with the &quot;{activeTab}&quot; status. Reset filters
-      to view all claims.
-    </p>
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={onReset}
-      className="mt-6"
-    >
-      Reset filters
-    </Button>
-  </section>
-);
 
 // ── Loading Skeleton ────────────────────────────────────────────────────────
 

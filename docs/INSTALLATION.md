@@ -9,6 +9,21 @@ Complete setup instructions for the virtualized infinite scroll implementation.
 - Next.js 15.2.4
 - React 19
 
+## Environment Configuration
+
+Before installing or running anything, create your local environment file from
+the committed example:
+
+```bash
+cp .env.example .env.local
+```
+
+Every variable read by the app is listed with its purpose, allowed values and
+default in [`.env.example`](../.env.example). The same set is summarized in the
+[README Configuration section](../README.md#configuration). All values are
+optional locally — the defaults target Stellar testnet and
+`http://localhost:3000` — and `.env.local` is git-ignored, so never commit it.
+
 ## Installation Steps
 
 ### 1. Install Dependencies

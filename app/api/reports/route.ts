@@ -1,36 +1,9 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { REPORT_REASON_CODES } from '@/components/moderation/report-taxonomy';
+import { checkRateLimit, MAX_BODY_BYTES } from './report-limits';
 
 export const dynamic = 'force-dynamic';
-
-/**
- * Maximum body size cap in bytes (16 KB)
- */
-export const MAX_BODY_BYTES = 16 * 1024;
-
-/**
- * In-memory rate limiting configuration: 5 reports per 60 seconds per IP
- */
-export const RATE_LIMIT_CONFIG = {
-  maxRequests: 5,
-  windowMs: 60 * 1000,
-};
-
-interface RateLimitRecord {
-  count: number;
-  resetTime: number;
-}
-
-// In-memory rate limit store
-const ipRateLimitStore = new Map<string, RateLimitRecord>();
-
-/**
- * Helper to reset rate limits (primarily for tests)
- */
-export function _resetRateLimits(): void {
-  ipRateLimitStore.clear();
-}
 
 /**
  * Extract client IP from headers
@@ -49,33 +22,9 @@ function getClientIp(request: Request): string {
 }
 
 /**
- * Check and increment rate limit for given IP
- */
-function checkRateLimit(ip: string): { allowed: boolean; retryAfter: number } {
-  const now = Date.now();
-  const record = ipRateLimitStore.get(ip);
-
-  if (!record || now >= record.resetTime) {
-    ipRateLimitStore.set(ip, {
-      count: 1,
-      resetTime: now + RATE_LIMIT_CONFIG.windowMs,
-    });
-    return { allowed: true, retryAfter: 0 };
-  }
-
-  if (record.count >= RATE_LIMIT_CONFIG.maxRequests) {
-    const retryAfter = Math.max(1, Math.ceil((record.resetTime - now) / 1000));
-    return { allowed: false, retryAfter };
-  }
-
-  record.count += 1;
-  return { allowed: true, retryAfter: 0 };
-}
-
-/**
  * Strips ASCII control characters except \r, \n, and \t
  */
-export function stripControlCharacters(str: string): string {
+function stripControlCharacters(str: string): string {
   return str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
 
@@ -112,7 +61,7 @@ function isValidEvidenceUrl(urlStr: string): boolean {
 }
 
 // Zod validation schema
-export const reportMarketSchema = z.object({
+const reportMarketSchema = z.object({
   marketId: z
     .string({ required_error: 'marketId is required' })
     .trim()
