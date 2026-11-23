@@ -19,7 +19,7 @@ import { getNetworkTint } from "@/lib/network-tint";
 import { useEffect } from "react";
 import { useQuietHours } from "@/lib/quiet-hours";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
-import { Search, Sun, Moon, TrendingUp, PieChart, BarChart, Shield, BookOpen } from "lucide-react";
+import { Search, Sun, Moon, TrendingUp, PieChart, BarChart, Shield, BookOpen, Store } from "lucide-react";
 
 const NAV_ITEMS = [
   { name: "Markets", href: "/markets", icon: TrendingUp },
@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { name: "Claims", href: "/claims", icon: Shield },
   { name: "Leaderboard", href: "/leaderboard", icon: BarChart },
   { name: "Docs", href: "/docs", icon: BookOpen },
+  { name: "Creator", href: "/creator", icon: Store },
 ];
 
 export function Navbar() {

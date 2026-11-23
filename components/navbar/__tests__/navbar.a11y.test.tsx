@@ -110,6 +110,11 @@ describe("Navbar — accessibility", () => {
     const mobileNav = screen.getByRole("navigation", { name: /mobile navigation/i })
     expect(mobileNav).toBeInTheDocument()
   })
+
+  it("includes the creator dashboard in navigation", () => {
+    render(<Navbar />)
+    expect(screen.getAllByRole("link", { name: "Creator" })).toHaveLength(2)
+  })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
