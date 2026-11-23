@@ -9,6 +9,29 @@ import { CopyableText } from '@/components/ui/CopyableText';
 import { DatePicker } from '@/app/components/DatePicker';
 import { useWallet } from '@/hooks/useWallet.hook';
 import { useAccountOperations } from '@/hooks/useAccountOperations';
+import { ExportMenu } from '@/components/export/ExportMenu';
+import type { ExportColumn } from '@/lib/export/csv';
+import { usePrivacy } from '@/context/PrivacyContext';
+
+interface TransactionExportRow {
+    date: string;
+    hash: string;
+    type: string;
+    amount: number;
+    currency: string;
+    status: string;
+    description: string;
+}
+
+const transactionExportColumns: ExportColumn<TransactionExportRow>[] = [
+    { key: 'date', label: 'Date' },
+    { key: 'hash', label: 'Hash' },
+    { key: 'type', label: 'Type' },
+    { key: 'amount', label: 'Amount' },
+    { key: 'currency', label: 'Currency' },
+    { key: 'status', label: 'Status' },
+    { key: 'description', label: 'Description' },
+];
 
 /** yyyy-MM-dd, matching the format previously produced by <input type="date">. */
 const FILTER_DATE_FORMAT = 'yyyy-MM-dd';
@@ -50,6 +73,7 @@ function filterStringToDate(value: string): Date | null {
 
 export function TransactionsHistory() {
     const { isConnected, walletAddress, connectWallet, isConnecting } = useWallet();
+    const { hideBalances } = usePrivacy();
     const {
         operations,
         isLoading,
@@ -105,6 +129,22 @@ export function TransactionsHistory() {
             return true;
         });
     }, [filters, operations]);
+
+    const exportRows = useMemo(
+        () =>
+            filteredTransactions.map((transaction) => ({
+                date: transaction.date,
+                hash: transaction.hash,
+                type: transaction.type,
+                amount: transaction.amount.startsWith('-')
+                    ? -transaction.numericAmount
+                    : transaction.numericAmount,
+                currency: transaction.currency,
+                status: transaction.status,
+                description: transaction.description,
+            })),
+        [filteredTransactions]
+    );
 
     const stats = useMemo(() => {
         let totalWagered = 0;
@@ -182,7 +222,14 @@ export function TransactionsHistory() {
                     >
                         Transaction history
                     </button>
-                    <div className="ml-auto flex items-center">
+                    <div className="ml-auto flex items-center gap-2">
+                        <ExportMenu
+                            rows={exportRows}
+                            columns={transactionExportColumns}
+                            filename="predictify-transactions"
+                            hideBalances={hideBalances}
+                            sensitiveColumns={['amount']}
+                        />
                         <button
                             type="button"
                             onClick={() => setShowFilter((prev) => !prev)}

@@ -5,11 +5,12 @@
 /**
  * Tests for POST /api/reports route
  */
-import { POST, _resetRateLimits, MAX_BODY_BYTES } from './route';
+import { POST } from './route';
+import { MAX_BODY_BYTES, resetRateLimits } from './report-limits';
 
 describe('POST /api/reports', () => {
   beforeEach(() => {
-    _resetRateLimits();
+    resetRateLimits();
     jest.useRealTimers();
   });
 

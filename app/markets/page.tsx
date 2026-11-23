@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Search, Filter, Trophy, CircleDollarSign, Building2, TrendingUp } from "lucide-react";
+import { Search, Filter, Trophy, CircleDollarSign, Building2, TrendingUp, CalendarDays } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -196,11 +196,19 @@ function MarketsPageFallback() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-[#540D8D]">{t("markets.title")}</h1>
         <p className="text-sm text-muted-foreground">
           {t("markets.description")}
         </p>
+        </div>
+        <Button asChild variant="outline" className="shrink-0">
+          <Link href="/markets/calendar">
+            <CalendarDays className="h-4 w-4" aria-hidden="true" />
+            Deadline calendar
+          </Link>
+        </Button>
       </div>
     </div>
   );

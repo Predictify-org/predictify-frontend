@@ -17,6 +17,22 @@ interface LeaderboardCardsProps {
 
 export function LeaderboardCards({ users, onUserVisibilityChange, isLoading, error, onRetry }: LeaderboardCardsProps) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: users.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 80,
+    overscan: 5,
+  });
+  const currentUserIndex = users.findIndex((user) => user.isCurrentUser);
+
+  React.useEffect(() => {
+    if (onUserVisibilityChange) {
+      const isVisible = rowVirtualizer
+        .getVirtualItems()
+        .some((virtualItem) => virtualItem.index === currentUserIndex);
+      onUserVisibilityChange(isVisible);
+    }
+  }, [rowVirtualizer, currentUserIndex, onUserVisibilityChange]);
 
   if (isLoading) {
     return (
@@ -58,22 +74,6 @@ export function LeaderboardCards({ users, onUserVisibilityChange, isLoading, err
     );
   }
 
-  const rowVirtualizer = useVirtualizer({
-    count: users.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 80,
-    overscan: 5,
-  });
-
-  const currentUserIndex = users.findIndex(u => u.isCurrentUser);
-
-  React.useEffect(() => {
-    if (onUserVisibilityChange) {
-      const isVisible = rowVirtualizer.getVirtualItems().some((vi: any) => vi.index === currentUserIndex);
-      onUserVisibilityChange(isVisible);
-    }
-  }, [rowVirtualizer.getVirtualItems(), currentUserIndex, onUserVisibilityChange]);
-
   return (
     <div
       ref={parentRef}
@@ -107,8 +107,10 @@ export function LeaderboardCards({ users, onUserVisibilityChange, isLoading, err
                   {user.rank}
                 </div>
                 <Avatar className="h-10 w-10 border border-slate-700">
-                  <AvatarImage src={user.avatarUrl} alt={user.name} />
-                  <AvatarFallback>{user.name[0]}</AvatarFallback>
+                  {user.avatarUrl ? (
+                    <AvatarImage src={user.avatarUrl} alt={user.name} />
+                  ) : null}
+                  <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className={cn("text-sm font-bold truncate", user.isCurrentUser ? "text-cyan-400" : "text-white")}>

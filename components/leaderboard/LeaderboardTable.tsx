@@ -23,16 +23,6 @@ interface LeaderboardTableProps {
   onRetry?: () => void;
 }
 
-const AVATAR_WIDTHS = [40, 48, 64];
-
-function getAvatarSource(user: LeaderboardUser): string | undefined {
-  return user.avatarUrl;
-}
-
-function getResponsiveImageSource(source: string, width: number): string {
-  return source;
-}
-
 function formatProfit(value: number): string {
   const formatted = value.toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -231,12 +221,6 @@ export function LeaderboardTable({
         >
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const user = sortedUsers[virtualRow.index];
-            const avatarSource = getAvatarSource(user);
-            const avatarSrcSet = avatarSource
-              ? AVATAR_WIDTHS.map(
-                  (width) => `${getResponsiveImageSource(avatarSource, width)} ${width}w`,
-                ).join(", ")
-              : undefined;
 
             return (
               <tr
@@ -246,19 +230,18 @@ export function LeaderboardTable({
               >
                 <td className="px-4 py-3">{user.rank}</td>
                 <td className="flex items-center gap-3 px-4 py-3 font-medium">
-                  {avatarSource && avatarSrcSet ? (
-                    <img
-                      src={avatarSource}
-                      srcSet={avatarSrcSet}
-                      sizes="(max-width: 640px) 40px, 48px"
-                      width={48}
-                      height={48}
-                      loading="lazy"
-                      alt=""
-                      aria-hidden="true"
-                      className="h-10 w-10 rounded-full object-cover sm:h-12 sm:w-12"
-                    />
-                  ) : null}
+                  <Avatar className="h-10 w-10 border border-slate-700 sm:h-12 sm:w-12">
+                    {user.avatarUrl ? (
+                      <AvatarImage
+                        src={user.avatarUrl}
+                        alt={user.name}
+                        className="object-cover"
+                      />
+                    ) : null}
+                    <AvatarFallback aria-hidden="true">
+                      {user.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
                   <span>{user.name}</span>
                 </td>
                 <td className="px-4 py-3">{formatProfit(user.profit)}</td>
