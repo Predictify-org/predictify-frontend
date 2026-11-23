@@ -64,7 +64,9 @@ export function LeaderboardPodium({
         <div className="flex flex-col items-center">
           <div className="relative mb-2">
             <Avatar className="h-16 w-16 border-2 border-slate-300 ring-4 ring-slate-300/20">
-              <AvatarImage src={second.avatarUrl} alt={second.name} />
+              {second.avatarUrl ? (
+                <AvatarImage src={second.avatarUrl} alt={second.name} />
+              ) : null}
               <AvatarFallback>{second.name?.[0]}</AvatarFallback>
             </Avatar>
             <div 
@@ -86,7 +88,9 @@ export function LeaderboardPodium({
         <div className="relative mb-3">
           <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-2xl" aria-hidden="true">👑</div>
           <Avatar className="h-24 w-24 border-4 border-yellow-500 ring-8 ring-yellow-500/20 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
-            <AvatarImage src={first?.avatarUrl} alt={first?.name} />
+            {first?.avatarUrl ? (
+              <AvatarImage src={first.avatarUrl} alt={first.name} />
+            ) : null}
             <AvatarFallback>{first?.name?.[0]}</AvatarFallback>
           </Avatar>
           <div 
@@ -110,7 +114,9 @@ export function LeaderboardPodium({
         <div className="flex flex-col items-center">
           <div className="relative mb-2">
             <Avatar className="h-16 w-16 border-2 border-amber-600 ring-4 ring-amber-600/20">
-              <AvatarImage src={third.avatarUrl} alt={third.name} />
+              {third.avatarUrl ? (
+                <AvatarImage src={third.avatarUrl} alt={third.name} />
+              ) : null}
               <AvatarFallback>{third.name?.[0]}</AvatarFallback>
             </Avatar>
             <div 
@@ -152,7 +158,9 @@ export function LeaderboardPodium({
         >
           <div className="relative mb-2">
             <Avatar className="h-16 w-16 border-2 border-slate-300 ring-4 ring-slate-300/20">
-              <AvatarImage src={second.avatarUrl} alt={second.name} />
+              {second.avatarUrl ? (
+                <AvatarImage src={second.avatarUrl} alt={second.name} />
+              ) : null}
               <AvatarFallback>{second.name?.[0]}</AvatarFallback>
             </Avatar>
             <div 
@@ -179,7 +187,9 @@ export function LeaderboardPodium({
         <div className="relative mb-3">
           <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-2xl" aria-hidden="true">👑</div>
           <Avatar className="h-24 w-24 border-4 border-yellow-500 ring-8 ring-yellow-500/20 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
-            <AvatarImage src={first?.avatarUrl} alt={first?.name} />
+            {first?.avatarUrl ? (
+              <AvatarImage src={first.avatarUrl} alt={first.name} />
+            ) : null}
             <AvatarFallback>{first?.name?.[0]}</AvatarFallback>
           </Avatar>
           <div 
@@ -208,7 +218,9 @@ export function LeaderboardPodium({
         >
           <div className="relative mb-2">
             <Avatar className="h-16 w-16 border-2 border-amber-600 ring-4 ring-amber-600/20">
-              <AvatarImage src={third.avatarUrl} alt={third.name} />
+              {third.avatarUrl ? (
+                <AvatarImage src={third.avatarUrl} alt={third.name} />
+              ) : null}
               <AvatarFallback>{third.name?.[0]}</AvatarFallback>
             </Avatar>
             <div 
