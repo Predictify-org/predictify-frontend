@@ -105,6 +105,10 @@ cp .env.example .env.local
 Every variable, its purpose, allowed values and default is documented in
 [`.env.example`](./.env.example) — see [Configuration](#configuration) for the
 table below. All values are optional locally; the defaults build and run.
+# Use the local event fixtures instead of the API in development
+NEXT_PUBLIC_USE_MOCKS=true
+
+Events use the configured `NEXT_PUBLIC_API_URL` by default. Tests automatically use fixtures; set `NEXT_PUBLIC_USE_MOCKS=true` to use local event fixtures during development without a backend.
 
 ### 4. Run the Development Server
 
