@@ -1,12 +1,12 @@
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useSearchParams } from "next/navigation";
 import { expectNoA11yViolations } from "@/test-utils/axe";
 import MarketsPage from "@/app/markets/page";
 import MarketDetailPage from "@/app/markets/[id]/page";
-import ClaimsPage, {
-  FilteredClaimsEmptyState,
-} from "@/app/(dashboard)/claims/page";
+import ClaimsPage from "@/app/(dashboard)/claims/page";
+import { FilteredClaimsEmptyState } from "@/components/claims/FilteredClaimsEmptyState";
 import DisputesPage from "@/app/(dashboard)/disputes/page";
 import AccountSettingsPage from "@/app/settings/account/page";
 import LanguageSettingsPage from "@/app/settings/language/page";
@@ -16,7 +16,7 @@ import PrivacySettingsPage from "@/app/settings/privacy/page";
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace: jest.fn(), push: jest.fn(), refresh: jest.fn() }),
   usePathname: () => "/markets",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: jest.fn(() => new URLSearchParams()),
 }));
 
 jest.mock("@/context/WalletContext", () => ({
@@ -102,18 +102,28 @@ describe("priority route accessibility", () => {
     await expectNoA11yViolations(document.body);
   });
 
-  it("audits the market detail route and its inactive tab panels", async () => {
-    const page = await MarketDetailPage({
-      params: Promise.resolve({ id: "fwc26-arg" }),
-    });
-    const user = userEvent.setup();
-    render(page);
+  it("audits the market detail route and its activity tab", async () => {
+    const params = { params: Promise.resolve({ id: "fwc26-arg" }) };
+
+    render(await MarketDetailPage(params));
     await screen.findByText(/Market status is/i);
     await expectNoA11yViolations(document.body);
 
-    await user.click(screen.getByRole("tab", { name: "Activity" }));
-    expect(screen.getByRole("tabpanel", { name: "Activity" })).toBeVisible();
-    await expectNoA11yViolations(document.body);
+    // Market detail tabs are URL-driven (`?tab=`), so select the Activity tab
+    // through the mocked search params rather than relying on a router push.
+    cleanup();
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams("tab=activity"),
+    );
+    try {
+      render(await MarketDetailPage(params));
+      expect(
+        await screen.findByRole("tabpanel", { name: "Activity" }),
+      ).toBeVisible();
+      await expectNoA11yViolations(document.body);
+    } finally {
+      (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams());
+    }
   });
 
   it("audits claims while loading, when populated, and when a filter is empty", async () => {
