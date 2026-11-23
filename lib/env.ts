@@ -18,6 +18,9 @@ export const env = {
   
   // API Configuration
   NEXT_PUBLIC_API_URL: getEnvVar('NEXT_PUBLIC_API_URL', 'http://localhost:3000/api'),
+
+  // Contract Configuration
+  NEXT_PUBLIC_PREDICTIFY_CONTRACT_ID: getEnvVar('NEXT_PUBLIC_PREDICTIFY_CONTRACT_ID'),
   
   // Application Configuration
   NEXT_PUBLIC_APP_NAME: getEnvVar('NEXT_PUBLIC_APP_NAME', 'Predictify'),
