@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { http } from "@/lib/http"
 
 const contactFormSchema = z.object({
   name: z.string()
@@ -48,6 +49,8 @@ type FieldProps<T extends keyof ContactFormValues> = {
 }
 
 type FormStatus = 'idle' | 'loading' | 'success' | 'error'
+const contactResponseSchema = z.unknown()
+const contactEndpoint = process.env.NEXT_PUBLIC_CONTACT_API_URL?.trim()
 
 const subjectOptions = [
   { value: "general", label: "General Inquiry" },
@@ -86,18 +89,16 @@ export function ContactSupportForm({
     setFormStatus('loading')
     
     try {
-      // Simulate API call - replace with your actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Example API call:
-      // const response = await fetch('/api/contact', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(values),
-      // })
-      // if (!response.ok) throw new Error('Failed to submit')
-      
-      console.log("Form submitted:", values)
+      if (contactEndpoint) {
+        await http(contactEndpoint, {
+          method: "POST",
+          body: values,
+          schema: contactResponseSchema,
+          timeoutMs: 10000,
+        })
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
       setFormStatus('success')
       form.reset()
       

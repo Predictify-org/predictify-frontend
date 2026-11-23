@@ -21,7 +21,7 @@ export interface UseLeaderboardOptions {
   /** Maximum number of retries */
   maxRetries?: number;
   /** Data fetcher function */
-  fetcher: () => Promise<LeaderboardUser[]>;
+  fetcher: (signal?: AbortSignal) => Promise<LeaderboardUser[]>;
 }
 
 export interface UseLeaderboardReturn extends LeaderboardState {
@@ -51,19 +51,24 @@ export function useLeaderboard({
 
   const retryCountRef = useRef(0);
   const mountedRef = useRef(true);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      abortRef.current?.abort();
     };
   }, []);
 
   const executeFetch = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setState((prev) => ({ ...prev, status: "loading", error: null }));
 
     try {
-      const data = await fetcher();
+      const data = await fetcher(controller.signal);
 
       if (!mountedRef.current) return;
 
@@ -78,6 +83,15 @@ export function useLeaderboard({
       retryCountRef.current = 0;
     } catch (err) {
       if (!mountedRef.current) return;
+      if (
+        (err instanceof Error && err.name === "AbortError") ||
+        (typeof err === "object" &&
+          err !== null &&
+          "kind" in err &&
+          (err as { kind?: string }).kind === "aborted")
+      ) {
+        return;
+      }
 
       const message = err instanceof Error ? err.message : "Unknown error";
       setState((prev) => ({

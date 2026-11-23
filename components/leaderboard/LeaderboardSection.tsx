@@ -14,21 +14,31 @@ import {
   LeaderboardLoadingState,
 } from "./leaderboard-states";
 import { cn } from "@/lib/utils";
+import { z } from "zod";
+import { http } from "@/lib/http";
+
+const leaderboardSchema = z.array(z.object({
+  rank: z.number(),
+  name: z.string(),
+  avatarUrl: z.string().optional(),
+  profit: z.number(),
+  winRate: z.number(),
+  predictions: z.number(),
+  isCurrentUser: z.boolean().optional(),
+}));
 
 export function LeaderboardSection() {
   const [activeTab, setActiveTab] = useState("all-time");
   const [isUserVisible, setIsUserVisible] = useState(true);
 
   const { status, data, error, refetch, retry } = useLeaderboard({
-    fetcher: async () => {
-      const res = await fetch(`/api/leaderboard?period=${activeTab}`, {
+    fetcher: async (signal) => {
+      return http(`/api/leaderboard?period=${encodeURIComponent(activeTab)}`, {
+        schema: leaderboardSchema,
         cache: "no-store",
+        timeoutMs: 10000,
+        signal,
       });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(body || `Failed to load leaderboard (${res.status})`);
-      }
-      return res.json();
     },
     initialData: mockLeaderboardData,
     staleTime: 2 * 60 * 1000,
