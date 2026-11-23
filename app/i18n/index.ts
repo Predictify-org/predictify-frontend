@@ -24,6 +24,7 @@ export {
   getTranslator,
   useTranslation,
 } from "./t";
+export { formatNumber, formatCurrency, formatDate, formatRelative } from "./format";
 
 export type Language = {
   /** BCP-47 language tag used as the stored key and <html lang> value. */

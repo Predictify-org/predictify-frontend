@@ -18,6 +18,7 @@ export const env = {
   
   // API Configuration
   NEXT_PUBLIC_API_URL: getEnvVar('NEXT_PUBLIC_API_URL', 'http://localhost:3000/api'),
+  NEXT_PUBLIC_USE_MOCKS: process.env.NEXT_PUBLIC_USE_MOCKS || 'false',
   
   // Application Configuration
   NEXT_PUBLIC_APP_NAME: getEnvVar('NEXT_PUBLIC_APP_NAME', 'Predictify'),

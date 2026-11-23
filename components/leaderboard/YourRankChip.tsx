@@ -15,14 +15,14 @@ interface YourRankChipProps {
 export function YourRankChip({ user, isVisible }: YourRankChipProps) {
   const [dismissed, setDismissed] = useState(false);
 
-  if (!user) {
-    return null;
-  }
-
   // Reset dismissed state if user becomes visible again (so it can show up again if they scroll away later)
   useEffect(() => {
     if (isVisible) setDismissed(false);
   }, [isVisible]);
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <AnimatePresence>
@@ -41,8 +41,10 @@ export function YourRankChip({ user, isVisible }: YourRankChipProps) {
             
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6 border border-slate-900/10">
-                <AvatarImage src={user.avatarUrl} alt={user.name} />
-                <AvatarFallback>{user.name[0]}</AvatarFallback>
+                {user.avatarUrl ? (
+                  <AvatarImage src={user.avatarUrl} alt={user.name} />
+                ) : null}
+                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <span className="text-xs font-bold tabular-nums">+{user.profit} XLM</span>
             </div>

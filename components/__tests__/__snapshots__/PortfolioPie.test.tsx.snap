@@ -18,9 +18,7 @@ exports[`PortfolioPie matches snapshot with default data 1`] = `
       class="text-xs text-gray-500 dark:text-gray-400 tabular-nums"
     >
       Total staked: 
-      58
-       
-      XLM
+      58 XLM
     </span>
   </header>
   <table

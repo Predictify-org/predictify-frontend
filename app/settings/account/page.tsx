@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { useConsentStore } from "@/app/state/consent"
+import { useTranslation } from "@/app/i18n"
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -40,6 +41,7 @@ type SaveState = "idle" | "saving" | "saved" | "error"
 // ─────────────────────────────────────────────────────────────
 
 export default function AccountSettingsPage() {
+  const { t } = useTranslation()
   // Profile state
   const [displayName, setDisplayName] = useState("")
   const [username, setUsername] = useState("")
@@ -77,39 +79,39 @@ export default function AccountSettingsPage() {
           id="account-settings-heading"
           className="text-3xl font-semibold tracking-tight"
         >
-          Account settings
+          {t("settings.account.heading")}
         </h1>
         <p className="text-muted-foreground text-sm">
-          Manage your profile details and privacy preferences.
+          {t("settings.account.description")}
         </p>
       </div>
 
       {/* Accessible live region – screen readers announce save outcome */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {saveState === "saved" ? "Account settings saved successfully." : ""}
-        {saveState === "error" ? "Failed to save. Please try again." : ""}
+        {saveState === "saved" ? t("settings.account.saved") : ""}
+        {saveState === "error" ? t("settings.account.save_failed") : ""}
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="mb-4 flex gap-2" aria-label="Account settings sections">
+        <TabsList className="mb-4 flex gap-2" aria-label={t("settings.account.sections")}>
           <TabsTrigger value="profile">
             <User className="mr-2 h-4 w-4" aria-hidden="true" />
-            Profile
+            {t("settings.account.profile_tab")}
           </TabsTrigger>
           <TabsTrigger value="privacy">
             <Shield className="mr-2 h-4 w-4" aria-hidden="true" />
-            Privacy
+            {t("settings.account.privacy_tab")}
           </TabsTrigger>
         </TabsList>
 
         {/* ── Profile tab ───────────────────────────────────── */}
         <TabsContent value="profile">
-          <form onSubmit={handleSave} aria-label="Edit profile form" noValidate>
+          <form onSubmit={handleSave} aria-label={t("settings.account.edit_profile")} noValidate>
             <Card className="border-border/70">
               <CardHeader>
-                <CardTitle>Profile information</CardTitle>
+                <CardTitle>{t("settings.account.profile_information")}</CardTitle>
                 <CardDescription>
-                  Update how your name and bio appear to other users.
+                  {t("settings.account.profile_information_description")}
                 </CardDescription>
               </CardHeader>
 
@@ -119,16 +121,16 @@ export default function AccountSettingsPage() {
                   <Avatar className="h-16 w-16">
                     <AvatarImage
                       src="/placeholder.svg?height=64&width=64"
-                      alt="Your profile photo"
+                      alt={t("settings.account.profile_photo_alt")}
                     />
-                    <AvatarFallback aria-label="Profile initials">
+                    <AvatarFallback aria-label={t("settings.account.profile_initials")}>
                       {displayName ? displayName.slice(0, 2).toUpperCase() : "ME"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Profile photo</p>
+                    <p className="text-sm font-medium">{t("settings.account.profile_photo")}</p>
                     <p className="text-muted-foreground text-xs">
-                      Avatar is derived from your connected wallet address.
+                      {t("settings.account.avatar_description")}
                     </p>
                   </div>
                 </div>
@@ -137,24 +139,24 @@ export default function AccountSettingsPage() {
 
                 {/* Display name */}
                 <div className="space-y-2">
-                  <Label htmlFor="display-name">Display name</Label>
+                  <Label htmlFor="display-name">{t("settings.account.display_name")}</Label>
                   <Input
                     id="display-name"
                     name="displayName"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="e.g. Alice Predictor"
+                    placeholder={t("settings.account.display_name_placeholder")}
                     autoComplete="name"
                     aria-describedby="display-name-hint"
                   />
                   <p id="display-name-hint" className="text-muted-foreground text-xs">
-                    Shown on leaderboards and market activity feeds.
+                    {t("settings.account.display_name_hint")}
                   </p>
                 </div>
 
                 {/* Username */}
                 <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="username">{t("settings.account.username")}</Label>
                   <div className="flex items-center gap-2">
                     <span
                       className="text-muted-foreground select-none text-sm"
@@ -167,35 +169,35 @@ export default function AccountSettingsPage() {
                       name="username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="yourhandle"
+                      placeholder={t("settings.account.username_placeholder")}
                       autoComplete="username"
                       aria-describedby="username-hint"
                       className="flex-1"
                     />
                   </div>
                   <p id="username-hint" className="text-muted-foreground text-xs">
-                    Unique handle used in shareable profile links.
+                    {t("settings.account.username_hint")}
                   </p>
                 </div>
 
                 {/* Bio */}
                 <div className="space-y-2">
-                  <Label htmlFor="bio">Short bio</Label>
+                  <Label htmlFor="bio">{t("settings.account.bio")}</Label>
                   <textarea
                     id="bio"
                     name="bio"
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
-                    placeholder="Tell other predictors a bit about yourself…"
+                    placeholder={t("settings.account.bio_placeholder")}
                     rows={3}
                     maxLength={200}
                     aria-describedby="bio-hint"
                     className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                   <p id="bio-hint" className="text-muted-foreground text-xs">
-                    Max 200 characters.{" "}
+                    {t("settings.account.bio_hint")}{" "}
                     <span aria-live="polite" aria-atomic="true">
-                      {bio.length}/200 used.
+                      {t("settings.account.characters_used", { count: bio.length })}
                     </span>
                   </p>
                 </div>
@@ -204,15 +206,13 @@ export default function AccountSettingsPage() {
                 {saveState === "saved" && (
                   <Alert className="border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
-                    <AlertDescription>Profile saved successfully.</AlertDescription>
+                    <AlertDescription>{t("settings.account.profile_saved")}</AlertDescription>
                   </Alert>
                 )}
                 {saveState === "error" && (
                   <Alert className="border-destructive/50 bg-destructive/10 text-destructive">
                     <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                    <AlertDescription>
-                      Something went wrong. Please try again.
-                    </AlertDescription>
+                    <AlertDescription>{t("settings.account.error")}</AlertDescription>
                   </Alert>
                 )}
               </CardContent>
@@ -227,10 +227,10 @@ export default function AccountSettingsPage() {
                     setBio("")
                   }}
                 >
-                  Reset
+                  {t("settings.account.reset")}
                 </Button>
                 <Button type="submit" disabled={saveState === "saving"}>
-                  {saveState === "saving" ? "Saving…" : "Save profile"}
+                  {saveState === "saving" ? t("settings.account.saving") : t("settings.account.save_profile")}
                 </Button>
               </CardFooter>
             </Card>
@@ -246,20 +246,20 @@ export default function AccountSettingsPage() {
                   variant="secondary"
                   className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.2em]"
                 >
-                  Privacy controls
+                  {t("settings.account.privacy_controls")}
                 </Badge>
               </div>
-              <CardTitle>Privacy &amp; data</CardTitle>
+              <CardTitle>{t("settings.account.privacy_data")}</CardTitle>
               <CardDescription>
-                Control what others see and how your activity data is used.
+                {t("settings.account.privacy_description")}
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-6">
               <PrivacySwitch
                 id="public-profile"
-                label="Public profile"
-                description="Allow other users to view your profile page and prediction history."
+                label={t("settings.account.public_profile")}
+                description={t("settings.account.public_profile_description")}
                 checked={publicProfile}
                 onCheckedChange={setPublicProfile}
               />
@@ -268,8 +268,8 @@ export default function AccountSettingsPage() {
 
               <PrivacySwitch
                 id="show-activity"
-                label="Show recent activity"
-                description="Display your recent bets and market participation on your profile."
+                label={t("settings.account.show_activity")}
+                description={t("settings.account.show_activity_description")}
                 checked={showActivity}
                 onCheckedChange={setShowActivity}
               />
@@ -278,8 +278,8 @@ export default function AccountSettingsPage() {
 
               <PrivacySwitch
                 id="show-leaderboard"
-                label="Appear on leaderboards"
-                description="Include your username and stats in public leaderboard rankings."
+                label={t("settings.account.show_leaderboard")}
+                description={t("settings.account.show_leaderboard_description")}
                 checked={showLeaderboard}
                 onCheckedChange={setShowLeaderboard}
               />
@@ -288,8 +288,8 @@ export default function AccountSettingsPage() {
 
               <PrivacySwitch
                 id="allow-analytics"
-                label="Allow usage analytics"
-                description="Help improve Predictify by sharing anonymised interaction data. No wallet data is included."
+                label={t("settings.account.allow_analytics")}
+                description={t("settings.account.allow_analytics_description")}
                 checked={analyticsConsent}
                 onCheckedChange={setAnalyticsConsent}
               />

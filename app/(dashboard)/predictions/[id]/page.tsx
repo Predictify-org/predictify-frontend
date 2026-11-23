@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MOCK_PREDICTIONS } from "@/app/(dashboard)/mypredictions/page";
+import { MOCK_PREDICTIONS } from "@/app/(dashboard)/mypredictions/mock-predictions";
 import PredictionCard from "@/components/PredictionCard";
 import PredictionCommentsLoader from "@/app/components/PredictionCommentsLoader";
 import { EmptyState } from "@/components/EmptyState";
