@@ -1,18 +1,17 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useInstallPrompt } from "../useInstallPrompt";
 
 function makePromptEvent(outcome: "accepted" | "dismissed") {
   const event = new Event("beforeinstallprompt") as any;
-  event.prompt = vi.fn().mockResolvedValue(undefined);
+  event.prompt = jest.fn().mockResolvedValue(undefined);
   event.userChoice = Promise.resolve({ outcome });
-  event.preventDefault = vi.fn();
+  event.preventDefault = jest.fn();
   return event;
 }
 
 describe("useInstallPrompt", () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => { jest.useRealTimers(); });
 
   it("canInstall is false before the event fires", () => {
     const { result } = renderHook(() => useInstallPrompt());

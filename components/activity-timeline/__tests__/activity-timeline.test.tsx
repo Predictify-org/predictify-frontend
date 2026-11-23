@@ -65,8 +65,10 @@ describe("ActivityTimeline Component", () => {
     it("should render with default mock data", () => {
       render(<ActivityTimeline />);
       // The component generates its own mock data when no activities prop is supplied.
-      // Verify it renders without crashing and shows some content.
-      expect(screen.getByRole("list") ?? screen.getByRole("region") ?? document.body.firstChild).toBeTruthy();
+      // Verify it renders without crashing and shows grouped content.
+      expect(
+        screen.getByRole("button", { name: /predictions/i })
+      ).toBeInTheDocument();
     });
 
     it("should render with provided activities", () => {
@@ -267,9 +269,10 @@ describe("ActivityTimeline Component", () => {
 
   describe("Pagination / Load More", () => {
     it("should render load more button when there are more items", () => {
-      // 24 activities with pageSize=6 means hasMore=true after the first page.
+      // Pages hold groups, not individual events: 3 group types with pageSize=1
+      // means hasMore=true after the first page.
       const activities = generateMockActivities(24);
-      render(<ActivityTimeline activities={activities} pageSize={6} />);
+      render(<ActivityTimeline activities={activities} pageSize={1} />);
       const loadMoreButton = screen.getByRole("button", { name: /load older activities/i });
       expect(loadMoreButton).toBeInTheDocument();
     });
@@ -287,7 +290,7 @@ describe("ActivityTimeline Component", () => {
     it("should call onLoadMore callback when load more is clicked", async () => {
       const activities = generateMockActivities(24);
       const onLoadMore = jest.fn();
-      render(<ActivityTimeline activities={activities} pageSize={6} onLoadMore={onLoadMore} />);
+      render(<ActivityTimeline activities={activities} pageSize={1} onLoadMore={onLoadMore} />);
       const loadMoreButton = screen.getByRole("button", { name: /load older activities/i });
       fireEvent.click(loadMoreButton);
       expect(onLoadMore).toHaveBeenCalledTimes(1);

@@ -82,26 +82,26 @@ describe("creator market calculations", () => {
       allowed: false,
       reason: "This market is already resolved.",
     });
+  });
 
-    it("returns mock markets only for the requested creator wallet", async () => {
-      const owner = "creator-wallet-one";
-      const otherWallet = "creator-wallet-two";
-      setMockCreatorMarkets(owner, [createMarket()]);
+  it("returns mock markets only for the requested creator wallet", async () => {
+    const owner = "creator-wallet-one";
+    const otherWallet = "creator-wallet-two";
+    setMockCreatorMarkets(owner, [createMarket()]);
 
-      await expect(mockCreatorMarketsProvider.listByCreator(owner)).resolves.toHaveLength(1);
-      await expect(mockCreatorMarketsProvider.listByCreator(otherWallet)).resolves.toEqual([]);
+    await expect(mockCreatorMarketsProvider.listByCreator(owner)).resolves.toHaveLength(1);
+    await expect(mockCreatorMarketsProvider.listByCreator(otherWallet)).resolves.toEqual([]);
+  });
+
+  it("builds a wallet-scoped creator intent with the shared hash/status shape", async () => {
+    const intent = await createCancelMarketIntent("market-1", "wallet-1");
+    expect(intent).toMatchObject({
+      key: `wallet-1:${intent.intentHash}`,
+      walletAddress: "wallet-1",
+      status: "built",
+      action: "cancel_market",
+      marketId: "market-1",
     });
-
-    it("builds a wallet-scoped creator intent with the shared hash/status shape", async () => {
-      const intent = await createCancelMarketIntent("market-1", "wallet-1");
-      expect(intent).toMatchObject({
-        key: `wallet-1:${intent.intentHash}`,
-        walletAddress: "wallet-1",
-        status: "built",
-        action: "cancel_market",
-        marketId: "market-1",
-      });
-      expect(intent.intentHash).toBeTruthy();
-    });
+    expect(intent.intentHash).toBeTruthy();
   });
 });

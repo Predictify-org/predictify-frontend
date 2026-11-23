@@ -1,16 +1,15 @@
 import { render, screen, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { OfflineBanner } from "../OfflineBanner";
 
-vi.mock("@/hooks/use-global-live-region", () => ({
-  announce: vi.fn(),
+jest.mock("@/hooks/use-global-live-region", () => ({
+  announce: jest.fn(),
 }));
 
 describe("OfflineBanner", () => {
   beforeEach(() => {
     Object.defineProperty(navigator, "onLine", { value: true, writable: true, configurable: true });
   });
-  afterEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => { jest.restoreAllMocks(); });
 
   it("renders nothing when online", () => {
     const { container } = render(<OfflineBanner />);

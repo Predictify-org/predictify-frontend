@@ -19,6 +19,7 @@ export const metadata: Metadata = {
     template: "%s | Predictify",
   },
   description,
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",

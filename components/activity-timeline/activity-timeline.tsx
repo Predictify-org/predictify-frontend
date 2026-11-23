@@ -62,7 +62,13 @@ export function ActivityTimeline({
 
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const activityData = activities || generateMockActivities(24);
+  // Memoised so the effect below does not re-run on every render: an inline
+  // `generateMockActivities(24)` creates a new array each time, which would
+  // trigger an infinite setState loop.
+  const activityData = useMemo(
+    () => activities ?? generateMockActivities(24),
+    [activities]
+  );
 
   useEffect(() => {
     const grouped = groupActivities(activityData);

@@ -16,7 +16,6 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
 export const viewport: Viewport = {
-  manifest: "/manifest.webmanifest",
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',

@@ -29,6 +29,8 @@ const en: Messages = {
   "nav.claims": "Claims",
   "nav.docs": "Docs",
   "nav.home": "Home",
+  "nav.watchlist": "Watchlist",
+  "nav.creator": "Creator",
   "nav.predictions_short": "Predictions",
   "nav.wallet_short": "Wallet",
   "nav.more": "More",
