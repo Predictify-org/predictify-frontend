@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { Switch } from "@/components/ui/switch"
 import { toast as sonnerToast } from "sonner"
 import { useReducedMotion } from "@/hooks/useReducedMotion"
+import { SetAlertPopover } from "@/app/components/SetAlertPopover"
 
 /**
  * Props for the SubscribeToggle component.
@@ -169,6 +170,12 @@ export const SubscribeToggle: React.FC<SubscribeToggleProps> = ({
         disabled={disabled}
         aria-label={accessibleLabel}
         className="flex-shrink-0"
+      />
+
+      <SetAlertPopover
+        marketId={marketId}
+        marketTitle={marketTitle}
+        disabled={disabled}
       />
 
       {/* Live region for screen readers to announce state changes */}
