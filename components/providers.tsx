@@ -11,6 +11,8 @@ import { ClaimShareProvider } from "@/context/ClaimShareContext";
 import { GlobalLiveRegion } from "@/app/components/GlobalLiveRegion";
 import { RouteDocumentTitle } from "@/app/hooks/useDocumentTitle";
 import { LangAttribute } from "@/app/i18n/LangAttribute";
+import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
+import { OfflineBanner } from "@/components/pwa/OfflineBanner";
 import { NotificationStreamConnector } from "@/components/notification-stream-connector";
 import { useAlertEvaluator } from "@/app/hooks/useAlertEvaluator";
 
@@ -47,6 +49,8 @@ export function Providers({ children }: ProvidersProps) {
         </PrivacyProvider>
         <GlobalLiveRegion />
         <Toaster />
+        <ServiceWorkerRegistration />
+        <OfflineBanner />
       </ThemeProvider>
     </ErrorBoundary>
   );
