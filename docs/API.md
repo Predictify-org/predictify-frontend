@@ -16,7 +16,13 @@ Configuration is centralized in two files.
 ### `lib/env.ts`
 
 [`lib/env.ts`](../lib/env.ts) reads and validates public environment variables and
-exposes a typed `env` object. Defaults are applied when a variable is unset.
+exposes a typed `env` object. Defaults are applied when a variable is unset; an
+explicitly empty or whitespace-only value is not treated as "unset".
+
+Values are validated with [zod](https://zod.dev): URL variables must parse with
+`new URL` and use `http:`/`https:` (trailing slashes are normalised away), the
+Stellar network must be `testnet` or `mainnet` (case-insensitive), the app name
+must be non-empty after trimming, and the analytics id is optional.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -26,8 +32,17 @@ exposes a typed `env` object. Defaults are applied when a variable is unset.
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Public app URL. |
 | `NEXT_PUBLIC_ANALYTICS_ID` | empty | Optional analytics id. |
 
-`validateEnv()` enforces required variables in production and validates the
-network value. It runs automatically when the module is imported in production.
+`parseEnv(source)` is the pure, testable entry point: given a map of values it
+returns the validated `env` object or throws one aggregated error listing every
+problem (e.g. `ftp://`, a host without a scheme, or `NEXT_PUBLIC_APP_NAME=""`).
+
+`validateEnv()` applies the same rules to `process.env` and runs automatically
+when the module is imported:
+
+- in **production** an invalid value throws a readable, aggregated error;
+- in **development/test** it logs a warning and falls back to the defaults above
+  for the offending keys only, so a typo in `.env.local` does not block local
+  work.
 
 ### `lib/config.ts`
 
