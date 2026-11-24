@@ -10,6 +10,9 @@ const isProduction = process.env.NODE_ENV === 'production';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  env: {
+    NEXT_PUBLIC_USE_MOCKS: process.env.NEXT_PUBLIC_USE_MOCKS || 'false',
+  },
   // Only ignore build errors in development for faster iteration
   // In production, we want to catch all errors
   eslint: {
@@ -29,6 +32,17 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+  },
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+    ];
   },
   // Production optimizations
   ...(isProduction && {

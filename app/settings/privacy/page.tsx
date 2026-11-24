@@ -17,10 +17,12 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { useConsentStore } from "@/app/state/consent"
+import { useTranslation } from "@/app/i18n"
 
 type SaveState = "idle" | "saving" | "saved" | "error"
 
 export default function PrivacySettingsPage() {
+  const { t } = useTranslation()
   const [publicProfile, setPublicProfile] = useState(true)
   const [showActivity, setShowActivity] = useState(true)
   const [showLeaderboard, setShowLeaderboard] = useState(true)
@@ -43,40 +45,40 @@ export default function PrivacySettingsPage() {
     {
       id: "public-profile",
       icon: User,
-      label: "Public profile",
-      description: "Allow other users to view your profile page and prediction history.",
+      label: t("settings.account.public_profile"),
+      description: t("settings.account.public_profile_description"),
       checked: publicProfile,
       onChange: setPublicProfile,
     },
     {
       id: "show-activity",
       icon: Activity,
-      label: "Show recent activity",
-      description: "Display your recent bets and market participation on your profile.",
+      label: t("settings.account.show_activity"),
+      description: t("settings.account.show_activity_description"),
       checked: showActivity,
       onChange: setShowActivity,
     },
     {
       id: "show-leaderboard",
       icon: BarChart3,
-      label: "Appear on leaderboards",
-      description: "Include your username and stats in public leaderboard rankings.",
+      label: t("settings.account.show_leaderboard"),
+      description: t("settings.account.show_leaderboard_description"),
       checked: showLeaderboard,
       onChange: setShowLeaderboard,
     },
     {
       id: "show-balance",
       icon: Wallet,
-      label: "Show wallet balance on profile",
-      description: "Display your portfolio balance publicly. Turn off to keep amounts private.",
+      label: t("settings.privacy.show_balance"),
+      description: t("settings.privacy.show_balance_description"),
       checked: showBalance,
       onChange: setShowBalance,
     },
     {
       id: "allow-analytics",
       icon: Eye,
-      label: "Allow usage analytics",
-      description: "Help improve Predictify by sharing anonymised interaction data. No wallet data is included.",
+      label: t("settings.account.allow_analytics"),
+      description: t("settings.account.allow_analytics_description"),
       checked: analyticsConsent,
       onChange: setAnalyticsConsent,
     },
@@ -92,16 +94,16 @@ export default function PrivacySettingsPage() {
           id="privacy-settings-heading"
           className="text-3xl font-semibold tracking-tight"
         >
-          Privacy
+          {t("settings.privacy.heading")}
         </h1>
         <p className="text-muted-foreground text-sm">
-          Control your public profile visibility and data sharing preferences.
+          {t("settings.privacy.description")}
         </p>
       </div>
 
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {saveState === "saved" ? "Privacy settings saved successfully." : ""}
-        {saveState === "error" ? "Failed to save. Please try again." : ""}
+        {saveState === "saved" ? t("settings.privacy.saved") : ""}
+        {saveState === "error" ? t("settings.account.save_failed") : ""}
       </div>
 
       <form onSubmit={handleSave} noValidate>
@@ -114,12 +116,12 @@ export default function PrivacySettingsPage() {
                     variant="secondary"
                     className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.2em]"
                   >
-                    Profile visibility
+                    {t("settings.privacy.profile_visibility")}
                   </Badge>
                 </div>
-                <CardTitle>Public profile settings</CardTitle>
+                <CardTitle>{t("settings.privacy.public_profile_settings")}</CardTitle>
                 <CardDescription>
-                  Choose what information is visible to other users on the platform.
+                  {t("settings.privacy.public_profile_description")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-1">
@@ -140,14 +142,14 @@ export default function PrivacySettingsPage() {
             {saveState === "saved" && (
               <Alert className="border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
                 <Sparkles className="h-4 w-4" aria-hidden="true" />
-                <AlertDescription>Privacy settings saved successfully.</AlertDescription>
+                <AlertDescription>{t("settings.privacy.saved")}</AlertDescription>
               </Alert>
             )}
             {saveState === "error" && (
               <Alert className="border-destructive/50 bg-destructive/10 text-destructive">
                 <AlertCircle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>
-                  Something went wrong. Please try again.
+                  {t("settings.account.error")}
                 </AlertDescription>
               </Alert>
             )}
@@ -158,10 +160,10 @@ export default function PrivacySettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-lg">Privacy summary</CardTitle>
+                  <CardTitle className="text-lg">{t("settings.privacy.summary")}</CardTitle>
                 </div>
                 <CardDescription>
-                  Quick overview of your current visibility choices.
+                  {t("settings.privacy.summary_description")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -177,7 +179,7 @@ export default function PrivacySettingsPage() {
                         <span className="text-sm">{toggle.label}</span>
                       </div>
                       <Badge variant={toggle.checked ? "secondary" : "outline"}>
-                        {toggle.checked ? "Visible" : "Hidden"}
+                        {toggle.checked ? t("settings.privacy.visible") : t("settings.privacy.hidden")}
                       </Badge>
                     </div>
                   )
@@ -189,17 +191,15 @@ export default function PrivacySettingsPage() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <EyeOff className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                  Privacy guidance
+                  {t("settings.privacy.guidance")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
                 <p>
-                  Keep profile visibility off if you prefer not to share your prediction activity
-                  publicly. Wallet balances are hidden by default for your security.
+                  {t("settings.privacy.guidance_profile")}
                 </p>
                 <p>
-                  Analytics data is anonymised and never linked to your wallet or identity.
-                  You can opt out at any time.
+                  {t("settings.privacy.guidance_analytics")}
                 </p>
               </CardContent>
             </Card>
@@ -216,10 +216,10 @@ export default function PrivacySettingsPage() {
                   setAnalyticsConsent(false)
                 }}
               >
-                Reset defaults
+                {t("settings.privacy.reset")}
               </Button>
               <Button type="submit" disabled={saveState === "saving"}>
-                {saveState === "saving" ? "Saving\u2026" : "Save privacy settings"}
+                {saveState === "saving" ? t("settings.privacy.saving") : t("settings.privacy.save")}
               </Button>
             </div>
           </div>

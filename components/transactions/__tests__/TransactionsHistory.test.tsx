@@ -11,6 +11,10 @@ jest.mock('@/hooks/useWallet.hook', () => ({
   useWallet: jest.fn(),
 }));
 
+jest.mock('@/context/PrivacyContext', () => ({
+  usePrivacy: () => ({ hideBalances: false, setHideBalances: jest.fn() }),
+}));
+
 const mockUseWallet = useWallet as jest.MockedFunction<typeof useWallet>;
 
 const WALLET_A = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';

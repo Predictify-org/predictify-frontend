@@ -7,6 +7,7 @@ export interface Event {
   odds: number
   startDate: string
   endDate: string
+  resolutionDate?: string
   status: "ongoing" | "upcoming" | "past"
   timeRemaining?: string
   timeRemainingMs?: number

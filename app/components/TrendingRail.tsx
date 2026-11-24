@@ -4,9 +4,11 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { EmptyState } from './EmptyState';
 import styles from './TrendingRail.module.css';
+import { z } from 'zod';
+import { http, HttpError } from '@/lib/http';
 
 interface TrendingItem {
   id: string;
@@ -16,23 +18,39 @@ interface TrendingItem {
   trend: 'up' | 'down' | 'neutral';
 }
 
+const trendingSchema = z.array(z.object({
+  id: z.string(),
+  title: z.string(),
+  value: z.number(),
+  change: z.number(),
+  trend: z.enum(['up', 'down', 'neutral']),
+}));
+
 export const TrendingRail: React.FC = () => {
   const [trendingData, setTrendingData] = useState<TrendingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const fetchTrendingData = useCallback(async () => {
     setIsLoading(true);
     setIsError(false);
     setError(null);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
-      const response = await fetch('/api/trending');
-      if (!response.ok) throw new Error('Failed to fetch trending data');
-      const data = (await response.json()) as TrendingItem[];
+      const data = await http<TrendingItem[]>('/api/trending', {
+        schema: trendingSchema,
+        timeoutMs: 10000,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
       setTrendingData(data);
     } catch (err) {
+      if (err instanceof HttpError && err.kind === 'aborted') return;
       setIsError(true);
       setError(err instanceof Error ? err : new Error('Unknown error'));
     } finally {
@@ -42,6 +60,7 @@ export const TrendingRail: React.FC = () => {
 
   useEffect(() => {
     void fetchTrendingData();
+    return () => abortRef.current?.abort();
   }, [fetchTrendingData]);
 
   if (isLoading) {

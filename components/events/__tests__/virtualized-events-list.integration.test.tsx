@@ -58,6 +58,7 @@ describe("VirtualizedEventsList - Integration Tests", () => {
       loading: false,
       hasNextPage: true,
       isFetchingNextPage: false,
+      lastFetchTime: Date.now(),
     });
   });
 
