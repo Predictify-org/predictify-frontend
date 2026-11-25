@@ -32,6 +32,7 @@ Deploy with `vercel --prod` (Vercel project `predictify-frontend-live` is linked
 ### Required Production Environment Variables
 
 - **`NEXT_PUBLIC_APP_URL`** *(required in production)*: The canonical public origin of the deployed app (for example, `https://predictify-frontend-livid.vercel.app`). Used to generate `/sitemap.xml`, `/robots.txt`, `metadataBase`, per-market canonical URLs, Open Graph URLs, and schema.org JSON-LD. Defaults to `http://localhost:3000` in local development.
+- **`NEXT_PUBLIC_PREDICTIFY_CONTRACT_ID`** *(required for market creation)*: The Soroban contract address invoked by the Create Event page. Without it, market creation fails with a recoverable configuration error.
 
 All other `NEXT_PUBLIC_*` variables have safe defaults. See
 [`.env.example`](./.env.example) for the complete, commented list of supported

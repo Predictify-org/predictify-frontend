@@ -25,6 +25,7 @@ exposes a typed `env` object. Defaults are applied when a variable is unset.
 | `NEXT_PUBLIC_APP_NAME` | `Predictify` | Application name. |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Public app URL. |
 | `NEXT_PUBLIC_ANALYTICS_ID` | empty | Optional analytics id. |
+| `NEXT_PUBLIC_PREDICTIFY_CONTRACT_ID` | empty | Soroban contract address used for market creation. Required by the Create Event flow. |
 
 `validateEnv()` enforces required variables in production and validates the
 network value. It runs automatically when the module is imported in production.
@@ -183,6 +184,65 @@ When the user scrolls past 50px inside the table viewport, a sticky bottom actio
 
 The action bar uses `sticky bottom-0` positioning, `backdrop-blur-md`, and respects dark-mode design tokens (`bg-slate-900/95`, `border-slate-800`, `text-slate-400`, `text-cyan-400`).
 
+## Market creation (`create_market`)
+
+`app/(dashboard)/events/new/page.tsx` creates markets on-chain instead of
+logging the form. Three modules cooperate:
+
+| Module | Responsibility |
+| --- | --- |
+| [`lib/market-creation.ts`](../lib/market-creation.ts) | Draft types, zod schema, `validateMarketDraft()` and canonicalization. |
+| [`lib/transaction/create-market-intent.ts`](../lib/transaction/create-market-intent.ts) | Deterministic intent key, `create_market` argument encoding and XDR construction. |
+| [`hooks/useTransaction.hook.ts`](../hooks/useTransaction.hook.ts) | Signing, submission, confirmation and failure classification. |
+
+### Validation rules
+
+`validateMarketDraft()` returns normalized data or inline field errors. Limits
+live in `MARKET_DRAFT_LIMITS`:
+
+- Title: 5–120 characters after trimming.
+- Description: 10–1000 characters after trimming.
+- Category: one of `Sports`, `Finance`, `Entertainment`, `Politics`, `Technology`, `Other`.
+- Deadline: strictly in the future and no more than 365 days away.
+- Outcomes: 2–10 non-empty, unique (case-insensitive) strings of at most 80 characters.
+- Optional probabilities, when supplied, must be between 0 and 100 and are display-only.
+
+### Contract call
+
+The checked-in contract source/spec does not yet export `create_market`. The
+single integration point for its encoding is `encodeCreateMarketArgs()`, which
+currently emits:
+
+```
+create_market(
+  creator: Address,
+  title: String,
+  description: String,
+  category: String,
+  deadline: u64,        // unix seconds
+  outcomes: Vec<String>,
+  is_public: bool,
+  featured: bool,
+)
+```
+
+When the contract ABI lands, update that function and its tests rather than
+spreading encoding across the form.
+
+### Configuration and retries
+
+- `NEXT_PUBLIC_PREDICTIFY_CONTRACT_ID` must be set; when it is missing the form
+  keeps the draft and shows a recoverable "Could not prepare the transaction"
+  error without calling the wallet.
+- The intent key is `wallet:create_market:<canonical draft hash>`. The canonical form excludes
+  display-only probabilities and truncates the deadline to whole seconds, so the
+  same draft maps to the same intent.
+- A built XDR is stored through `lib/transaction/intent.ts` and reused on retry,
+  and the page guards against double submits while a transaction is in flight.
+- Success redirects to `/events`; `userRejected`, `signFailed`, `submitFailed`,
+  `confirmationFailed`, `confirmationTimeout` and `buildFailed` each render a
+  distinct recoverable message and never clear the form.
+
 ## Mocked vs. real status
 
 | Area | Status | Source of truth today |
@@ -190,6 +250,7 @@ The action bar uses `sticky bottom-0` positioning, `backdrop-blur-md`, and respe
 | Environment config | Real | `lib/env.ts`, `lib/config.ts` |
 | `NEXT_PUBLIC_API_URL` consumption | Not wired | defined but unused |
 | Stellar network selection | Real | `NEXT_PUBLIC_STELLAR_NETWORK` via `lib/config.ts` |
+| Market creation | Real (contract ABI pending) | `lib/market-creation.ts`, `lib/transaction/create-market-intent.ts` |
 | Wallet connect / disconnect | Real | `hooks/useWallet.hook.ts`, Stellar Wallets Kit |
 | Transaction signing network | Partial | hardcoded `WalletNetwork.TESTNET` in `hooks/useWallet.hook.ts` |
 | Events data | Mocked | `mockEvents` in `lib/events-store.ts` |

@@ -1,8 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarIcon, Plus, Trash2 } from "lucide-react"
+import { addDays, format, startOfDay } from "date-fns"
+import {
+  AlertCircle,
+  CalendarIcon,
+  Loader2,
+  Plus,
+  Trash2,
+  Wallet,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,13 +18,77 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { format } from "date-fns"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ConnectWalletModal } from "@/components/connect-wallet-modal"
+import { useWallet } from "@/hooks/useWallet.hook"
+import {
+  useTransaction,
+  type TransactionFailureType,
+} from "@/hooks/useTransaction.hook"
+import {
+  MARKET_CATEGORIES,
+  MARKET_DRAFT_LIMITS,
+  validateMarketDraft,
+  type MarketDraftErrors,
+  type MarketDraftField,
+} from "@/lib/market-creation"
+import { buildCreateMarketIntent } from "@/lib/transaction/create-market-intent"
+
+const FAILURE_COPY: Record<
+  TransactionFailureType,
+  { title: string; message: string }
+> = {
+  userRejected: {
+    title: "Transaction cancelled",
+    message:
+      "You rejected the signature request. Your draft is unchanged — review it and submit again when ready.",
+  },
+  signFailed: {
+    title: "Could not sign the transaction",
+    message: "Your wallet could not sign the market creation. Unlock it and try again.",
+  },
+  submitFailed: {
+    title: "Submission failed",
+    message: "The network rejected the transaction. Your draft is unchanged; retry in a moment.",
+  },
+  confirmationFailed: {
+    title: "Confirmation failed",
+    message:
+      "The transaction was submitted but the network reported a failure. Check the transaction before retrying.",
+  },
+  confirmationTimeout: {
+    title: "Confirmation timed out",
+    message:
+      "The transaction was submitted but did not confirm in time. It may still land — check the explorer before retrying.",
+  },
+  buildFailed: {
+    title: "Could not prepare the transaction",
+    message:
+      "The market creation transaction could not be built. Check your connection and contract configuration, then retry.",
+  },
+  requestFailed: {
+    title: "Wallet required",
+    message: "Reconnect your Stellar wallet and try again. Your draft has been kept.",
+  },
+}
+
+const PENDING_LABEL = {
+  signing: "Waiting for signature…",
+  submitting: "Submitting…",
+  confirming: "Confirming…",
+  idle: "Creating market…",
+  success: "Creating market…",
+  failed: "Creating market…",
+} as const
 
 export default function NewEventPage() {
   const router = useRouter()
+  const { isConnected, walletAddress, isConnecting } = useWallet()
+  const { executeTransaction, status } = useTransaction()
+
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
@@ -26,10 +98,35 @@ export default function NewEventPage() {
   const [isPublic, setIsPublic] = useState(true)
   const [featuredEvent, setFeaturedEvent] = useState(false)
 
+  const [errors, setErrors] = useState<MarketDraftErrors>({})
+  const [submitFailure, setSubmitFailure] = useState<{
+    type: TransactionFailureType
+    error?: string
+  } | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false)
+  const submittingRef = useRef(false)
+
+  const isPending =
+    isSubmitting ||
+    status === "signing" ||
+    status === "submitting" ||
+    status === "confirming"
+
+  const clearFieldError = (field: MarketDraftField) => {
+    setErrors((previous) => {
+      if (!previous[field]) return previous
+      const next = { ...previous }
+      delete next[field]
+      return next
+    })
+  }
+
   const addOption = () => {
     if (newOption.trim() !== "") {
       setOptions([...options, { text: newOption, probability: "" }])
       setNewOption("")
+      clearFieldError("options")
     }
   }
 
@@ -39,30 +136,112 @@ export default function NewEventPage() {
     setOptions(updatedOptions)
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const updateOption = (index: number, text: string) => {
+    const updatedOptions = [...options]
+    updatedOptions[index] = { ...updatedOptions[index], text }
+    setOptions(updatedOptions)
+    clearFieldError("options")
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    // In a real app, you would send this data to your API
-    console.log({
+
+    // A double-click fires two submits before the first await resolves.
+    if (submittingRef.current) return
+
+    const validation = validateMarketDraft({
       title,
       description,
-      category,
+      category: category || null,
       deadline,
       options,
       isPublic,
       featuredEvent,
     })
 
-    // Redirect back to events page
-    router.push("/events")
+    if (!validation.success) {
+      setErrors(validation.errors)
+      setSubmitFailure(null)
+      return
+    }
+
+    if (!isConnected || !walletAddress) {
+      setErrors({ form: "Connect a Stellar wallet before creating a market." })
+      setSubmitFailure(null)
+      setIsWalletModalOpen(true)
+      return
+    }
+
+    submittingRef.current = true
+    setIsSubmitting(true)
+    setErrors({})
+    setSubmitFailure(null)
+
+    try {
+      const intent = await buildCreateMarketIntent(validation.data, walletAddress)
+      const result = await executeTransaction(intent.buildXdr)
+
+      if (result.success) {
+        // No market id is returned by the wallet flow; land on the events list.
+        router.push("/events")
+        return
+      }
+
+      setSubmitFailure({
+        type: result.failureType ?? "requestFailed",
+        error: result.error,
+      })
+    } catch (error: unknown) {
+      setSubmitFailure({
+        type: "buildFailed",
+        error:
+          error instanceof Error
+            ? error.message
+            : "The market creation transaction could not be built.",
+      })
+    } finally {
+      submittingRef.current = false
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Create New Prediction Event</h1>
+        <h1 id="create-event-heading" className="text-2xl font-bold tracking-tight">
+          Create New Prediction Event
+        </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      {!isConnected && (
+        <Alert>
+          <Wallet className="h-4 w-4" />
+          <AlertTitle>Connect a wallet to create a market</AlertTitle>
+          <AlertDescription>
+            <p>
+              Creating a market is an on-chain action, so you need a Stellar
+              wallet connected before you can submit.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => setIsWalletModalOpen(true)}
+              disabled={isConnecting}
+            >
+              {isConnecting ? "Connecting…" : "Connect wallet"}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        aria-labelledby="create-event-heading"
+        noValidate
+        className="space-y-8"
+      >
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
             <div className="space-y-2">
@@ -71,9 +250,18 @@ export default function NewEventPage() {
                 id="title"
                 placeholder="Enter event title"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
+                onChange={(e) => {
+                  setTitle(e.target.value)
+                  clearFieldError("title")
+                }}
+                aria-invalid={Boolean(errors.title)}
+                aria-describedby={errors.title ? "title-error" : undefined}
               />
+              {errors.title && (
+                <p id="title-error" className="text-sm font-medium text-destructive">
+                  {errors.title}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -82,43 +270,89 @@ export default function NewEventPage() {
                 id="description"
                 placeholder="Describe the prediction event"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value)
+                  clearFieldError("description")
+                }}
                 className="min-h-[120px]"
-                required
+                aria-invalid={Boolean(errors.description)}
+                aria-describedby={errors.description ? "description-error" : undefined}
               />
+              {errors.description && (
+                <p id="description-error" className="text-sm font-medium text-destructive">
+                  {errors.description}
+                </p>
+              )}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select value={category} onValueChange={setCategory} required>
-                  <SelectTrigger id="category">
+                <Select
+                  value={category}
+                  onValueChange={(value) => {
+                    setCategory(value)
+                    clearFieldError("category")
+                  }}
+                >
+                  <SelectTrigger
+                    id="category"
+                    aria-invalid={Boolean(errors.category)}
+                    aria-describedby={errors.category ? "category-error" : undefined}
+                  >
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Sports">Sports</SelectItem>
-                    <SelectItem value="Finance">Finance</SelectItem>
-                    <SelectItem value="Entertainment">Entertainment</SelectItem>
-                    <SelectItem value="Politics">Politics</SelectItem>
-                    <SelectItem value="Technology">Technology</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    {MARKET_CATEGORIES.map((marketCategory) => (
+                      <SelectItem key={marketCategory} value={marketCategory}>
+                        {marketCategory}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {errors.category && (
+                  <p id="category-error" className="text-sm font-medium text-destructive">
+                    {errors.category}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="deadline">Deadline</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal" id="deadline">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      id="deadline"
+                      aria-invalid={Boolean(errors.deadline)}
+                      aria-describedby={errors.deadline ? "deadline-error" : undefined}
+                    >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {deadline ? format(deadline, "PPP") : "Select deadline"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={deadline ?? undefined} onSelect={(date) => setDeadline(date ?? null)} initialFocus />
+                    <Calendar
+                      mode="single"
+                      selected={deadline ?? undefined}
+                      onSelect={(date) => {
+                        setDeadline(date ?? null)
+                        clearFieldError("deadline")
+                      }}
+                      disabled={{
+                        before: startOfDay(addDays(new Date(), 1)),
+                        after: addDays(new Date(), MARKET_DRAFT_LIMITS.maxHorizonDays),
+                      }}
+                      initialFocus
+                    />
                   </PopoverContent>
                 </Popover>
+                {errors.deadline && (
+                  <p id="deadline-error" className="text-sm font-medium text-destructive">
+                    {errors.deadline}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -146,7 +380,10 @@ export default function NewEventPage() {
           <div className="space-y-4">
             <div>
               <Label>Prediction Options</Label>
-              <p className="text-sm text-muted-foreground mb-4">Add the possible outcomes for this prediction event</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Add at least {MARKET_DRAFT_LIMITS.outcomeMin} possible outcomes for this
+                prediction event
+              </p>
 
               <Card>
                 <CardContent className="p-4 space-y-4">
@@ -154,15 +391,19 @@ export default function NewEventPage() {
                     <div key={index} className="flex items-center gap-2">
                       <Input
                         placeholder={`Option ${index + 1}`}
+                        aria-label={`Outcome ${index + 1}`}
                         value={option.text}
-                        onChange={(e) => {
-                          const updatedOptions = [...options]
-                          updatedOptions[index].text = e.target.value
-                          setOptions(updatedOptions)
-                        }}
+                        onChange={(e) => updateOption(index, e.target.value)}
                         className="flex-1"
                       />
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remove outcome ${index + 1}`}
+                        onClick={() => removeOption(index)}
+                        disabled={options.length <= 1}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -171,16 +412,29 @@ export default function NewEventPage() {
                   <div className="flex items-center gap-2">
                     <Input
                       placeholder="Add new option"
+                      aria-label="New outcome"
                       value={newOption}
                       onChange={(e) => setNewOption(e.target.value)}
                       className="flex-1"
                     />
-                    <Button type="button" variant="outline" size="icon" onClick={addOption}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      aria-label="Add outcome"
+                      onClick={addOption}
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardContent>
               </Card>
+
+              {errors.options && (
+                <p id="options-error" className="mt-2 text-sm font-medium text-destructive">
+                  {errors.options}
+                </p>
+              )}
 
               <div className="mt-4">
                 <Label>Preview</Label>
@@ -216,14 +470,43 @@ export default function NewEventPage() {
           </div>
         </div>
 
+        {errors.form && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Check the form</AlertTitle>
+            <AlertDescription>{errors.form}</AlertDescription>
+          </Alert>
+        )}
+
+        {submitFailure && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>{FAILURE_COPY[submitFailure.type].title}</AlertTitle>
+            <AlertDescription>
+              {FAILURE_COPY[submitFailure.type].message}
+              {submitFailure.error ? ` (${submitFailure.error})` : null}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex items-center justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => router.push("/events")}>
+          <Button type="button" variant="outline" onClick={() => router.push("/events")} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit">Create Event</Button>
+          <Button type="submit" disabled={!isConnected || isPending}>
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {PENDING_LABEL[status]}
+              </>
+            ) : (
+              "Create Event"
+            )}
+          </Button>
         </div>
       </form>
+
+      <ConnectWalletModal isOpen={isWalletModalOpen} onOpenChange={setIsWalletModalOpen} />
     </div>
   )
 }
-

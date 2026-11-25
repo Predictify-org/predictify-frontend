@@ -95,6 +95,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.1.6
         version: 1.2.8(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@stellar/stellar-sdk':
+        specifier: 13.3.0
+        version: 13.3.0
       '@tanstack/react-virtual':
         specifier: ^3.10.8
         version: 3.14.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
