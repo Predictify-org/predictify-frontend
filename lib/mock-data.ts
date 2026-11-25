@@ -1,5 +1,38 @@
 import { Bet, Transaction } from './types';
 import type { Position } from './portfolio-analytics';
+import type { PredictionRecord } from './track-record';
+
+export const demoProfileAddress = `G${'A'.repeat(55)}`;
+
+const demoResolvedResults = [
+  'won', 'won', 'lost', 'won', 'won',
+  'won', 'lost', 'won', 'won', 'won',
+  'lost', 'won', 'won', 'lost', 'won',
+  'won', 'won', 'won', 'won', 'won',
+] as const;
+
+export const mockPredictionHistoryByAddress: Record<string, PredictionRecord[]> = {
+  [demoProfileAddress]: [
+    ...demoResolvedResults.map((status, index) => ({
+      id: `demo-${index + 1}`,
+      category: ['Crypto', 'Football', 'Politics'][index % 3],
+      status,
+      resolvedAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString(),
+    })),
+    {
+      id: 'demo-open',
+      category: 'Crypto',
+      status: 'open',
+      resolvedAt: null,
+    },
+    {
+      id: 'demo-void',
+      category: 'Football',
+      status: 'void',
+      resolvedAt: null,
+    },
+  ],
+};
 
 export const mockActiveBets: Bet[] = [
   {
