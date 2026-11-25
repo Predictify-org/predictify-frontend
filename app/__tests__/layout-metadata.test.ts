@@ -111,7 +111,9 @@ describe("root layout metadata", () => {
 
   it('sets openGraph type to "website"', () => {
     const metadata = loadMetadata();
-    expect(metadata.openGraph?.type).toBe("website");
+    expect((metadata.openGraph as { type?: string } | undefined)?.type).toBe(
+      "website",
+    );
   });
 
   it("sets openGraph siteName", () => {
@@ -145,7 +147,9 @@ describe("root layout metadata", () => {
 
   it('sets twitter card to "summary_large_image"', () => {
     const metadata = loadMetadata();
-    expect(metadata.twitter?.card).toBe("summary_large_image");
+    expect((metadata.twitter as { card?: string } | undefined)?.card).toBe(
+      "summary_large_image",
+    );
   });
 
   it("sets twitter title", () => {

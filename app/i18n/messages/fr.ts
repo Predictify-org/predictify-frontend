@@ -2,6 +2,8 @@ import type { Messages } from "../types";
 
 const fr: Messages = {
   "nav.dashboard": "Tableau de bord",
+  "nav.watchlist": "Liste de suivi",
+  "nav.creator": "Créateur",
   "nav.events": "Événements",
   "nav.predictions": "Mes prédictions",
   "nav.bets": "Paris actifs",

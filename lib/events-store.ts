@@ -5,7 +5,9 @@ import type { EventsAdapter, EventsPage, FetchEventsOptions } from "@/lib/events
 
 export type EventsFetcher = EventsAdapter["fetchEvents"]
 export type EventsLoadErrorKind = EventsApiError["kind"]
-export const mockEvents: Event[] = [
+
+// Re-exported for consumers (e.g. the watchlist page) that need the fixtures.
+export { mockEvents } from "@/lib/fixtures/events"
 
 interface EventsStore {
   // Data

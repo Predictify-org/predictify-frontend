@@ -72,7 +72,9 @@ export function formatRelative(
     units.find(([, unitSize]) => Math.abs(seconds) >= unitSize) ??
     (["second", 1] as const);
 
+  // `numeric: "always"` keeps output predictable across ICU versions (e.g.
+  // French "dans 2 jours" rather than the locale-specific "après-demain").
   return new Intl.RelativeTimeFormat(getLocale(locale), {
-    numeric: "auto",
+    numeric: "always",
   }).format(Math.round(seconds / unitSeconds), unit);
 }

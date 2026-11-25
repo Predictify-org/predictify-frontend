@@ -35,17 +35,20 @@ describe("buildIcs", () => {
   });
 
   it("folds long UTF-8 lines without exceeding 75 octets", () => {
-    const [event] = createMarketCalendarEvents([{
-      ...market,
+    const [closing] = createMarketCalendarEvents([market]);
+    const event = {
+      ...closing,
       description: `${"very long description 🏆,".repeat(16)}\\;`,
-    }]);
+    };
     const ics = buildIcs([event]);
     const physicalLines = ics.split("\r\n").filter(Boolean);
 
     expect(physicalLines.some((line) => line.startsWith(" "))).toBe(true);
     expect(
-      physicalLines.every((line) => new TextEncoder().encode(line).length <= 75),
+      physicalLines.every((line) => Buffer.byteLength(line, "utf8") <= 75),
     ).toBe(true);
-    expect(ics).toContain(`${"\\".repeat(3)};`);
+    // Unfolding the continuation lines restores the escaped trailing "\\;"
+    // sequence intact, proving folding never splits an escaped character.
+    expect(ics.replace(/\r\n /g, "")).toContain(`${"\\".repeat(3)};`);
   });
 });

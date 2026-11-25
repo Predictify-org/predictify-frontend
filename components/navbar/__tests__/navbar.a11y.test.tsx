@@ -125,8 +125,12 @@ describe("Navbar — accessibility", () => {
     expect(screen.getAllByRole("link", { name: "Mis apuestas" })).toHaveLength(2)
   })
 
-  it("includes the creator dashboard in navigation", () => {
-    expect(screen.getAllByRole("link", { name: "Creator" })).toHaveLength(2)
+  it("includes the creator dashboard in navigation", async () => {
+    render(<Navbar />)
+    await waitFor(() => {
+      // Desktop top nav + mobile bottom nav both render the Creator entry.
+      expect(screen.getAllByRole("link", { name: "Creator" })).toHaveLength(2)
+    })
   })
 })
 

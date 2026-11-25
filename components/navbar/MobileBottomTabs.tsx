@@ -18,7 +18,7 @@ const tabs: TabItem[] = [
   { labelKey: 'nav.predictions_short', href: '/mypredictions', Icon: Lightbulb },
   { labelKey: 'nav.wallet_short', href: '/wallet', Icon: Wallet },
   { labelKey: 'nav.more', href: '/more', Icon: MoreHorizontal },
-  { label: 'Watchlist', href: '/watchlist', Icon: Bookmark },
+  { labelKey: 'nav.watchlist', href: '/watchlist', Icon: Bookmark },
 ];
 
 /**

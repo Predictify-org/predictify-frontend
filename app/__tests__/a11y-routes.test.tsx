@@ -48,20 +48,32 @@ jest.mock("@/hooks/useLanguage", () => ({
   }),
 }));
 
-jest.mock("@/app/i18n", () => ({
-  useTranslation: () => ({
-    t: (key: string) => {
-      const messages: Record<string, string> = {
-        "settings.language.title": "Language",
-        "settings.language.description": "Choose your preferred language.",
-        "settings.language.active": "Active",
-        "settings.language.saved_note": "Your choice is saved.",
-        "a11y.language_select": "Select a language",
-      };
-      return messages[key] ?? key;
-    },
-  }),
-}));
+jest.mock("@/app/i18n", () => {
+  // Keep the real formatting helpers (formatNumber & friends) and fall back to
+  // the English catalog for keys this test does not override. Requiring the
+  // `format` module directly avoids the index's circular initialisation.
+  const format = jest.requireActual("@/app/i18n/format");
+  const englishMessages = jest.requireActual("@/app/i18n/messages/en")
+    .default as Record<string, string>;
+
+  return {
+    ...format,
+    useTranslation: () => ({
+      t: (key: string) => {
+        const messages: Record<string, string> = {
+          "settings.language.title": "Language",
+          "settings.language.description": "Choose your preferred language.",
+          "settings.language.active": "Active",
+          "settings.language.saved_note": "Your choice is saved.",
+          "a11y.language_select": "Select a language",
+        };
+        return messages[key] ?? englishMessages[key] ?? key;
+      },
+      locale: "en",
+      isReady: true,
+    }),
+  };
+});
 
 async function auditRendered(ui: React.ReactElement) {
   cleanup();
