@@ -47,6 +47,8 @@ import { ActivityTimeline } from "@/components/activity-timeline";
 import { RefreshIndicator } from "@/app/dashboard/RefreshIndicator";
 import { NotifDigest } from "@/app/dashboard/NotifDigest";
 import { useNotificationsStore } from "@/app/state/notifications";
+import { generateMockNotifications } from "@/lib/notifications";
+import { useWalletContext } from "@/context/WalletContext";
 import { NotificationItem } from "@/types/notifications";
 import { Kbd } from "@/components/ui/kbd";
 import { useEffect, useMemo, useCallback, useState } from "react";
@@ -59,9 +61,6 @@ import {
 } from "@/lib/dashboard-layout";
 import { useDashboardLayoutStore } from "@/app/state/dashboardLayout";
 import "@/src/styles/patterns.css";
-
-// TODO: replace with the authenticated user's id once auth context exposes it.
-const CURRENT_USER_ID = "current-user";
 import { RecentlyViewedRail } from "@/app/components/RecentlyViewedRail";
 
 interface Stat {
@@ -123,10 +122,12 @@ export default function DashboardPage() {
   );
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [liveMessage, setLiveMessage] = useState("");
+  const { address } = useWalletContext();
+  const userId = address || null;
   const {
     notifications,
+    setNotifications,
     markAsRead: handleMarkAsRead,
-    markAllAsRead: handleMarkAllAsRead,
   } = useNotificationsStore();
   const reducedMotion = useReducedMotion();
 
@@ -157,10 +158,30 @@ export default function DashboardPage() {
     return () => window.clearTimeout(timer);
   }, [status]);
 
+  useEffect(() => {
+    if (!userId) return;
+    const hasUserNotifications = notifications.some(
+      (item) => item.userId === userId,
+    );
+    if (!hasUserNotifications) {
+      const initial = generateMockNotifications(userId);
+      setNotifications([...notifications, ...initial]);
+    }
+  }, [userId, notifications, setNotifications]);
+
   const userNotifications = useMemo(
-    () => notifications.filter((item) => item.userId === CURRENT_USER_ID),
-    [notifications],
+    () => (userId ? notifications.filter((item) => item.userId === userId) : []),
+    [notifications, userId],
   );
+
+  const handleMarkAllUserNotificationsRead = useCallback(() => {
+    if (!userId) return;
+    setNotifications(
+      notifications.map((item) =>
+        item.userId === userId ? { ...item, read: true } : item,
+      ),
+    );
+  }, [userId, notifications, setNotifications]);
 
   const handleKeyboardShortcut = useCallback(
     (e: KeyboardEvent) => {
@@ -533,7 +554,7 @@ export default function DashboardPage() {
       <NotifDigest
         notifications={userNotifications}
         onMarkAsRead={handleMarkAsRead}
-        onMarkAllAsRead={handleMarkAllAsRead}
+        onMarkAllAsRead={handleMarkAllUserNotificationsRead}
       />
     ),
     metrics: renderCards(),
