@@ -18,8 +18,41 @@ Browse prediction markets, place bets, track active positions, dispute outcomes,
 | `pnpm build` / `pnpm start` | Production build / serve |
 | `pnpm type-check` | TypeScript check (excludes test files) |
 | `pnpm test` | Jest unit tests |
+| `pnpm test:e2e` | Playwright end-to-end tests (requires build) |
+| `pnpm test:e2e:ui` | Playwright test runner with interactive UI |
 
 CI (`.github/workflows/ci.yml`) runs install, type-check, tests and build on every push and PR.
+
+## End-to-end tests
+
+The `e2e/` directory contains Playwright specs that exercise the app in a real browser. The suite uses a mock Stellar wallet injected by `page.addInitScript` so no browser extension or live Horizon endpoint is required.
+
+### Running locally
+
+```bash
+# 1. Install Playwright browsers (one-off, persists in ~/.cache/ms-playwright)
+pnpm exec playwright install chromium
+
+# 2. Run the full suite (builds the app first, then starts it on port 3000)
+pnpm test:e2e
+
+# 3. Or run against the dev server (faster iteration, no production build needed)
+E2E_USE_DEV=1 pnpm test:e2e
+
+# 4. Open the interactive Playwright UI
+pnpm test:e2e:ui
+```
+
+The `NEXT_PUBLIC_E2E_MOCK_WALLET=1` environment variable is set automatically by `playwright.config.ts`. It activates the mock-wallet seam in `constants/wallet-kits.constant.ts` and is absent from production builds, so the mock code is tree-shaken and never ships.
+
+### Covered flows
+
+| Spec | What it tests |
+| --- | --- |
+| `e2e/markets.spec.ts` | Browse markets, keyword search, category filter |
+| `e2e/market-detail.spec.ts` | Open a market from the list, tab switching, 404 path |
+| `e2e/wallet.spec.ts` | Connect via modal, address in navbar, disconnect |
+| `e2e/bet-slip.spec.ts` | Amount input, validation errors, keyboard submit, rejection path |
 
 ## Architecture
 

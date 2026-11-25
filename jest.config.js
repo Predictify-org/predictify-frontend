@@ -24,6 +24,7 @@ const customJestConfig = {
   testPathIgnorePatterns: [
     '<rootDir>/.next/',
     '<rootDir>/node_modules/',
+    '<rootDir>/e2e/',
   ],
 }
 
