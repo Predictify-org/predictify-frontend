@@ -20,6 +20,9 @@ Browse prediction markets, place bets, track active positions, dispute outcomes,
 | `pnpm test` | Jest unit tests |
 | `pnpm test:e2e` | Playwright end-to-end tests (requires build) |
 | `pnpm test:e2e:ui` | Playwright test runner with interactive UI |
+| `pnpm storybook` | Start Storybook component workshop on port 6006 |
+| `pnpm build-storybook` | Build static Storybook bundle |
+| `pnpm storybook:a11y` | Run automated Storybook accessibility checks ([docs/STORYBOOK.md](docs/STORYBOOK.md)) |
 
 CI (`.github/workflows/ci.yml`) runs install, type-check, tests and build on every push and PR.
 
